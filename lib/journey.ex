@@ -158,11 +158,16 @@ defmodule Journey do
   :ok
   ```
 
+  ## Source Code
+
+  The source code for this package can be found on Github: [https://github.com/shipworthy/journey](https://github.com/shipworthy/journey).
+
 
   ## Documentation
 
   Full documentation can be found at [https://hexdocs.pm/journey/](https://hexdocs.pm/journey/).
 
-  Also, please see a Livebook in ./examples directory of the repo for an example.
+  Also, please see a Livebook in `./examples` directory of the [github repo](https://github.com/shipworthy/journey) for an example.
+
   """
 end
