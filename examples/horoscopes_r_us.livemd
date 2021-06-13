@@ -28,7 +28,7 @@ defmodule Example.Process do
         %Journey.Step{
           name: :astrological_sign,
           # This step defers to a function for computing the astrological sign (defined elsewhere).
-          func: &Example.Plan.compute_sign/1,
+          func: &Example.Process.compute_sign/1,
           # The execution of this task is dependenit on birth month and day being provided.
           blocked_by: [
             birth_month: :provided,
@@ -38,7 +38,7 @@ defmodule Example.Process do
         %Journey.Step{
           name: :horoscope,
           # This step defers to a function for computing the horoscope.
-          func: &Example.Plan.compute_horoscope/1,
+          func: &Example.Process.compute_horoscope/1,
           # The execution of this task is dependenit on first name being and astrological_sign being available.
           blocked_by: [
             first_name: :provided,
@@ -108,7 +108,7 @@ process = Example.Process.process()
 ### A customer arrived, and wants a horscope! Kick off an execution of the process defined above:
 
 ```elixir
-execution = Journey.Process.execute(Example.Plan.plan())
+execution = Journey.Process.execute(Example.Process.process())
 ```
 
 Look at the state of the execution. Note the steps you defined in theplan, none computed:
@@ -164,5 +164,6 @@ execution |> Journey.Execution.get_summary() |> IO.puts()
 ### The customer has their horscope!
 
 ```elixir
-execution |> Journey.Execution.read_value(:horoscope)
+{:computed, result} = execution |> Journey.Execution.read_value(:horoscope)
+result
 ```
