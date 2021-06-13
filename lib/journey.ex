@@ -41,12 +41,14 @@ defmodule Journey do
   ```elixir
   def deps do
   [
-    {:journey, "~> 0.0.1"}
+    {:journey, "~> 0.0.3"}
   ]
   end
   ```
 
   ## Example: a Web Site for Computing Horoscopes
+
+  (If you prefer to play with the Livebook version of this example, please see `./examples` directory of the [github repo](https://github.com/shipworthy/journey).)
 
   Imagine a web site that computes horoscopes.
 
