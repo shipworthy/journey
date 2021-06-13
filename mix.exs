@@ -4,7 +4,7 @@ defmodule Journey.MixProject do
   def project do
     [
       app: :journey,
-      version: "0.0.1",
+      version: "0.0.2",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -54,11 +54,10 @@ defmodule Journey.MixProject do
   def package do
     [
       name: "journey",
-      organization: "shipworthy",
       # These are the default files included in the package
       # files: ~w(lib .formatter.exs mix.exs README*  LICENSE*),
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/markmark206/journey"}
+      links: %{"GitHub" => "https://github.com/shipworthy/journey"}
     ]
   end
 end
