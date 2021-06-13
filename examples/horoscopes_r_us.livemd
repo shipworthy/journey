@@ -1,0 +1,168 @@
+# horoscopes_r_us
+
+## A tiny demo for using Journey to power an application that computes horoscopes
+
+### Wire `Journey` in as a dependency:
+
+```elixir
+Mix.install([
+  {:journey, "~> 0.0.2"}
+])
+```
+
+### Define the process for your the Horoscopes application
+
+```elixir
+defmodule Example.Process do
+  @doc """
+  Defines the steps in your application's process.
+  """
+  def process() do
+    %Journey.Process{
+      name: "horoscopes-r-us",
+      version: "0.0.1",
+      steps: [
+        %Journey.Step{name: :first_name},
+        %Journey.Step{name: :birth_month},
+        %Journey.Step{name: :birth_day},
+        %Journey.Step{
+          name: :astrological_sign,
+          # This step defers to a function for computing the astrological sign (defined elsewhere).
+          func: &Example.Plan.compute_sign/1,
+          # The execution of this task is dependenit on birth month and day being provided.
+          blocked_by: [
+            birth_month: :provided,
+            birth_day: :provided
+          ]
+        },
+        %Journey.Step{
+          name: :horoscope,
+          # This step defers to a function for computing the horoscope.
+          func: &Example.Plan.compute_horoscope/1,
+          # The execution of this task is dependenit on first name being and astrological_sign being available.
+          blocked_by: [
+            first_name: :provided,
+            astrological_sign: :provided
+          ]
+        }
+      ]
+    }
+  end
+
+  @doc """
+  Computes astrological sign. 
+  """
+  def compute_sign(values) do
+    # For demo purposes, pretend that this is a slow, expensive task. ; ) 
+    :timer.sleep(1000)
+    month = values[:birth_month].value
+    day = values[:birth_day].value
+    birthday = epoch(month, day)
+
+    sign =
+      cond do
+        birthday < epoch(1, 20) -> :capricorn
+        birthday < epoch(2, 19) -> :aquarius
+        birthday < epoch(3, 20) -> :pisces
+        birthday < epoch(4, 20) -> :aries
+        birthday < epoch(5, 20) -> :taurus
+        birthday < epoch(6, 21) -> :gemini
+        birthday < epoch(7, 21) -> :cancer
+        birthday < epoch(8, 23) -> :leo
+        birthday < epoch(9, 23) -> :virgo
+        birthday < epoch(10, 23) -> :libra
+        birthday < epoch(11, 23) -> :scorpio
+        birthday < epoch(12, 22) -> :saggitarius
+        true -> :capricorn
+      end
+
+    {:ok, sign}
+  end
+
+  @doc """
+  Computes horoscope.  
+  """
+  def compute_horoscope(values) do
+    # For demo purposes, pretend that this is a slow, expensive task. ; ) 
+    :timer.sleep(1500)
+
+    {
+      :ok,
+      "#{values[:first_name].value}! You are a righteous #{Atom.to_string(values[:astrological_sign].value)}! Now is the perfect time to smash the racist patriarchy."
+    }
+  end
+
+  defp epoch(month, day) do
+    DateTime.new!(%Date{year: 2000, month: month, day: day}, Time.new!(0, 0, 0))
+    |> DateTime.to_unix()
+  end
+end
+```
+
+### Load the process we have defined above
+
+```elixir
+process = Example.Process.process()
+```
+
+### A customer arrived, and wants a horscope! Kick off an execution of the process defined above:
+
+```elixir
+execution = Journey.Process.execute(Example.Plan.plan())
+```
+
+Look at the state of the execution. Note the steps you defined in theplan, none computed:
+
+```elixir
+execution |> Journey.Execution.get_summary() |> IO.puts()
+```
+
+### The customer provided their birth date. Record their answer:
+
+```elixir
+{:ok, execution} = Journey.Execution.update_value(execution.execution_id, :birth_day, 29)
+```
+
+Note that changes in the execution.
+
+`birth_day` in the execution has the data, and `astrological_sign` is now only waiting for `birth_month`:
+
+```elixir
+execution |> Journey.Execution.get_summary() |> IO.puts()
+```
+
+### The customer provided their `birth_month`. Record this data.
+
+```elixir
+{:ok, execution} = Journey.Execution.update_value(execution.execution_id, :birth_month, 4)
+:timer.sleep(2000)
+```
+
+Note the execution has been updated with `birth_month`, and `astrological_sign` has been computed. `horoscope` is now only waiting for`first_name`:
+
+```elixir
+execution = Journey.Execution.load!(execution.execution_id)
+execution |> Journey.Execution.get_summary() |> IO.puts()
+```
+
+### The customer provide `first_name`, the only remaining piece required for computing `horoscope`. Record this last piece of data.
+
+```elixir
+{:ok, execution} =
+  Journey.Execution.update_value(execution.execution_id, :first_name, "Pickles The Cat")
+
+:timer.sleep(2000)
+```
+
+Note that the execution has been updated with `first_name`, and `horoscope` computed:
+
+```elixir
+execution = Journey.Execution.load!(execution.execution_id)
+execution |> Journey.Execution.get_summary() |> IO.puts()
+```
+
+### The customer has their horscope!
+
+```elixir
+execution |> Journey.Execution.read_value(:horoscope)
+```
