@@ -6,7 +6,7 @@
 
 ```elixir
 Mix.install([
-  {:journey, "~> 0.0.2"}
+  {:journey, "~> 0.0.3"}
 ])
 ```
 
@@ -50,10 +50,10 @@ defmodule Example.Process do
   end
 
   @doc """
-  Computes astrological sign. 
+  Computes astrological sign.
   """
   def compute_sign(values) do
-    # For demo purposes, pretend that this is a slow, expensive task. ; ) 
+    # For demo purposes, pretend that this is a slow, expensive task. ; )
     :timer.sleep(1000)
     month = values[:birth_month].value
     day = values[:birth_day].value
@@ -80,10 +80,10 @@ defmodule Example.Process do
   end
 
   @doc """
-  Computes horoscope.  
+  Computes horoscope.
   """
   def compute_horoscope(values) do
-    # For demo purposes, pretend that this is a slow, expensive task. ; ) 
+    # For demo purposes, pretend that this is a slow, expensive task. ; )
     :timer.sleep(1500)
 
     {
@@ -108,7 +108,7 @@ process = Example.Process.process()
 ### A customer arrived, and wants a horscope! Kick off an execution of the process defined above:
 
 ```elixir
-execution = Journey.Process.execute(Example.Process.process())
+execution = Journey.Process.execute(process)
 ```
 
 Look at the state of the execution. Note the steps you defined in theplan, none computed:

@@ -29,7 +29,9 @@ defmodule Journey do
   - [ ] Maybe: Performance and scalability are clearly documented.
   - [ ] Maybe: More concise and expressive ways to define journies.
 
-  The project is in active development. For questions, comments, bug reports, feature requests please create issues (and/or Pull Requests:).
+  The project is in active development.
+
+  For questions, comments, bug reports, feature requests please create issues (and/or Pull Requests:).
 
 
   ## Installation
@@ -39,12 +41,14 @@ defmodule Journey do
   ```elixir
   def deps do
   [
-    {:journey, "~> 0.0.1"}
+    {:journey, "~> 0.0.3"}
   ]
   end
   ```
 
   ## Example: a Web Site for Computing Horoscopes
+
+  (If you prefer to play with the Livebook version of this example, please see `./examples` directory of the [github repo](https://github.com/shipworthy/journey).)
 
   Imagine a web site that computes horoscopes.
 
@@ -117,7 +121,7 @@ defmodule Journey do
   iex> values[:first_name][:value]
   "Mario"
   iex>
-  iex> # In just a few milliseconds, we will have Mario's astrological sign! Well, kinna.
+  iex> # In just a few moments, we will have Mario's astrological sign.
   iex> :timer.sleep(100)
   iex> {:computed, :taurus} = execution.execution_id |> Journey.Execution.load!() |> Journey.Execution.read_value(:astrological_sign)
   iex>
@@ -129,7 +133,7 @@ defmodule Journey do
   "Mario! You are a righteous taurus! This is the perfect week to smash the racist patriarchy!"
   ```
 
-  `Journey.Execution` execution will save every value it receives or computes, so, even if the server dies (TODO: link to the issue), the execution will continue where it left off, whenever there is a replica of your application running "horoscopes-r-us" process (unless you are using one-node-in-memory configuration). And, because `Journey.Process` runs as part of your application, it, quite literally, scales with your application.
+  `Journey.Execution` execution will save every value it receives or computes, so, even if the server restarts (TODO: link to the issue), the execution will continue where it left off (unless you are using one-node-in-memory configuration). And, because `Journey.Process` runs as part of your application, it, quite literally, scales with your application.
 
   In our example, `func`tions are very simple, but if your function is, for some reason, temporarily unable to compute the value, it can return `{:retriable, error_information}`, and Journey will retry it, according to the step's (implicit, in our example) retry policy. (TODO: link to the issue for implementing this).
 
@@ -156,16 +160,16 @@ defmodule Journey do
   :ok
   ```
 
-  ## Logging
+  ## Source Code
 
-  TODO: document.
+  The source code for this package can be found on Github: [https://github.com/shipworthy/journey](https://github.com/shipworthy/journey).
 
-  ## Monitoring
-
-  TODO: implement, document.
 
   ## Documentation
 
-  Full documentation can be found at [https://hexdocs.pm/journey](https://hexdocs.pm/journey).
+  Full documentation can be found at [https://hexdocs.pm/journey/](https://hexdocs.pm/journey/).
+
+  Also, please see a Livebook in `./examples` directory of the [github repo](https://github.com/shipworthy/journey) for an example.
+
   """
 end
