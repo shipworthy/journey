@@ -1,3 +1,5 @@
+[![Branch tests](https://github.com/shipworthy/journey/actions/workflows/github-actions-branch-test.yml/badge.svg?branch=main)](https://github.com/shipworthy/journey/actions/workflows/github-actions-branch-test.yml)
+
 # Journey
 Journey simplifies defining and running persistent, workflow-like processes simply, scalably, and reliably.
 
