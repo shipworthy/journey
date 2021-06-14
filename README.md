@@ -1,5 +1,5 @@
 # Journey
-Journey simplifies defining and running workflow-like processes simply, scalably, and reliably.
+Journey simplifies defining and running persistent, workflow-like processes simply, scalably, and reliably.
 
 Examples of applications that could be powered by processes defined and executed with Journey:
 * a food delivery application,
