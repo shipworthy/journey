@@ -20,6 +20,10 @@ test:
 	 mix docception README.md
 	 mix test --cover
 
+livebook:
+	mix escript.install hex livebook
+	livebook server
+
 dialyzer:
 	 mix dialyzer
 

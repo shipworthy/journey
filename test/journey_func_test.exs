@@ -105,4 +105,16 @@ defmodule JourneyTestFunc do
         assert false, "horoscope step never computed"
     end
   end
+
+  test "basic pipeline test" do
+    {:computed, result} =
+      @process
+      |> Journey.Process.execute()
+      |> Journey.Execution.update_value!(:first_name, "Dory The Fish")
+      |> Journey.Execution.update_value!(:birth_month, 3)
+      |> Journey.Execution.update_value!(:birth_day, 18)
+      |> Journey.Execution.wait_for_result(:horoscope)
+
+    assert result == "You ain't got no... many things, but you got life."
+  end
 end
