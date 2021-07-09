@@ -117,12 +117,12 @@ defmodule Journey.Execution do
     end
   end
 
-  @spec update_value(Journey.Execution.t(), atom, any) :: {:ok, Journey.Execution}
+  @spec update_value(Journey.Execution.t(), atom, any) :: {:ok, Journey.Execution.t()}
   def update_value(execution, value_name, new_value) do
     update_value(execution.execution_id, value_name, new_value)
   end
 
-  @spec update_value!(Journey.Execution.t(), atom, any) :: Journey.Execution
+  @spec update_value!(Journey.Execution.t(), atom, any) :: Journey.Execution.t()
   def update_value!(execution, value_name, new_value) do
     {:ok, execution} = update_value(execution.execution_id, value_name, new_value)
     execution
