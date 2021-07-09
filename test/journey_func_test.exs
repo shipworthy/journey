@@ -104,5 +104,7 @@ defmodule JourneyTestFunc do
         execution |> Journey.Execution.get_summary() |> IO.puts()
         assert false, "horoscope step never computed"
     end
+
+    Journey.Execution.wait_for_result(execution, :horoscope)
   end
 end

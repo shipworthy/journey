@@ -24,6 +24,7 @@ defmodule Journey.Execution do
   ```
   """
   require Logger
+  require WaitForIt
 
   defstruct [
     :execution_id,
@@ -119,6 +120,12 @@ defmodule Journey.Execution do
   @spec update_value(Journey.Execution.t(), atom, any) :: {:ok, Journey.Execution}
   def update_value(execution, value_name, new_value) do
     update_value(execution.execution_id, value_name, new_value)
+  end
+
+  @spec update_value!(Journey.Execution.t(), atom, any) :: Journey.Execution
+  def update_value!(execution, value_name, new_value) do
+    {:ok, execution} = update_value(execution.execution_id, value_name, new_value)
+    execution
   end
 
   @doc """
@@ -360,6 +367,15 @@ defmodule Journey.Execution do
 
         # kick off other steps, if any.
         kick_off_unblocked_steps(execution)
+    end
+  end
+
+  def wait_for_result(execution, step, timeout_ms \\ 30_000, frequency \\ 1_000) do
+    WaitForIt.case_wait Journey.Execution.load!(execution.execution_id) |> Journey.Execution.read_value(step),
+      timeout: timeout_ms,
+      frequency: frequency do
+      {:computed, computed_value} -> {:computed, computed_value}
+      {:timeout, _timeout_ms} -> nil
     end
   end
 
