@@ -4,7 +4,7 @@ defmodule Journey.MixProject do
   def project do
     [
       app: :journey,
-      version: "0.0.4",
+      version: "0.0.5",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),

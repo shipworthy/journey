@@ -70,8 +70,9 @@ defmodule JourneyTestFunc do
     # Submit birth day.
     {:ok, execution} = Journey.Execution.update_value(execution.execution_id, :birth_day, 21)
     {:computed, 21} = Journey.Execution.read_value(execution, :birth_day)
-    all_values = Journey.Execution.get_all_values(execution)
+    all_values = Journey.Execution.get_all_values(execution.execution_id)
     assert Enum.count(all_values) == 7
+    assert Journey.Execution.get_value(execution.execution_id, :birth_day) == 21
 
     # Get all values.
     values = Journey.Execution.get_all_values(execution)
