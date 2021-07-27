@@ -380,7 +380,7 @@ defmodule Journey.Execution do
   end
 
   @doc """
-  Get all steps in the execution, and their current state, given execution id.
+  Get all steps in the execution, and their current state.
 
   ```elixir
   iex(9)> execution_id |> Journey.Execution.get_all_values
