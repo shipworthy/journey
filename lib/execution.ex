@@ -24,6 +24,7 @@ defmodule Journey.Execution do
   ```
   """
   require Logger
+  require WaitForIt
 
   @derive Jason.Encoder
   defstruct [
@@ -117,9 +118,15 @@ defmodule Journey.Execution do
     end
   end
 
-  @spec update_value(Journey.Execution.t(), atom, any) :: {:ok, Journey.Execution}
+  @spec update_value(Journey.Execution.t(), atom, any) :: {:ok, Journey.Execution.t()}
   def update_value(execution, value_name, new_value) do
     update_value(execution.execution_id, value_name, new_value)
+  end
+
+  @spec update_value!(Journey.Execution.t(), atom, any) :: Journey.Execution.t()
+  def update_value!(execution, value_name, new_value) do
+    {:ok, execution} = update_value(execution.execution_id, value_name, new_value)
+    execution
   end
 
   @doc """
@@ -373,11 +380,20 @@ defmodule Journey.Execution do
     end
   end
 
+  def wait_for_result(execution, step, timeout_ms \\ 30_000, frequency \\ 1_000) do
+    WaitForIt.case_wait Journey.Execution.load!(execution.execution_id) |> Journey.Execution.read_value(step),
+      timeout: timeout_ms,
+      frequency: frequency do
+      {:computed, computed_value} -> {:computed, computed_value}
+      {:timeout, _timeout_ms} -> nil
+    end
+  end
+
   @doc """
   Get all steps in the execution, and their current state.
 
   ```elixir
-  iex(9)> execution |> Journey.Execution.get_all_values
+  iex(9)> execution_id |> Journey.Execution.get_all_values
   [
   started_at: [
     status: :computed,
@@ -418,6 +434,12 @@ defmodule Journey.Execution do
   ]
   ```
   """
+  def get_all_values(execution_id) when is_binary(execution_id) do
+    execution_id
+    |> Journey.Execution.load!()
+    |> get_all_values()
+  end
+
   @spec get_all_values(Journey.Execution.t()) ::
           list(
             {:not_computed | :computed | :computing | :failed,
@@ -438,6 +460,23 @@ defmodule Journey.Execution do
           |> Enum.map(fn blocked_by -> blocked_by.step_name end)
       }
     end)
+  end
+
+  @doc """
+  Fetches the value contained in a specificified step.
+
+  ```elixir
+  iex(1)> Journey.Execution.get_value(execution_id, :birth_day)
+  26
+  ```
+  """
+
+  def get_value(execution_id, value_id) do
+    execution =
+      execution_id
+      |> Journey.Execution.load!()
+
+    execution.values[value_id].value
   end
 
   @doc """
