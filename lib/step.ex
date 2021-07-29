@@ -42,6 +42,7 @@ defmodule Journey.Step do
 
   @doc false
 
+  @derive Jason.Encoder
   @enforce_keys [:name]
   defstruct [
     :name,

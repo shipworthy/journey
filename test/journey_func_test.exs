@@ -5,8 +5,7 @@ defmodule JourneyTestFunc do
   require WaitForIt
 
   @process %Journey.Process{
-    name: "test process",
-    version: "1.1.1",
+    process_id: "test process",
     steps: [
       %Journey.Step{name: :first_name},
       %Journey.Step{name: :birth_month},
@@ -15,23 +14,26 @@ defmodule JourneyTestFunc do
         name: :astrological_sign,
         func: &JourneyTestFunc.compute_astrological_sign/1,
         blocked_by: [
-          first_name: :provided,
-          birth_month: :provided,
-          birth_day: :provided
+          %Journey.BlockedBy{step_name: :first_name, condition: :provided},
+          %Journey.BlockedBy{step_name: :birth_month, condition: :provided},
+          %Journey.BlockedBy{step_name: :birth_day, condition: :provided}
         ]
       },
       %Journey.Step{
         name: :extra_something_for_taurus,
         func: &JourneyTestFunc.compute_taurus_bonus/1,
         blocked_by: [
-          astrological_sign: {:value, :taurus}
+          %Journey.BlockedBy{
+            step_name: :astrological_sign,
+            condition: %Journey.ValueCondition{condition: :value, value: :taurus}
+          }
         ]
       },
       %Journey.Step{
         name: :horoscope,
         func: &JourneyTestFunc.compute_horoscope/1,
         blocked_by: [
-          astrological_sign: :provided
+          %Journey.BlockedBy{step_name: :astrological_sign, condition: :provided}
         ]
       }
     ]
@@ -85,7 +87,7 @@ defmodule JourneyTestFunc do
 
     # Submit birth month.
     {:ok, execution} = Journey.Execution.update_value(execution.execution_id, :birth_month, :february)
-    {:computed, :february} = Journey.Execution.read_value(execution, :birth_month)
+    {:computed, "february"} = Journey.Execution.read_value(execution, :birth_month)
     # Journey.Execution.get_summary(execution) |> IO.puts()
 
     # Wait for the horoscope to be computed.

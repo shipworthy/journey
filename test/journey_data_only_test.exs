@@ -1,11 +1,10 @@
-defmodule JourneyTestDataOnly do
+defmodule Journey.Test.DataOnly do
   use ExUnit.Case
   doctest Journey
   doctest Journey.Process
 
   @tiny_process %Journey.Process{
-    name: "tiny test process",
-    version: "1.1.0",
+    process_id: "tiny test process",
     steps: [
       %Journey.Step{name: :first_name},
       %Journey.Step{name: :birth_month},

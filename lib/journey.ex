@@ -60,8 +60,7 @@ defmodule Journey do
 
   ```elixir
   iex> process = %Journey.Process{
-  ...>  name: "horoscopes-r-us",
-  ...>  version: "0.0.1",
+  ...>  process_id: "horoscopes-r-us",
   ...>  steps: [
   ...>    %Journey.Step{name: :first_name},
   ...>    %Journey.Step{name: :birth_month},
@@ -70,26 +69,26 @@ defmodule Journey do
   ...>      name: :astrological_sign,
   ...>      func: fn _values ->
   ...>        # Everyone is a Taurus!
-  ...>        {:ok, :taurus}
+  ...>        {:ok, "taurus"}
   ...>      end,
   ...>      blocked_by: [
-  ...>        birth_month: :provided,
-  ...>        birth_day: :provided
+  ...>        %Journey.BlockedBy{step_name: :birth_month, condition: :provided},
+  ...>        %Journey.BlockedBy{step_name: :birth_day, condition: :provided}
   ...>      ]
   ...>    },
   ...>    %Journey.Step{
   ...>      name: :horoscope,
   ...>      func: fn values ->
   ...>        name = values[:first_name].value
-  ...>        sign = Atom.to_string(values[:astrological_sign].value)
+  ...>        sign = values[:astrological_sign].value
   ...>        {
   ...>          :ok,
   ...>          "#{name}! You are a righteous #{sign}! This is the perfect week to smash the racist patriarchy!"
   ...>        }
   ...>      end,
   ...>      blocked_by: [
-  ...>        first_name: :provided,
-  ...>        astrological_sign: :provided
+  ...>        %Journey.BlockedBy{step_name: :first_name, condition: :provided},
+  ...>        %Journey.BlockedBy{step_name: :astrological_sign, condition: :provided}
   ...>      ]
   ...>    }
   ...>  ]
@@ -123,7 +122,7 @@ defmodule Journey do
   iex>
   iex> # In just a few moments, we will have Mario's astrological sign.
   iex> :timer.sleep(100)
-  iex> {:computed, :taurus} = execution.execution_id |> Journey.Execution.load!() |> Journey.Execution.read_value(:astrological_sign)
+  iex> {:computed, "taurus"} = execution.execution_id |> Journey.Execution.load!() |> Journey.Execution.read_value(:astrological_sign)
   iex>
   iex> # :horoscope computation is no longer blocked. In just a few milliseconds, we will have Mario's horoscope.
   iex> # The web page or the app's Phoenix controller can poll for this value, and render it when it becomes :computed.
