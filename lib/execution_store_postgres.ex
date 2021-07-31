@@ -17,16 +17,12 @@ defmodule Journey.ExecutionStore.Postgres do
   """
   @spec put(%Journey.Execution{}) :: Journey.Execution.t()
   def put(execution) do
-    Logger.debug("put: #{execution.execution_id}")
     execution = %{execution | save_version: execution.save_version + 1}
+    Logger.debug("put: #{execution.execution_id} version #{execution.save_version}")
 
-    %Journey.ExecutionDbRecord{id: execution.execution_id, execution_data: execution}
-    # |> Ecto.Changeset.change()
-    |> tap(fn edbr ->
-      Logger.debug(edbr)
-      edbr
-    end)
-    |> Journey.Repo.insert()
+    {:ok, _execution_db_record} =
+      %Journey.ExecutionDbRecord{id: execution.execution_id, execution_data: execution}
+      |> Journey.Repo.insert()
 
     execution
   end
