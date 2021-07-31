@@ -31,6 +31,7 @@ defmodule Journey.ExecutionStore.Postgres do
     execution
   end
 
+  @spec update_value(String.t(), atom(), atom(), any) :: {atom(), Journey.Execution.t()}
   def update_value(execution_id, step_name, expected_status, value) do
     Logger.debug("update_value: #{execution_id}")
 
