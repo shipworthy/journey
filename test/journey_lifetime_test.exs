@@ -1,6 +1,5 @@
-defmodule JourneyTestFunc do
+defmodule Journey.Test.Lifetime do
   use ExUnit.Case
-  doctest Journey
 
   require WaitForIt
 
@@ -12,7 +11,7 @@ defmodule JourneyTestFunc do
       %Journey.Step{name: :birth_day},
       %Journey.Step{
         name: :astrological_sign,
-        func: &JourneyTestFunc.compute_astrological_sign/1,
+        func: &Journey.Test.Lifetime.compute_astrological_sign/1,
         blocked_by: [
           %Journey.BlockedBy{step_name: :first_name, condition: :provided},
           %Journey.BlockedBy{step_name: :birth_month, condition: :provided},
@@ -21,7 +20,7 @@ defmodule JourneyTestFunc do
       },
       %Journey.Step{
         name: :extra_something_for_taurus,
-        func: &JourneyTestFunc.compute_taurus_bonus/1,
+        func: &Journey.Test.Lifetime.compute_taurus_bonus/1,
         blocked_by: [
           %Journey.BlockedBy{
             step_name: :astrological_sign,
@@ -31,7 +30,7 @@ defmodule JourneyTestFunc do
       },
       %Journey.Step{
         name: :horoscope,
-        func: &JourneyTestFunc.compute_horoscope/1,
+        func: &Journey.Test.Lifetime.compute_horoscope/1,
         blocked_by: [
           %Journey.BlockedBy{step_name: :astrological_sign, condition: :provided}
         ]

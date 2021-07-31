@@ -3,41 +3,41 @@ defmodule Journey.Step do
   The data structure for defining a step in a process.
 
   ## Example: Using Journey.Step to Define a Process
+
       iex> _process = %Journey.Process{
-      ...>  name: "horoscopes-r-us",
-      ...>  version: "0.0.1",
-      ...>  steps: [
-      ...>    %Journey.Step{name: :first_name},
-      ...>    %Journey.Step{name: :birth_month},
-      ...>    %Journey.Step{name: :birth_day},
-      ...>    %Journey.Step{
-      ...>      name: :astrological_sign,
-      ...>      func: fn _values ->
-      ...>        # Everyone is a Taurus!
-      ...>        {:ok, :taurus}
-      ...>      end,
-      ...>      blocked_by: [
-      ...>        birth_month: :provided,
-      ...>        birth_day: :provided
-      ...>      ]
-      ...>    },
-      ...>    %Journey.Step{
-      ...>      name: :horoscope,
-      ...>      func: fn values ->
-      ...>        name = values[:first_name].value
-      ...>        sign = Atom.to_string(values[:astrological_sign].value)
-      ...>        {
-      ...>          :ok,
-      ...>          "#{name}! You are a #{sign}! Now is the perfect time to smash the racist patriarchy!"
+      ...>         process_id: "horoscopes-r-us",
+      ...>         steps: [
+      ...>           %Journey.Step{name: :first_name},
+      ...>           %Journey.Step{name: :birth_month},
+      ...>           %Journey.Step{name: :birth_day},
+      ...>           %Journey.Step{
+      ...>             name: :astrological_sign,
+      ...>             func: fn _values ->
+      ...>               # Everyone is a Taurus!
+      ...>               {:ok, "taurus"}
+      ...>             end,
+      ...>             blocked_by: [
+      ...>               %Journey.BlockedBy{step_name: :birth_month, condition: :provided},
+      ...>               %Journey.BlockedBy{step_name: :birth_day, condition: :provided}
+      ...>             ]
+      ...>           },
+      ...>           %Journey.Step{
+      ...>             name: :horoscope,
+      ...>             func: fn values ->
+      ...>               name = values[:first_name].value
+      ...>               sign = values[:astrological_sign].value
+      ...>               {
+      ...>                 :ok,
+      ...>                 "#{name}! You are a #{sign}! Now is the perfect time to smash the racist patriarchy!"
+      ...>               }
+      ...>             end,
+      ...>             blocked_by: [
+      ...>               %Journey.BlockedBy{step_name: :first_name, condition: :provided},
+      ...>               %Journey.BlockedBy{step_name: :astrological_sign, condition: :provided}
+      ...>             ]
+      ...>           }
+      ...>         ]
       ...>        }
-      ...>      end,
-      ...>      blocked_by: [
-      ...>        first_name: :provided,
-      ...>        astrological_sign: :provided
-      ...>      ]
-      ...>    }
-      ...>  ]
-      ...> }
   """
 
   @doc false

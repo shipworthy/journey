@@ -9,42 +9,8 @@ defmodule Journey.Process do
   @typedoc ~S"""
   Holds the definition of a process.
 
-  ## Example: A process for Computing Horoscopes.
-      iex> _process = %Journey.Process{
-      ...>  process_id: "horoscopes-r-us",
-      ...>  steps: [
-      ...>    %Journey.Step{name: :first_name},
-      ...>    %Journey.Step{name: :birth_month},
-      ...>    %Journey.Step{name: :birth_day},
-      ...>    %Journey.Step{
-      ...>      name: :astrological_sign,
-      ...>      func: fn _values ->
-      ...>        # Everyone is a Taurus!
-      ...>        {:ok, :taurus}
-      ...>      end,
-      ...>      blocked_by: [
-      ...>        birth_month: :provided,
-      ...>        birth_day: :provided
-      ...>      ]
-      ...>    },
-      ...>    %Journey.Step{
-      ...>      name: :horoscope,
-      ...>      func: fn values ->
-      ...>        name = values[:first_name].value
-      ...>        sign = values[:astrological_sign].value
-      ...>        {
-      ...>          :ok,
-      ...>          "#{name}! You are a #{sign}! Now is the perfect time to smash the racist patriarchy!"
-      ...>        }
-      ...>      end,
-      ...>      blocked_by: [
-      ...>        first_name: :provided,
-      ...>        astrological_sign: :provided
-      ...>      ]
-      ...>    }
-      ...>  ]
-      ...> }
   """
+
   @type t :: %Journey.Process{process_id: String.t(), steps: list(Journey.Step.t())}
 
   defp random_string(length) do

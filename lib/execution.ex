@@ -393,7 +393,7 @@ defmodule Journey.Execution do
   Get all steps in the execution, and their current state.
 
   ```elixir
-  iex(9)> execution_id |> Journey.Execution.get_all_values
+  iex> execution_id |> Journey.Execution.get_all_values
   [
   started_at: [
     status: :computed,
