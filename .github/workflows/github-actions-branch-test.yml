@@ -60,5 +60,6 @@ jobs:
           make install-dependencies
       - run: mix format --check-formatted
       - run: make build
+      - run: make db-setup
       - run: make test
       - run: make dialyzer

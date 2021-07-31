@@ -19,6 +19,10 @@ build:
 	mix compile
 	mix docs
 
+db-setup:
+	mix ecto.create
+	mix ecto.migrate
+
 test:
 	 mix docception README.md
 	 mix test --cover
