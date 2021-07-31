@@ -62,4 +62,4 @@ jobs:
       - run: make build
       - run: make db-setup
       - run: make test
-      - run: make dialyzer
+      - run: # make dialyzer
