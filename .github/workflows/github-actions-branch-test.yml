@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         otp: [24]
-        elixir: [1.12.1
+        elixir: [1.12.1]
         database-name: ["journey"]
         database-user: ["postgres"]
         database-password: ["postgres"]
