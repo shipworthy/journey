@@ -2,50 +2,16 @@ defmodule Journey.Process do
   @moduledoc """
 
   """
-  @enforce_keys [:name, :version, :steps]
-  defstruct [:name, version: "0.0.0", steps: []]
+  @derive Jason.Encoder
+  @enforce_keys [:process_id, :steps]
+  defstruct [:process_id, steps: []]
 
   @typedoc ~S"""
   Holds the definition of a process.
 
-  ## Example: A process for Computing Horoscopes.
-      iex> _process = %Journey.Process{
-      ...>  name: "horoscopes-r-us",
-      ...>  version: "0.0.1",
-      ...>  steps: [
-      ...>    %Journey.Step{name: :first_name},
-      ...>    %Journey.Step{name: :birth_month},
-      ...>    %Journey.Step{name: :birth_day},
-      ...>    %Journey.Step{
-      ...>      name: :astrological_sign,
-      ...>      func: fn _values ->
-      ...>        # Everyone is a Taurus!
-      ...>        {:ok, :taurus}
-      ...>      end,
-      ...>      blocked_by: [
-      ...>        birth_month: :provided,
-      ...>        birth_day: :provided
-      ...>      ]
-      ...>    },
-      ...>    %Journey.Step{
-      ...>      name: :horoscope,
-      ...>      func: fn values ->
-      ...>        name = values[:first_name].value
-      ...>        sign = Atom.to_string(values[:astrological_sign].value)
-      ...>        {
-      ...>          :ok,
-      ...>          "#{name}! You are a #{sign}! Now is the perfect time to smash the racist patriarchy!"
-      ...>        }
-      ...>      end,
-      ...>      blocked_by: [
-      ...>        first_name: :provided,
-      ...>        astrological_sign: :provided
-      ...>      ]
-      ...>    }
-      ...>  ]
-      ...> }
   """
-  @type t :: %Journey.Process{name: String.t(), version: String.t(), steps: list(Journey.Step.t())}
+
+  @type t :: %Journey.Process{process_id: String.t(), steps: list(Journey.Step.t())}
 
   defp random_string(length) do
     :crypto.strong_rand_bytes(length)
@@ -59,8 +25,7 @@ defmodule Journey.Process do
 
   ## Example
       iex> process = %Journey.Process{
-      ...>  name: "horoscopes-r-us",
-      ...>  version: "0.0.1",
+      ...>  process_id: "horoscopes-r-us",
       ...>  steps: [
       ...>    %Journey.Step{name: :first_name},
       ...>    %Journey.Step{name: :birth_month},
@@ -69,26 +34,26 @@ defmodule Journey.Process do
       ...>      name: :astrological_sign,
       ...>      func: fn _values ->
       ...>        # Everyone is a Taurus!
-      ...>        {:ok, :taurus}
+      ...>        {:ok, "taurus"}
       ...>      end,
       ...>      blocked_by: [
-      ...>        birth_month: :provided,
-      ...>        birth_day: :provided
+      ...>        %Journey.BlockedBy{step_name: :birth_month, condition: :provided},
+      ...>        %Journey.BlockedBy{step_name: :birth_day, condition: :provided}
       ...>      ]
       ...>    },
       ...>    %Journey.Step{
       ...>      name: :horoscope,
       ...>      func: fn values ->
       ...>        name = values[:first_name].value
-      ...>        sign = Atom.to_string(values[:astrological_sign].value)
+      ...>        sign = values[:astrological_sign].value
       ...>        {
       ...>          :ok,
       ...>          "#{name}! You are a #{sign}! Now is the perfect time to smash the racist patriarchy!"
       ...>        }
       ...>      end,
       ...>      blocked_by: [
-      ...>        first_name: :provided,
-      ...>        astrological_sign: :provided
+      ...>        %Journey.BlockedBy{step_name: :first_name, condition: :provided},
+      ...>        %Journey.BlockedBy{step_name: :astrological_sign, condition: :provided}
       ...>      ]
       ...>    }
       ...>  ]
@@ -103,8 +68,8 @@ defmodule Journey.Process do
       iex> {:ok, execution} = Journey.Execution.update_value(execution, :birth_month, 4)
       iex> {:ok, execution} = Journey.Execution.update_value(execution, :birth_day, 29)
       iex> :timer.sleep(100) # Give :astrological_sign's function a bit of time to run.
-      iex> {:computed, :taurus} = execution.execution_id |> Journey.Execution.load!() |> Journey.Execution.read_value(:astrological_sign)
-      iex> :timer.sleep(100) # Give :horoscope's function a bit of time to run.
+      iex> {:computed, "taurus"} = execution.execution_id |> Journey.Execution.load!() |> Journey.Execution.read_value(:astrological_sign)
+      iex> :timer.sleep(200) # Give :horoscope's function a bit of time to run.
       iex> {:computed, horoscope} = execution.execution_id |> Journey.Execution.load!() |> Journey.Execution.read_value(:horoscope)
       iex> horoscope
       "Luigi! You are a taurus! Now is the perfect time to smash the racist patriarchy!"
@@ -113,13 +78,15 @@ defmodule Journey.Process do
   def execute(process) do
     process = %{process | steps: [%Journey.Step{name: :started_at}] ++ process.steps}
 
+    Journey.ProcessCatalog.register(process)
+
     execution =
       %Journey.Execution{
         execution_id: random_string(10),
-        process: process,
+        process_id: process.process_id,
         values: blank_values(process)
       }
-      |> Journey.ExecutionStore.put()
+      |> Journey.ExecutionStore.Postgres.put()
 
     {:ok, execution} = Journey.Execution.update_value(execution.execution_id, :started_at, System.os_time(:second))
     execution

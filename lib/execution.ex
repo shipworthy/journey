@@ -26,9 +26,10 @@ defmodule Journey.Execution do
   require Logger
   require WaitForIt
 
+  @derive Jason.Encoder
   defstruct [
     :execution_id,
-    :process,
+    :process_id,
     values: %{},
     save_version: 0
   ]
@@ -53,7 +54,7 @@ defmodule Journey.Execution do
   """
   @type t :: %Journey.Execution{
           execution_id: String.t(),
-          process: Journey.Process,
+          process_id: String.t(),
           values: map(),
           save_version: integer()
         }
@@ -79,12 +80,12 @@ defmodule Journey.Execution do
   """
   @spec load(String.t()) :: {:error, :no_such_execution} | {:ok, Journey.Execution.t()}
   def load(execution_id) when is_binary(execution_id) do
-    case Journey.ExecutionStore.get(execution_id) do
+    case Journey.ExecutionStore.Postgres.get(execution_id) do
       nil ->
         {:error, :no_such_execution}
 
       execution ->
-        {:ok, execution}
+        {:ok, Journey.ExecutionDbRecord.convert_to_execution_struct!(execution)}
     end
   end
 
@@ -95,7 +96,7 @@ defmodule Journey.Execution do
 
   ```elixir
   {:ok, updated_execution} = Journey.Execution.update_value(execution_id, :first_name, "Luigi")
-  {:unknown_step, _} = Journey.Execution.update_value(execution_id, :ssn, "111-11-11")
+  {:unknown_step, _} = Journey.Execution.update_value(execution_id, :ssn, "111-11-1111")
   {:unknown_execution_id, _} = Journey.Execution.update_value(no_such_execution, :first_name, "Luigi")
   ```
   """
@@ -108,7 +109,7 @@ defmodule Journey.Execution do
       status: :computed
     }
 
-    case Journey.ExecutionStore.update_value(execution_id, value_name, :any, value) do
+    case Journey.ExecutionStore.Postgres.update_value(execution_id, value_name, :any, value) do
       {:ok, updated_execution} ->
         kick_off_unblocked_steps(updated_execution)
 
@@ -203,10 +204,12 @@ defmodule Journey.Execution do
   @spec get_blocked_steps(Journey.Execution.t()) :: list
   def get_blocked_steps(execution) do
     # TODO: return the steps on which we are blocked.
+    process = Journey.ProcessCatalog.get(execution.process_id)
+
     execution
     |> get_unfilled_steps()
     |> Enum.filter(fn {_, value} ->
-      is_step_blocked?(execution.process, execution.values, value.name)
+      is_step_blocked?(process, execution.values, value.name)
     end)
   end
 
@@ -253,14 +256,14 @@ defmodule Journey.Execution do
     process.steps
     |> Enum.find(fn step -> step.name == task_name end)
     |> Map.get(:blocked_by, [])
-    |> Enum.filter(fn {upstream_task_name, condition} ->
-      case condition do
+    |> Enum.filter(fn blocked_by ->
+      case blocked_by.condition do
         :provided ->
-          values[upstream_task_name].status != :computed
+          values[blocked_by.step_name].status != :computed
 
-        {:value, value} ->
-          values[upstream_task_name].status != :computed and
-            values[upstream_task_name].value != value
+        %Journey.ValueCondition{condition: :value, value: value} ->
+          values[blocked_by.step_name].status != :computed and
+            values[blocked_by.step_name].value != value
       end
     end)
   end
@@ -270,14 +273,14 @@ defmodule Journey.Execution do
       process.steps
       |> Enum.find(fn step -> step.name == step_name end)
       |> Map.get(:blocked_by, [])
-      |> Enum.find(fn {upstream_task_name, condition} ->
-        case condition do
+      |> Enum.find(fn blocked_by ->
+        case blocked_by.condition do
           :provided ->
-            values[upstream_task_name].status != :computed
+            values[blocked_by.step_name].status != :computed
 
-          {:value, value} ->
-            values[upstream_task_name].status != :computed and
-              values[upstream_task_name].value != value
+          %Journey.ValueCondition{condition: :value, value: value} ->
+            values[blocked_by.step_name].status != :computed and
+              values[blocked_by.step_name].value != value
         end
       end)
 
@@ -312,7 +315,7 @@ defmodule Journey.Execution do
           end
 
         execution =
-          case Journey.ExecutionStore.update_value(execution.execution_id, step.name, :computing, result) do
+          case Journey.ExecutionStore.Postgres.update_value(execution.execution_id, step.name, :computing, result) do
             {:ok, execution} ->
               Logger.debug("'#{execution.execution_id}'.'#{step.name}': computation result stored.")
               execution
@@ -336,11 +339,13 @@ defmodule Journey.Execution do
 
   @spec kick_off_unblocked_steps(Journey.Execution.t()) :: {:ok, Journey.Execution.t()}
   defp kick_off_unblocked_steps(execution) do
+    process = Journey.ProcessCatalog.get(execution.process_id)
+
     steps_that_can_be_computed =
-      execution.process.steps
+      process.steps
       |> Enum.filter(fn step -> execution.values[step.name].status == :not_computed end)
       |> Enum.filter(fn step -> step.func != nil end)
-      |> Enum.filter(fn step -> !has_outstanding_dependencies?(execution.process, execution.values, step.name) end)
+      |> Enum.filter(fn step -> !has_outstanding_dependencies?(process, execution.values, step.name) end)
 
     case steps_that_can_be_computed do
       [] ->
@@ -355,7 +360,12 @@ defmodule Journey.Execution do
         }
 
         execution =
-          case Journey.ExecutionStore.update_value(execution.execution_id, step.name, :not_computed, computing_value) do
+          case Journey.ExecutionStore.Postgres.update_value(
+                 execution.execution_id,
+                 step.name,
+                 :not_computed,
+                 computing_value
+               ) do
             {:ok, execution} ->
               {:ok, execution} = kickoff(execution, step)
               execution
@@ -383,7 +393,7 @@ defmodule Journey.Execution do
   Get all steps in the execution, and their current state.
 
   ```elixir
-  iex(9)> execution_id |> Journey.Execution.get_all_values
+  iex> execution_id |> Journey.Execution.get_all_values
   [
   started_at: [
     status: :computed,
@@ -436,7 +446,9 @@ defmodule Journey.Execution do
              [status: any(), value: any(), self_computing: boolean(), blocked_by: list()]}
           )
   def get_all_values(execution) do
-    execution.process.steps
+    process = Journey.ProcessCatalog.get(execution.process_id)
+
+    process.steps
     |> Enum.map(fn step ->
       {
         step.name,
@@ -444,8 +456,8 @@ defmodule Journey.Execution do
         value: execution.values[step.name].value,
         self_computing: step.func != nil,
         blocked_by:
-          get_outstanding_dependencies(execution.process, execution.values, step.name)
-          |> Enum.map(fn s -> s |> elem(0) end)
+          get_outstanding_dependencies(process, execution.values, step.name)
+          |> Enum.map(fn blocked_by -> blocked_by.step_name end)
       }
     end)
   end
@@ -489,18 +501,20 @@ defmodule Journey.Execution do
   """
   @spec get_summary(Journey.Execution.t()) :: String.t()
   def get_summary(execution) do
+    process = Journey.ProcessCatalog.get(execution.process_id)
+
     """
     Execution Summary
     Execution ID: #{execution.execution_id}
     Execution started: #{execution.values[:started_at].value |> DateTime.from_unix!()}
     Revision: #{execution.save_version}
     All Steps:
-    #{execution.process.steps |> Enum.map(fn step -> value = case execution.values[step.name].status do
+    #{process.steps |> Enum.map(fn step -> value = case execution.values[step.name].status do
         :computed -> execution.values[step.name].value
         status -> status |> Atom.to_string()
       end
     
-      depends_on = get_outstanding_dependencies(execution.process, execution.values, step.name) |> Enum.map(fn s -> s |> elem(0) |> Atom.to_string() end) |> Enum.join(", ")
+      depends_on = get_outstanding_dependencies(process, execution.values, step.name) |> Enum.map(fn blocked_by -> blocked_by.step_name |> Atom.to_string() end) |> Enum.join(", ")
     
       self_compute = step.func != nil
     

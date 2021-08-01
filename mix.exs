@@ -4,7 +4,7 @@ defmodule Journey.MixProject do
   def project do
     [
       app: :journey,
-      version: "0.0.5",
+      version: "0.0.6",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -32,7 +32,7 @@ defmodule Journey.MixProject do
   end
 
   defp description() do
-    "Journey simplifies writing and running workflows."
+    "Journey simplifies writing and running persistent workflows."
   end
 
   # Run "mix help deps" to learn about dependencies.
@@ -42,6 +42,9 @@ defmodule Journey.MixProject do
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:docception, "~> 0.4.1", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
+      {:ecto_sql, "~> 3.0"},
+      {:jason, "~> 1.2"},
+      {:postgrex, ">= 0.0.0"},
       {:wait_for_it, "~> 1.3.0"}
     ]
   end

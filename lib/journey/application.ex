@@ -9,6 +9,8 @@ defmodule Journey.Application do
     children = [
       # Starts a worker by calling: MyApp.Worker.start_link(arg)
       # {MyApp.Worker, arg}
+      {Journey.Repo, []},
+      Journey.ProcessCatalog,
       Journey.ExecutionStore
     ]
 

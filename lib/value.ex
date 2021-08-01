@@ -3,6 +3,7 @@ defmodule Journey.Value do
   The structure containing the value assigned to a step.
   """
 
+  @derive Jason.Encoder
   @doc false
   defstruct [
     :name,
@@ -44,4 +45,13 @@ defmodule Journey.Value do
           update_time: integer(),
           status: :not_computed | :computing | :computed | :failed
         }
+
+  def convert_from_string_keys(string_keyed_value) do
+    %Journey.Value{
+      name: string_keyed_value["name"] |> String.to_existing_atom(),
+      value: string_keyed_value["value"],
+      update_time: string_keyed_value["update_time"],
+      status: string_keyed_value["status"] |> String.to_existing_atom()
+    }
+  end
 end

@@ -7,6 +7,24 @@ jobs:
       matrix:
         otp: [24]
         elixir: [1.12.1]
+        database-name: ["journey"]
+        database-user: ["postgres"]
+        database-password: ["postgres"]
+    services:
+      postgres:
+        image: postgres:13.3-buster
+        env:
+          POSTGRES_DB: ${{ matrix.database-name }}
+          POSTGRES_USER: ${{ matrix.database-user }}
+          POSTGRES_PASSWORD: ${{ matrix.database-password }}
+        ports:
+          - 5432:5432
+        # Set health checks to wait until postgres has started
+        options:
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
@@ -42,5 +60,5 @@ jobs:
           make install-dependencies
       - run: mix format --check-formatted
       - run: make build
+      - run: make db-setup
       - run: make test
-      - run: make dialyzer
