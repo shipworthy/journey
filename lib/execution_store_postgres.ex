@@ -41,7 +41,6 @@ defmodule Journey.ExecutionStore.Postgres do
           |> repo.one!()
 
         execution = Journey.ExecutionDbRecord.convert_to_execution_struct!(execution_db_record.execution_data)
-
         record_status = execution[:values][step_name].status
 
         case expected_status do
