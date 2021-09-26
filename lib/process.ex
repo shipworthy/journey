@@ -76,14 +76,7 @@ defmodule Journey.Process do
   """
   @spec execute(Journey.Process.t()) :: Journey.Execution.t()
   def execute(process) do
-    process = %{process | steps: [%Journey.Step{name: :started_at}] ++ process.steps}
-
-    Journey.ProcessCatalog.register(process)
-
-    process.steps
-    |> Enum.map(fn step ->
-      _atom = if is_atom(step.name), do: step.name, else: String.to_atom(step.name)
-    end)
+    process = process |> register_process()
 
     execution =
       %Journey.Execution{
@@ -95,6 +88,21 @@ defmodule Journey.Process do
 
     {:ok, execution} = Journey.Execution.update_value(execution.execution_id, :started_at, System.os_time(:second))
     execution
+  end
+
+  def register_process(process) do
+    process = %{process | steps: [%Journey.Step{name: :started_at}] ++ process.steps}
+
+    Journey.ProcessCatalog.register(process)
+
+    # Create all atoms involved in step names.
+    _ =
+      process.steps
+      |> Enum.map(fn step ->
+        _atom = if is_atom(step.name), do: step.name, else: String.to_atom(step.name)
+      end)
+
+    process
   end
 
   defp blank_values(process) do
