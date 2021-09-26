@@ -80,6 +80,8 @@ defmodule Journey.Execution do
   """
   @spec load(String.t()) :: {:error, :no_such_execution} | {:ok, Journey.Execution.t()}
   def load(execution_id) when is_binary(execution_id) do
+    Logger.info("load: #{execution_id}")
+
     case Journey.ExecutionStore.Postgres.get(execution_id) do
       nil ->
         {:error, :no_such_execution}
@@ -102,14 +104,18 @@ defmodule Journey.Execution do
   """
   @spec update_value(String.t(), atom(), any) :: {:ok, Journey.Execution.t()}
   def update_value(execution_id, value_name, new_value) when is_binary(execution_id) do
+    Logger.info("update_value: execution_id: '#{execution_id}', value_name: #{value_name}, new_value: ***")
+
+    value_name_as_atom = Journey.Utilities.to_existing_atom(value_name)
+
     value = %Journey.Value{
-      name: value_name,
+      name: value_name_as_atom,
       value: new_value,
       update_time: System.os_time(:second),
       status: :computed
     }
 
-    case Journey.ExecutionStore.Postgres.update_value(execution_id, value_name, :any, value) do
+    case Journey.ExecutionStore.Postgres.update_value(execution_id, value_name_as_atom, :any, value) do
       {:ok, updated_execution} ->
         kick_off_unblocked_steps(updated_execution)
 
@@ -169,6 +175,8 @@ defmodule Journey.Execution do
   """
   @spec get_unfilled_steps(Journey.Execution.t()) :: list
   def get_unfilled_steps(execution) do
+    Logger.info("get_unfilled_steps: execution_id: '#{execution.execution_id}'")
+
     execution
     |> Map.get(:values)
     |> Enum.filter(fn {_, value} -> Map.get(value, :status) != :computed end)
