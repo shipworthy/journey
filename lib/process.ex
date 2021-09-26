@@ -80,6 +80,11 @@ defmodule Journey.Process do
 
     Journey.ProcessCatalog.register(process)
 
+    process.steps
+    |> Enum.map(fn step ->
+      _atom = if is_atom(step.name), do: step.name, else: String.to_atom(step.name)
+    end)
+
     execution =
       %Journey.Execution{
         execution_id: random_string(10),
