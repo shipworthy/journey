@@ -104,7 +104,7 @@ defmodule Journey.Execution do
   """
   @spec update_value(String.t(), atom(), any) :: {:ok, Journey.Execution.t()}
   def update_value(execution_id, value_name, new_value) when is_binary(execution_id) do
-    Logger.info("update_value: execution_id: '#{execution_id}', value_name: #{value_name}, new_value: #{new_value}")
+    Logger.info("update_value: execution_id: '#{execution_id}', value_name: #{value_name}, new_value: ***")
 
     value_name_as_atom = Journey.Utilities.to_existing_atom(value_name)
 
