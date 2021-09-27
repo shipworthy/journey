@@ -14,8 +14,8 @@ defmodule Journey do
   Here is the project's current state and mini-roadmap:
 
   - [x] Initial version, the state of executions lives in memory, does not survive service restarts.
-  - [ ] The state of executions is persisted, executions survive service restarts.
-  - [ ] Executions run in multiple replicas of your service.
+  - [x] The state of executions is persisted, executions survive service restarts. (using postgres)
+  - [x] Executions run in multiple replicas of your service.
   - [ ] Maybe: loops in steps.
   - [ ] Maybe: support for specific persistence types.
   - [ ] Maybe: support for specific persistence types.
