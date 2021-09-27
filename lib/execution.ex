@@ -200,8 +200,6 @@ defmodule Journey.Execution do
   end
 
   def get_next_available_step(execution) do
-    process = Journey.ProcessCatalog.get(execution.process_id)
-
     execution
     |> get_ordered_steps()
     |> Enum.find(fn value ->
