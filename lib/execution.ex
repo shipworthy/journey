@@ -182,6 +182,35 @@ defmodule Journey.Execution do
     |> Enum.filter(fn {_, value} -> Map.get(value, :status) != :computed end)
   end
 
+  def get_ordered_steps(execution) do
+    process = Journey.ProcessCatalog.get(execution.process_id)
+
+    process.steps
+    |> Enum.map(fn step ->
+      %{
+        name: step.name,
+        status: execution.values[step.name].status,
+        value: execution.values[step.name].value,
+        self_computing: step.func != nil,
+        blocked_by:
+          get_outstanding_dependencies(process, execution.values, step.name)
+          |> Enum.map(fn blocked_by -> blocked_by.step_name end)
+      }
+    end)
+  end
+
+  def get_next_available_step(execution) do
+    process = Journey.ProcessCatalog.get(execution.process_id)
+
+    execution
+    |> get_ordered_steps()
+    |> Enum.find(fn value ->
+      not value[:self_computing] and
+        value[:status] == :not_computed and
+        value[:blocked_by] == []
+    end)
+  end
+
   defp is_step_blocked?(process, values, step_name) do
     get_outstanding_dependencies(process, values, step_name)
     # TODO: we shouldn't have to collect and then count all dependencies to answer this function's question.
@@ -471,7 +500,7 @@ defmodule Journey.Execution do
   end
 
   @doc """
-  Fetches the value contained in a specificified step.
+  Fetches the value contained in a specified step.
 
   ```elixir
   iex(1)> Journey.Execution.get_value(execution_id, :birth_day)

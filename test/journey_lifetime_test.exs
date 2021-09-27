@@ -61,6 +61,10 @@ defmodule Journey.Test.Lifetime do
     6 = Journey.Execution.get_unfilled_steps(execution) |> Enum.count()
     3 = Journey.Execution.get_blocked_steps(execution) |> Enum.count()
     # Journey.Execution.get_summary(execution) |> IO.puts()
+    all_available_steps = Journey.Execution.get_ordered_steps(execution)
+    assert Enum.count(all_available_steps) == 7
+    available_step = Journey.Execution.get_next_available_step(execution)
+    assert available_step[:name] == :first_name
 
     # Submit first_name.
     {:not_computed, _} = Journey.Execution.read_value(execution, :first_name)
