@@ -24,10 +24,12 @@ defmodule Journey do
   - [ ] Maybe: Documentation includes an example application.
   - [ ] Maybe: Documentation includes examples of versioned processes.
   - [ ] Maybe: Retry policy is configurable, clearly documented.
+  - [ ] Maybe: handle / pickup abandoned steps (e. g. server died while we were waiting for a response from an external service).
   - [ ] Maybe: Logging is configurable, clearly documented.
   - [ ] Maybe: Monitoring is clearly documented.
   - [ ] Maybe: Performance and scalability are clearly documented.
   - [ ] Maybe: More concise and expressive ways to define journies.
+  - [ ] Maybe: a command line tool for printing status of an execution.
 
   The project is in active development.
 
