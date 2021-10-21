@@ -1,7 +1,7 @@
 [![Branch tests](https://github.com/shipworthy/journey/actions/workflows/github-actions-branch-test.yml/badge.svg?branch=main)](https://github.com/shipworthy/journey/actions/workflows/github-actions-branch-test.yml)
 
 # Journey
-Journey is an [Elixir](https://elixir-lang.org/) package that simplifies defining and running persistent, workflow-like processes simply, scalably, and reliably.
+Journey is an [Elixir](https://elixir-lang.org/) package that implements a persisted Task Graph. This data structure can be used for defining and running persistent, workflow-like processes simply, scalably, and reliably.
 
 Examples of applications that could be powered by processes defined and executed with Journey:
 * a web site for computing horoscopes,
