@@ -1,11 +1,27 @@
-defmodule JourneyTest do
+defmodule Journey.FlowTest do
   use ExUnit.Case
 
   import Journey
-  doctest Journey
 
-  test "greets the world" do
-    assert Journey.hello() == :world
+  describe "flow" do
+    test "sunny day" do
+      execution =
+        create_graph()
+        |> Journey.start_graph_execution()
+        |> Journey.set_value(:birth_day, 26)
+        |> Journey.set_value(:birth_month, "April")
+        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.wait(:library_of_congress_record)
+
+      assert Journey.values(execution) == %{
+               first_name: {:set, "Mario"},
+               birth_day: {:set, 26},
+               birth_month: {:set, "April"},
+               astrological_sign: {:set, "Taurus"},
+               horoscope: {:set, "🍪s await, Taurus Mario!"},
+               library_of_congress_record: {:failed, "lol no, Mario."}
+             }
+    end
   end
 
   defp create_graph() do
@@ -25,17 +41,9 @@ defmodule JourneyTest do
         end),
         step(:library_of_congress_record, [:horoscope, :first_name], fn %{horoscope: _horoscope, first_name: first_name} ->
           Process.sleep(1000)
-          {:ok, "#{first_name}'s horoscope recorded in the library of congress."}
+          {:error, "lol no, #{first_name}."}
         end)
       ]
     )
-  end
-
-  describe "new_graph" do
-    test "sunny day" do
-      graph = create_graph()
-      assert graph.name == "horoscope workflow, success Elixir.JourneyTest"
-      assert is_list(graph.inputs_and_steps)
-    end
   end
 end

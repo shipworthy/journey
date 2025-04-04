@@ -10,6 +10,7 @@ defmodule Journey.Application do
     children = [
       # Starts a worker by calling: Journey.Worker.start_link(arg)
       # {Journey.Worker, arg}
+      Journey.Graph.Catalog
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

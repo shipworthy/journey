@@ -59,20 +59,14 @@ defmodule Journey do
     # Execution.set_value(execution, node_name, value)
   end
 
+  def wait(execution, node_name, opts \\ [])
+      when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
+    _backoff = backoff_strategy_from_opts(opts)
+  end
+
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    _backoff =
-      Keyword.get(opts, :wait, false)
-      |> case do
-        false ->
-          []
-
-        true ->
-          [1000, 1000, 1000, 1000, 1000, 1000]
-
-        list_of_backoff_values when is_list(list_of_backoff_values) ->
-          list_of_backoff_values
-      end
+    _backoff = backoff_strategy_from_opts(opts)
 
     # if wait do
     #   wait_backoff = Keyword.get(opts, :wait_backoff, [1000, 1000, 1000, 1000, 1000, 1000])
@@ -81,5 +75,19 @@ defmodule Journey do
     #   Logger.info("[#{execution.id}] [#{mf()}] no wait: '#{node_name}'")
     #   Execution.get_value(execution, node_name)
     # end
+  end
+
+  defp backoff_strategy_from_opts(opts) do
+    Keyword.get(opts, :wait, false)
+    |> case do
+      false ->
+        []
+
+      true ->
+        [1000, 1000, 1000, 1000, 1000, 1000]
+
+      list_of_backoff_values when is_list(list_of_backoff_values) ->
+        list_of_backoff_values
+    end
   end
 end
