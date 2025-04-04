@@ -5,4 +5,9 @@ defmodule JourneyTest do
   test "greets the world" do
     assert Journey.hello() == :world
   end
+
+  describe "flow" do
+    test "basic sunny day" do
+    end
+  end
 end
