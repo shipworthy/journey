@@ -1,6 +1,6 @@
-defmodule NewJourney do
+defmodule Journey do
   @moduledoc """
-  Documentation for `NewJourney`.
+  Documentation for `Journey`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule NewJourney do
 
   ## Examples
 
-      iex> NewJourney.hello()
+      iex> Journey.hello()
       :world
 
   """

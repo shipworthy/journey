@@ -1,4 +1,4 @@
-defmodule NewJourney.Application do
+defmodule Journey.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
@@ -8,13 +8,13 @@ defmodule NewJourney.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Starts a worker by calling: NewJourney.Worker.start_link(arg)
-      # {NewJourney.Worker, arg}
+      # Starts a worker by calling: Journey.Worker.start_link(arg)
+      # {Journey.Worker, arg}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: NewJourney.Supervisor]
+    opts = [strategy: :one_for_one, name: Journey.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end
