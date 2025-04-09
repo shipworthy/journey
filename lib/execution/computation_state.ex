@@ -2,7 +2,7 @@ defmodule Journey.Execution.ComputationState do
   @type t :: :not_set | :computing | :set | :failed | :cancelled
 
   @doc """
-  Returns a list of all possible states for a node.
+  Returns a list of all possible states for a computation node.
   """
   @spec values() :: [t()]
 

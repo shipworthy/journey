@@ -86,15 +86,6 @@ defmodule Journey do
       graph.inputs_and_steps,
       graph.mutations
     )
-
-    # Journey.Execution.Persistence.create_new(
-    #   graph.name,
-    #   graph.inputs_and_steps
-    # )
-
-    #    %Execution{
-    #      graph_name: graph.name
-    #    }
   end
 
   def values(execution) when is_struct(execution, Execution) do
@@ -105,7 +96,6 @@ defmodule Journey do
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
-    # Logger.info("[#{execution.id}] [#{mf()}] '#{node_name}'")
     Journey.Executions.set_value(execution, node_name, value)
   end
 
@@ -117,6 +107,7 @@ defmodule Journey do
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
     _backoff = backoff_strategy_from_opts(opts)
+    Executions.get_value(execution, node_name)
 
     # if wait do
     #   wait_backoff = Keyword.get(opts, :wait_backoff, [1000, 1000, 1000, 1000, 1000, 1000])

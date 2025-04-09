@@ -2,6 +2,8 @@ defmodule Journey.Executions do
   alias Journey.Execution
   import Ecto.Query
 
+  require Logger
+
   def create_new(graph_name, graph_version, inputs_and_steps, mutations) do
     {:ok, execution} =
       Journey.Repo.transaction(fn repo ->
@@ -76,23 +78,6 @@ defmodule Journey.Executions do
     |> Enum.into(%{})
   end
 
-  defp convert_node_names_to_atoms(nil), do: nil
-
-  defp convert_node_names_to_atoms(execution) do
-    %Execution{
-      execution
-      | values: convert_values_to_atoms(execution.values, :node_name),
-        computations: convert_values_to_atoms(execution.computations, :node_name)
-    }
-  end
-
-  defp convert_values_to_atoms(collection_of_maps, key) do
-    collection_of_maps
-    |> Enum.map(fn map ->
-      Map.update!(map, key, &String.to_atom/1)
-    end)
-  end
-
   def set_value(execution, node_name, value) do
     {:ok, updated_execution} =
       Journey.Repo.transaction(fn repo ->
@@ -119,5 +104,40 @@ defmodule Journey.Executions do
       end)
 
     updated_execution
+  end
+
+  def get_value(execution, node_name) do
+    from(v in Execution.Value,
+      where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
+    )
+    |> Journey.Repo.one()
+    |> case do
+      nil ->
+        Logger.error("Value not found for node: #{node_name} in execution: #{execution.id}")
+        nil
+
+      %{set_time: nil} ->
+        {:not_set, nil}
+
+      %{node_value: node_value} ->
+        {:set, node_value["v"]}
+    end
+  end
+
+  defp convert_node_names_to_atoms(nil), do: nil
+
+  defp convert_node_names_to_atoms(execution) do
+    %Execution{
+      execution
+      | values: convert_values_to_atoms(execution.values, :node_name),
+        computations: convert_values_to_atoms(execution.computations, :node_name)
+    }
+  end
+
+  defp convert_values_to_atoms(collection_of_maps, key) do
+    collection_of_maps
+    |> Enum.map(fn map ->
+      Map.update!(map, key, &String.to_atom/1)
+    end)
   end
 end
