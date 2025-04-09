@@ -3,6 +3,8 @@ defmodule Journey do
   Documentation for `Journey`.
   """
 
+  alias Journey.Execution
+  alias Journey.Executions
   alias Journey.Graph
 
   @doc """
@@ -18,45 +20,93 @@ defmodule Journey do
     :world
   end
 
-  def new_graph(name, inputs_and_steps) when is_binary(name) and is_list(inputs_and_steps) do
-    Graph.new(name, inputs_and_steps)
+  def new_graph(name, version, inputs_and_steps, mutations)
+      when is_binary(name) and is_binary(version) and is_list(inputs_and_steps) and is_list(mutations) do
+    Graph.new(name, version, inputs_and_steps, mutations)
     |> Graph.Catalog.register()
   end
 
   def load(execution_id) when is_binary(execution_id) do
-    # JourneyExecution.load(execution_id)
+    Journey.Executions.load(execution_id)
   end
 
   def load(execution) when is_struct(execution, Execution) do
-    # Execution.load(execution.id)
+    load(execution.id)
   end
 
+  # types of nodes and mutations.
   def input(name) when is_atom(name) do
     %Graph.Input{name: name}
   end
 
-  def step(name, upstream_nodes, f_compute)
+  def compute(name, upstream_nodes, f_compute, _opts \\ [])
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
       name: name,
+      type: :compute,
       upstream_nodes: upstream_nodes,
       f_compute: f_compute
     }
   end
 
-  def start_graph_execution(graph) when is_struct(graph, Graph) do
-    # Execution.new(graph)
+  def pulse_recurring(name, upstream_nodes, f_compute)
+      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+    %Graph.Step{
+      name: name,
+      type: :pulse_recurring,
+      upstream_nodes: upstream_nodes,
+      f_compute: f_compute
+    }
+  end
+
+  def pulse_once(name, upstream_nodes, f_compute)
+      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+    %Graph.Step{
+      name: name,
+      type: :pulse_once,
+      upstream_nodes: upstream_nodes,
+      f_compute: f_compute
+    }
+  end
+
+  def mutate(name, upstream_nodes, f_compute)
+      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+    %Graph.Step{
+      name: name,
+      type: :mutation,
+      upstream_nodes: upstream_nodes,
+      f_compute: f_compute
+    }
+  end
+
+  def start_execution(graph) when is_struct(graph, Graph) do
+    Journey.Executions.create_new(
+      graph.name,
+      graph.version,
+      graph.inputs_and_steps,
+      graph.mutations
+    )
+
+    # Journey.Execution.Persistence.create_new(
+    #   graph.name,
+    #   graph.inputs_and_steps
+    # )
+
+    #    %Execution{
+    #      graph_name: graph.name
+    #    }
   end
 
   def values(execution) when is_struct(execution, Execution) do
-    # Execution.values(execution, opts)
+    Executions.values(execution)
   end
 
   def set_value(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
-             (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value)) do
+             (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
+                is_boolean(value)) do
     # Logger.info("[#{execution.id}] [#{mf()}] '#{node_name}'")
-    # Execution.set_value(execution, node_name, value)
+    Journey.Executions.set_value(execution, node_name, value)
   end
 
   def wait(execution, node_name, opts \\ [])

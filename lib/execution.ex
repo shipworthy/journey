@@ -1,11 +1,15 @@
 defmodule Journey.Execution do
-  defstruct [:id, :version, :graph_name, :creation_time, :nodes]
+  use Journey.Schema.Base
 
-  @type t :: %__MODULE__{
-          id: binary,
-          version: pos_integer(),
-          graph_name: binary,
-          creation_time: pos_integer(),
-          nodes: map()
-        }
+  @primary_key {:id, :string, autogenerate: {Journey.Helpers.Random, :object_id, ["EXEC"]}}
+
+  schema "executions" do
+    field(:graph_name, :string)
+    field(:graph_version, :string)
+    has_many(:values, Journey.Execution.Value, preload_order: [desc: :node_name])
+    has_many(:computations, Journey.Execution.Computation, preload_order: [desc: :node_name])
+    # has_many(:computations, Journey.Schema.Computation, preload_order: [asc: :ex_revision])
+    field(:revision, :integer, default: 0)
+    timestamps()
+  end
 end

@@ -1,5 +1,7 @@
 # Used by "mix format"
 [
   line_length: 120,
-  inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
+  import_deps: [:ecto, :ecto_sql],
+  subdirectories: ["priv/*/migrations"],
+  inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}", "priv/*/seeds.exs"]
 ]
