@@ -18,5 +18,5 @@ config :journey, ecto_repos: [Journey.Repo]
 config :logger,
        :console,
        format: "$time [$level] $metadata$message\n",
-       level: :debug,
+       level: :warning,
        metadata: [:pid]
