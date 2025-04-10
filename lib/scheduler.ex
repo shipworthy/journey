@@ -38,12 +38,66 @@ defmodule Journey.Scheduler do
 
       Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] starting async computation")
 
+      # TODO: call the actual compute function, process the result, update the store.
       # compute(node, execution)
-      # TODO: call the function, process the result, update the store.
-      Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] completed async computation")
+      computation_result = {:ok, 12}
+
+      Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] completed async computation.")
+      mark_computation_as_completed(computation, computation_result)
     end)
 
     execution
+  end
+
+  defp mark_computation_as_completed(computation, {:ok, result}) do
+    prefix = "[#{computation.execution_id}][#{computation.node_name}] [#{mf()}]"
+    Logger.info("#{prefix}: marking as completed. starting.")
+
+    node_name_as_string = computation.node_name |> Atom.to_string()
+
+    {:ok, _} =
+      Journey.Repo.transaction(fn repo ->
+        Logger.info("#{prefix}: marking as completed. transaction starting.")
+
+        # Increment revision on the execution, for updating the value.
+        {1, [new_revision]} =
+          from(e in Execution,
+            update: [inc: [revision: 1]],
+            where: e.id == ^computation.execution_id,
+            select: e.revision
+          )
+          |> repo.update_all([])
+
+        # Record result / value.
+        from(v in Value,
+          where: v.execution_id == ^computation.execution_id and v.node_name == ^node_name_as_string
+        )
+        |> repo.update_all(
+          set: [node_value: %{"v" => result}, set_time: System.system_time(:second), ex_revision: new_revision]
+        )
+
+        # Increment revision on the execution again, for updating the computation.
+        {1, [new_revision]} =
+          from(e in Execution,
+            update: [inc: [revision: 1]],
+            where: e.id == ^computation.execution_id,
+            select: e.revision
+          )
+          |> repo.update_all([])
+
+        # Mark the computation as "completed".
+        computation
+        |> Ecto.Changeset.change(%{
+          completion_time: System.system_time(:second),
+          state: :success,
+          ex_revision_at_completion: new_revision
+        })
+        |> repo.update!()
+
+        Logger.info("#{prefix}: marking as completed. transaction done.")
+      end)
+
+    Logger.info("#{prefix}: marking as completed. done.")
   end
 
   defp grab_available_computations(execution) do
