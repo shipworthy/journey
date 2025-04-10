@@ -10,6 +10,7 @@ defmodule Journey.Execution.ComputationState do
     [
       :not_set,
       :computing,
+      :success,
       :set,
       :failed,
       :cancelled
