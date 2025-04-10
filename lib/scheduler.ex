@@ -40,7 +40,8 @@ defmodule Journey.Scheduler do
 
       # TODO: call the actual compute function, process the result, update the store.
       # compute(node, execution)
-      computation_result = {:ok, 12}
+      # computation_result = {:ok, 12}
+      computation_result = {:error, "oh noooooooooo"}
 
       Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] completed async computation.")
       mark_computation_as_completed(computation, computation_result)
@@ -76,7 +77,30 @@ defmodule Journey.Scheduler do
           set: [node_value: %{"v" => result}, set_time: System.system_time(:second), ex_revision: new_revision]
         )
 
-        # Increment revision on the execution again, for updating the computation.
+        # Mark the computation as "completed".
+        computation
+        |> Ecto.Changeset.change(%{
+          completion_time: System.system_time(:second),
+          state: :success,
+          ex_revision_at_completion: new_revision
+        })
+        |> repo.update!()
+
+        Logger.info("#{prefix}: marking as completed. transaction done.")
+      end)
+
+    Logger.info("#{prefix}: marking as completed. done.")
+  end
+
+  defp mark_computation_as_completed(computation, {:error, error_details}) do
+    prefix = "[#{computation.execution_id}][#{computation.node_name}] [#{mf()} :error]"
+    Logger.info("#{prefix}: marking as completed. starting.")
+
+    {:ok, _} =
+      Journey.Repo.transaction(fn repo ->
+        Logger.info("#{prefix}: marking as completed. transaction starting.")
+
+        # Increment revision on the execution, for updating the value.
         {1, [new_revision]} =
           from(e in Execution,
             update: [inc: [revision: 1]],
@@ -85,11 +109,12 @@ defmodule Journey.Scheduler do
           )
           |> repo.update_all([])
 
-        # Mark the computation as "completed".
+        # Mark the computation as "failed".
         computation
         |> Ecto.Changeset.change(%{
+          error_details: "#{inspect(error_details)}",
           completion_time: System.system_time(:second),
-          state: :success,
+          state: :failed,
           ex_revision_at_completion: new_revision
         })
         |> repo.update!()
