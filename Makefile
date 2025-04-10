@@ -53,4 +53,4 @@ lint:
 
 
 test:
-	mix test --cover 
+	mix test --warnings-as-errors --cover

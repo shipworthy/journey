@@ -1,0 +1,50 @@
+name: "validate"
+
+on:
+  pull_request:
+    branches: []
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate_changes:
+    name: Run Linters and Tests
+    runs-on: ubuntu-latest
+    services:
+      pg:
+        image: postgres:16.4-alpine
+        ports:
+          - 5438:5432
+        env:
+          POSTGRES_DB: "journey_test"
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OTP and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18"
+          otp-version: "27.2"
+      - name: Manage dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+      - name: Install dependencies
+        run: mix deps.get
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test

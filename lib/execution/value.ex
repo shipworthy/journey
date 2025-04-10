@@ -9,9 +9,9 @@ defmodule Journey.Execution.Value do
     belongs_to(:execution, Journey.Execution)
     field(:node_name, :string)
     field(:node_type, Ecto.Enum, values: [:input | ComputationType.values()])
-    field(:node_value, :map)
+    field(:node_value, :map, default: nil)
     field(:set_time, :integer, default: nil)
-    field(:ex_revision, :integer, default: 0)
+    field(:ex_revision, :integer, default: nil)
     timestamps()
   end
 end

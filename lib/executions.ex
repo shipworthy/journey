@@ -23,9 +23,9 @@ defmodule Journey.Executions do
               %Execution.Value{
                 execution: execution,
                 node_name: Atom.to_string(graph_node.name),
-                node_type: graph_node.type,
-                ex_revision: execution.revision,
-                node_value: nil
+                node_type: graph_node.type
+                # ex_revision: execution.revision,
+                # node_value: nil
               }
               |> repo.insert!()
           end)
@@ -39,11 +39,12 @@ defmodule Journey.Executions do
               execution: execution,
               node_name: Atom.to_string(computation.name),
               computation_type: computation.type,
-              ex_revision_at_start: execution.revision,
+              # ex_revision_at_start: execution.revision,
               state: :not_set
             }
             |> repo.insert!()
-            |> IO.inspect(label: :new_computation)
+
+            # |> IO.inspect(label: :new_computation)
           end)
 
         # %Execution{

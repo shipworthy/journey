@@ -92,6 +92,20 @@ defmodule Journey do
     Executions.values(execution)
   end
 
+  def values_available(execution) when is_struct(execution, Execution) do
+    execution
+    |> values()
+    |> Enum.filter(fn {_k, v} ->
+      v
+      |> case do
+        {:set, _} -> true
+        _ -> false
+      end
+    end)
+    |> Enum.map(fn {k, {:set, v}} -> {k, v} end)
+    |> Enum.into(%{})
+  end
+
   def set_value(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
