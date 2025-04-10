@@ -61,6 +61,7 @@ defmodule Journey.Scheduler do
 
       Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] completed async computation.")
       mark_computation_as_completed(computation, computation_result)
+      advance(execution)
     end)
 
     execution
