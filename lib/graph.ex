@@ -11,4 +11,9 @@ defmodule Journey.Graph do
       mutations: mutations
     }
   end
+
+  def find_node_by_name(graph, node_name) when is_struct(graph, Journey.Graph) and is_atom(node_name) do
+    graph.inputs_and_steps
+    |> Enum.find(fn n -> n.name == node_name end)
+  end
 end
