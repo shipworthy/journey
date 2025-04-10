@@ -33,15 +33,29 @@ defmodule Journey.Scheduler do
     # For example, we could set the start time and state of the computation
     # execution = %{execution | scheduled_computation: computation}
 
-    Task.start(fn ->
-      nil
+    graph_node =
+      execution.graph_name
+      |> Journey.Graph.Catalog.fetch!()
+      |> Journey.Graph.find_node_by_name(computation.node_name)
+      |> IO.inspect(label: :graph_node)
 
+    all_available_values = Journey.values_available(execution)
+
+    Task.start(fn ->
       Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] starting async computation")
 
-      # TODO: call the actual compute function, process the result, update the store.
-      # compute(node, execution)
+      computation_result =
+        all_available_values
+        |> graph_node.f_compute.()
+        |> IO.inspect(label: :computation_result)
+
+      Logger.info(
+        "[#{execution.id}][#{computation.node_name}] [#{mf()}] async computation completed with result: #{inspect(computation_result)}"
+      )
+
+      # TODO: add retries
       # computation_result = {:ok, 12}
-      computation_result = {:error, "oh noooooooooo"}
+      # computation_result = {:error, "oh noooooooooo"}
 
       Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] completed async computation.")
       mark_computation_as_completed(computation, computation_result)
@@ -125,7 +139,7 @@ defmodule Journey.Scheduler do
     Logger.info("#{prefix}: marking as completed. done.")
   end
 
-  defp grab_available_computations(execution) do
+  defp grab_available_computations(execution) when is_struct(execution, Execution) do
     Logger.info("[#{execution.id}] [#{mf()}] grabbing available computation")
 
     graph = Journey.Graph.Catalog.fetch!(execution.graph_name)

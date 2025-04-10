@@ -5,6 +5,8 @@ defmodule Journey.Experiments do
   #  alias Journey.Helpers.Random
   import Journey.Helpers.GrabBag
 
+  require Logger
+
   def experiment1() do
     user_onboarding_graph =
       Journey.new_graph(
@@ -20,6 +22,7 @@ defmodule Journey.Experiments do
             :welcome_message,
             [:name, :zip],
             fn %{name: name, zip: zip} ->
+              Logger.info("Welcome message computation in user_onboarding graph.")
               {:ok, "Hi #{name} in #{zip}, welcome!"}
             end,
             max_retries: 3,
