@@ -12,7 +12,7 @@ permissions:
 jobs:
   validate_changes:
     name: Run Linters and Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
     services:
       pg:
         image: postgres:16.4-alpine
