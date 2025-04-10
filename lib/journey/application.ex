@@ -11,6 +11,7 @@ defmodule Journey.Application do
       # Starts a worker by calling: Journey.Worker.start_link(arg)
       # {Journey.Worker, arg}
       Journey.Repo,
+      {Ecto.Migrator, repos: [Journey.Repo]},
       Journey.Graph.Catalog
     ]
 
