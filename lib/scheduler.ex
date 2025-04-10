@@ -37,7 +37,8 @@ defmodule Journey.Scheduler do
       execution.graph_name
       |> Journey.Graph.Catalog.fetch!()
       |> Journey.Graph.find_node_by_name(computation.node_name)
-      |> IO.inspect(label: :graph_node)
+
+    # |> IO.inspect(label: :graph_node)
 
     all_available_values = Journey.values_available(execution)
 
@@ -47,7 +48,8 @@ defmodule Journey.Scheduler do
       computation_result =
         all_available_values
         |> graph_node.f_compute.()
-        |> IO.inspect(label: :computation_result)
+
+      # |> IO.inspect(label: :computation_result)
 
       Logger.info(
         "[#{execution.id}][#{computation.node_name}] [#{mf()}] async computation completed with result: #{inspect(computation_result)}"
@@ -188,8 +190,7 @@ defmodule Journey.Scheduler do
 
     selected_computation_names =
       computations_to_perform
-      |> Enum.map(fn computation -> computation.node_name end)
-      |> Enum.join(", ")
+      |> Enum.map_join(", ", fn computation -> computation.node_name end)
       |> String.trim()
 
     Logger.info("[#{execution.id}] [#{mf()}] selected these computations: [#{selected_computation_names}]")

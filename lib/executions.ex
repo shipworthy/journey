@@ -43,7 +43,8 @@ defmodule Journey.Executions do
               state: :not_set
             }
             |> repo.insert!()
-            |> IO.inspect(label: :new_computation)
+
+            # |> IO.inspect(label: :new_computation)
           end)
 
         # %Execution{
