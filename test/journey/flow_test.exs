@@ -31,23 +31,28 @@ defmodule Journey.FlowTest do
   defp create_graph() do
     Journey.new_graph(
       "horoscope workflow, success #{__MODULE__}",
+      "v1.0.0",
       [
         input(:first_name),
         input(:birth_day),
         input(:birth_month),
-        step(:astrological_sign, [:birth_month, :birth_day], fn %{birth_month: _birth_month, birth_day: _birth_day} ->
+        compute(:astrological_sign, [:birth_month, :birth_day], fn %{birth_month: _birth_month, birth_day: _birth_day} ->
           Process.sleep(1000)
           {:ok, "Taurus"}
         end),
-        step(:horoscope, [:first_name, :astrological_sign], fn %{first_name: name, astrological_sign: sign} ->
+        compute(:horoscope, [:first_name, :astrological_sign], fn %{first_name: name, astrological_sign: sign} ->
           Process.sleep(1000)
           {:ok, "🍪s await, #{sign} #{name}!"}
         end),
-        step(:library_of_congress_record, [:horoscope, :first_name], fn %{horoscope: _horoscope, first_name: first_name} ->
+        compute(:library_of_congress_record, [:horoscope, :first_name], fn %{
+                                                                             horoscope: _horoscope,
+                                                                             first_name: first_name
+                                                                           } ->
           Process.sleep(1000)
           {:error, "lol no, #{first_name}."}
         end)
-      ]
+      ],
+      []
     )
   end
 end
