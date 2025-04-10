@@ -9,7 +9,7 @@ defmodule Journey.MixProject do
       start_permanent: Mix.env() == :prod,
       test_coverage: [
         summary: [
-          threshold: 20
+          threshold: 66
         ]
       ],
       deps: deps()
