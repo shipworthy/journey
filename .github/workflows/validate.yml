@@ -17,7 +17,7 @@ jobs:
       pg:
         image: postgres:16.4-alpine
         ports:
-          - 5432:5432
+          - 5438:5432
         env:
           POSTGRES_DB: "journey_test"
           POSTGRES_PASSWORD: postgres
