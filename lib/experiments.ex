@@ -12,14 +12,15 @@ defmodule Journey.Experiments do
         "v123",
         [
           input(:name),
+          input(:zip),
           pulse_once(:cleanup_pii, [], fn _ ->
             {:ok, System.system_time(:second) + 86_400}
           end),
           compute(
             :welcome_message,
-            [:name],
-            fn %{name: name} ->
-              {:ok, "Hi #{name}, welcome!"}
+            [:name, :zip],
+            fn %{name: name, zip: zip} ->
+              {:ok, "Hi #{name} in #{zip}, welcome!"}
             end,
             max_retries: 3,
             backoff_strategy_ms: [1000, 2000, 3000],
@@ -36,7 +37,8 @@ defmodule Journey.Experiments do
     execution =
       user_onboarding_graph
       |> Journey.start_execution()
-      |> Journey.set_value(:name, "John Doe")
+
+    # |> Journey.set_value(:name, "John Doe")
 
     {user_onboarding_graph, execution}
   end

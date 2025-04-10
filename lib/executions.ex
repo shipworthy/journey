@@ -43,6 +43,7 @@ defmodule Journey.Executions do
               state: :not_set
             }
             |> repo.insert!()
+            |> IO.inspect(label: :new_computation)
           end)
 
         # %Execution{
@@ -67,13 +68,14 @@ defmodule Journey.Executions do
   def values(execution) do
     execution.values
     |> Enum.map(fn value ->
-      {
-        value.node_name,
-        {
-          if(is_nil(value.set_time), do: :not_set, else: :set),
-          if(is_nil(value.node_value), do: nil, else: Map.get(value.node_value, "v"))
-        }
-      }
+      node_status =
+        if is_nil(value.set_time) do
+          :not_set
+        else
+          {:set, if(is_nil(value.node_value), do: nil, else: Map.get(value.node_value, "v"))}
+        end
+
+      {value.node_name, node_status}
     end)
     |> Enum.into(%{})
   end
@@ -104,6 +106,7 @@ defmodule Journey.Executions do
       end)
 
     updated_execution
+    |> Journey.Scheduler.advance()
   end
 
   def get_value(execution, node_name) do
@@ -134,7 +137,7 @@ defmodule Journey.Executions do
     }
   end
 
-  defp convert_values_to_atoms(collection_of_maps, key) do
+  def convert_values_to_atoms(collection_of_maps, key) do
     collection_of_maps
     |> Enum.map(fn map ->
       Map.update!(map, key, &String.to_atom/1)
