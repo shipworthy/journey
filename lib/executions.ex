@@ -118,13 +118,13 @@ defmodule Journey.Executions do
     |> case do
       nil ->
         Logger.error("Value not found for node: #{node_name} in execution: #{execution.id}")
-        nil
+        {:error, :no_such_value}
 
       %{set_time: nil} ->
-        {:not_set, nil}
+        {:error, :not_set}
 
       %{node_value: node_value} ->
-        {:set, node_value["v"]}
+        {:ok, node_value["v"]}
     end
   end
 
