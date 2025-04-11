@@ -19,11 +19,22 @@ defmodule Journey.Experiments do
             {:ok, System.system_time(:second) + 86_400}
           end),
           compute(
-            :welcome_message,
+            :welcome_message_compose,
             [:name, :zip],
             fn %{name: name, zip: zip} ->
               Logger.info("Welcome message computation in user_onboarding graph.")
               {:ok, "Hi #{name} in #{zip}, welcome!"}
+            end,
+            max_retries: 3,
+            backoff_strategy_ms: [1000, 2000, 3000],
+            consider_abandoned_after_ms: 30_000
+          ),
+          compute(
+            :welcome_message_send,
+            [:welcome_message_compose],
+            fn _ ->
+              Logger.info("sending welcome message.")
+              {:ok, :done}
             end,
             max_retries: 3,
             backoff_strategy_ms: [1000, 2000, 3000],

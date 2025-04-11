@@ -1,5 +1,5 @@
 defmodule JourneyTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   import Journey
   doctest Journey

@@ -3,6 +3,7 @@ defmodule Journey.Executions do
   import Ecto.Query
 
   require Logger
+  import Journey.Helpers.Log
 
   def create_new(graph_name, graph_version, inputs_and_steps, mutations) do
     {:ok, execution} =
@@ -110,7 +111,15 @@ defmodule Journey.Executions do
     |> Journey.Scheduler.advance()
   end
 
-  def get_value(execution, node_name) do
+  def get_value(execution, node_name, block?, timeout_ms) do
+    prefix = "[#{execution.id}][#{node_name}][#{mf()}]"
+    Logger.info("#{prefix}: starting." <> if(block?, do: " blocking, timeout: #{timeout_ms}", else: ""))
+
+    if block? do
+      # TODO: implement.
+      Process.sleep(timeout_ms)
+    end
+
     from(v in Execution.Value,
       where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
     )
@@ -126,6 +135,9 @@ defmodule Journey.Executions do
       %{node_value: node_value} ->
         {:ok, node_value["v"]}
     end
+    |> tap(fn {outcome, _result} ->
+      Logger.info("#{prefix}: done. #{inspect(outcome)}")
+    end)
   end
 
   defp convert_node_names_to_atoms(nil), do: nil
