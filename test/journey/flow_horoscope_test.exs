@@ -26,10 +26,8 @@ defmodule Journey.FlowTest do
       assert Journey.get_value(execution, :library_of_congress_record) == {:error, :not_set}
       assert Journey.get_value(execution, :birth_day) == {:ok, 26}
 
-      Process.sleep(4_000)
-
-      assert Journey.get_value(execution, :astrological_sign) == {:ok, "Taurus"}
-      assert Journey.get_value(execution, :horoscope) == {:ok, "🍪s await, Taurus Mario!"}
+      assert Journey.get_value(execution, :astrological_sign, wait: 5_000) == {:ok, "Taurus"}
+      assert Journey.get_value(execution, :horoscope, wait: true) == {:ok, "🍪s await, Taurus Mario!"}
       assert Journey.get_value(execution, :library_of_congress_record) == {:error, :not_set}
       assert Journey.get_value(execution, :birth_day) == {:ok, 26}
 

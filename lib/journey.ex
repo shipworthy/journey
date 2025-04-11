@@ -125,16 +125,15 @@ defmodule Journey do
 
   # Options:
   * `:wait` – whether or not to wait for the value to be set. This option can have the following vales:
-    * `false` or `0` – do not wait, return the current value (default)
+    * `false` or `0` – do not wait, return the current value. This is the default.
     * `true` – wait until the value is available, or until timeout
     * a positive integer – wait for the supplied number of milliseconds (default: 30_000)
-    * `:forever` – wait indefinitely
+    * `:infinity` – wait indefinitely
 
   Returns
   * `{:ok, value}` if the value is set,
   * `{:error, :not_set}` if the value is not set, and
   * `{:error, :no_such_value}` if the node does not exist.
-  * `{:error, :timeout}` if the value did not become available within the timeout period.
 
   ## Examples
 
@@ -153,7 +152,7 @@ defmodule Journey do
       {:error, :not_set}
       iex> Journey.get_value(execution, :astrological_sign, wait: true)
       {:ok, "Taurus"}
-      iex> Journey.get_value(execution, :horoscope)
+      iex> Journey.get_value(execution, :horoscope, wait: 2_000)
       {:error, :not_set}
       iex> execution = Journey.set_value(execution, :first_name, "Mario")
       iex> Journey.get_value(execution, :horoscope, wait: true)
@@ -168,27 +167,27 @@ defmodule Journey do
 
     default_timeout_ms = 5_000
 
-    {block?, timeout_ms} =
+    timeout_ms =
       opts
       |> Keyword.get(:wait, false)
       |> case do
         false ->
-          {false, 0}
+          nil
 
         0 ->
-          {false, 0}
+          nil
 
         true ->
-          {true, default_timeout_ms}
+          default_timeout_ms
 
-        :forever ->
-          {true, :forever}
+        :infinity ->
+          :infinity
 
-        timeout_ms when is_integer(timeout_ms) and timeout_ms > 0 ->
-          {true, :timeout_ms}
+        ms when is_integer(ms) and ms > 0 ->
+          ms
       end
 
-    Executions.get_value(execution, node_name, block?, timeout_ms)
+    Executions.get_value(execution, node_name, timeout_ms)
   end
 
   defp backoff_strategy_from_opts(opts) do
