@@ -1,4 +1,6 @@
 defmodule Journey.Execution do
+  @moduledoc false
+
   use Journey.Schema.Base
 
   @primary_key {:id, :string, autogenerate: {Journey.Helpers.Random, :object_id, ["EXEC"]}}

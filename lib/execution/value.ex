@@ -1,4 +1,6 @@
 defmodule Journey.Execution.Value do
+  @moduledoc false
+
   use Journey.Schema.Base
 
   alias Journey.Execution.ComputationType

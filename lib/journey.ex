@@ -7,6 +7,8 @@ defmodule Journey do
   alias Journey.Executions
   alias Journey.Graph
 
+  #  import Journey.Helpers.Log
+
   @doc """
   Hello world.
 
@@ -118,18 +120,74 @@ defmodule Journey do
     _backoff = backoff_strategy_from_opts(opts)
   end
 
+  @doc """
+  Returns the value of a node in an execution. Optionally waits for the value to be set.
+
+  # Options:
+  * `:wait` – whether or not to wait for the value to be set. This option can have the following vales:
+    * `false` or `0` – do not wait, return the current value. This is the default.
+    * `true` – wait until the value is available, or until timeout
+    * a positive integer – wait for the supplied number of milliseconds (default: 30_000)
+    * `:infinity` – wait indefinitely
+
+  Returns
+  * `{:ok, value}` if the value is set,
+  * `{:error, :not_set}` if the value is not set, and
+  * `{:error, :no_such_value}` if the node does not exist.
+
+  ## Examples
+
+      iex> execution =
+      ...>    Journey.Examples.Horoscope.graph() |>
+      ...>    Journey.start_execution() |>
+      ...>    Journey.set_value(:birth_day, 26)
+      iex> Journey.get_value(execution, :birth_day)
+      {:ok, 26}
+      iex> Journey.get_value(execution, :birth_month)
+      {:error, :not_set}
+      iex> Journey.get_value(execution, :astrological_sign)
+      {:error, :not_set}
+      iex> execution = Journey.set_value(execution, :birth_month, "April")
+      iex> Journey.get_value(execution, :astrological_sign)
+      {:error, :not_set}
+      iex> Journey.get_value(execution, :astrological_sign, wait: true)
+      {:ok, "Taurus"}
+      iex> Journey.get_value(execution, :horoscope, wait: 2_000)
+      {:error, :not_set}
+      iex> execution = Journey.set_value(execution, :first_name, "Mario")
+      iex> Journey.get_value(execution, :horoscope, wait: true)
+      {:ok, "🍪s await, Taurus Mario!"}
+
+
+  """
+
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    _backoff = backoff_strategy_from_opts(opts)
-    Executions.get_value(execution, node_name)
+    # wait = backoff_strategy_from_opts(opts)
 
-    # if wait do
-    #   wait_backoff = Keyword.get(opts, :wait_backoff, [1000, 1000, 1000, 1000, 1000, 1000])
-    #   Execution.get_value_with_blocking_retries(execution, node_name, wait_backoff)
-    # else
-    #   Logger.info("[#{execution.id}] [#{mf()}] no wait: '#{node_name}'")
-    #   Execution.get_value(execution, node_name)
-    # end
+    default_timeout_ms = 5_000
+
+    timeout_ms =
+      opts
+      |> Keyword.get(:wait, false)
+      |> case do
+        false ->
+          nil
+
+        0 ->
+          nil
+
+        true ->
+          default_timeout_ms
+
+        :infinity ->
+          :infinity
+
+        ms when is_integer(ms) and ms > 0 ->
+          ms
+      end
+
+    Executions.get_value(execution, node_name, timeout_ms)
   end
 
   defp backoff_strategy_from_opts(opts) do

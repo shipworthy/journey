@@ -1,8 +1,10 @@
 defmodule Journey.Executions do
+  @moduledoc false
   alias Journey.Execution
   import Ecto.Query
 
   require Logger
+  import Journey.Helpers.Log
 
   def create_new(graph_name, graph_version, inputs_and_steps, mutations) do
     {:ok, execution} =
@@ -97,7 +99,7 @@ defmodule Journey.Executions do
           set: [
             ex_revision: new_revision,
             node_value: %{"v" => value},
-            set_time: System.system_time(:second)
+            set_time: System.os_time(:second)
           ]
         )
 
@@ -110,22 +112,62 @@ defmodule Journey.Executions do
     |> Journey.Scheduler.advance()
   end
 
-  def get_value(execution, node_name) do
+  def get_value(execution, node_name, timeout_ms) do
+    prefix = "[#{execution.id}][#{node_name}][#{mf()}]"
+    Logger.info("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
+
+    monotonic_time_deadline =
+      case timeout_ms do
+        nil ->
+          nil
+
+        :infinity ->
+          :infinity
+
+        ms ->
+          System.monotonic_time(:millisecond) + ms
+      end
+
+    load_value(execution, node_name, monotonic_time_deadline, 0)
+    |> tap(fn {outcome, _result} ->
+      Logger.info("#{prefix}: done. #{inspect(outcome)}")
+    end)
+  end
+
+  defp load_value(execution, node_name, monotonic_time_deadline, call_count) do
+    prefix = "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}]"
+
     from(v in Execution.Value,
       where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
     )
     |> Journey.Repo.one()
     |> case do
       nil ->
-        Logger.error("Value not found for node: #{node_name} in execution: #{execution.id}")
-        nil
+        Logger.debug("#{prefix}: value not found.")
+        {:error, :no_such_value}
 
       %{set_time: nil} ->
-        {:not_set, nil}
+        if monotonic_time_deadline == :infinity or
+             (monotonic_time_deadline != nil and monotonic_time_deadline > System.monotonic_time(:millisecond)) do
+          Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
+          backoff_sleep(call_count)
+          load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
+        else
+          {:error, :not_set}
+        end
 
       %{node_value: node_value} ->
-        {:set, node_value["v"]}
+        {:ok, node_value["v"]}
     end
+  end
+
+  defp backoff_sleep(attempt_count) when is_integer(attempt_count) and attempt_count >= 0 do
+    jitter = :rand.uniform(1000)
+
+    min(30_000, 500 * attempt_count)
+    |> Kernel.+(jitter)
+    |> round()
+    |> Process.sleep()
   end
 
   defp convert_node_names_to_atoms(nil), do: nil

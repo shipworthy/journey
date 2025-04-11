@@ -1,4 +1,6 @@
 defmodule Journey.Graph do
+  @moduledoc false
+
   defstruct [:name, :version, :inputs_and_steps, :mutations]
   @type t :: %__MODULE__{name: String.t(), inputs_and_steps: list}
 
