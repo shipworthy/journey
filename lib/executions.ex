@@ -1,4 +1,5 @@
 defmodule Journey.Executions do
+  @moduledoc false
   alias Journey.Execution
   import Ecto.Query
 

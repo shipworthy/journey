@@ -1,8 +1,7 @@
 defmodule Journey.Experiments do
+  @moduledoc false
+
   import Journey
-  #  alias Journey.Graph
-  #  alias Journey.Execution
-  #  alias Journey.Helpers.Random
   import Journey.Helpers.GrabBag
 
   require Logger

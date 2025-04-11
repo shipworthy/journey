@@ -1,4 +1,6 @@
 defmodule Journey.Execution.ComputationType do
+  @moduledoc false
+
   @type t :: :unknown | :compute | :mutation | :pulse_once | :pulse_recurring
 
   @doc """

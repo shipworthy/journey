@@ -1,4 +1,6 @@
 defmodule Journey.Helpers.Log do
+  @moduledoc false
+
   defmacro mf() do
     caller_function_tuple =
       case __CALLER__.function do

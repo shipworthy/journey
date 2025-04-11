@@ -1,4 +1,6 @@
 defmodule Journey.Graph.Step do
+  @moduledoc false
+
   defstruct [:name, :upstream_nodes, :f_compute, :type, max_retries: 3, abandon_after_seconds: 60]
 
   @type t :: %__MODULE__{

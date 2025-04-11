@@ -6,13 +6,27 @@ defmodule Journey.MixProject do
       app: :journey,
       version: "0.10.0",
       elixir: "~> 1.18",
+      package: package(),
       start_permanent: Mix.env() == :prod,
+      name: "Journey",
+      docs: [
+        main: "readme",
+        extras: ["README.md", "LICENSE"]
+      ],
       test_coverage: [
         summary: [
           threshold: 70
         ]
       ],
       deps: deps()
+    ]
+  end
+
+  def package do
+    [
+      name: "journey",
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/markmark206/journey"}
     ]
   end
 
@@ -30,6 +44,7 @@ defmodule Journey.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.12.5"},
       {:ecto_sql, "~> 3.12.1"},
+      {:ex_doc, "~> 0.37", only: :dev, runtime: false},
       {:nanoid, "~> 2.1.0"},
       {:postgrex, "~> 0.20.0"}
 

@@ -1,7 +1,5 @@
 defmodule Journey.Helpers.Random do
-  @moduledoc """
-  Random helper functions.
-  """
+  @moduledoc false
 
   @digits "1234567890"
   @uppercase "ABDEGHJLMRTVXYZ"

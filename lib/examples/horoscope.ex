@@ -1,4 +1,6 @@
 defmodule Journey.Examples.Horoscope do
+  @moduledoc false
+
   import Journey
 
   def graph() do

@@ -1,4 +1,6 @@
 defmodule Journey.Scheduler do
+  @moduledoc false
+
   import Ecto.Query
 
   alias Journey.Execution
