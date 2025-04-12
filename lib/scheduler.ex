@@ -146,6 +146,39 @@ defmodule Journey.Scheduler do
     Logger.info("#{prefix}: marking as completed. done.")
   end
 
+  def find_and_process_all_abandoned_computations() do
+    # TODO: consider also doing this on per-execution basis.
+    Logger.info("[#{mf()}] finding and processing abandoned computations")
+
+    current_epoch_second = System.system_time(:second)
+
+    {:ok, abandoned_computations} =
+      Journey.Repo.transaction(fn repo ->
+        {count, list_of_abandoned_computations} =
+          from(c in Computation,
+            where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
+            select: c
+          )
+          |> repo.update_all(
+            set: [
+              state: :abandoned,
+              completion_time: System.system_time(:second)
+            ]
+          )
+
+        Logger.info("[#{mf()}] found #{count} abandoned computation(s)")
+
+        list_of_abandoned_computations
+      end)
+
+    abandoned_computations
+    |> Enum.each(fn ac ->
+      Logger.warning("[#{mf()}] found, computation id: #{ac.id}, #{ac.execution_id}.#{ac.node_name}")
+    end)
+
+    abandoned_computations
+  end
+
   defp grab_available_computations(execution) when is_struct(execution, Execution) do
     Logger.info("[#{execution.id}] [#{mf()}] grabbing available computation")
 
