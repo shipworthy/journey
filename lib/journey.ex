@@ -41,13 +41,15 @@ defmodule Journey do
     %Graph.Input{name: name}
   end
 
-  def compute(name, upstream_nodes, f_compute, _opts \\ [])
+  def compute(name, upstream_nodes, f_compute, opts \\ [])
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :compute,
       upstream_nodes: upstream_nodes,
-      f_compute: f_compute
+      f_compute: f_compute,
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
     }
   end
 

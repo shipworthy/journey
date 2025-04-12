@@ -23,6 +23,7 @@ defmodule Journey.Repo.Migrations.AddExecutionsAndNodes do
       timestamps(type: :bigint)
     end
 
+    create(index(:values, [:execution_id]))
     create(index(:values, [:execution_id, :node_name]))
 
     create table(:computations, primary_key: false) do
@@ -41,6 +42,8 @@ defmodule Journey.Repo.Migrations.AddExecutionsAndNodes do
       timestamps(type: :bigint)
     end
 
-    create(index(:computations, [:execution_id, :node_name]))
+    create(index(:computations, [:execution_id]))
+    create(index(:computations, [:state, :deadline]))
+    create(index(:computations, [:execution_id, :state]))
   end
 end

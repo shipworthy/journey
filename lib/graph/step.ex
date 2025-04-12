@@ -1,7 +1,7 @@
 defmodule Journey.Graph.Step do
   @moduledoc false
 
-  defstruct [:name, :upstream_nodes, :f_compute, :type, max_retries: 3, abandon_after_seconds: 60]
+  defstruct [:name, :upstream_nodes, :f_compute, :type, :max_retries, :abandon_after_seconds]
 
   @type t :: %__MODULE__{
           name: atom,

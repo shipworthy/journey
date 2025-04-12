@@ -146,16 +146,26 @@ defmodule Journey.Scheduler do
     Logger.info("#{prefix}: marking as completed. done.")
   end
 
-  def find_and_process_all_abandoned_computations() do
-    # TODO: consider also doing this on per-execution basis.
-    Logger.info("[#{mf()}] finding and processing abandoned computations")
+  defp from_computations(nil) do
+    from(c in Computation)
+  end
+
+  defp from_computations(execution_id) do
+    from(c in Computation,
+      where: c.execution_id == ^execution_id
+    )
+  end
+
+  def sweep_abandoned_computations(execution_id) do
+    prefix = "[#{execution_id}] [#{mf()}]"
+    Logger.info("#{prefix}: starting")
 
     current_epoch_second = System.system_time(:second)
 
     {:ok, abandoned_computations} =
       Journey.Repo.transaction(fn repo ->
         {count, list_of_abandoned_computations} =
-          from(c in Computation,
+          from(c in from_computations(execution_id),
             where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
             select: c
           )
@@ -166,17 +176,17 @@ defmodule Journey.Scheduler do
             ]
           )
 
-        Logger.info("[#{mf()}] found #{count} abandoned computation(s)")
+        Logger.info("#{prefix}: found #{count} abandoned computation(s)")
 
         list_of_abandoned_computations
       end)
 
     abandoned_computations
-    |> Enum.each(fn ac ->
-      Logger.warning("[#{mf()}] found, computation id: #{ac.id}, #{ac.execution_id}.#{ac.node_name}")
+    |> Journey.Executions.convert_values_to_atoms(:node_name)
+    |> Enum.map(fn ac ->
+      Logger.warning("#{prefix}: an abandoned computation, id: #{ac.id}, #{ac.execution_id}.#{ac.node_name}")
+      ac
     end)
-
-    abandoned_computations
   end
 
   defp grab_available_computations(execution) when is_struct(execution, Execution) do
