@@ -40,22 +40,24 @@ defmodule Journey.Scheduler do
       |> Journey.Graph.Catalog.fetch!()
       |> Journey.Graph.find_node_by_name(computation.node_name)
 
-    # |> IO.inspect(label: :graph_node)
-
-    all_available_values = Journey.values_available(execution)
+    computation_params = Journey.values_available(execution)
 
     Task.start(fn ->
       Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] starting async computation")
 
-      computation_result =
-        all_available_values
-        |> graph_node.f_compute.()
-
-      # |> IO.inspect(label: :computation_result)
+      computation_result = graph_node.f_compute.(computation_params)
 
       Logger.info(
         "[#{execution.id}][#{computation.node_name}] [#{mf()}] async computation completed with result: #{inspect(computation_result)}"
       )
+
+      # TODO: consider killing the computation after deadline (since we are likely to
+      # start other instances of the computation, doing this sounds like a good idea).
+      # This could probably be as simple as some version of starting the computation as linked to this process,
+      # and exiting the parent after the deadline or when the computation completes, whichever comes first.
+      #
+      # t = Task.async(fn ->  node.f_compute.(params)  end)
+      # Task.await(t, abandoned_after)
 
       # TODO: add retries
       # computation_result = {:ok, 12}
@@ -147,14 +149,22 @@ defmodule Journey.Scheduler do
   defp grab_available_computations(execution) when is_struct(execution, Execution) do
     Logger.info("[#{execution.id}] [#{mf()}] grabbing available computation")
 
+    current_epoch_second = System.system_time(:second)
     graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
 
     {:ok, computations_to_perform} =
       Journey.Repo.transaction(fn repo ->
         all_candidates_for_computation =
           from(c in Computation,
-            where: c.execution_id == ^execution.id and c.state == ^:not_set and c.computation_type == ^:compute,
-            # TODO: do a bit of performance / load testing to assess the impact of "SKIP LOCKED".
+            # TODO: for abandoned computations, account for max retries.
+            # (c.state == ^:not_set or
+            #    (not is_nil(c.deadline) and c.state == ^:computing and c.deadline > ^current_epoch_second)) and
+            where:
+              c.execution_id == ^execution.id and
+                (c.state == ^:not_set or
+                   (not is_nil(c.deadline) and c.state == ^:computing and c.deadline < ^current_epoch_second)) and
+                c.computation_type == ^:compute,
+            # TODO: would no "SKIP LOCKED" be a better option?
             lock: "FOR UPDATE SKIP LOCKED"
           )
           |> repo.all()
