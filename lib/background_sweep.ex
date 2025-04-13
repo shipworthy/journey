@@ -11,7 +11,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
       mode: @mode,
       initial_delay: :timer.seconds(:rand.uniform(20) + 5),
       run: &run/0,
-      every: :timer.minutes(3),
+      every: :timer.seconds(5),
       delay_mode: :shifted
     )
   end

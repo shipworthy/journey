@@ -8,3 +8,9 @@ config :journey, Journey.Repo,
   port: 5438
 
 config :journey, ecto_repos: [Journey.Repo]
+
+config :logger,
+       :console,
+       format: "$time [$level] $metadata$message\n",
+       level: :warning,
+       metadata: [:pid]

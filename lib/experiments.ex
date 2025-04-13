@@ -6,6 +6,32 @@ defmodule Journey.Experiments do
 
   require Logger
 
+  def experiment0_abandoned() do
+    g =
+      Journey.new_graph(
+        "astrological sign workflow, abandoned compute #{__MODULE__}",
+        "v1.0.0",
+        [
+          input(:birth_day),
+          input(:birth_month),
+          compute(
+            :astrological_sign,
+            [:birth_month, :birth_day],
+            fn %{birth_month: _birth_month, birth_day: _birth_day} ->
+              Process.sleep(:timer.seconds(20))
+              {:ok, "Taurus"}
+            end,
+            abandon_after_seconds: 1
+          )
+        ],
+        []
+      )
+
+    e = g |> Journey.start_execution()
+
+    {g, e}
+  end
+
   def experiment1() do
     user_onboarding_graph =
       Journey.new_graph(
@@ -22,11 +48,12 @@ defmodule Journey.Experiments do
             [:name, :zip],
             fn %{name: name, zip: zip} ->
               Logger.info("Welcome message computation in user_onboarding graph.")
+              Process.sleep(20_000)
               {:ok, "Hi #{name} in #{zip}, welcome!"}
             end,
             max_retries: 3,
             backoff_strategy_ms: [1000, 2000, 3000],
-            consider_abandoned_after_ms: 30_000
+            consider_abandoned_after_ms: 1_000
           ),
           compute(
             :welcome_message_send,
