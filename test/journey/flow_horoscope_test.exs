@@ -1,4 +1,4 @@
-defmodule Journey.FlowTest do
+defmodule Journey.HoroscopeTest do
   use ExUnit.Case, async: true
 
   import Journey
@@ -87,7 +87,7 @@ defmodule Journey.FlowTest do
                first_name: first_name
              } ->
             Process.sleep(1000)
-            {:error, "lol no, #{first_name}."}
+            {:ok, "#{first_name}'s horoscope was submitted for archival."}
           end
         )
       ],

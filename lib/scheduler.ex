@@ -43,7 +43,7 @@ defmodule Journey.Scheduler do
     computation_params = Journey.values_available(execution)
 
     Task.start(fn ->
-      prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+      prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"
       Logger.info("#{prefix}: starting async computation")
 
       graph_node.f_compute.(computation_params)

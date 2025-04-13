@@ -17,7 +17,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert updated_execution == execution
     end
 
-    # @tag :capture_log
+    @tag :capture_log
     test "retries on failures" do
       execution =
         create_graph(:failure)
