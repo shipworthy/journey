@@ -36,7 +36,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
   end
 
   def find_and_kickoff_abandoned_computations() do
-    Journey.Scheduler.sweep_abandoned_computations(nil)
+    Journey.Scheduler.Operations.sweep_abandoned_computations(nil)
     |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
     |> Enum.uniq()
     |> Enum.map(fn execution_id -> kick(execution_id) end)
@@ -48,6 +48,6 @@ defmodule Journey.Scheduler.BackgroundSweep do
 
     execution_id
     |> Journey.load()
-    |> Journey.Scheduler.advance()
+    |> Journey.Scheduler.Operations.advance()
   end
 end

@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler do
+defmodule Journey.Scheduler.Operations do
   @moduledoc false
 
   import Ecto.Query
