@@ -15,8 +15,7 @@ defmodule Journey.Execution.ComputationState do
       :success,
       :failed,
       :abandoned,
-      :cancelled,
-      :set
+      :cancelled
     ]
   end
 end
