@@ -30,6 +30,45 @@ defmodule Journey.Scheduler do
     end
   end
 
+  def sweep_abandoned_computations(execution_id) do
+    prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
+    Logger.info("#{prefix}: starting")
+
+    current_epoch_second = System.system_time(:second)
+
+    {:ok, computations_marked_as_abandoned} =
+      Journey.Repo.transaction(fn repo ->
+        abandoned_computations =
+          from(c in from_computations(execution_id),
+            where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
+            lock: "FOR UPDATE SKIP LOCKED"
+          )
+          |> repo.all()
+          |> Journey.Executions.convert_values_to_atoms(:node_name)
+
+        abandoned_computations
+        |> Enum.each(fn ac -> maybe_reschedule(ac, repo) end)
+
+        Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
+
+        abandoned_computations
+        |> Enum.map(fn ac ->
+          ac
+          |> Ecto.Changeset.change(%{
+            state: :abandoned,
+            completion_time: System.system_time(:second)
+          })
+          |> repo.update!()
+        end)
+      end)
+
+    computations_marked_as_abandoned
+    |> Enum.map(fn ac ->
+      Logger.warning("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
+      ac
+    end)
+  end
+
   defp schedule_computation(execution, computation) do
     # Here we would update the execution with the scheduled computation
     # For example, we could set the start time and state of the computation
@@ -183,45 +222,6 @@ defmodule Journey.Scheduler do
     from(c in Computation,
       where: c.execution_id == ^execution_id
     )
-  end
-
-  def sweep_abandoned_computations(execution_id) do
-    prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
-    Logger.info("#{prefix}: starting")
-
-    current_epoch_second = System.system_time(:second)
-
-    {:ok, computations_marked_as_abandoned} =
-      Journey.Repo.transaction(fn repo ->
-        abandoned_computations =
-          from(c in from_computations(execution_id),
-            where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
-            lock: "FOR UPDATE SKIP LOCKED"
-          )
-          |> repo.all()
-          |> Journey.Executions.convert_values_to_atoms(:node_name)
-
-        abandoned_computations
-        |> Enum.each(fn ac -> maybe_reschedule(ac, repo) end)
-
-        Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
-
-        abandoned_computations
-        |> Enum.map(fn ac ->
-          ac
-          |> Ecto.Changeset.change(%{
-            state: :abandoned,
-            completion_time: System.system_time(:second)
-          })
-          |> repo.update!()
-        end)
-      end)
-
-    computations_marked_as_abandoned
-    |> Enum.map(fn ac ->
-      Logger.warning("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
-      ac
-    end)
   end
 
   defp maybe_reschedule(computation, repo) do

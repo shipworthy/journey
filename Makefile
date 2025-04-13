@@ -18,6 +18,7 @@ all-clean: clean deps-get all
 
 
 build:
+	mix clean
 	mix compile --warnings-as-errors --force
 	mix docs --proglang elixir
 
