@@ -9,12 +9,26 @@ defmodule Journey.Scheduler.SchedulerTest do
   describe "advance |" do
     test "no executable steps" do
       execution =
-        create_graph()
+        create_graph(:success)
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
 
       updated_execution = Journey.Scheduler.advance(execution)
       assert updated_execution == execution
+    end
+
+    # @tag :capture_log
+    test "retries on failures" do
+      execution =
+        create_graph(:failure)
+        |> Journey.start_execution()
+        |> Journey.set_value(:birth_day, 26)
+        |> Journey.set_value(:birth_month, "April")
+
+      # TODO: replace sleep with get_value(execution, :astrological_sign, wait: true)
+      Process.sleep(11_000)
+      assert 2 == count_computations(execution.id, :astrological_sign, :failed)
+      assert 0 == count_computations(execution.id, :astrological_sign, :computing)
     end
   end
 
@@ -22,7 +36,7 @@ defmodule Journey.Scheduler.SchedulerTest do
     @tag :capture_log
     test "none" do
       execution =
-        create_graph()
+        create_graph(:timeout)
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
 
@@ -49,7 +63,7 @@ defmodule Journey.Scheduler.SchedulerTest do
     @tag :capture_log
     test "one execution" do
       execution =
-        create_graph()
+        create_graph(:timeout)
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
@@ -69,7 +83,7 @@ defmodule Journey.Scheduler.SchedulerTest do
     @tag :skip
     test "system-wide" do
       execution =
-        create_graph()
+        create_graph(:timeout)
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
@@ -89,7 +103,7 @@ defmodule Journey.Scheduler.SchedulerTest do
     @tag :capture_log
     test "background sweeps with retries" do
       execution =
-        create_graph()
+        create_graph(:timeout)
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
@@ -140,7 +154,7 @@ defmodule Journey.Scheduler.SchedulerTest do
     test "background sweep" do
       execution_ids =
         for _ <- 1..10 do
-          create_graph()
+          create_graph(:timeout)
           |> Journey.start_execution()
           |> Journey.set_value(:birth_day, 26)
           |> Journey.set_value(:birth_month, "April")
@@ -159,9 +173,9 @@ defmodule Journey.Scheduler.SchedulerTest do
     end
   end
 
-  defp create_graph() do
+  defp create_graph(behavior) when behavior in [:success, :failure, :timeout] do
     Journey.new_graph(
-      "astrological sign workflow, abandoned compute #{__MODULE__}",
+      "astrological sign workflow, #{behavior} compute #{__MODULE__}",
       "v1.0.0",
       [
         input(:first_name),
@@ -171,8 +185,17 @@ defmodule Journey.Scheduler.SchedulerTest do
           :astrological_sign,
           [:birth_month, :birth_day],
           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
-            Process.sleep(:timer.seconds(5))
-            {:ok, "Taurus"}
+            case behavior do
+              :timeout ->
+                Process.sleep(:timer.seconds(5))
+                {:ok, "Taurus"}
+
+              :success ->
+                {:ok, "Taurus"}
+
+              :failure ->
+                {:error, "simulated failure"}
+            end
           end,
           abandon_after_seconds: 1,
           max_retries: 2

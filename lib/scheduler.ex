@@ -43,13 +43,25 @@ defmodule Journey.Scheduler do
     computation_params = Journey.values_available(execution)
 
     Task.start(fn ->
-      Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] starting async computation")
+      prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+      Logger.info("#{prefix}: starting async computation")
 
-      computation_result = graph_node.f_compute.(computation_params)
+      graph_node.f_compute.(computation_params)
+      |> case do
+        {:ok, _result} = computation_result ->
+          Logger.info("#{prefix}: async computation completed successfully")
+          mark_computation_as_completed(computation, computation_result)
+          advance(execution)
 
-      Logger.info(
-        "[#{execution.id}][#{computation.node_name}] [#{mf()}] async computation completed with result: #{inspect(computation_result)}"
-      )
+        {:error, _error_details} = computation_result ->
+          Logger.warning("#{prefix}: async computation completed with an error")
+
+          mark_computation_as_completed(computation, computation_result)
+          # TODO: switch from sleep() to using computation.scheduled_time for implementing jitter.
+          jitter_ms = :rand.uniform(10_000)
+          Process.sleep(jitter_ms)
+          advance(execution)
+      end
 
       # TODO: consider killing the computation after deadline (since we are likely to
       # start other instances of the computation, doing this sounds like a good idea).
@@ -58,14 +70,6 @@ defmodule Journey.Scheduler do
       #
       # t = Task.async(fn ->  node.f_compute.(params)  end)
       # Task.await(t, abandoned_after)
-
-      # TODO: add retries
-      # computation_result = {:ok, 12}
-      # computation_result = {:error, "oh noooooooooo"}
-
-      Logger.info("[#{execution.id}][#{computation.node_name}] [#{mf()}] completed async computation.")
-      mark_computation_as_completed(computation, computation_result)
-      advance(execution)
     end)
 
     execution
