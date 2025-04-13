@@ -46,6 +46,7 @@ defmodule Journey.MixProject do
       {:ecto_sql, "~> 3.12.1"},
       {:ex_doc, "~> 0.37", only: :dev, runtime: false},
       {:nanoid, "~> 2.1.0"},
+      {:parent, "~> 0.12.1"},
       {:postgrex, "~> 0.20.0"}
 
       # {:dep_from_hexpm, "~> 0.3.0"},

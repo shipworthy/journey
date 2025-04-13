@@ -12,7 +12,8 @@ defmodule Journey.Application do
       # {Journey.Worker, arg}
       Journey.Repo,
       {Ecto.Migrator, repos: [Journey.Repo]},
-      Journey.Graph.Catalog
+      Journey.Graph.Catalog,
+      Journey.Scheduler.BackgroundSweep
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

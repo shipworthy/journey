@@ -41,13 +41,15 @@ defmodule Journey do
     %Graph.Input{name: name}
   end
 
-  def compute(name, upstream_nodes, f_compute, _opts \\ [])
+  def compute(name, upstream_nodes, f_compute, opts \\ [])
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :compute,
       upstream_nodes: upstream_nodes,
-      f_compute: f_compute
+      f_compute: f_compute,
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
     }
   end
 
@@ -115,11 +117,6 @@ defmodule Journey do
     Journey.Executions.set_value(execution, node_name, value)
   end
 
-  def wait(execution, node_name, opts \\ [])
-      when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    _backoff = backoff_strategy_from_opts(opts)
-  end
-
   @doc """
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
@@ -163,8 +160,6 @@ defmodule Journey do
 
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    # wait = backoff_strategy_from_opts(opts)
-
     default_timeout_ms = 5_000
 
     timeout_ms =
@@ -188,19 +183,5 @@ defmodule Journey do
       end
 
     Executions.get_value(execution, node_name, timeout_ms)
-  end
-
-  defp backoff_strategy_from_opts(opts) do
-    Keyword.get(opts, :wait, false)
-    |> case do
-      false ->
-        []
-
-      true ->
-        [1000, 1000, 1000, 1000, 1000, 1000]
-
-      list_of_backoff_values when is_list(list_of_backoff_values) ->
-        list_of_backoff_values
-    end
   end
 end

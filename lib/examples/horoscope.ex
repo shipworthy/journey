@@ -35,7 +35,7 @@ defmodule Journey.Examples.Horoscope do
                first_name: first_name
              } ->
             Process.sleep(1000)
-            {:error, "lol no, #{first_name}."}
+            {:ok, "#{first_name}'s horoscope was submitted for archival."}
           end
         )
       ],

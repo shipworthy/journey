@@ -1,4 +1,4 @@
-defmodule Journey.FlowTest do
+defmodule Journey.HoroscopeTest do
   use ExUnit.Case, async: true
 
   import Journey
@@ -28,7 +28,10 @@ defmodule Journey.FlowTest do
 
       assert Journey.get_value(execution, :astrological_sign, wait: 5_000) == {:ok, "Taurus"}
       assert Journey.get_value(execution, :horoscope, wait: true) == {:ok, "🍪s await, Taurus Mario!"}
-      assert Journey.get_value(execution, :library_of_congress_record) == {:error, :not_set}
+
+      assert Journey.get_value(execution, :library_of_congress_record, wait: :infinity) ==
+               {:ok, "Mario's horoscope was submitted for archival."}
+
       assert Journey.get_value(execution, :birth_day) == {:ok, 26}
 
       execution = Journey.load(execution)
@@ -39,7 +42,7 @@ defmodule Journey.FlowTest do
                birth_month: {:set, "April"},
                first_name: {:set, "Mario"},
                horoscope: {:set, "🍪s await, Taurus Mario!"},
-               library_of_congress_record: :not_set
+               library_of_congress_record: {:set, "Mario's horoscope was submitted for archival."}
              }
 
       # |> Journey.wait(:library_of_congress_record)
@@ -65,7 +68,7 @@ defmodule Journey.FlowTest do
 
   defp create_graph() do
     Journey.new_graph(
-      "horoscope workflow, success #{__MODULE__}",
+      "horoscope workflow, success #{__MODULE__}.#{:rand.uniform()}",
       "v1.0.0",
       [
         input(:first_name),
@@ -87,7 +90,7 @@ defmodule Journey.FlowTest do
                first_name: first_name
              } ->
             Process.sleep(1000)
-            {:error, "lol no, #{first_name}."}
+            {:ok, "#{first_name}'s horoscope was submitted for archival."}
           end
         )
       ],
