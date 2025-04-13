@@ -2,6 +2,9 @@ defmodule Journey.Scheduler.SchedulerTest do
   use ExUnit.Case, async: true
 
   import Journey
+  import Journey.Helpers.GrabBag
+
+  alias Journey.Scheduler
 
   describe "advance |" do
     test "no executable steps" do
@@ -16,13 +19,14 @@ defmodule Journey.Scheduler.SchedulerTest do
   end
 
   describe "sweep_abandoned_computations |" do
+    @tag :capture_log
     test "none" do
       execution =
         create_graph()
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
 
-      assert [] = Journey.Scheduler.sweep_abandoned_computations(execution.id)
+      assert [] = Scheduler.sweep_abandoned_computations(execution.id)
       execution = Journey.set_value(execution, :birth_month, "April")
 
       assert Journey.values(execution) == %{
@@ -32,7 +36,7 @@ defmodule Journey.Scheduler.SchedulerTest do
                first_name: :not_set
              }
 
-      assert Journey.Scheduler.sweep_abandoned_computations(execution.id) == []
+      assert Scheduler.sweep_abandoned_computations(execution.id) == []
 
       assert Journey.values(execution) == %{
                astrological_sign: :not_set,
@@ -42,6 +46,7 @@ defmodule Journey.Scheduler.SchedulerTest do
              }
     end
 
+    @tag :capture_log
     test "one execution" do
       execution =
         create_graph()
@@ -49,11 +54,11 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
 
-      assert [] = Journey.Scheduler.sweep_abandoned_computations(execution.id)
+      assert [] = Scheduler.sweep_abandoned_computations(execution.id)
 
       Process.sleep(2_000)
 
-      [abandoned_computation] = Journey.Scheduler.sweep_abandoned_computations(execution.id)
+      [abandoned_computation] = Scheduler.sweep_abandoned_computations(execution.id)
       assert abandoned_computation.state == :abandoned
       assert abandoned_computation.computation_type == :compute
       assert abandoned_computation.node_name == :astrological_sign
@@ -69,11 +74,11 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
 
-      assert [] = Journey.Scheduler.sweep_abandoned_computations(execution.id)
+      assert [] = Scheduler.sweep_abandoned_computations(execution.id)
 
       Process.sleep(2_000)
 
-      [abandoned_computation] = Journey.Scheduler.sweep_abandoned_computations(nil)
+      [abandoned_computation] = Scheduler.sweep_abandoned_computations(nil)
 
       assert abandoned_computation.state == :abandoned
       assert abandoned_computation.computation_type == :compute
@@ -81,17 +86,76 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert abandoned_computation.execution_id == execution.id
     end
 
-    test "background sweep" do
-      for _ <- 1..10 do
+    @tag :capture_log
+    test "background sweeps with retries" do
+      execution =
         create_graph()
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
-      end
+
+      assert Journey.values(execution) == %{
+               astrological_sign: :not_set,
+               birth_day: {:set, 26},
+               birth_month: {:set, "April"},
+               first_name: :not_set
+             }
+
+      Process.sleep(2_000)
+      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+      assert execution.id in swept_ids
+      assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
+      assert 1 == count_computations(execution.id, :astrological_sign, :computing)
+      Process.sleep(2_000)
+      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+      assert execution.id in swept_ids
+      assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
+      assert 0 == count_computations(execution.id, :astrological_sign, :computing)
+      Process.sleep(2_000)
+      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+      assert execution.id not in swept_ids
+      Process.sleep(2_000)
+      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+      assert execution.id not in swept_ids
+      Process.sleep(2_000)
+      assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
+      assert 0 == count_computations(execution.id, :astrological_sign, :computing)
+
+      assert Journey.values(execution) == %{
+               astrological_sign: :not_set,
+               birth_day: {:set, 26},
+               birth_month: {:set, "April"},
+               first_name: :not_set
+             }
+    end
+
+    defp count_computations(execution_id, node_atom, state_atom) do
+      execution_id
+      |> Journey.load()
+      |> Map.get(:computations)
+      |> Enum.count(fn c -> c.node_name == node_atom and c.state == state_atom end)
+    end
+
+    @tag :capture_log
+    test "background sweep" do
+      execution_ids =
+        for _ <- 1..10 do
+          create_graph()
+          |> Journey.start_execution()
+          |> Journey.set_value(:birth_day, 26)
+          |> Journey.set_value(:birth_month, "April")
+        end
+        |> ids_of()
+        |> MapSet.new()
 
       Process.sleep(2_000)
 
-      Journey.Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations()
+      all_swept =
+        Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations()
+        |> ids_of()
+        |> MapSet.new()
+
+      assert MapSet.subset?(execution_ids, all_swept)
     end
   end
 
@@ -107,10 +171,11 @@ defmodule Journey.Scheduler.SchedulerTest do
           :astrological_sign,
           [:birth_month, :birth_day],
           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
-            Process.sleep(:timer.seconds(8))
+            Process.sleep(:timer.seconds(5))
             {:ok, "Taurus"}
           end,
-          abandon_after_seconds: 1
+          abandon_after_seconds: 1,
+          max_retries: 2
         )
       ],
       []

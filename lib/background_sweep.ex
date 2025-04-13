@@ -18,7 +18,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
 
   def run() do
     # TODO: replace this with the logic that executes on the same period,
-    # regadless of # of replicas.
+    # regardless of # of replicas.
     Process.flag(:trap_exit, true)
     prefix = "#{mf()}[#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
@@ -36,17 +36,18 @@ defmodule Journey.Scheduler.BackgroundSweep do
   end
 
   def find_and_kickoff_abandoned_computations() do
-    prefix = "#{mf()}[#{inspect(self())}]"
-
     Journey.Scheduler.sweep_abandoned_computations(nil)
     |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
     |> Enum.uniq()
-    |> Enum.each(fn execution_id ->
-      Logger.info("#{prefix}: processing execution #{execution_id}")
+    |> Enum.map(fn execution_id -> kick(execution_id) end)
+  end
 
-      execution_id
-      |> Journey.load()
-      |> Journey.Scheduler.advance()
-    end)
+  defp kick(execution_id) do
+    prefix = "[#{execution_id}] [#{mf()}] [#{inspect(self())}]"
+    Logger.info("#{prefix}: processing execution")
+
+    execution_id
+    |> Journey.load()
+    |> Journey.Scheduler.advance()
   end
 end

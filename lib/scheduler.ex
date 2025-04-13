@@ -158,6 +158,7 @@ defmodule Journey.Scheduler do
             ex_revision_at_completion: new_revision
           })
           |> repo.update!()
+          |> maybe_reschedule(repo)
 
           Logger.info("#{prefix}: marking as completed. transaction done.")
         else
