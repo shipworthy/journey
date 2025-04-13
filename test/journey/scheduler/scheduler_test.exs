@@ -107,7 +107,7 @@ defmodule Journey.Scheduler.SchedulerTest do
           :astrological_sign,
           [:birth_month, :birth_day],
           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
-            Process.sleep(5000)
+            Process.sleep(:timer.seconds(8))
             {:ok, "Taurus"}
           end,
           abandon_after_seconds: 1

@@ -186,10 +186,9 @@ defmodule Journey.Scheduler do
 
     current_epoch_second = System.system_time(:second)
 
-    {:ok, abandoned_computations} =
+    {:ok, computations_marked_as_abandoned} =
       Journey.Repo.transaction(fn repo ->
-        list_of_abandoned_computations =
-          abandoned_computations =
+        abandoned_computations =
           from(c in from_computations(execution_id),
             where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
             lock: "FOR UPDATE SKIP LOCKED"
@@ -198,44 +197,12 @@ defmodule Journey.Scheduler do
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
         abandoned_computations
-        |> Enum.each(fn computation ->
-          node_name_as_string = computation.node_name |> Atom.to_string()
+        |> Enum.each(fn ac -> maybe_reschedule(ac, repo) end)
 
-          number_of_tries_so_far =
-            from(c in Computation,
-              where: c.execution_id == ^computation.execution_id and c.node_name == ^node_name_as_string,
-              select: count(c.id)
-            )
-            |> repo.one()
+        Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
 
-          # TODO: OPTIMIZATION: group by execution ids, to reduce the # of execution loadings.
-          execution = computation.execution_id |> Journey.Executions.load(false)
-
-          graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
-
-          if graph == nil do
-            Logger.warning("#{prefix}: graph not found for execution #{execution.id} / #{execution.graph_name}")
-          else
-            graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
-
-            if number_of_tries_so_far < graph_node.max_retries do
-              # TODO: create a new computation.
-              %Execution.Computation{
-                execution_id: computation.execution_id,
-                node_name: node_name_as_string,
-                computation_type: computation.computation_type,
-                state: :not_set
-              }
-              |> repo.insert!()
-            end
-          end
-
-          computation
-        end)
-
-        # TODO: implement.
         abandoned_computations
-        |> Enum.each(fn ac ->
+        |> Enum.map(fn ac ->
           ac
           |> Ecto.Changeset.change(%{
             state: :abandoned,
@@ -243,17 +210,53 @@ defmodule Journey.Scheduler do
           })
           |> repo.update!()
         end)
-
-        Logger.info("#{prefix}: found #{Enum.count(list_of_abandoned_computations)} abandoned computation(s)")
-
-        list_of_abandoned_computations
       end)
 
-    abandoned_computations
+    computations_marked_as_abandoned
     |> Enum.map(fn ac ->
       Logger.warning("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
       ac
     end)
+  end
+
+  defp maybe_reschedule(computation, repo) do
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+
+    node_name_as_string = computation.node_name |> Atom.to_string()
+
+    number_of_tries_so_far =
+      from(c in Computation,
+        where: c.execution_id == ^computation.execution_id and c.node_name == ^node_name_as_string,
+        select: count(c.id)
+      )
+      |> repo.one()
+
+    execution = computation.execution_id |> Journey.Executions.load(false)
+
+    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+
+    if graph == nil do
+      Logger.error("#{prefix}: graph not found for execution '#{execution.graph_name}'")
+    else
+      graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
+
+      if number_of_tries_so_far < graph_node.max_retries do
+        new_computation =
+          %Execution.Computation{
+            execution_id: computation.execution_id,
+            node_name: node_name_as_string,
+            computation_type: computation.computation_type,
+            state: :not_set
+          }
+          |> repo.insert!()
+
+        Logger.info("#{prefix}: creating a new computation, #{new_computation.id}")
+      else
+        Logger.info("#{prefix}: reached max retries (#{number_of_tries_so_far}), not rescheduling")
+      end
+    end
+
+    computation
   end
 
   defp grab_available_computations(execution) when is_struct(execution, Execution) do
