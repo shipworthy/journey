@@ -17,6 +17,8 @@ defmodule Journey.Scheduler.BackgroundSweep do
   end
 
   def run() do
+    # TODO: replace this with the logic that executes on the same period,
+    # regadless of # of replicas.
     Process.flag(:trap_exit, true)
     prefix = "#{mf()}[#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
