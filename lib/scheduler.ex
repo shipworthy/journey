@@ -114,7 +114,7 @@ defmodule Journey.Scheduler do
           })
           |> repo.update!()
 
-          Logger.warning("#{prefix}: marking as completed. transaction done.")
+          Logger.info("#{prefix}: marking as completed. transaction done.")
         else
           Logger.warning(
             "#{prefix}: computation completed, but it is no longer :computing. (#{current_computation.state})"
