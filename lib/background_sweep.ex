@@ -1,0 +1,50 @@
+defmodule Journey.Scheduler.BackgroundSweep do
+  require Logger
+
+  import Journey.Helpers.Log
+
+  @mode if Mix.env() != :test, do: :auto, else: :manual
+
+  def child_spec(_arg) do
+    Periodic.child_spec(
+      id: __MODULE__,
+      mode: @mode,
+      initial_delay: :timer.seconds(:rand.uniform(20) + 5),
+      run: &run/0,
+      every: :timer.minutes(3),
+      delay_mode: :shifted
+    )
+  end
+
+  def run() do
+    Process.flag(:trap_exit, true)
+    prefix = "#{mf()}[#{inspect(self())}]"
+    Logger.debug("#{prefix}: starting")
+
+    try do
+      Logger.info("#{prefix}: performing sweep")
+      find_and_kickoff_abandoned_computations()
+      Logger.info("#{prefix}: sweep complete")
+    catch
+      exception ->
+        Logger.error("#{prefix}: #{inspect(exception)}")
+    end
+
+    Logger.debug("#{prefix}: done")
+  end
+
+  def find_and_kickoff_abandoned_computations() do
+    prefix = "#{mf()}[#{inspect(self())}]"
+
+    Journey.Scheduler.sweep_abandoned_computations(nil)
+    |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
+    |> Enum.uniq()
+    |> Enum.each(fn execution_id ->
+      Logger.info("#{prefix}: processing execution #{execution_id}")
+
+      execution_id
+      |> Journey.load()
+      |> Journey.Scheduler.advance()
+    end)
+  end
+end

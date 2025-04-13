@@ -80,6 +80,19 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert abandoned_computation.node_name == :astrological_sign
       assert abandoned_computation.execution_id == execution.id
     end
+
+    test "background sweep" do
+      for _ <- 1..10 do
+        create_graph()
+        |> Journey.start_execution()
+        |> Journey.set_value(:birth_day, 26)
+        |> Journey.set_value(:birth_month, "April")
+      end
+
+      Process.sleep(2_000)
+
+      Journey.Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations()
+    end
   end
 
   defp create_graph() do

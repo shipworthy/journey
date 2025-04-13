@@ -157,7 +157,7 @@ defmodule Journey.Scheduler do
   end
 
   def sweep_abandoned_computations(execution_id) do
-    prefix = "[#{execution_id}] [#{mf()}]"
+    prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
     Logger.info("#{prefix}: starting")
 
     current_epoch_second = System.system_time(:second)
@@ -184,7 +184,7 @@ defmodule Journey.Scheduler do
     abandoned_computations
     |> Journey.Executions.convert_values_to_atoms(:node_name)
     |> Enum.map(fn ac ->
-      Logger.warning("#{prefix}: an abandoned computation, id: #{ac.id}, #{ac.execution_id}.#{ac.node_name}")
+      Logger.warning("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
       ac
     end)
   end
