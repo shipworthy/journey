@@ -50,8 +50,6 @@ end
 defmodule Journey.HoroscopeTest do
   use ExUnit.Case, async: true
 
-  import Journey
-
   describe "flow" do
     test "sunny day" do
       execution =
