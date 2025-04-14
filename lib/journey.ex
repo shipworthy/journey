@@ -7,21 +7,6 @@ defmodule Journey do
   alias Journey.Executions
   alias Journey.Graph
 
-  #  import Journey.Helpers.Log
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Journey.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
-
   def new_graph(name, version, inputs_and_steps, mutations)
       when is_binary(name) and is_binary(version) and is_list(inputs_and_steps) and is_list(mutations) do
     Graph.new(name, version, inputs_and_steps, mutations)

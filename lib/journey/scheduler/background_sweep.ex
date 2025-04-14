@@ -1,4 +1,6 @@
 defmodule Journey.Scheduler.BackgroundSweep do
+  @moduledoc false
+
   require Logger
 
   import Journey.Helpers.Log
