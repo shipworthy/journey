@@ -10,6 +10,7 @@ defmodule Journey do
   def new_graph(name, version, nodes)
       when is_binary(name) and is_binary(version) and is_list(nodes) do
     Graph.new(name, version, nodes)
+    |> Journey.Graph.validate()
     |> Graph.Catalog.register()
   end
 
