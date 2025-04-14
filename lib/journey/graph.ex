@@ -1,16 +1,15 @@
 defmodule Journey.Graph do
   @moduledoc false
 
-  defstruct [:name, :version, :inputs_and_steps, :mutations]
+  defstruct [:name, :version, :inputs_and_steps]
   @type t :: %__MODULE__{name: String.t(), inputs_and_steps: list}
 
-  def new(name, version, inputs_and_steps, mutations)
-      when is_binary(name) and is_binary(version) and is_list(inputs_and_steps) and is_list(mutations) do
+  def new(name, version, inputs_and_steps)
+      when is_binary(name) and is_binary(version) and is_list(inputs_and_steps) do
     %__MODULE__{
       name: name,
       version: version,
-      inputs_and_steps: inputs_and_steps,
-      mutations: mutations
+      inputs_and_steps: inputs_and_steps
     }
   end
 

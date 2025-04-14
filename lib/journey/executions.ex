@@ -6,7 +6,7 @@ defmodule Journey.Executions do
   require Logger
   import Journey.Helpers.Log
 
-  def create_new(graph_name, graph_version, inputs_and_steps, mutations) do
+  def create_new(graph_name, graph_version, inputs_and_steps) do
     {:ok, execution} =
       Journey.Repo.transaction(fn repo ->
         execution =
@@ -25,16 +25,16 @@ defmodule Journey.Executions do
               %Execution.Value{
                 execution: execution,
                 node_name: Atom.to_string(graph_node.name),
-                node_type: graph_node.type
-                # ex_revision: execution.revision,
-                # node_value: nil
+                node_type: graph_node.type,
+                set_time: nil,
+                node_value: nil
               }
               |> repo.insert!()
           end)
 
         # Create computations for computable nodes.
         _computations =
-          (inputs_and_steps ++ mutations)
+          inputs_and_steps
           |> Enum.filter(fn %{type: type} -> type in Journey.Execution.ComputationType.values() end)
           |> Enum.map(fn computation ->
             %Execution.Computation{

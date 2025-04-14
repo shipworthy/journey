@@ -7,9 +7,9 @@ defmodule Journey do
   alias Journey.Executions
   alias Journey.Graph
 
-  def new_graph(name, version, inputs_and_steps, mutations)
-      when is_binary(name) and is_binary(version) and is_list(inputs_and_steps) and is_list(mutations) do
-    Graph.new(name, version, inputs_and_steps, mutations)
+  def new_graph(name, version, inputs_and_steps)
+      when is_binary(name) and is_binary(version) and is_list(inputs_and_steps) do
+    Graph.new(name, version, inputs_and_steps)
     |> Graph.Catalog.register()
   end
 
@@ -38,6 +38,18 @@ defmodule Journey do
     }
   end
 
+  def mutate(name, upstream_nodes, f_compute, opts \\ [])
+      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+    %Graph.Step{
+      name: name,
+      upstream_nodes: upstream_nodes,
+      f_compute: f_compute,
+      mutates: Keyword.fetch!(opts, :mutates),
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+    }
+  end
+
   def pulse_recurring(name, upstream_nodes, f_compute)
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
@@ -58,22 +70,21 @@ defmodule Journey do
     }
   end
 
-  def mutate(name, upstream_nodes, f_compute)
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
-    %Graph.Step{
-      name: name,
-      type: :mutation,
-      upstream_nodes: upstream_nodes,
-      f_compute: f_compute
-    }
-  end
+  # def mutate(name, upstream_nodes, f_compute)
+  #     when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+  #   %Graph.Step{
+  #     name: name,
+  #     type: :mutation,
+  #     upstream_nodes: upstream_nodes,
+  #     f_compute: f_compute
+  #   }
+  # end
 
   def start_execution(graph) when is_struct(graph, Graph) do
     Journey.Executions.create_new(
       graph.name,
       graph.version,
-      graph.inputs_and_steps,
-      graph.mutations
+      graph.inputs_and_steps
     )
   end
 

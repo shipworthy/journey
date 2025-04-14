@@ -93,8 +93,7 @@ defmodule Journey.HoroscopeTest do
             {:ok, "#{first_name}'s horoscope was submitted for archival."}
           end
         )
-      ],
-      []
+      ]
     )
   end
 end

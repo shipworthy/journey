@@ -27,8 +27,7 @@ defmodule JourneyTest do
           Process.sleep(1000)
           {:ok, "#{first_name}'s horoscope recorded in the library of congress."}
         end)
-      ],
-      []
+      ]
     )
   end
 
