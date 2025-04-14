@@ -43,6 +43,7 @@ defmodule Journey do
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
       name: name,
+      type: :compute,
       upstream_nodes: upstream_nodes,
       f_compute: f_compute,
       mutates: Keyword.fetch!(opts, :mutates),

@@ -52,6 +52,14 @@ defmodule Journey.Graph do
       raise "Unknown upstream nodes in input node '#{inspect(step.name)}': #{Enum.join(unknown_deps, ", ")}"
     end
 
+    if not is_nil(step.mutates) and step.mutates not in all_node_names do
+      raise "Mutation node '#{inspect(step.name)}' mutates an unknown node '#{inspect(step.mutates)}'"
+    end
+
+    if not is_nil(step.mutates) and step.mutates == step.name do
+      raise "Mutation node '#{inspect(step.name)}' attempts to mutate itself"
+    end
+
     step
   end
 
