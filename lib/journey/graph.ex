@@ -21,6 +21,16 @@ defmodule Journey.Graph do
   def validate(graph) do
     graph
     |> ensure_no_duplicate_node_names()
+    |> validate_dependencies()
+  end
+
+  defp validate_dependencies(graph) do
+    all_node_names = Enum.map(graph.nodes, & &1.name)
+
+    graph.nodes
+    |> Enum.each(fn node -> validate_node(node, all_node_names) end)
+
+    graph
   end
 
   defp ensure_no_duplicate_node_names(graph) do
@@ -33,5 +43,19 @@ defmodule Journey.Graph do
     end)
 
     graph
+  end
+
+  defp validate_node(%Journey.Graph.Step{} = step, all_node_names) do
+    unknown_deps = MapSet.difference(MapSet.new(step.upstream_nodes), MapSet.new(all_node_names))
+
+    if Enum.any?(unknown_deps) do
+      raise "Unknown upstream nodes in input node '#{inspect(step.name)}': #{Enum.join(unknown_deps, ", ")}"
+    end
+
+    step
+  end
+
+  defp validate_node(%Journey.Graph.Input{} = input, _all_node_names) do
+    input
   end
 end
