@@ -4,10 +4,6 @@ defmodule JourneyTest do
   import Journey
   doctest Journey
 
-  test "greets the world" do
-    assert Journey.hello() == :world
-  end
-
   defp create_graph() do
     Journey.new_graph(
       "horoscope workflow, success #{__MODULE__}",
