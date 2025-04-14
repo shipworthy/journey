@@ -3,13 +3,15 @@ defmodule Journey do
 
   Journey lets you define, maintain, and execute computation graphs, with persistence, and scalability.
 
-  For example, an application that computes horoscopes can be modeled with a graph like that contains nodes for user's name and birthday (supplied by the user), and nodes for zodiac sign and horoscope itself (automatically computed based on the user's name and birthday).
+  For example, a web application that computes horoscopes can be modeled with a graph containing nodes for user's **name** and **birthday** (supplied by the user), and for the user's **zodiac sign** and **horoscope** (auto-computed, based on the user's name and birthday).
 
-  Once the user starts the flow on your website, your application starts a new execution of the graph, populates it with the data provided by the user (name, birthday), and reads the data that gets auto-computed by the graph (zodiac sign, horoscope).
+  Once a user starts the flow on your website, your application starts a new execution of the graph, populates it with the data provided by the user (**name**, **birthday**), and reads the data that gets auto-computed by the graph (**zodiac sign**, **horoscope**).
 
-  Each of the supplied or computed data points is persisted, so executions survive system crashes and restarts. Computations happen on any nodes on which your system is running, so your system is as scalable and distributed as you need it to be, without any additional infrastructure.
+  Every node's data is persisted, so if the user leaves the website, or the system crashes, the execution can be reloaded and continued from there it left off.
 
-  Here is an example of defining this graph, and executing an instance of it:
+  Computations run on any node your system is running, so your system is as scalable and distributed as you need it to be, without requiring any additional infrastructure.
+
+  Here is an example of defining such a graph, and executing an instance of it:
 
   ## Examples
 
@@ -25,13 +27,16 @@ defmodule Journey do
       ...>         input(:birth_month),
       ...>         compute(
       ...>           :zodiac_sign,
+      ...>           # Depends on user-supplied data:
       ...>           [:birth_month, :birth_day],
+      ...>           # Computes itself, once the dependencies are satisfied:
       ...>           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
       ...>             {:ok, "Taurus"}
       ...>           end
       ...>         ),
       ...>         compute(
       ...>           :horoscope,
+      ...>           # Computes itself once :first_name and :zodiac_sign are in place:
       ...>           [:first_name, :zodiac_sign],
       ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
       ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
@@ -42,30 +47,29 @@ defmodule Journey do
       iex>
       iex> # 2. For every customer visiting your website, start a new execution of the graph:
       iex> e = Journey.start_execution(graph)
-      iex> Journey.values(e)
-      %{}
       iex>
       iex> # 3. Populate the execution's nodes with the data as provided by the visitor:
       iex> e = Journey.set_value(e, :birth_day, 26)
       iex>
-      iex> # BTW, if the user leaves and comes back later, you can always reload the execution
-      iex> # as long as you keep track of its id:
+      iex> # BTW, if the user leaves and comes back later or if everything crashes, you can always reload the execution
+      iex> # using its id:
       iex> e = Journey.load(e.id)
       iex>
       iex> # Continuing, as if nothing happened:
       iex> e = Journey.set_value(e, :birth_month, "April")
       iex>
-      iex> # 4. As data becomes available, :zodiac_sign and :horoscope nodes will compute themselves:
-      iex> # - first, :zodiac_sign (which depends on :birth_month and :birth_day)
+      iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
       iex> Journey.get_value(e, :zodiac_sign, wait: true)
       {:ok, "Taurus"}
-      iex> e |> Journey.load() |> Journey.values()
+      iex> Journey.values(e)
       %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus"}
-      iex> # - and now :horoscope (which depends on :zodiac_sign and :first_name)
+      iex>
+      iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
       iex> e = Journey.set_value(e, :first_name, "Mario")
       iex> Journey.get_value(e, :horoscope, wait: true)
       {:ok, "🍪s await, Taurus Mario!"}
-      iex> e |> Journey.load() |> Journey.values()
+      iex>
+      iex> Journey.values(e)
       %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus"}
 
   """
@@ -247,7 +251,16 @@ defmodule Journey do
     Executions.values(execution)
   end
 
-  def values(execution) when is_struct(execution, Execution) do
+  def values(execution, opts \\ []) when is_struct(execution, Execution) and is_list(opts) do
+    reload? = Keyword.get(opts, :reload, true)
+
+    execution =
+      if reload? do
+        Journey.load(execution)
+      else
+        execution
+      end
+
     execution
     |> values_expanded()
     |> Enum.filter(fn {_k, v} ->
@@ -265,6 +278,7 @@ defmodule Journey do
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
+    ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution, node_name, value)
   end
 
@@ -311,6 +325,7 @@ defmodule Journey do
 
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
+    ensure_known_node_name(execution, node_name)
     default_timeout_ms = 5_000
 
     timeout_ms =
@@ -334,5 +349,32 @@ defmodule Journey do
       end
 
     Executions.get_value(execution, node_name, timeout_ms)
+  end
+
+  # TODO: move to execution or some such.
+  defp ensure_known_node_name(execution, node_name) do
+    all_node_names = execution.values |> Enum.map(& &1.node_name)
+
+    if node_name in all_node_names do
+      :ok
+    else
+      raise "'#{inspect(node_name)}' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: #{inspect(all_node_names)}."
+    end
+  end
+
+  defp ensure_known_input_node_name(execution, node_name)
+       when is_struct(execution, Journey.Execution) and is_atom(node_name) do
+    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+
+    all_input_node_names =
+      graph.nodes
+      |> Enum.filter(fn n -> n.type == :input end)
+      |> Enum.map(& &1.name)
+
+    if node_name in all_input_node_names do
+      :ok
+    else
+      raise "'#{inspect(node_name)}' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: #{inspect(all_input_node_names)}."
+    end
   end
 end
