@@ -18,7 +18,8 @@ defmodule Journey.HoroscopeTest do
                birth_month: {:set, "April"},
                first_name: {:set, "Mario"},
                horoscope: :not_set,
-               library_of_congress_record: :not_set
+               library_of_congress_record: :not_set,
+               obfuscate_first_name: :not_set
              }
 
       assert Journey.get_value(execution, :astrological_sign) == {:error, :not_set}
@@ -32,7 +33,7 @@ defmodule Journey.HoroscopeTest do
       assert Journey.get_value(execution, :library_of_congress_record, wait: :infinity) ==
                {:ok, "Mario's horoscope was submitted for archival."}
 
-      assert Journey.get_value(execution, :birth_day) == {:ok, 26}
+      assert Journey.get_value(execution, :obfuscate_first_name, wait: true) == {:ok, "updated :first_name"}
 
       execution = Journey.load(execution)
 
@@ -40,29 +41,11 @@ defmodule Journey.HoroscopeTest do
                astrological_sign: {:set, "Taurus"},
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
-               first_name: {:set, "Mario"},
+               first_name: {:set, "oiraM"},
                horoscope: {:set, "🍪s await, Taurus Mario!"},
-               library_of_congress_record: {:set, "Mario's horoscope was submitted for archival."}
+               library_of_congress_record: {:set, "Mario's horoscope was submitted for archival."},
+               obfuscate_first_name: {:set, "updated :first_name"}
              }
-
-      # |> Journey.wait(:library_of_congress_record)
-
-      # |> IO.inspect(label: :execution_original)
-
-      #        |> Journey.set_value(:birth_day, 26)
-      #        |> IO.inspect(label: :execution_updated)
-      #        |> Journey.set_value(:birth_month, "April")
-      #        |> Journey.set_value(:first_name, "Mario")
-      #        |> Journey.wait(:library_of_congress_record)
-
-      #      assert Journey.values(execution) == %{
-      #               first_name: {:set, "Mario"},
-      #               birth_day: {:set, 26},
-      #               birth_month: {:set, "April"},
-      #               astrological_sign: {:set, "Taurus"},
-      #               horoscope: {:set, "🍪s await, Taurus Mario!"},
-      #               library_of_congress_record: {:failed, "lol no, Mario."}
-      #             }
     end
   end
 
@@ -92,6 +75,15 @@ defmodule Journey.HoroscopeTest do
             Process.sleep(1000)
             {:ok, "#{first_name}'s horoscope was submitted for archival."}
           end
+        ),
+        mutate(
+          :obfuscate_first_name,
+          [:first_name, :library_of_congress_record],
+          fn %{first_name: first_name} ->
+            encrypted_first_name = first_name |> String.graphemes() |> Enum.reverse() |> Enum.join("")
+            {:ok, encrypted_first_name}
+          end,
+          mutates: :first_name
         )
       ]
     )

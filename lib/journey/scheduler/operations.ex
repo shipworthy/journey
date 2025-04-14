@@ -155,35 +155,6 @@ defmodule Journey.Scheduler.Operations do
             result
           )
 
-          # if graph_node.mutates == nil do
-          #   # Record the result in the corresponding value node.
-          #   set_value(
-          #     computation.execution_id,
-          #     computation.node_name,
-          #     new_revision,
-          #     repo,
-          #     result
-          #   )
-          # else
-          #   # Update this node to note that the mutation has been computed.
-          #   set_value(
-          #     computation.execution_id,
-          #     computation.node_name,
-          #     new_revision,
-          #     repo,
-          #     "updated #{inspect(graph_node.mutates)}"
-          #   )
-
-          #   # Record the result in the value node being mutated.
-          #   set_value(
-          #     computation.execution_id,
-          #     graph_node.mutates,
-          #     new_revision,
-          #     repo,
-          #     result
-          #   )
-          # end
-
           # Mark the computation as "completed".
           computation
           |> Ecto.Changeset.change(%{
