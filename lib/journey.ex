@@ -72,16 +72,6 @@ defmodule Journey do
     }
   end
 
-  # def mutate(name, upstream_nodes, f_compute)
-  #     when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
-  #   %Graph.Step{
-  #     name: name,
-  #     type: :mutation,
-  #     upstream_nodes: upstream_nodes,
-  #     f_compute: f_compute
-  #   }
-  # end
-
   def start_execution(graph) when is_struct(graph, Graph) do
     Journey.Executions.create_new(
       graph.name,

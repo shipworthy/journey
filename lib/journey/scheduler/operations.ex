@@ -114,20 +114,26 @@ defmodule Journey.Scheduler.Operations do
     execution
   end
 
+  defp graph_node_from_execution_id(execution_id, node_name) do
+    execution_id
+    |> Journey.Executions.load(false)
+    |> Map.get(:graph_name)
+    |> Journey.Graph.Catalog.fetch!()
+    |> Journey.Graph.find_node_by_name(node_name)
+  end
+
   defp mark_computation_as_completed(computation, {:ok, result}) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
     Logger.info("#{prefix}: marking as completed. starting.")
 
-    node_name_as_string = computation.node_name |> Atom.to_string()
+    graph_node = graph_node_from_execution_id(computation.execution_id, computation.node_name)
 
     {:ok, _} =
       Journey.Repo.transaction(fn repo ->
         Logger.info("#{prefix}: marking as completed. transaction starting.")
 
         current_computation =
-          from(c in Computation,
-            where: c.id == ^computation.id
-          )
+          from(c in Computation, where: c.id == ^computation.id)
           |> repo.one!()
 
         if current_computation.state == :computing do
@@ -140,13 +146,43 @@ defmodule Journey.Scheduler.Operations do
             )
             |> repo.update_all([])
 
-          # Record result / value.
-          from(v in Value,
-            where: v.execution_id == ^computation.execution_id and v.node_name == ^node_name_as_string
+          record_result(
+            repo,
+            graph_node.mutates,
+            computation.node_name,
+            computation.execution_id,
+            new_revision,
+            result
           )
-          |> repo.update_all(
-            set: [node_value: %{"v" => result}, set_time: System.system_time(:second), ex_revision: new_revision]
-          )
+
+          # if graph_node.mutates == nil do
+          #   # Record the result in the corresponding value node.
+          #   set_value(
+          #     computation.execution_id,
+          #     computation.node_name,
+          #     new_revision,
+          #     repo,
+          #     result
+          #   )
+          # else
+          #   # Update this node to note that the mutation has been computed.
+          #   set_value(
+          #     computation.execution_id,
+          #     computation.node_name,
+          #     new_revision,
+          #     repo,
+          #     "updated #{inspect(graph_node.mutates)}"
+          #   )
+
+          #   # Record the result in the value node being mutated.
+          #   set_value(
+          #     computation.execution_id,
+          #     graph_node.mutates,
+          #     new_revision,
+          #     repo,
+          #     result
+          #   )
+          # end
 
           # Mark the computation as "completed".
           computation
@@ -214,6 +250,53 @@ defmodule Journey.Scheduler.Operations do
     Logger.info("#{prefix}: marking as completed. done.")
   end
 
+  defp record_result(repo, node_to_mutate, node_name, execution_id, new_revision, result)
+       when is_nil(node_to_mutate) do
+    # Record the result in the corresponding value node.
+    set_value(
+      execution_id,
+      node_name,
+      new_revision,
+      repo,
+      result
+    )
+  end
+
+  defp record_result(repo, node_to_mutate, node_name, execution_id, new_revision, result) do
+    # Update this node to note that the mutation has been computed.
+    set_value(
+      execution_id,
+      node_name,
+      new_revision,
+      repo,
+      "updated #{inspect(node_to_mutate)}"
+    )
+
+    # Record the result in the value node being mutated.
+    set_value(
+      execution_id,
+      node_to_mutate,
+      new_revision,
+      repo,
+      result
+    )
+  end
+
+  defp set_value(execution_id, node_name, new_revision, repo, value) do
+    node_name_as_string = node_name |> Atom.to_string()
+
+    from(v in Value,
+      where: v.execution_id == ^execution_id and v.node_name == ^node_name_as_string
+    )
+    |> repo.update_all(
+      set: [
+        node_value: %{"v" => value},
+        set_time: System.system_time(:second),
+        ex_revision: new_revision
+      ]
+    )
+  end
+
   defp from_computations(nil) do
     from(c in Computation)
   end
@@ -236,29 +319,21 @@ defmodule Journey.Scheduler.Operations do
       )
       |> repo.one()
 
-    execution = computation.execution_id |> Journey.Executions.load(false)
+    graph_node = graph_node_from_execution_id(computation.execution_id, computation.node_name)
 
-    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+    if number_of_tries_so_far < graph_node.max_retries do
+      new_computation =
+        %Execution.Computation{
+          execution_id: computation.execution_id,
+          node_name: node_name_as_string,
+          computation_type: computation.computation_type,
+          state: :not_set
+        }
+        |> repo.insert!()
 
-    if graph == nil do
-      Logger.error("#{prefix}: graph not found for execution '#{execution.graph_name}'")
+      Logger.info("#{prefix}: creating a new computation, #{new_computation.id}")
     else
-      graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
-
-      if number_of_tries_so_far < graph_node.max_retries do
-        new_computation =
-          %Execution.Computation{
-            execution_id: computation.execution_id,
-            node_name: node_name_as_string,
-            computation_type: computation.computation_type,
-            state: :not_set
-          }
-          |> repo.insert!()
-
-        Logger.info("#{prefix}: creating a new computation, #{new_computation.id}")
-      else
-        Logger.info("#{prefix}: reached max retries (#{number_of_tries_so_far}), not rescheduling")
-      end
+      Logger.info("#{prefix}: reached max retries (#{number_of_tries_so_far}), not rescheduling")
     end
 
     computation

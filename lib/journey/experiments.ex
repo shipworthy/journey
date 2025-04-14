@@ -46,6 +46,14 @@ defmodule Journey.Experiments do
               {:ok, "Taurus"}
             end,
             abandon_after_seconds: 30
+          ),
+          mutate(
+            :obfuscate_birth_day,
+            [:birth_day],
+            fn %{birth_day: birth_day} ->
+              {:ok, "<s>#{inspect(birth_day)}</s>"}
+            end,
+            mutates: :birth_day
           )
         ]
       )
