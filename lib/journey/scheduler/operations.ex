@@ -106,7 +106,7 @@ defmodule Journey.Scheduler.Operations do
     # For example, we could set the start time and state of the computation
     # execution = %{execution | scheduled_computation: computation}
 
-    computation_params = Journey.values_available(execution)
+    computation_params = Journey.values(execution)
 
     Task.start(fn ->
       prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"

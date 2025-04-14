@@ -1,7 +1,7 @@
 defmodule Journey.Examples.Horoscope do
   @moduledoc false
 
-  import Journey
+  import Journey.Node
 
   def graph() do
     Journey.new_graph(

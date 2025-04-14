@@ -1,12 +1,110 @@
 defmodule Journey do
   @moduledoc """
-  Documentation for `Journey`.
+
+  Journey lets you define, maintain, and execute computation graphs, with persistence, and scalability.
+
+  For example, an application that computes horoscopes can be modeled with a graph like that contains nodes for user's name and birthday (supplied by the user), and nodes for zodiac sign and horoscope itself (automatically computed based on the user's name and birthday).
+
+  Once the user starts the flow on your website, your application starts a new execution of the graph, populates it with the data provided by the user (name, birthday), and reads the data that gets auto-computed by the graph (zodiac sign, horoscope).
+
+  Each of the supplied or computed data points is persisted, so executions survive system crashes and restarts. Computations happen on any nodes on which your system is running, so your system is as scalable and distributed as you need it to be, without any additional infrastructure.
+
+  Here is an example of defining this graph, and executing an instance of it:
+
+  ## Examples
+
+      iex> # 1. Define a graph capturing the data and the logic of the application -
+      iex> #    the nodes, their dependencies, and their computations:
+      iex> import Journey.Node
+      iex> graph = Journey.new_graph(
+      ...>       "horoscope workflow",
+      ...>       "v1.0.0",
+      ...>       [
+      ...>         input(:first_name),
+      ...>         input(:birth_day),
+      ...>         input(:birth_month),
+      ...>         compute(
+      ...>           :zodiac_sign,
+      ...>           [:birth_month, :birth_day],
+      ...>           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
+      ...>             {:ok, "Taurus"}
+      ...>           end
+      ...>         ),
+      ...>         compute(
+      ...>           :horoscope,
+      ...>           [:first_name, :zodiac_sign],
+      ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
+      ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
+      ...>           end
+      ...>         )
+      ...>       ]
+      ...>     )
+      iex>
+      iex> # 2. For every customer visiting your website, start a new execution of the graph:
+      iex> e = Journey.start_execution(graph)
+      iex> Journey.values(e)
+      %{}
+      iex>
+      iex> # 3. Populate the execution's nodes with the data as provided by the visitor:
+      iex> e = Journey.set_value(e, :birth_day, 26)
+      iex>
+      iex> # BTW, if the user leaves and comes back later, you can always reload the execution
+      iex> # as long as you keep track of its id:
+      iex> e = Journey.load(e.id)
+      iex>
+      iex> # Continuing, as if nothing happened:
+      iex> e = Journey.set_value(e, :birth_month, "April")
+      iex>
+      iex> # 4. As data becomes available, :zodiac_sign and :horoscope nodes will compute themselves:
+      iex> # - first, :zodiac_sign (which depends on :birth_month and :birth_day)
+      iex> Journey.get_value(e, :zodiac_sign, wait: true)
+      {:ok, "Taurus"}
+      iex> e |> Journey.load() |> Journey.values()
+      %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus"}
+      iex> # - and now :horoscope (which depends on :zodiac_sign and :first_name)
+      iex> e = Journey.set_value(e, :first_name, "Mario")
+      iex> Journey.get_value(e, :horoscope, wait: true)
+      {:ok, "🍪s await, Taurus Mario!"}
+      iex> e |> Journey.load() |> Journey.values()
+      %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus"}
+
   """
 
   alias Journey.Execution
   alias Journey.Executions
   alias Journey.Graph
 
+  @doc """
+  Creates a new graph with the given name, version, and nodes.
+
+  ## Example:
+
+      iex> import Journey.Node
+      iex> _graph = Journey.new_graph(
+      ...>       "horoscope workflow",
+      ...>       "v1.0.0",
+      ...>       [
+      ...>         input(:first_name),
+      ...>         input(:birth_day),
+      ...>         input(:birth_month),
+      ...>         compute(
+      ...>           :zodiac_sign,
+      ...>           [:birth_month, :birth_day],
+      ...>           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
+      ...>             {:ok, "Taurus"}
+      ...>           end
+      ...>         ),
+      ...>         compute(
+      ...>           :horoscope,
+      ...>           [:first_name, :zodiac_sign],
+      ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
+      ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
+      ...>           end
+      ...>         )
+      ...>       ]
+      ...>     )
+
+  """
   def new_graph(name, version, nodes)
       when is_binary(name) and is_binary(version) and is_list(nodes) do
     Graph.new(name, version, nodes)
@@ -22,54 +120,119 @@ defmodule Journey do
     load(execution.id)
   end
 
-  # types of nodes and mutations.
-  def input(name) when is_atom(name) do
-    %Graph.Input{name: name}
-  end
+  defmodule Node do
+    @moduledoc """
+    This module contains functions for creating nodes in a graph.
+    Nodes in a grqph can be of a few different types:
+    * `input/1` – a node that takes input from the user.
+    * `compute/4` – a node that computes a value based on its upstream nodes.
+    * `pulse_recurring/3` – a node that emits a time value on a recurring schedule.
+    * `pulse_once/3` – a node that emits a value once, on a schedule.
+    * `mutate/4` – a node that mutates the value of another node.
+    """
 
-  def compute(name, upstream_nodes, f_compute, opts \\ [])
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
-    %Graph.Step{
-      name: name,
-      type: :compute,
-      upstream_nodes: upstream_nodes,
-      f_compute: f_compute,
-      max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
-    }
-  end
+    @doc """
+    Creates an input node with the given name.
 
-  def mutate(name, upstream_nodes, f_compute, opts \\ [])
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
-    %Graph.Step{
-      name: name,
-      type: :compute,
-      upstream_nodes: upstream_nodes,
-      f_compute: f_compute,
-      mutates: Keyword.fetch!(opts, :mutates),
-      max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
-    }
-  end
+    ```
+    iex> import Journey.Node
+    iex> graph = Journey.new_graph(
+    ...>       "horoscope workflow",
+    ...>       "v1.0.0",
+    ...>       [
+    ...>         ...,
+    ...>         input(:first_name),
+    ...>         ...,
+    ```
 
-  def pulse_recurring(name, upstream_nodes, f_compute)
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
-    %Graph.Step{
-      name: name,
-      type: :pulse_recurring,
-      upstream_nodes: upstream_nodes,
-      f_compute: f_compute
-    }
-  end
+    The name must be an atom.
+    The value of the node is set using `Journey.set_value/3`.
+    """
+    def input(name) when is_atom(name) do
+      %Graph.Input{name: name}
+    end
 
-  def pulse_once(name, upstream_nodes, f_compute)
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
-    %Graph.Step{
-      name: name,
-      type: :pulse_once,
-      upstream_nodes: upstream_nodes,
-      f_compute: f_compute
-    }
+    @doc """
+    Creates a self-computing node.
+
+    ```
+    iex> import Journey.Node
+    iex> graph = Journey.new_graph(
+    ...>   "horoscope workflow",
+    ...>   "v1.0.0",
+    ...>   [
+    ...>     ...,
+    ...>     compute(
+    ...>       :zodiac_sign,
+    ...>       [:birth_month, :birth_day],
+    ...>       fn %{birth_month: _birth_month, birth_day: _birth_day} ->
+    ...>         {:ok, "Taurus"}
+    ...>       end,
+    ...>       max_retries: 3, # Optional (default: 3)
+    ...>       abandon_after_seconds: 60 # Optional (default: 60)
+    ...>     ),
+    ...>     ...,
+    ```
+    The name must be an atom.
+
+    `upstream_nodes` is a list of atoms identifying the nodes which must have value before the computation executes.
+
+    `f_compute` is the function that computes the value of the node, once the upstream dependencies are satisfied.
+    The function is provided a map of the upstream nodes and their values as its argument and returns a tuple:
+     - `{:ok, value}` or
+     - `{:error, reason}`.
+    The function is called when the upstream nodes are set, and the value is set to the result of the function.
+
+    In the case of a failure, the function is automatically retried, up to `max_retries` times.
+    If the function fails after `max_retries` attempts, the node is marked as failed.
+    If the function does not return withing `abandon_after_seconds`, it is considered to be abandoned, and it will be retried (up to `max_retries` times).
+
+    """
+
+    def compute(name, upstream_nodes, f_compute, opts \\ [])
+        when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      %Graph.Step{
+        name: name,
+        type: :compute,
+        upstream_nodes: upstream_nodes,
+        f_compute: f_compute,
+        max_retries: Keyword.get(opts, :max_retries, 3),
+        abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      }
+    end
+
+    def mutate(name, upstream_nodes, f_compute, opts \\ [])
+        when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      %Graph.Step{
+        name: name,
+        type: :compute,
+        upstream_nodes: upstream_nodes,
+        f_compute: f_compute,
+        mutates: Keyword.fetch!(opts, :mutates),
+        max_retries: Keyword.get(opts, :max_retries, 3),
+        abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      }
+    end
+
+    def pulse_recurring(name, upstream_nodes, f_compute)
+        when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      %Graph.Step{
+        name: name,
+        type: :pulse_recurring,
+        upstream_nodes: upstream_nodes,
+        f_compute: f_compute
+      }
+    end
+
+    def pulse_once(name, upstream_nodes, f_compute)
+        when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      %Graph.Step{
+        name: name,
+        type: :pulse_once,
+        upstream_nodes: upstream_nodes,
+        f_compute: f_compute
+      }
+    end
   end
 
   def start_execution(graph) when is_struct(graph, Graph) do
@@ -80,13 +243,13 @@ defmodule Journey do
     )
   end
 
-  def values(execution) when is_struct(execution, Execution) do
+  def values_expanded(execution) when is_struct(execution, Execution) do
     Executions.values(execution)
   end
 
-  def values_available(execution) when is_struct(execution, Execution) do
+  def values(execution) when is_struct(execution, Execution) do
     execution
-    |> values()
+    |> values_expanded()
     |> Enum.filter(fn {_k, v} ->
       v
       |> case do
