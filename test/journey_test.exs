@@ -1,6 +1,6 @@
 defmodule JourneyTest do
   use ExUnit.Case, async: true
-  # doctest Journey
+  doctest Journey
 
   import Journey.Node
 
