@@ -49,6 +49,16 @@ defmodule Journey.HoroscopeTest do
     end
   end
 
+  defp compute_sign(%{birth_month: _birth_month, birth_day: _birth_day}) do
+    Process.sleep(1000)
+    {:ok, "Taurus"}
+  end
+
+  defp compute_horoscope(%{first_name: name, astrological_sign: sign}) do
+    Process.sleep(1000)
+    {:ok, "🍪s await, #{sign} #{name}!"}
+  end
+
   defp create_graph() do
     Journey.new_graph(
       "horoscope workflow, success #{__MODULE__}.#{:rand.uniform()}",
@@ -57,14 +67,8 @@ defmodule Journey.HoroscopeTest do
         input(:first_name),
         input(:birth_day),
         input(:birth_month),
-        compute(:astrological_sign, [:birth_month, :birth_day], fn %{birth_month: _birth_month, birth_day: _birth_day} ->
-          Process.sleep(1000)
-          {:ok, "Taurus"}
-        end),
-        compute(:horoscope, [:first_name, :astrological_sign], fn %{first_name: name, astrological_sign: sign} ->
-          Process.sleep(1000)
-          {:ok, "🍪s await, #{sign} #{name}!"}
-        end),
+        compute(:astrological_sign, [:birth_month, :birth_day], &compute_sign/1),
+        compute(:horoscope, [:first_name, :astrological_sign], &compute_horoscope/1),
         compute(
           :library_of_congress_record,
           [:horoscope, :first_name],

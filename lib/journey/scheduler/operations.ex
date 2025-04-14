@@ -12,7 +12,11 @@ defmodule Journey.Scheduler.Operations do
   import Journey.Helpers.Log
 
   def advance(execution) do
-    available_computations = grab_available_computations(execution)
+    available_computations =
+      grab_available_computations(
+        execution,
+        Journey.Graph.Catalog.fetch!(execution.graph_name)
+      )
 
     if length(available_computations) > 0 do
       execution = Journey.load(execution)
@@ -46,6 +50,10 @@ defmodule Journey.Scheduler.Operations do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
+        abandoned_computations =
+          abandoned_computations
+          |> filter_out_graphless()
+
         abandoned_computations
         |> Enum.each(fn ac -> maybe_reschedule(ac, repo) end)
 
@@ -69,21 +77,45 @@ defmodule Journey.Scheduler.Operations do
     end)
   end
 
+  defp filter_out_graphless(computations) do
+    # Filter out computations for which there are no graph definitions in the system.
+    all_execution_ids =
+      computations
+      |> Enum.map(fn ac -> ac.execution_id end)
+      |> Enum.uniq()
+
+    known_graphs =
+      all_execution_ids
+      |> Enum.reduce(%{}, fn execution_id, acc ->
+        Map.put(acc, execution_id, graph_from_execution_id(execution_id) != nil)
+      end)
+
+    computations
+    |> Enum.filter(fn c ->
+      if Map.get(known_graphs, c.execution_id) == true do
+        true
+      else
+        Logger.error("skipping computation #{c.id} / #{c.execution_id} because of unknown graph")
+        false
+      end
+    end)
+  end
+
   defp schedule_computation(execution, computation) do
     # Here we would update the execution with the scheduled computation
     # For example, we could set the start time and state of the computation
     # execution = %{execution | scheduled_computation: computation}
-
-    graph_node =
-      execution.graph_name
-      |> Journey.Graph.Catalog.fetch!()
-      |> Journey.Graph.find_node_by_name(computation.node_name)
 
     computation_params = Journey.values_available(execution)
 
     Task.start(fn ->
       prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"
       Logger.info("#{prefix}: starting async computation")
+
+      graph_node =
+        execution.graph_name
+        |> Journey.Graph.Catalog.fetch!()
+        |> Journey.Graph.find_node_by_name(computation.node_name)
 
       graph_node.f_compute.(computation_params)
       |> case do
@@ -114,11 +146,16 @@ defmodule Journey.Scheduler.Operations do
     execution
   end
 
-  defp graph_node_from_execution_id(execution_id, node_name) do
+  defp graph_from_execution_id(execution_id) do
     execution_id
     |> Journey.Executions.load(false)
     |> Map.get(:graph_name)
     |> Journey.Graph.Catalog.fetch!()
+  end
+
+  defp graph_node_from_execution_id(execution_id, node_name) do
+    execution_id
+    |> graph_from_execution_id()
     |> Journey.Graph.find_node_by_name(node_name)
   end
 
@@ -280,11 +317,13 @@ defmodule Journey.Scheduler.Operations do
 
   defp maybe_reschedule(computation, repo) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+    Logger.info("#{prefix}: starting")
 
     node_name_as_string = computation.node_name |> Atom.to_string()
 
     number_of_tries_so_far =
-      from(c in Computation,
+      from(
+        c in Computation,
         where: c.execution_id == ^computation.execution_id and c.node_name == ^node_name_as_string,
         select: count(c.id)
       )
@@ -310,10 +349,16 @@ defmodule Journey.Scheduler.Operations do
     computation
   end
 
-  defp grab_available_computations(execution) when is_struct(execution, Execution) do
-    Logger.info("[#{execution.id}] [#{mf()}] grabbing available computation")
+  defp grab_available_computations(execution, nil) when is_struct(execution, Execution) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.error("#{prefix}: unknown graph #{execution.graph_name}")
+    []
+  end
 
-    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+  defp grab_available_computations(execution, graph)
+       when is_struct(execution, Execution) and is_struct(graph, Journey.Graph) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.info("#{prefix}: grabbing available computation")
 
     {:ok, computations_to_perform} =
       Journey.Repo.transaction(fn repo ->
@@ -323,7 +368,6 @@ defmodule Journey.Scheduler.Operations do
               c.execution_id == ^execution.id and
                 c.state == ^:not_set and
                 c.computation_type == ^:compute,
-            # TODO: would no "SKIP LOCKED" be a better option?
             lock: "FOR UPDATE SKIP LOCKED"
           )
           |> repo.all()
@@ -341,22 +385,7 @@ defmodule Journey.Scheduler.Operations do
         |> Journey.Executions.convert_values_to_atoms(:node_name)
         |> Enum.filter(fn computation -> upstream_dependencies_fulfilled?(graph, computation, all_set_values) end)
         |> Enum.map(fn unblocked_computation ->
-          # Increment revision on the execution.
-          {1, [new_revision]} =
-            from(e in Execution, update: [inc: [revision: 1]], where: e.id == ^execution.id, select: e.revision)
-            |> repo.update_all([])
-
-          # Mark the computation as "computing".
-          graph_node = Graph.find_node_by_name(graph, unblocked_computation.node_name)
-
-          unblocked_computation
-          |> Ecto.Changeset.change(%{
-            state: :computing,
-            start_time: System.system_time(:second),
-            ex_revision_at_start: new_revision,
-            deadline: System.system_time(:second) + graph_node.abandon_after_seconds
-          })
-          |> repo.update!()
+          grab_this_computation(graph, execution, unblocked_computation, repo)
         end)
       end)
 
@@ -365,9 +394,28 @@ defmodule Journey.Scheduler.Operations do
       |> Enum.map_join(", ", fn computation -> computation.node_name end)
       |> String.trim()
 
-    Logger.info("[#{execution.id}] [#{mf()}] selected these computations: [#{selected_computation_names}]")
+    Logger.info("#{prefix}: selected these computations: [#{selected_computation_names}]")
 
     computations_to_perform
+  end
+
+  defp grab_this_computation(graph, execution, computation, repo) do
+    # Increment revision on the execution.
+    {1, [new_revision]} =
+      from(e in Execution, update: [inc: [revision: 1]], where: e.id == ^execution.id, select: e.revision)
+      |> repo.update_all([])
+
+    # Mark the computation as "computing".
+    graph_node = Graph.find_node_by_name(graph, computation.node_name)
+
+    computation
+    |> Ecto.Changeset.change(%{
+      state: :computing,
+      start_time: System.system_time(:second),
+      ex_revision_at_start: new_revision,
+      deadline: System.system_time(:second) + graph_node.abandon_after_seconds
+    })
+    |> repo.update!()
   end
 
   defp upstream_dependencies_fulfilled?(graph, computation, all_set_values) do

@@ -13,6 +13,10 @@ defmodule Journey.Graph do
     }
   end
 
+  def find_node_by_name(nil, node_name) when is_atom(node_name) do
+    nil
+  end
+
   def find_node_by_name(graph, node_name) when is_struct(graph, Journey.Graph) and is_atom(node_name) do
     graph.nodes
     |> Enum.find(fn n -> n.name == node_name end)
