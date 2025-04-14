@@ -2,7 +2,6 @@ defmodule Journey.Experiments do
   @moduledoc false
 
   import Journey
-  import Journey.Helpers.GrabBag
 
   require Logger
 
@@ -23,8 +22,7 @@ defmodule Journey.Experiments do
             end,
             abandon_after_seconds: 1
           )
-        ],
-        []
+        ]
       )
 
     e = g |> Journey.start_execution()
@@ -48,9 +46,16 @@ defmodule Journey.Experiments do
               {:ok, "Taurus"}
             end,
             abandon_after_seconds: 30
+          ),
+          mutate(
+            :obfuscate_birth_day,
+            [:birth_day],
+            fn %{birth_day: birth_day} ->
+              {:ok, "<s>#{inspect(birth_day)}</s>"}
+            end,
+            mutates: :birth_day
           )
-        ],
-        []
+        ]
       )
 
     e = g |> Journey.start_execution()
@@ -92,12 +97,12 @@ defmodule Journey.Experiments do
             backoff_strategy_ms: [1000, 2000, 3000],
             consider_abandoned_after_ms: 30_000
           )
-        ],
-        [
-          mutate(:name, [:cleanup_pii], fn name ->
-            {:ok, hash(name)}
-          end)
         ]
+        # [
+        #   mutate(:name, [:cleanup_pii], fn name ->
+        #     {:ok, hash(name)}
+        #   end)
+        # ]
       )
 
     execution =
@@ -126,8 +131,7 @@ defmodule Journey.Experiments do
             send_reminder(name, email)
             {:ok, true}
           end)
-        ],
-        []
+        ]
       )
 
     execution =
@@ -154,8 +158,7 @@ defmodule Journey.Experiments do
             send_reminder(name, email)
             {:ok, true}
           end)
-        ],
-        []
+        ]
       )
 
     graph =
@@ -227,12 +230,12 @@ defmodule Journey.Experiments do
               end
             end
           )
-        ],
-        [
-          mutate(:name, [:name, :hash_pii_pulse], fn name ->
-            {:ok, hash(name)}
-          end)
         ]
+        # [
+        #   mutate(:name, [:name, :hash_pii_pulse], fn name ->
+        #     {:ok, hash(name)}
+        #   end)
+        # ]
       )
 
     execution = Journey.start_execution(graph)

@@ -200,8 +200,7 @@ defmodule Journey.Scheduler.SchedulerTest do
           abandon_after_seconds: 1,
           max_retries: 2
         )
-      ],
-      []
+      ]
     )
   end
 end

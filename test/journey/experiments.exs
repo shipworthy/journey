@@ -10,7 +10,7 @@ defmodule Journey.ExperimentsScripts do
     id,
     graph_name,
     revision,
-    inputs_and_steps
+    nodes
 
   value:
     id,
@@ -140,7 +140,7 @@ defmodule Journey.ExperimentsScripts do
 
   """
 
-  user_onboarding_graph =
+  user_onboarding_graph_separate_mutate =
     Graph.new(
       "user_onboarding",
       "v123",
@@ -167,6 +167,67 @@ defmodule Journey.ExperimentsScripts do
       ]
     )
 
+  user_onboarding_graph_mutate_as_compte =
+    Graph.new(
+      "user_onboarding",
+      "v123",
+      [
+        input(:name),
+        pulse_once(:cleanup_pii_pulse, [], fn _ ->
+          {:ok, System.system_time(:second) + 86_400}
+        end),
+        compute(
+          :welcome_message,
+          [:name],
+          fn %{name: name} ->
+            {:ok, "Hi #{name}, welcome!"}
+          end,
+          max_retries: 3,
+          backoff_strategy_ms: [1000, 2000, 3000],
+          consider_abandoned_after_ms: 30_000
+        ),
+        compute(
+          :replace_name_with_hash,
+          [:name, :cleanup_pii_pulse],
+          fn %{name: name} ->
+            {:ok, hash(name)}
+          end,
+          mutates: :name
+        )
+      ]
+    )
+
+  user_onboarding_graph_mutate_as_a_computation =
+    Graph.new(
+      "user_onboarding",
+      "v123",
+      [
+        input(:name),
+        pulse_once(:cleanup_pii_pulse, [], fn _ ->
+          {:ok, System.system_time(:second) + 86_400}
+        end),
+        compute(
+          :welcome_message,
+          [:name],
+          fn %{name: name} ->
+            {:ok, "Hi #{name}, welcome!"}
+          end,
+          max_retries: 3,
+          backoff_strategy_ms: [1000, 2000, 3000],
+          consider_abandoned_after_ms: 30_000
+        )
+        # mutate(
+        #   :replace_name_with_hash,
+        #   [:name, :cleanup_pii_pulse],
+        #   fn %{name: name} ->
+        #     {:ok, hash(name)}
+        #   end,
+        #   mutates: :name
+        #   # same retry options apply
+        # )
+      ]
+    )
+
   reminders_graph =
     Graph.new(
       "reminders",
@@ -183,8 +244,7 @@ defmodule Journey.ExperimentsScripts do
           send_reminder(name, email)
           {:ok, true}
         end)
-      ],
-      []
+      ]
     )
 
   advocacy_graph =
@@ -256,12 +316,12 @@ defmodule Journey.ExperimentsScripts do
             end
           end
         )
-      ],
-      [
-        mutate(:name, [:name, :hash_pii_pulse], fn name ->
-          {:ok, hash(name)}
-        end)
       ]
+      # [
+      #   mutate(:name, [:name, :hash_pii_pulse], fn name ->
+      #     {:ok, hash(name)}
+      #   end)
+      # ]
     )
 
   advocacy_execution =
@@ -306,10 +366,10 @@ defmodule Journey.ExperimentsScripts do
             {:ok, send_so_sorry_mail(name, address)}
           end
         )
-      ],
-      [
-        mutate(:ssn, [:decision], fn ssn -> {:ok, hash(ssn)} end),
-        mutate(:credit_score, [:decision], fn credit_score -> {:ok, hash(credit_score)} end)
       ]
+      # [
+      #   mutate(:ssn, [:decision], fn ssn -> {:ok, hash(ssn)} end),
+      #   mutate(:credit_score, [:decision], fn credit_score -> {:ok, hash(credit_score)} end)
+      # ]
     )
 end
