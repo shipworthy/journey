@@ -1,7 +1,7 @@
 defmodule Journey.Scheduler.SchedulerTest do
   use ExUnit.Case, async: true
 
-  import Journey
+  import Journey.Node
   import Journey.Helpers.GrabBag
 
   alias Journey.Scheduler
@@ -43,7 +43,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert [] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
       execution = Journey.set_value(execution, :birth_month, "April")
 
-      assert Journey.values(execution) == %{
+      assert Journey.values_expanded(execution) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -52,7 +52,7 @@ defmodule Journey.Scheduler.SchedulerTest do
 
       assert Scheduler.Operations.sweep_abandoned_computations(execution.id) == []
 
-      assert Journey.values(execution) == %{
+      assert Journey.values_expanded(execution) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -108,7 +108,7 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
 
-      assert Journey.values(execution) == %{
+      assert Journey.values_expanded(execution) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -135,7 +135,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
       assert 0 == count_computations(execution.id, :astrological_sign, :computing)
 
-      assert Journey.values(execution) == %{
+      assert Journey.values_expanded(execution) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},

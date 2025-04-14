@@ -1,7 +1,7 @@
 defmodule Journey.GraphTest do
   use ExUnit.Case, async: true
 
-  import Journey
+  import Journey.Node
 
   defp create_graph() do
     Journey.new_graph(

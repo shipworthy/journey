@@ -1,7 +1,7 @@
 defmodule Journey.Experiments do
   @moduledoc false
 
-  import Journey
+  import Journey.Node
 
   require Logger
 

@@ -91,7 +91,6 @@ defmodule Journey.Executions do
   def set_value(execution, node_name, value) do
     {:ok, updated_execution} =
       Journey.Repo.transaction(fn repo ->
-        # Increment revision on the execution.
         {1, [new_revision]} =
           from(e in Execution, update: [inc: [revision: 1]], where: e.id == ^execution.id, select: e.revision)
           |> repo.update_all([])
@@ -100,7 +99,6 @@ defmodule Journey.Executions do
           where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
         )
         |> repo.update_all(
-          # TODO: update revision on the value, and on the execution.
           set: [
             ex_revision: new_revision,
             node_value: %{"v" => value},
@@ -108,8 +106,6 @@ defmodule Journey.Executions do
           ]
         )
 
-        # TODO: loading immediately after an update might be problematic – we might miss the last update,
-        # depending on our db change propagation setup. tbd: does loading inside of a transaction help?
         load(execution.id)
       end)
 

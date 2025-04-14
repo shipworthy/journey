@@ -1,6 +1,6 @@
 defmodule Journey.Test.HoroscopeGraph do
   @moduledoc false
-  import Journey
+  import Journey.Node
 
   def create_graph() do
     Journey.new_graph(
@@ -59,7 +59,7 @@ defmodule Journey.HoroscopeTest do
         |> Journey.set_value(:birth_month, "April")
         |> Journey.set_value(:first_name, "Mario")
 
-      assert Journey.values(execution) == %{
+      assert Journey.values_expanded(execution) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -84,7 +84,7 @@ defmodule Journey.HoroscopeTest do
 
       execution = Journey.load(execution)
 
-      assert Journey.values(execution) == %{
+      assert Journey.values_expanded(execution) == %{
                astrological_sign: {:set, "Taurus"},
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
