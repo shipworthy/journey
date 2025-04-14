@@ -1,3 +1,52 @@
+defmodule Journey.Test.HoroscopeGraph do
+  @moduledoc false
+  import Journey
+
+  def create_graph() do
+    Journey.new_graph(
+      "horoscope workflow, success #{__MODULE__}.#{:rand.uniform()}",
+      "v1.0.0",
+      [
+        input(:first_name),
+        input(:birth_day),
+        input(:birth_month),
+        compute(:astrological_sign, [:birth_month, :birth_day], &compute_sign/1),
+        compute(:horoscope, [:first_name, :astrological_sign], &compute_horoscope/1),
+        compute(
+          :library_of_congress_record,
+          [:horoscope, :first_name],
+          fn %{
+               horoscope: _horoscope,
+               first_name: first_name
+             } ->
+            Process.sleep(1000)
+            {:ok, "#{first_name}'s horoscope was submitted for archival."}
+          end
+        ),
+        mutate(
+          :obfuscate_first_name,
+          [:first_name, :library_of_congress_record],
+          fn %{first_name: first_name} ->
+            encrypted_first_name = first_name |> String.graphemes() |> Enum.reverse() |> Enum.join("")
+            {:ok, encrypted_first_name}
+          end,
+          mutates: :first_name
+        )
+      ]
+    )
+  end
+
+  defp compute_sign(%{birth_month: _birth_month, birth_day: _birth_day}) do
+    Process.sleep(1000)
+    {:ok, "Taurus"}
+  end
+
+  defp compute_horoscope(%{first_name: name, astrological_sign: sign}) do
+    Process.sleep(1000)
+    {:ok, "🍪s await, #{sign} #{name}!"}
+  end
+end
+
 defmodule Journey.HoroscopeTest do
   use ExUnit.Case, async: true
 
@@ -6,7 +55,7 @@ defmodule Journey.HoroscopeTest do
   describe "flow" do
     test "sunny day" do
       execution =
-        create_graph()
+        Journey.Test.HoroscopeGraph.create_graph()
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
@@ -47,49 +96,5 @@ defmodule Journey.HoroscopeTest do
                obfuscate_first_name: {:set, "updated :first_name"}
              }
     end
-  end
-
-  defp compute_sign(%{birth_month: _birth_month, birth_day: _birth_day}) do
-    Process.sleep(1000)
-    {:ok, "Taurus"}
-  end
-
-  defp compute_horoscope(%{first_name: name, astrological_sign: sign}) do
-    Process.sleep(1000)
-    {:ok, "🍪s await, #{sign} #{name}!"}
-  end
-
-  defp create_graph() do
-    Journey.new_graph(
-      "horoscope workflow, success #{__MODULE__}.#{:rand.uniform()}",
-      "v1.0.0",
-      [
-        input(:first_name),
-        input(:birth_day),
-        input(:birth_month),
-        compute(:astrological_sign, [:birth_month, :birth_day], &compute_sign/1),
-        compute(:horoscope, [:first_name, :astrological_sign], &compute_horoscope/1),
-        compute(
-          :library_of_congress_record,
-          [:horoscope, :first_name],
-          fn %{
-               horoscope: _horoscope,
-               first_name: first_name
-             } ->
-            Process.sleep(1000)
-            {:ok, "#{first_name}'s horoscope was submitted for archival."}
-          end
-        ),
-        mutate(
-          :obfuscate_first_name,
-          [:first_name, :library_of_congress_record],
-          fn %{first_name: first_name} ->
-            encrypted_first_name = first_name |> String.graphemes() |> Enum.reverse() |> Enum.join("")
-            {:ok, encrypted_first_name}
-          end,
-          mutates: :first_name
-        )
-      ]
-    )
   end
 end
