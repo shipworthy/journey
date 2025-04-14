@@ -10,7 +10,7 @@ defmodule Journey.ExperimentsScripts do
     id,
     graph_name,
     revision,
-    inputs_and_steps
+    nodes
 
   value:
     id,

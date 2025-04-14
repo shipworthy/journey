@@ -35,7 +35,7 @@ defmodule JourneyTest do
     test "sunny day" do
       graph = create_graph()
       assert graph.name == "horoscope workflow, success Elixir.JourneyTest"
-      assert is_list(graph.inputs_and_steps)
+      assert is_list(graph.nodes)
     end
   end
 end

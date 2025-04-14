@@ -6,7 +6,7 @@ defmodule Journey.Executions do
   require Logger
   import Journey.Helpers.Log
 
-  def create_new(graph_name, graph_version, inputs_and_steps) do
+  def create_new(graph_name, graph_version, nodes) do
     {:ok, execution} =
       Journey.Repo.transaction(fn repo ->
         execution =
@@ -19,7 +19,7 @@ defmodule Journey.Executions do
 
         # Create a value record for every graph node, regardless of the graph node's type.
         _values =
-          inputs_and_steps
+          nodes
           |> Enum.map(fn
             graph_node ->
               %Execution.Value{
@@ -34,7 +34,7 @@ defmodule Journey.Executions do
 
         # Create computations for computable nodes.
         _computations =
-          inputs_and_steps
+          nodes
           |> Enum.filter(fn %{type: type} -> type in Journey.Execution.ComputationType.values() end)
           |> Enum.map(fn computation ->
             %Execution.Computation{

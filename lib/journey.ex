@@ -7,9 +7,9 @@ defmodule Journey do
   alias Journey.Executions
   alias Journey.Graph
 
-  def new_graph(name, version, inputs_and_steps)
-      when is_binary(name) and is_binary(version) and is_list(inputs_and_steps) do
-    Graph.new(name, version, inputs_and_steps)
+  def new_graph(name, version, nodes)
+      when is_binary(name) and is_binary(version) and is_list(nodes) do
+    Graph.new(name, version, nodes)
     |> Graph.Catalog.register()
   end
 
@@ -84,7 +84,7 @@ defmodule Journey do
     Journey.Executions.create_new(
       graph.name,
       graph.version,
-      graph.inputs_and_steps
+      graph.nodes
     )
   end
 
