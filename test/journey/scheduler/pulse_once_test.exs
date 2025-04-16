@@ -20,9 +20,10 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
              time_to_issue_reminder_pulse: :redacted
            }
 
-    Process.sleep(3000)
+    Process.sleep(2000)
 
     BackgroundSweep.find_and_kick_recently_ripened_pulse_values()
+    assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
              greeting: "Hello, Mario",
@@ -39,6 +40,8 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
              reminder: "Reminder: Hello, Mario",
              time_to_issue_reminder_pulse: :redacted
            }
+
+    # TODO: add a recompute (modify user_name) and watch the change propagate (think through use cases).
   end
 
   defp redact(map, key) do
