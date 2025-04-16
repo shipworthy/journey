@@ -33,73 +33,6 @@ defmodule Journey.Scheduler.Operations do
     end
   end
 
-  def sweep_abandoned_computations(execution_id) do
-    prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
-    Logger.info("#{prefix}: starting")
-
-    current_epoch_second = System.system_time(:second)
-
-    {:ok, computations_marked_as_abandoned} =
-      Journey.Repo.transaction(fn repo ->
-        abandoned_computations =
-          from(c in from_computations(execution_id),
-            where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
-            lock: "FOR UPDATE SKIP LOCKED"
-          )
-          |> repo.all()
-          |> Journey.Executions.convert_values_to_atoms(:node_name)
-
-        abandoned_computations =
-          abandoned_computations
-          |> filter_out_graphless()
-
-        abandoned_computations
-        |> Enum.each(fn ac -> maybe_schedule_a_retry(ac, repo) end)
-
-        Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
-
-        abandoned_computations
-        |> Enum.map(fn ac ->
-          ac
-          |> Ecto.Changeset.change(%{
-            state: :abandoned,
-            completion_time: System.system_time(:second)
-          })
-          |> repo.update!()
-        end)
-      end)
-
-    computations_marked_as_abandoned
-    |> Enum.map(fn ac ->
-      Logger.warning("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
-      ac
-    end)
-  end
-
-  defp filter_out_graphless(computations) do
-    # Filter out computations for which there are no graph definitions in the system.
-    all_execution_ids =
-      computations
-      |> Enum.map(fn ac -> ac.execution_id end)
-      |> Enum.uniq()
-
-    known_graphs =
-      all_execution_ids
-      |> Enum.reduce(%{}, fn execution_id, acc ->
-        Map.put(acc, execution_id, graph_from_execution_id(execution_id) != nil)
-      end)
-
-    computations
-    |> Enum.filter(fn c ->
-      if Map.get(known_graphs, c.execution_id) == true do
-        true
-      else
-        Logger.error("skipping computation #{c.id} / #{c.execution_id} because of unknown graph")
-        false
-      end
-    end)
-  end
-
   defp schedule_computation(execution, computation) do
     # Here we would update the execution with the scheduled computation
     # For example, we could set the start time and state of the computation
@@ -145,24 +78,11 @@ defmodule Journey.Scheduler.Operations do
     execution
   end
 
-  defp graph_from_execution_id(execution_id) do
-    execution_id
-    |> Journey.Executions.load(false)
-    |> Map.get(:graph_name)
-    |> Journey.Graph.Catalog.fetch!()
-  end
-
-  defp graph_node_from_execution_id(execution_id, node_name) do
-    execution_id
-    |> graph_from_execution_id()
-    |> Journey.Graph.find_node_by_name(node_name)
-  end
-
   defp mark_computation_as_completed(computation, {:ok, result}) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
     Logger.info("#{prefix}: marking as completed. starting.")
 
-    graph_node = graph_node_from_execution_id(computation.execution_id, computation.node_name)
+    graph_node = Journey.Scheduler.Helpers.graph_node_from_execution_id(computation.execution_id, computation.node_name)
 
     {:ok, _} =
       Journey.Repo.transaction(fn repo ->
@@ -244,7 +164,7 @@ defmodule Journey.Scheduler.Operations do
             ex_revision_at_completion: new_revision
           })
           |> repo.update!()
-          |> maybe_schedule_a_retry(repo)
+          |> Journey.Scheduler.Retry.maybe_schedule_a_retry(repo)
 
           Logger.info("#{prefix}: marking as completed. transaction done.")
         else
@@ -317,50 +237,6 @@ defmodule Journey.Scheduler.Operations do
         )
       end
     end)
-  end
-
-  defp from_computations(nil) do
-    from(c in Computation)
-  end
-
-  defp from_computations(execution_id) do
-    from(c in Computation,
-      where: c.execution_id == ^execution_id
-    )
-  end
-
-  defp maybe_schedule_a_retry(computation, repo) do
-    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
-    Logger.info("#{prefix}: starting")
-
-    node_name_as_string = computation.node_name |> Atom.to_string()
-
-    number_of_tries_so_far =
-      from(
-        c in Computation,
-        where: c.execution_id == ^computation.execution_id and c.node_name == ^node_name_as_string,
-        select: count(c.id)
-      )
-      |> repo.one()
-
-    graph_node = graph_node_from_execution_id(computation.execution_id, computation.node_name)
-
-    if number_of_tries_so_far < graph_node.max_retries do
-      new_computation =
-        %Execution.Computation{
-          execution_id: computation.execution_id,
-          node_name: node_name_as_string,
-          computation_type: computation.computation_type,
-          state: :not_set
-        }
-        |> repo.insert!()
-
-      Logger.info("#{prefix}: creating a new computation, #{new_computation.id}")
-    else
-      Logger.info("#{prefix}: reached max retries (#{number_of_tries_so_far}), not rescheduling")
-    end
-
-    computation
   end
 
   def an_upstream_node_has_a_newer_version?(computation, graph, all_computed_values) do
