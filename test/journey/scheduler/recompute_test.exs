@@ -3,9 +3,6 @@ defmodule Journey.Scheduler.Scheduler.RecomputeTest do
 
   import Journey.Node
 
-  #  @tag :capture_log
-
-  #  @tag :skip
   test "basic recompute" do
     graph = simple_graph()
 

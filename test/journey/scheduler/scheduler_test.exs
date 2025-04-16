@@ -4,6 +4,8 @@ defmodule Journey.Scheduler.SchedulerTest do
   import Journey.Node
   import Journey.Helpers.GrabBag
 
+  alias Journey.Scheduler.BackgroundSweep
+
   alias Journey.Scheduler
 
   describe "advance |" do
@@ -40,7 +42,7 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
 
-      assert [] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
+      assert [] = BackgroundSweep.sweep_abandoned_computations(execution.id)
       execution = Journey.set_value(execution, :birth_month, "April")
 
       assert Journey.values_expanded(execution) == %{
@@ -50,7 +52,7 @@ defmodule Journey.Scheduler.SchedulerTest do
                first_name: :not_set
              }
 
-      assert Scheduler.Operations.sweep_abandoned_computations(execution.id) == []
+      assert BackgroundSweep.sweep_abandoned_computations(execution.id) == []
 
       assert Journey.values_expanded(execution) == %{
                astrological_sign: :not_set,
@@ -68,12 +70,12 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
 
-      assert [] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
+      assert [] = BackgroundSweep.sweep_abandoned_computations(execution.id)
       assert 1 == count_computations(execution.id, :astrological_sign, :computing)
 
       # After a wait, the next sweep identifies the computation as :abandoned.
       Process.sleep(2_000)
-      [abandoned_computation] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
+      [abandoned_computation] = BackgroundSweep.sweep_abandoned_computations(execution.id)
       assert abandoned_computation.state == :abandoned
       assert abandoned_computation.computation_type == :compute
       assert abandoned_computation.node_name == :astrological_sign
@@ -98,11 +100,11 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
 
-      assert [] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
+      assert [] = BackgroundSweep.sweep_abandoned_computations(execution.id)
 
       Process.sleep(2_000)
 
-      [abandoned_computation] = Scheduler.Operations.sweep_abandoned_computations(nil)
+      [abandoned_computation] = BackgroundSweep.sweep_abandoned_computations(nil)
 
       assert abandoned_computation.state == :abandoned
       assert abandoned_computation.computation_type == :compute
@@ -130,15 +132,13 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> MapSet.new()
 
       for eid <- execution_ids do
-        assert [] == Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations(eid)
+        assert [] == BackgroundSweep.find_and_kickoff_abandoned_computations(eid)
       end
 
       Process.sleep(2_000)
 
       for eid <- execution_ids do
-        [execution] =
-          Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations(eid)
-
+        [execution] = BackgroundSweep.find_and_kickoff_abandoned_computations(eid)
         assert execution.id == eid
       end
     end

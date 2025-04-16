@@ -218,23 +218,27 @@ defmodule Journey do
       }
     end
 
-    def pulse_recurring(name, upstream_nodes, f_compute)
+    def pulse_recurring(name, upstream_nodes, f_compute, opts \\ [])
         when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
       %Graph.Step{
         name: name,
         type: :pulse_recurring,
         upstream_nodes: upstream_nodes,
-        f_compute: f_compute
+        f_compute: f_compute,
+        max_retries: Keyword.get(opts, :max_retries, 3),
+        abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
       }
     end
 
-    def pulse_once(name, upstream_nodes, f_compute)
+    def pulse_once(name, upstream_nodes, f_compute, opts \\ [])
         when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
       %Graph.Step{
         name: name,
         type: :pulse_once,
         upstream_nodes: upstream_nodes,
-        f_compute: f_compute
+        f_compute: f_compute,
+        max_retries: Keyword.get(opts, :max_retries, 3),
+        abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
       }
     end
   end
