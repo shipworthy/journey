@@ -69,9 +69,8 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_month, "April")
 
       assert [] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
-
       assert 1 == count_computations(execution.id, :astrological_sign, :computing)
-      # assert execution |> Journey.load() |> Map.get(:computations) |> Enum.count() == 1
+
       # After a wait, the next sweep identifies the computation as :abandoned.
       Process.sleep(2_000)
       [abandoned_computation] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
