@@ -358,7 +358,7 @@ defmodule Journey do
     if node_name in all_node_names do
       :ok
     else
-      raise "'#{inspect(node_name)}' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: #{inspect(all_node_names)}."
+      raise "'#{inspect(node_name)}' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: #{inspect(Enum.sort(all_node_names))}."
     end
   end
 
@@ -374,7 +374,7 @@ defmodule Journey do
     if node_name in all_input_node_names do
       :ok
     else
-      raise "'#{inspect(node_name)}' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: #{inspect(all_input_node_names)}."
+      raise "'#{inspect(node_name)}' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: #{inspect(Enum.sort(all_input_node_names))}."
     end
   end
 end

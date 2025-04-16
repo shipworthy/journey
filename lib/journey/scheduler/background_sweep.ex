@@ -27,7 +27,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
 
     try do
       Logger.info("#{prefix}: performing sweep")
-      find_and_kickoff_abandoned_computations()
+      find_and_kickoff_abandoned_computations(nil)
       Logger.info("#{prefix}: sweep complete")
     catch
       exception ->
@@ -37,11 +37,11 @@ defmodule Journey.Scheduler.BackgroundSweep do
     Logger.debug("#{prefix}: done")
   end
 
-  def find_and_kickoff_abandoned_computations() do
-    Journey.Scheduler.Operations.sweep_abandoned_computations(nil)
+  def find_and_kickoff_abandoned_computations(execution_id) do
+    Journey.Scheduler.Operations.sweep_abandoned_computations(execution_id)
     |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
     |> Enum.uniq()
-    |> Enum.map(fn execution_id -> kick(execution_id) end)
+    |> Enum.map(fn swept_execution_id -> kick(swept_execution_id) end)
   end
 
   defp kick(execution_id) do

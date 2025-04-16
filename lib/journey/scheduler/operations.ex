@@ -12,11 +12,10 @@ defmodule Journey.Scheduler.Operations do
   import Journey.Helpers.Log
 
   def advance(execution) do
-    available_computations =
-      grab_available_computations(
-        execution,
-        Journey.Graph.Catalog.fetch!(execution.graph_name)
-      )
+    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+    detect_updates_and_create_re_computations(execution, graph)
+
+    available_computations = grab_available_computations(execution, graph)
 
     if length(available_computations) > 0 do
       execution = Journey.load(execution)
@@ -55,7 +54,7 @@ defmodule Journey.Scheduler.Operations do
           |> filter_out_graphless()
 
         abandoned_computations
-        |> Enum.each(fn ac -> maybe_reschedule(ac, repo) end)
+        |> Enum.each(fn ac -> maybe_schedule_a_retry(ac, repo) end)
 
         Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
 
@@ -245,7 +244,7 @@ defmodule Journey.Scheduler.Operations do
             ex_revision_at_completion: new_revision
           })
           |> repo.update!()
-          |> maybe_reschedule(repo)
+          |> maybe_schedule_a_retry(repo)
 
           Logger.info("#{prefix}: marking as completed. transaction done.")
         else
@@ -281,10 +280,12 @@ defmodule Journey.Scheduler.Operations do
     )
 
     # Record the result in the value node being mutated.
+    # Note that mutations are not regular updates, and do not trigger a recomputation,
+    # so we don't update the value's revision.
     set_value(
       execution_id,
       node_to_mutate,
-      new_revision,
+      nil,
       repo,
       result
     )
@@ -296,13 +297,26 @@ defmodule Journey.Scheduler.Operations do
     from(v in Value,
       where: v.execution_id == ^execution_id and v.node_name == ^node_name_as_string
     )
-    |> repo.update_all(
-      set: [
-        node_value: %{"v" => value},
-        set_time: System.system_time(:second),
-        ex_revision: new_revision
-      ]
-    )
+    |> then(fn q ->
+      if new_revision == nil do
+        q
+        |> repo.update_all(
+          set: [
+            node_value: %{"v" => value},
+            set_time: System.system_time(:second)
+          ]
+        )
+      else
+        q
+        |> repo.update_all(
+          set: [
+            node_value: %{"v" => value},
+            set_time: System.system_time(:second),
+            ex_revision: new_revision
+          ]
+        )
+      end
+    end)
   end
 
   defp from_computations(nil) do
@@ -315,7 +329,7 @@ defmodule Journey.Scheduler.Operations do
     )
   end
 
-  defp maybe_reschedule(computation, repo) do
+  defp maybe_schedule_a_retry(computation, repo) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
     Logger.info("#{prefix}: starting")
 
@@ -349,6 +363,94 @@ defmodule Journey.Scheduler.Operations do
     computation
   end
 
+  def an_upstream_node_has_a_newer_version?(computation, graph, all_computed_values) do
+    upstream_nodes =
+      graph
+      |> Graph.find_node_by_name(computation.node_name)
+      |> Map.get(:upstream_nodes)
+
+    all_upstream_nodes_have_values? =
+      upstream_nodes
+      |> Enum.all?(fn upstream_node_name ->
+        Map.has_key?(all_computed_values, upstream_node_name)
+      end)
+
+    at_least_one_upstream_node_has_a_higher_version? =
+      upstream_nodes
+      |> Enum.any?(fn upstream_node_name ->
+        Map.has_key?(all_computed_values, upstream_node_name) and
+          computation.ex_revision_at_start <= all_computed_values[upstream_node_name].node_revision
+      end)
+
+    all_upstream_nodes_have_values? and at_least_one_upstream_node_has_a_higher_version?
+  end
+
+  def detect_updates_and_create_re_computations(execution, graph) do
+    prefix = "[#{execution.id}] [EXPERIMENT#{mf()}]"
+    Logger.info("#{prefix}: starting")
+
+    {:ok, new_computations} =
+      Journey.Repo.transaction(fn repo ->
+        latest_computation_ids =
+          from(c in Computation,
+            where: c.execution_id == ^execution.id and c.computation_type == :compute and c.state != ^:not_set,
+            order_by: [desc: c.ex_revision_at_start],
+            distinct: c.node_name,
+            select: c.id
+          )
+
+        all_computations =
+          from(c in Computation,
+            where: c.id in subquery(latest_computation_ids),
+            # TODO: here and elsewhere, experiment with a regular "SELECT FOR UPDATE", no "SKIP LOCKED".
+            lock: "FOR UPDATE SKIP LOCKED"
+          )
+          |> repo.all()
+          |> Journey.Executions.convert_values_to_atoms(:node_name)
+
+        all_set_values = get_all_set_values(execution.id, repo)
+
+        all_computations
+        |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_set_values) end)
+        |> Enum.map(fn computation_to_re_create ->
+          new_computation =
+            %Execution.Computation{
+              execution: execution,
+              node_name: Atom.to_string(computation_to_re_create.node_name),
+              computation_type: computation_to_re_create.computation_type,
+              state: :not_set
+            }
+            |> repo.insert!()
+
+          Logger.info(
+            "#{prefix}: created a new re-computation, #{new_computation.id}.#{new_computation.node_name}. an upstream node has a newer version"
+          )
+
+          new_computation
+        end)
+      end)
+
+    Logger.info("#{prefix}: completed. created #{length(new_computations)} new computations")
+  end
+
+  defp get_all_set_values(execution_id, repo) do
+    from(v in Value,
+      where: v.execution_id == ^execution_id and not is_nil(v.set_time),
+      select: %{
+        node_name: v.node_name,
+        node_revision: v.ex_revision,
+        node_value: v.node_value,
+        set_time: v.set_time
+      }
+    )
+    |> repo.all()
+    |> Enum.map(fn %{node_name: node_name} = n ->
+      node_name_as_atom = String.to_atom(node_name)
+      {node_name_as_atom, %{n | node_name: String.to_atom(node_name)}}
+    end)
+    |> Enum.into(%{})
+  end
+
   defp grab_available_computations(execution, nil) when is_struct(execution, Execution) do
     prefix = "[#{execution.id}] [#{mf()}]"
     Logger.error("#{prefix}: unknown graph #{execution.graph_name}")
@@ -371,6 +473,7 @@ defmodule Journey.Scheduler.Operations do
             lock: "FOR UPDATE SKIP LOCKED"
           )
           |> repo.all()
+          |> Journey.Executions.convert_values_to_atoms(:node_name)
 
         all_set_values =
           from(v in Value,
@@ -382,7 +485,6 @@ defmodule Journey.Scheduler.Operations do
           |> MapSet.new()
 
         all_candidates_for_computation
-        |> Journey.Executions.convert_values_to_atoms(:node_name)
         |> Enum.filter(fn computation -> upstream_dependencies_fulfilled?(graph, computation, all_set_values) end)
         |> Enum.map(fn unblocked_computation ->
           grab_this_computation(graph, execution, unblocked_computation, repo)
