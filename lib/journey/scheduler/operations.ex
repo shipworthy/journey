@@ -283,7 +283,9 @@ defmodule Journey.Scheduler.Operations do
     set_value(
       execution_id,
       node_to_mutate,
-      new_revision,
+      # Do not update the revision of the node being mutated.
+      # Mutations are "archival" events and do not trigger a recomputation.
+      nil,
       repo,
       result
     )
@@ -295,13 +297,26 @@ defmodule Journey.Scheduler.Operations do
     from(v in Value,
       where: v.execution_id == ^execution_id and v.node_name == ^node_name_as_string
     )
-    |> repo.update_all(
-      set: [
-        node_value: %{"v" => value},
-        set_time: System.system_time(:second),
-        ex_revision: new_revision
-      ]
-    )
+    |> then(fn q ->
+      if new_revision == nil do
+        q
+        |> repo.update_all(
+          set: [
+            node_value: %{"v" => value},
+            set_time: System.system_time(:second)
+          ]
+        )
+      else
+        q
+        |> repo.update_all(
+          set: [
+            node_value: %{"v" => value},
+            set_time: System.system_time(:second),
+            ex_revision: new_revision
+          ]
+        )
+      end
+    end)
   end
 
   defp from_computations(nil) do
@@ -348,43 +363,33 @@ defmodule Journey.Scheduler.Operations do
     computation
   end
 
-  defp grab_available_computations(execution, nil) when is_struct(execution, Execution) do
-    prefix = "[#{execution.id}] [#{mf()}]"
-    Logger.error("#{prefix}: unknown graph #{execution.graph_name}")
-    []
-  end
-
-  #        all_upstream_nodes_fulfilled_for_computation?(computation, graph, all_set_values)
-  #   )
   def an_upstream_node_has_a_newer_version?(computation, graph, all_set_values) do
     upstream_nodes =
       graph
       |> Graph.find_node_by_name(computation.node_name)
       |> Map.get(:upstream_nodes)
 
-    # All upstream nodes are fulfilled
     all_upstream_nodes_have_values? =
       upstream_nodes
       |> Enum.all?(fn upstream_node_name ->
         Map.has_key?(all_set_values, upstream_node_name)
       end)
 
-    # At least one upstream node has a higher version.
-    at_least_one_upstream_node_has_higher_version? =
+    at_least_one_upstream_node_has_a_higher_version? =
       upstream_nodes
       |> Enum.any?(fn upstream_node_name ->
         Map.has_key?(all_set_values, upstream_node_name) and
           computation.ex_revision_at_start <= all_set_values[upstream_node_name].node_revision
       end)
 
-    all_upstream_nodes_have_values? and at_least_one_upstream_node_has_higher_version?
+    all_upstream_nodes_have_values? and at_least_one_upstream_node_has_a_higher_version?
   end
 
   def detect_updates_and_create_re_computations(execution, graph) do
     prefix = "[#{execution.id}] [EXPERIMENT#{mf()}]"
     Logger.info("#{prefix}: starting")
 
-    {:ok, computations_to_perform} =
+    {:ok, new_computations} =
       Journey.Repo.transaction(fn repo ->
         latest_computation_ids =
           from(c in Computation,
@@ -394,7 +399,6 @@ defmodule Journey.Scheduler.Operations do
             select: c.id
           )
 
-        # Step 2: Main query to lock those rows
         all_computations =
           from(c in Computation,
             where: c.id in subquery(latest_computation_ids),
@@ -404,33 +408,30 @@ defmodule Journey.Scheduler.Operations do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        # all_computations =
-        #   from(c in Computation,
-        #     where: c.execution_id == ^execution.id and c.computation_type == :compute and c.state != ^:not_set,
-        #     distinct: c.node_name,
-        #     order_by: [desc: c.ex_revision_at_start],
-        #     lock: "FOR UPDATE SKIP LOCKED"
-        #   )
-        #   |> repo.all()
-        #   |> Journey.Executions.convert_values_to_atoms(:node_name)
-
-        all_set_values = get_all_set_values(execution.id, repo) |> IO.inspect(label: "all values")
+        all_set_values = get_all_set_values(execution.id, repo)
 
         # all_computations_that_need_to_be_rescheduled =
         all_computations
         |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_set_values) end)
-        |> IO.inspect(label: "computations that need to be re-computed")
         |> Enum.map(fn computation_to_re_create ->
-          %Execution.Computation{
-            execution: execution,
-            node_name: Atom.to_string(computation_to_re_create.node_name),
-            computation_type: computation_to_re_create.computation_type,
-            state: :not_set
-          }
-          |> repo.insert!()
-          |> IO.inspect(label: "created a new computation")
+          new_computation =
+            %Execution.Computation{
+              execution: execution,
+              node_name: Atom.to_string(computation_to_re_create.node_name),
+              computation_type: computation_to_re_create.computation_type,
+              state: :not_set
+            }
+            |> repo.insert!()
+
+          Logger.info(
+            "#{prefix}: created a new re-computation, #{new_computation.id}.#{new_computation.node_name}. an upstream node has a newer version"
+          )
+
+          new_computation
         end)
       end)
+
+    Logger.info("#{prefix}: completed. created #{length(new_computations)} new computations")
   end
 
   defp get_all_set_values(execution_id, repo) do
@@ -449,14 +450,16 @@ defmodule Journey.Scheduler.Operations do
       {node_name_as_atom, %{n | node_name: String.to_atom(node_name)}}
     end)
     |> Enum.into(%{})
+  end
 
-    # |> IO.inspect(label: "all_set_values")
+  defp grab_available_computations(execution, nil) when is_struct(execution, Execution) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.error("#{prefix}: unknown graph #{execution.graph_name}")
+    []
   end
 
   defp grab_available_computations(execution, graph)
        when is_struct(execution, Execution) and is_struct(graph, Journey.Graph) do
-    # grab_available_recomputations_v2(execution, graph)
-
     prefix = "[#{execution.id}] [#{mf()}]"
     Logger.info("#{prefix}: grabbing available computation")
 
@@ -528,117 +531,117 @@ defmodule Journey.Scheduler.Operations do
     end)
   end
 
-  def grab_available_recomputations_v2(execution, graph)
-      when is_struct(execution, Execution) and is_struct(graph, Journey.Graph) do
-    prefix = "[#{execution.id}] [EXPERIMENT#{mf()}]"
-    Logger.info("#{prefix}: grabbing available re-computation")
+  # def grab_available_recomputations_v2(execution, graph)
+  #     when is_struct(execution, Execution) and is_struct(graph, Journey.Graph) do
+  #   prefix = "[#{execution.id}] [EXPERIMENT#{mf()}]"
+  #   Logger.info("#{prefix}: grabbing available re-computation")
 
-    IO.inspect("START ========================================")
+  #   IO.inspect("START ========================================")
 
-    {:ok, computations_to_perform} =
-      Journey.Repo.transaction(fn repo ->
-        all_computations =
-          from(c in Computation,
-            where: c.execution_id == ^execution.id and c.computation_type == ^:compute,
-            lock: "FOR UPDATE SKIP LOCKED"
-          )
-          |> repo.all()
-          |> Journey.Executions.convert_values_to_atoms(:node_name)
+  #   {:ok, computations_to_perform} =
+  #     Journey.Repo.transaction(fn repo ->
+  #       all_computations =
+  #         from(c in Computation,
+  #           where: c.execution_id == ^execution.id and c.computation_type == ^:compute,
+  #           lock: "FOR UPDATE SKIP LOCKED"
+  #         )
+  #         |> repo.all()
+  #         |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        all_set_values =
-          from(v in Value,
-            where: v.execution_id == ^execution.id and not is_nil(v.set_time),
-            select: %{
-              node_name: v.node_name,
-              node_revision: v.ex_revision,
-              node_value: v.node_value,
-              set_time: v.set_time
-            }
-          )
-          |> repo.all()
-          |> Enum.map(fn %{node_name: node_name} = n ->
-            node_name_as_atom = String.to_atom(node_name)
-            {node_name_as_atom, %{n | node_name: String.to_atom(node_name)}}
-          end)
-          |> Enum.into(%{})
-          |> IO.inspect(label: "all_set_values")
+  #       all_set_values =
+  #         from(v in Value,
+  #           where: v.execution_id == ^execution.id and not is_nil(v.set_time),
+  #           select: %{
+  #             node_name: v.node_name,
+  #             node_revision: v.ex_revision,
+  #             node_value: v.node_value,
+  #             set_time: v.set_time
+  #           }
+  #         )
+  #         |> repo.all()
+  #         |> Enum.map(fn %{node_name: node_name} = n ->
+  #           node_name_as_atom = String.to_atom(node_name)
+  #           {node_name_as_atom, %{n | node_name: String.to_atom(node_name)}}
+  #         end)
+  #         |> Enum.into(%{})
+  #         |> IO.inspect(label: "all_set_values")
 
-        all_computations
-        |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_set_values) end)
-        |> IO.inspect(label: "all_upstream_nodes_fulfilled_for_computation?")
+  #       all_computations
+  #       |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_set_values) end)
+  #       |> IO.inspect(label: "all_upstream_nodes_fulfilled_for_computation?")
 
-        # _only_available_computations =
-        # all_computations
-        # |> Enum.filter(fn c ->
-        #   # IO.inspect(c, label: "computation")
-        #   graph_node = Graph.find_node_by_name(graph, c.node_name)
-        #   IO.inspect(graph_node.name, label: "graph_node")
-        #   IO.inspect(graph_node.upstream_nodes, label: "my upstream nodes")
-        #   IO.inspect(c.ex_revision_at_start, label: "my ex_revision_at_start")
-        #   IO.inspect(c.ex_revision_at_completion, label: "my ex_revision_at_completion")
+  #       # _only_available_computations =
+  #       # all_computations
+  #       # |> Enum.filter(fn c ->
+  #       #   # IO.inspect(c, label: "computation")
+  #       #   graph_node = Graph.find_node_by_name(graph, c.node_name)
+  #       #   IO.inspect(graph_node.name, label: "graph_node")
+  #       #   IO.inspect(graph_node.upstream_nodes, label: "my upstream nodes")
+  #       #   IO.inspect(c.ex_revision_at_start, label: "my ex_revision_at_start")
+  #       #   IO.inspect(c.ex_revision_at_completion, label: "my ex_revision_at_completion")
 
-        #   all_upstream_nodes_fulfilled_for_computation?(c, graph, all_set_values)
-        #   |> IO.inspect(label: "upstream nodes fulfilled for computation #{c.node_name}?")
+  #       #   all_upstream_nodes_fulfilled_for_computation?(c, graph, all_set_values)
+  #       #   |> IO.inspect(label: "upstream nodes fulfilled for computation #{c.node_name}?")
 
-        #   graph_node.upstream_nodes
-        #   |> IO.inspect(label: "my upstream nodes2")
-        #   |> Enum.all?(fn upstream_node_name ->
-        #     IO.inspect(upstream_node_name, label: "upstream node name ---- ")
-        #     IO.inspect(all_set_values[upstream_node_name], label: "upstream node value ---- ")
+  #       #   graph_node.upstream_nodes
+  #       #   |> IO.inspect(label: "my upstream nodes2")
+  #       #   |> Enum.all?(fn upstream_node_name ->
+  #       #     IO.inspect(upstream_node_name, label: "upstream node name ---- ")
+  #       #     IO.inspect(all_set_values[upstream_node_name], label: "upstream node value ---- ")
 
-        #     if is_nil(all_set_values[upstream_node_name]) do
-        #       # if upstream is not computed, i am not available to be computed
-        #       false
-        #       |> IO.inspect(
-        #         label: "upstream node #{upstream_node_name} for computation #{c.node_name} is NOT available"
-        #       )
-        #     else
-        #       # if upstream is computed and its revision is less than mine, i am not available to be computed
-        #       # all_computed_values[upstream_node_name].node_revision < c.ex_revision_at_start
-        #       true
-        #       |> IO.inspect(label: "upstream node #{upstream_node_name} for computation #{c.node_name} IS available")
-        #     end
+  #       #     if is_nil(all_set_values[upstream_node_name]) do
+  #       #       # if upstream is not computed, i am not available to be computed
+  #       #       false
+  #       #       |> IO.inspect(
+  #       #         label: "upstream node #{upstream_node_name} for computation #{c.node_name} is NOT available"
+  #       #       )
+  #       #     else
+  #       #       # if upstream is computed and its revision is less than mine, i am not available to be computed
+  #       #       # all_computed_values[upstream_node_name].node_revision < c.ex_revision_at_start
+  #       #       true
+  #       #       |> IO.inspect(label: "upstream node #{upstream_node_name} for computation #{c.node_name} IS available")
+  #       #     end
 
-        #     # if upstream is computed and its revision is greater than mine, i am available to be computed
-        #     # all_values[upstream_node_name].
-        #   end)
-        #   |> IO.inspect(label: "upstream nodes fulfilled for computation #{c.node_name}?")
-        # end)
-        # |> IO.inspect(label: "only_available_computations")
+  #       #     # if upstream is computed and its revision is greater than mine, i am available to be computed
+  #       #     # all_values[upstream_node_name].
+  #       #   end)
+  #       #   |> IO.inspect(label: "upstream nodes fulfilled for computation #{c.node_name}?")
+  #       # end)
+  #       # |> IO.inspect(label: "only_available_computations")
 
-        # my_depen
+  #       # my_depen
 
-        # all_computation
-        # |> Enum.filter(fn computation -> upstream_dependencies_fulfilled_versions?(graph, computation, all_values) end)
-        # |> Enum.map(fn unblocked_computation ->
-        #   grab_this_computation(graph, execution, unblocked_computation, repo)
-        # end)
-      end)
+  #       # all_computation
+  #       # |> Enum.filter(fn computation -> upstream_dependencies_fulfilled_versions?(graph, computation, all_values) end)
+  #       # |> Enum.map(fn unblocked_computation ->
+  #       #   grab_this_computation(graph, execution, unblocked_computation, repo)
+  #       # end)
+  #     end)
 
-    # selected_computation_names =
-    #   computations_to_perform
-    #   |> Enum.map_join(", ", fn computation -> computation.node_name end)
-    #   |> String.trim()
+  #   # selected_computation_names =
+  #   #   computations_to_perform
+  #   #   |> Enum.map_join(", ", fn computation -> computation.node_name end)
+  #   #   |> String.trim()
 
-    # Logger.info("#{prefix}: selected these computations: [#{selected_computation_names}]")
-    computations_to_perform |> IO.inspect(label: "computations_to_perform")
+  #   # Logger.info("#{prefix}: selected these computations: [#{selected_computation_names}]")
+  #   computations_to_perform |> IO.inspect(label: "computations_to_perform")
 
-    IO.inspect("DONE ========================================")
-    computations_to_perform
-  end
+  #   IO.inspect("DONE ========================================")
+  #   computations_to_perform
+  # end
 
-  defp upstream_dependencies_fulfilled_versions?(graph, computation, all_set_values) do
-    all_my_upstream_nodes =
-      graph
-      |> Graph.find_node_by_name(computation.node_name)
-      |> Map.get(:upstream_nodes)
+  # defp upstream_dependencies_fulfilled_versions?(graph, computation, all_set_values) do
+  #   all_my_upstream_nodes =
+  #     graph
+  #     |> Graph.find_node_by_name(computation.node_name)
+  #     |> Map.get(:upstream_nodes)
 
-    graph
-    |> Graph.find_node_by_name(computation.node_name)
-    |> Map.get(:upstream_nodes)
-    |> Enum.all?(fn upstream_node_name ->
-      MapSet.member?(all_set_values, upstream_node_name) and
-        all_set_values[upstream_node_name].node_revision < computation.ex_revision_at_start
-    end)
-  end
+  #   graph
+  #   |> Graph.find_node_by_name(computation.node_name)
+  #   |> Map.get(:upstream_nodes)
+  #   |> Enum.all?(fn upstream_node_name ->
+  #     MapSet.member?(all_set_values, upstream_node_name) and
+  #       all_set_values[upstream_node_name].node_revision < computation.ex_revision_at_start
+  #   end)
+  # end
 end
