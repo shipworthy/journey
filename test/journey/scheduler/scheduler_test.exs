@@ -61,7 +61,7 @@ defmodule Journey.Scheduler.SchedulerTest do
     end
 
     @tag :capture_log
-    test "one execution" do
+    test "one execution, computation abandoned" do
       execution =
         create_graph(:timeout)
         |> Journey.start_execution()
@@ -70,13 +70,25 @@ defmodule Journey.Scheduler.SchedulerTest do
 
       assert [] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
 
+      assert execution |> Journey.load() |> Map.get(:computations) |> Enum.count() == 1
+      # After a wait, the next sweep identifies the computation as :abandoned.
       Process.sleep(2_000)
-
       [abandoned_computation] = Scheduler.Operations.sweep_abandoned_computations(execution.id)
       assert abandoned_computation.state == :abandoned
       assert abandoned_computation.computation_type == :compute
       assert abandoned_computation.node_name == :astrological_sign
       assert abandoned_computation.execution_id == execution.id
+
+      assert execution |> Journey.load() |> Map.get(:computations) |> Enum.count() == 2
+
+      # Give the node's f_compute the time it needs to complete.
+      # The abandoned computation should remain :abandoned.
+      Process.sleep(5_000)
+
+      current_computations = execution |> Journey.load() |> Map.get(:computations)
+      assert length(current_computations) == 2
+
+      assert Enum.find(current_computations, fn %{id: id} -> id == abandoned_computation.id end).state == :abandoned
     end
 
     # TODO: run this in a sql sandbox
@@ -102,45 +114,47 @@ defmodule Journey.Scheduler.SchedulerTest do
 
     @tag :capture_log
     test "background sweeps with retries" do
-      execution =
-        create_graph(:timeout)
-        |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
-        |> Journey.set_value(:birth_month, "April")
+      for graph_type <- [:timeout, :failure_after_timeout] do
+        execution =
+          create_graph(graph_type)
+          |> Journey.start_execution()
+          |> Journey.set_value(:birth_day, 26)
+          |> Journey.set_value(:birth_month, "April")
 
-      assert Journey.values_expanded(execution) == %{
-               astrological_sign: :not_set,
-               birth_day: {:set, 26},
-               birth_month: {:set, "April"},
-               first_name: :not_set
-             }
+        assert Journey.values_expanded(execution) == %{
+                 astrological_sign: :not_set,
+                 birth_day: {:set, 26},
+                 birth_month: {:set, "April"},
+                 first_name: :not_set
+               }
 
-      Process.sleep(2_000)
-      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
-      assert execution.id in swept_ids
-      assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
-      assert 1 == count_computations(execution.id, :astrological_sign, :computing)
-      Process.sleep(2_000)
-      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
-      assert execution.id in swept_ids
-      assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
-      assert 0 == count_computations(execution.id, :astrological_sign, :computing)
-      Process.sleep(2_000)
-      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
-      assert execution.id not in swept_ids
-      Process.sleep(2_000)
-      swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
-      assert execution.id not in swept_ids
-      Process.sleep(2_000)
-      assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
-      assert 0 == count_computations(execution.id, :astrological_sign, :computing)
+        Process.sleep(2_000)
+        swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+        assert execution.id in swept_ids
+        assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
+        assert 1 == count_computations(execution.id, :astrological_sign, :computing)
+        Process.sleep(2_000)
+        swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+        assert execution.id in swept_ids
+        assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
+        assert 0 == count_computations(execution.id, :astrological_sign, :computing)
+        Process.sleep(2_000)
+        swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+        assert execution.id not in swept_ids
+        Process.sleep(2_000)
+        swept_ids = Scheduler.BackgroundSweep.find_and_kickoff_abandoned_computations() |> ids_of()
+        assert execution.id not in swept_ids
+        Process.sleep(2_000)
+        assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
+        assert 0 == count_computations(execution.id, :astrological_sign, :computing)
 
-      assert Journey.values_expanded(execution) == %{
-               astrological_sign: :not_set,
-               birth_day: {:set, 26},
-               birth_month: {:set, "April"},
-               first_name: :not_set
-             }
+        assert Journey.values_expanded(execution) == %{
+                 astrological_sign: :not_set,
+                 birth_day: {:set, 26},
+                 birth_month: {:set, "April"},
+                 first_name: :not_set
+               }
+      end
     end
 
     defp count_computations(execution_id, node_atom, state_atom) do
@@ -173,10 +187,10 @@ defmodule Journey.Scheduler.SchedulerTest do
     end
   end
 
-  defp create_graph(behavior) when behavior in [:success, :failure, :timeout] do
+  defp create_graph(behavior) when behavior in [:success, :failure, :timeout, :failure_after_timeout] do
     Journey.new_graph(
       "astrological sign workflow, #{behavior} compute #{__MODULE__}",
-      "v1.0.0",
+      "v2.0.0",
       [
         input(:first_name),
         input(:birth_day),
@@ -194,6 +208,10 @@ defmodule Journey.Scheduler.SchedulerTest do
                 {:ok, "Taurus"}
 
               :failure ->
+                {:error, "simulated failure"}
+
+              :failure_after_timeout ->
+                Process.sleep(:timer.seconds(5))
                 {:error, "simulated failure"}
             end
           end,
