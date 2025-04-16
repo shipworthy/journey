@@ -2,34 +2,47 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
+  alias Journey.Scheduler.BackgroundSweep
 
-  @tag :skip
-  test "basic recompute" do
+  #   @tag :skip
+  test "basic pulse" do
     graph = simple_graph()
     execution = graph |> Journey.start_execution()
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
+    BackgroundSweep.find_and_kick_recently_ripened_pulse_values()
+
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
-    assert Journey.values(execution) == %{
+    assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
              greeting: "Hello, Mario",
-             user_name: "Mario"
+             user_name: "Mario",
+             time_to_issue_reminder_pulse: :redacted
            }
 
-    Process.sleep(2000)
+    Process.sleep(3000)
 
-    assert Journey.values(execution) == %{
+    BackgroundSweep.find_and_kick_recently_ripened_pulse_values()
+
+    assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
              greeting: "Hello, Mario",
-             user_name: "Mario"
+             user_name: "Mario",
+             reminder: "Reminder: Hello, Mario",
+             time_to_issue_reminder_pulse: :redacted
            }
 
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
-    assert Journey.values(execution) == %{
+    assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
-             reminder: "Reminder: Hello, Mario"
+             reminder: "Reminder: Hello, Mario",
+             time_to_issue_reminder_pulse: :redacted
            }
+  end
+
+  defp redact(map, key) do
+    Map.replace!(map, key, :redacted)
   end
 
   defp simple_graph() do
@@ -48,7 +61,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
         pulse_once(
           :time_to_issue_reminder_pulse,
           [:greeting],
-          fn _ -> {:ok, System.system_time(:second) + 1_000} end
+          fn _ -> {:ok, System.system_time(:second) + 1} end
         ),
         compute(
           :reminder,

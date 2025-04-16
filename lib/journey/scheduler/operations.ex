@@ -21,7 +21,7 @@ defmodule Journey.Scheduler.Operations do
       execution = Journey.load(execution)
 
       available_computations
-      |> Enum.each(fn to_compute -> schedule_computation(execution, to_compute) end)
+      |> Enum.each(fn to_compute -> launch_computation(execution, to_compute) end)
 
       # TODO: do a bit of load / performance testing to see if we get any benefit from advancing
       # the execution here. (Until then, since we have just examined all candidates for computation, this seems unlikely
@@ -33,7 +33,7 @@ defmodule Journey.Scheduler.Operations do
     end
   end
 
-  defp schedule_computation(execution, computation) do
+  defp launch_computation(execution, computation) do
     # Here we would update the execution with the scheduled computation
     # For example, we could set the start time and state of the computation
     # execution = %{execution | scheduled_computation: computation}
@@ -110,6 +110,39 @@ defmodule Journey.Scheduler.Operations do
             new_revision,
             result
           )
+
+          # computation.computation_type
+          # |> case do
+          #   :compute ->
+          #     record_result(
+          #       repo,
+          #       graph_node.mutates,
+          #       computation.node_name,
+          #       computation.execution_id,
+          #       new_revision,
+          #       result
+          #     )
+
+          #   :mutation ->
+          #     record_result(
+          #       repo,
+          #       graph_node.mutates,
+          #       computation.node_name,
+          #       computation.execution_id,
+          #       new_revision,
+          #       result
+          #     )
+
+          #   :pulse_once ->
+          #     record_result(
+          #       repo,
+          #       graph_node.mutates,
+          #       computation.node_name,
+          #       computation.execution_id,
+          #       new_revision,
+          #       result
+          #     )
+          # end
 
           # Mark the computation as "completed".
           computation
@@ -310,8 +343,15 @@ defmodule Journey.Scheduler.Operations do
   end
 
   defp get_all_set_values(execution_id, repo) do
+    now = System.system_time(:second)
+    yesterday = now - 24 * 60 * 60
+
     from(v in Value,
-      where: v.execution_id == ^execution_id and not is_nil(v.set_time),
+      where:
+        v.execution_id == ^execution_id and not is_nil(v.set_time) and
+          (v.node_type == :compute or v.node_type == :input or
+             (v.node_type == :pulse_once and fragment("CAST(?->>'v' AS INTEGER) < ?", v.node_value, ^now) and
+                fragment("CAST(?->>'v' AS INTEGER) > ?", v.node_value, ^yesterday))),
       select: %{
         node_name: v.node_name,
         node_revision: v.ex_revision,
@@ -345,7 +385,7 @@ defmodule Journey.Scheduler.Operations do
             where:
               c.execution_id == ^execution.id and
                 c.state == ^:not_set and
-                c.computation_type == ^:compute,
+                (c.computation_type == ^:compute or c.computation_type == ^:pulse_once),
             lock: "FOR UPDATE SKIP LOCKED"
           )
           |> repo.all()
@@ -353,11 +393,21 @@ defmodule Journey.Scheduler.Operations do
 
         all_set_values =
           from(v in Value,
-            where: v.execution_id == ^execution.id and not is_nil(v.set_time),
-            select: v.node_name
+            where: v.execution_id == ^execution.id and not is_nil(v.set_time)
           )
           |> repo.all()
-          |> Enum.map(fn node_name -> String.to_atom(node_name) end)
+          |> Enum.filter(fn
+            %{node_type: :compute} ->
+              true
+
+            %{node_type: :pulse_once, node_value: %{"v" => enabled_at}} ->
+              System.system_time(:second) >= enabled_at
+
+            %{node_type: :input} ->
+              true
+          end)
+          |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
+          |> Enum.map(fn %{node_name: node_name} -> node_name end)
           |> MapSet.new()
 
         all_candidates_for_computation

@@ -4,6 +4,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
   require Logger
   import Ecto.Query
   alias Journey.Execution.Computation
+  alias Journey.Execution.Value
 
   import Journey.Helpers.Log
 
@@ -30,6 +31,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
     try do
       Logger.info("#{prefix}: performing sweep")
       find_and_kickoff_abandoned_computations(nil)
+      find_and_kick_recently_ripened_pulse_values()
       Logger.info("#{prefix}: sweep complete")
     catch
       exception ->
@@ -120,6 +122,30 @@ defmodule Journey.Scheduler.BackgroundSweep do
         false
       end
     end)
+  end
+
+  def find_and_kick_recently_ripened_pulse_values() do
+    prefix = "[#{mf()}] [#{inspect(self())}]"
+    Logger.info("#{prefix}: starting")
+
+    now = System.system_time(:second)
+    yesterday = now - 24 * 60 * 60
+
+    kicked_count =
+      from(v in Value,
+        # TODO: scalability. Find a better way to limit the set than having a lower time bound.
+        where:
+          v.node_type == ^:pulse_once and
+            fragment("CAST(?->>'v' AS INTEGER) < ?", v.node_value, ^now) and
+            fragment("CAST(?->>'v' AS INTEGER) > ?", v.node_value, ^yesterday)
+      )
+      |> Journey.Repo.all()
+      |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
+      |> Enum.uniq()
+      |> Enum.map(fn swept_execution_id -> kick(swept_execution_id) end)
+      |> Enum.count()
+
+    Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
   end
 
   defp from_computations(nil) do
