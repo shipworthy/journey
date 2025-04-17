@@ -39,6 +39,7 @@ defmodule Journey.Repo.Migrations.AddExecutionsAndNodes do
       add(:completion_time, :bigint, default: nil)
       add(:deadline, :bigint, default: nil)
       add(:error_details, :string, default: nil)
+      add(:computed_with, :jsonb)
       timestamps(type: :bigint)
     end
 
