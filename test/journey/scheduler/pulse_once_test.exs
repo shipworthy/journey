@@ -14,13 +14,13 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
+    Process.sleep(2000)
+
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              time_to_issue_reminder_pulse: :redacted
            }
-
-    Process.sleep(2000)
 
     BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}

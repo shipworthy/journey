@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.Operations do
+defmodule Journey.Scheduler do
   @moduledoc false
 
   alias Journey.Scheduler.Completions

@@ -15,7 +15,7 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
 
-      updated_execution = Scheduler.Operations.advance(execution)
+      updated_execution = Scheduler.advance(execution)
       assert updated_execution == execution
     end
 

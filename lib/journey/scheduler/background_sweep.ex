@@ -54,7 +54,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
 
     execution_id
     |> Journey.load()
-    |> Journey.Scheduler.Operations.advance()
+    |> Journey.Scheduler.advance()
   end
 
   def sweep_abandoned_computations(execution_id) do
