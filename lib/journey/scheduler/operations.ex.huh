@@ -1,0 +1,429 @@
+defmodule Journey.Scheduler.Operations do
+  @moduledoc false
+
+  import Ecto.Query
+
+  alias Journey.Execution
+  alias Journey.Execution.Computation
+  alias Journey.Execution.Value
+  alias Journey.Graph
+
+  require Logger
+  import Journey.Helpers.Log
+
+  def advance(execution) do
+    available_computations =
+      grab_available_computations(
+        execution,
+        Journey.Graph.Catalog.fetch!(execution.graph_name)
+      )
+
+    if length(available_computations) > 0 do
+      execution = Journey.load(execution)
+
+      available_computations
+      |> Enum.each(fn to_compute -> schedule_computation(execution, to_compute) end)
+
+      # TODO: do a bit of load / performance testing to see if we get any benefit from advancing
+      # the execution here. (Until then, since we have just examined all candidates for computation, this seems unlikely
+      # to provide any benefit.)
+      # advance(execution)
+      Journey.load(execution)
+    else
+      execution
+    end
+  end
+
+  def sweep_abandoned_computations(execution_id) do
+    prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
+    Logger.info("#{prefix}: starting")
+
+    current_epoch_second = System.system_time(:second)
+
+    {:ok, computations_marked_as_abandoned} =
+      Journey.Repo.transaction(fn repo ->
+        abandoned_computations =
+          from(c in from_computations(execution_id),
+            where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
+            lock: "FOR UPDATE SKIP LOCKED"
+          )
+          |> repo.all()
+          |> Journey.Executions.convert_values_to_atoms(:node_name)
+
+        abandoned_computations =
+          abandoned_computations
+          |> filter_out_graphless()
+
+        abandoned_computations
+        |> Enum.each(fn ac -> maybe_reschedule(ac, repo) end)
+
+        Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
+
+        abandoned_computations
+        |> Enum.map(fn ac ->
+          ac
+          |> Ecto.Changeset.change(%{
+            state: :abandoned,
+            completion_time: System.system_time(:second)
+          })
+          |> repo.update!()
+        end)
+      end)
+
+    computations_marked_as_abandoned
+    |> Enum.map(fn ac ->
+      Logger.warning("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
+      ac
+    end)
+  end
+
+  defp filter_out_graphless(computations) do
+    # Filter out computations for which there are no graph definitions in the system.
+    all_execution_ids =
+      computations
+      |> Enum.map(fn ac -> ac.execution_id end)
+      |> Enum.uniq()
+
+    known_graphs =
+      all_execution_ids
+      |> Enum.reduce(%{}, fn execution_id, acc ->
+        Map.put(acc, execution_id, graph_from_execution_id(execution_id) != nil)
+      end)
+
+    computations
+    |> Enum.filter(fn c ->
+      if Map.get(known_graphs, c.execution_id) == true do
+        true
+      else
+        Logger.error("skipping computation #{c.id} / #{c.execution_id} because of unknown graph")
+        false
+      end
+    end)
+  end
+
+  defp schedule_computation(execution, computation) do
+    # Here we would update the execution with the scheduled computation
+    # For example, we could set the start time and state of the computation
+    # execution = %{execution | scheduled_computation: computation}
+
+    computation_params = Journey.values(execution)
+
+    Task.start(fn ->
+      prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"
+      Logger.info("#{prefix}: starting async computation")
+
+      graph_node =
+        execution.graph_name
+        |> Journey.Graph.Catalog.fetch!()
+        |> Journey.Graph.find_node_by_name(computation.node_name)
+
+      graph_node.f_compute.(computation_params)
+      |> case do
+        {:ok, _result} = computation_result ->
+          Logger.info("#{prefix}: async computation completed successfully")
+          mark_computation_as_completed(computation, computation_result)
+          advance(execution)
+
+        {:error, _error_details} = computation_result ->
+          Logger.warning("#{prefix}: async computation completed with an error")
+
+          mark_computation_as_completed(computation, computation_result)
+          # TODO: switch from sleep() to using computation.scheduled_time for implementing jitter.
+          jitter_ms = :rand.uniform(10_000)
+          Process.sleep(jitter_ms)
+          advance(execution)
+      end
+
+      # TODO: consider killing the computation after deadline (since we are likely to
+      # start other instances of the computation, doing this sounds like a good idea).
+      # This could probably be as simple as some version of starting the computation as linked to this process,
+      # and exiting the parent after the deadline or when the computation completes, whichever comes first.
+      #
+      # t = Task.async(fn ->  node.f_compute.(params)  end)
+      # Task.await(t, abandoned_after)
+    end)
+
+    execution
+  end
+
+  defp graph_from_execution_id(execution_id) do
+    execution_id
+    |> Journey.Executions.load(false)
+    |> Map.get(:graph_name)
+    |> Journey.Graph.Catalog.fetch!()
+  end
+
+  defp graph_node_from_execution_id(execution_id, node_name) do
+    execution_id
+    |> graph_from_execution_id()
+    |> Journey.Graph.find_node_by_name(node_name)
+  end
+
+  defp mark_computation_as_completed(computation, {:ok, result}) do
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+    Logger.info("#{prefix}: marking as completed. starting.")
+
+    graph_node = graph_node_from_execution_id(computation.execution_id, computation.node_name)
+
+    {:ok, _} =
+      Journey.Repo.transaction(fn repo ->
+        Logger.info("#{prefix}: marking as completed. transaction starting.")
+
+        current_computation =
+          from(c in Computation, where: c.id == ^computation.id)
+          |> repo.one!()
+
+        if current_computation.state == :computing do
+          # Increment revision on the execution, for updating the value.
+          {1, [new_revision]} =
+            from(e in Execution,
+              update: [inc: [revision: 1]],
+              where: e.id == ^computation.execution_id,
+              select: e.revision
+            )
+            |> repo.update_all([])
+
+          record_result(
+            repo,
+            graph_node.mutates,
+            computation.node_name,
+            computation.execution_id,
+            new_revision,
+            result
+          )
+
+          # Mark the computation as "completed".
+          computation
+          |> Ecto.Changeset.change(%{
+            completion_time: System.system_time(:second),
+            state: :success,
+            ex_revision_at_completion: new_revision
+          })
+          |> repo.update!()
+
+          Logger.info("#{prefix}: marking as completed. transaction done.")
+        else
+          Logger.warning(
+            "#{prefix}: computation completed, but it is no longer :computing. (#{current_computation.state})"
+          )
+        end
+      end)
+
+    Logger.info("#{prefix}: marking as completed. done.")
+  end
+
+  defp mark_computation_as_completed(computation, {:error, error_details}) do
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()} :error]"
+    Logger.info("#{prefix}: marking as completed. starting.")
+
+    {:ok, _} =
+      Journey.Repo.transaction(fn repo ->
+        Logger.info("#{prefix}: marking as completed. transaction starting.")
+
+        current_computation =
+          from(c in Computation,
+            where: c.id == ^computation.id
+          )
+          |> repo.one!()
+
+        if current_computation.state == :computing do
+          # Increment revision on the execution, for updating the value.
+          {1, [new_revision]} =
+            from(e in Execution,
+              update: [inc: [revision: 1]],
+              where: e.id == ^computation.execution_id,
+              select: e.revision
+            )
+            |> repo.update_all([])
+
+          # Mark the computation as "failed".
+          computation
+          |> Ecto.Changeset.change(%{
+            error_details: "#{inspect(error_details)}",
+            completion_time: System.system_time(:second),
+            state: :failed,
+            ex_revision_at_completion: new_revision
+          })
+          |> repo.update!()
+          |> maybe_reschedule(repo)
+
+          Logger.info("#{prefix}: marking as completed. transaction done.")
+        else
+          Logger.warning(
+            "#{prefix}: computation completed, but it is no longer :computing. (#{current_computation.state})"
+          )
+        end
+      end)
+
+    Logger.info("#{prefix}: marking as completed. done.")
+  end
+
+  defp record_result(repo, node_to_mutate, node_name, execution_id, new_revision, result)
+       when is_nil(node_to_mutate) do
+    # Record the result in the corresponding value node.
+    set_value(
+      execution_id,
+      node_name,
+      new_revision,
+      repo,
+      result
+    )
+  end
+
+  defp record_result(repo, node_to_mutate, node_name, execution_id, new_revision, result) do
+    # Update this node to note that the mutation has been computed.
+    set_value(
+      execution_id,
+      node_name,
+      new_revision,
+      repo,
+      "updated #{inspect(node_to_mutate)}"
+    )
+
+    # Record the result in the value node being mutated.
+    set_value(
+      execution_id,
+      node_to_mutate,
+      new_revision,
+      repo,
+      result
+    )
+  end
+
+  defp set_value(execution_id, node_name, new_revision, repo, value) do
+    node_name_as_string = node_name |> Atom.to_string()
+
+    from(v in Value,
+      where: v.execution_id == ^execution_id and v.node_name == ^node_name_as_string
+    )
+    |> repo.update_all(
+      set: [
+        node_value: %{"v" => value},
+        set_time: System.system_time(:second),
+        ex_revision: new_revision
+      ]
+    )
+  end
+
+  defp from_computations(nil) do
+    from(c in Computation)
+  end
+
+  defp from_computations(execution_id) do
+    from(c in Computation,
+      where: c.execution_id == ^execution_id
+    )
+  end
+
+  defp maybe_reschedule(computation, repo) do
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+    Logger.info("#{prefix}: starting")
+
+    node_name_as_string = computation.node_name |> Atom.to_string()
+
+    number_of_tries_so_far =
+      from(
+        c in Computation,
+        where: c.execution_id == ^computation.execution_id and c.node_name == ^node_name_as_string,
+        select: count(c.id)
+      )
+      |> repo.one()
+
+    graph_node = graph_node_from_execution_id(computation.execution_id, computation.node_name)
+
+    if number_of_tries_so_far < graph_node.max_retries do
+      new_computation =
+        %Execution.Computation{
+          execution_id: computation.execution_id,
+          node_name: node_name_as_string,
+          computation_type: computation.computation_type,
+          state: :not_set
+        }
+        |> repo.insert!()
+
+      Logger.info("#{prefix}: creating a new computation, #{new_computation.id}")
+    else
+      Logger.info("#{prefix}: reached max retries (#{number_of_tries_so_far}), not rescheduling")
+    end
+
+    computation
+  end
+
+  defp grab_available_computations(execution, nil) when is_struct(execution, Execution) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.error("#{prefix}: unknown graph #{execution.graph_name}")
+    []
+  end
+
+  defp grab_available_computations(execution, graph)
+       when is_struct(execution, Execution) and is_struct(graph, Journey.Graph) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.info("#{prefix}: grabbing available computation")
+
+    {:ok, computations_to_perform} =
+      Journey.Repo.transaction(fn repo ->
+        all_candidates_for_computation =
+          from(c in Computation,
+            where:
+              c.execution_id == ^execution.id and
+                c.state == ^:not_set and
+                c.computation_type == ^:compute,
+            lock: "FOR UPDATE SKIP LOCKED"
+          )
+          |> repo.all()
+
+        all_set_values =
+          from(v in Value,
+            where: v.execution_id == ^execution.id and not is_nil(v.set_time),
+            select: v.node_name
+          )
+          |> repo.all()
+          |> Enum.map(fn node_name -> String.to_atom(node_name) end)
+          |> MapSet.new()
+
+        all_candidates_for_computation
+        |> Journey.Executions.convert_values_to_atoms(:node_name)
+        |> Enum.filter(fn computation -> upstream_dependencies_fulfilled?(graph, computation, all_set_values) end)
+        |> Enum.map(fn unblocked_computation ->
+          grab_this_computation(graph, execution, unblocked_computation, repo)
+        end)
+      end)
+
+    selected_computation_names =
+      computations_to_perform
+      |> Enum.map_join(", ", fn computation -> computation.node_name end)
+      |> String.trim()
+
+    Logger.info("#{prefix}: selected these computations: [#{selected_computation_names}]")
+
+    computations_to_perform
+  end
+
+  defp grab_this_computation(graph, execution, computation, repo) do
+    # Increment revision on the execution.
+    {1, [new_revision]} =
+      from(e in Execution, update: [inc: [revision: 1]], where: e.id == ^execution.id, select: e.revision)
+      |> repo.update_all([])
+
+    # Mark the computation as "computing".
+    graph_node = Graph.find_node_by_name(graph, computation.node_name)
+
+    computation
+    |> Ecto.Changeset.change(%{
+      state: :computing,
+      start_time: System.system_time(:second),
+      ex_revision_at_start: new_revision,
+      deadline: System.system_time(:second) + graph_node.abandon_after_seconds
+    })
+    |> repo.update!()
+  end
+
+  defp upstream_dependencies_fulfilled?(graph, computation, all_set_values) do
+    graph
+    |> Graph.find_node_by_name(computation.node_name)
+    |> Map.get(:upstream_nodes)
+    |> Enum.all?(fn upstream_node_name ->
+      MapSet.member?(all_set_values, upstream_node_name)
+    end)
+  end
+end
