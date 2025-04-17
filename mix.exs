@@ -6,6 +6,7 @@ defmodule Journey.MixProject do
       app: :journey,
       version: "0.10.0",
       elixir: "~> 1.18",
+      elixirc_paths: elixirc_paths(Mix.env()),
       package: package(),
       start_permanent: Mix.env() == :prod,
       name: "Journey",
@@ -37,6 +38,10 @@ defmodule Journey.MixProject do
       mod: {Journey.Application, []}
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
