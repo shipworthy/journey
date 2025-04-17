@@ -3,6 +3,7 @@ defmodule Journey.Application do
   # for more information on OTP Applications
   @moduledoc false
 
+  require Logger
   use Application
 
   @impl true
@@ -13,6 +14,7 @@ defmodule Journey.Application do
       Journey.Repo,
       {Ecto.Migrator, repos: [Journey.Repo]},
       Journey.Graph.Catalog,
+      {Task, fn -> initialize_graphs() end},
       Journey.Scheduler.BackgroundSweep
     ]
 
@@ -20,5 +22,12 @@ defmodule Journey.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Journey.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp initialize_graphs() do
+    for f_factory <- Application.get_env(:journey, :graphs, []) do
+      graph = f_factory.() |> Journey.Graph.Catalog.register()
+      Logger.info("Registering graph #{inspect(graph.name)}")
+    end
   end
 end

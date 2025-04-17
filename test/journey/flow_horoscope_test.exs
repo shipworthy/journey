@@ -4,7 +4,7 @@ defmodule Journey.Test.HoroscopeGraph do
 
   def create_graph() do
     Journey.new_graph(
-      "horoscope workflow, success #{__MODULE__}.#{:rand.uniform()}",
+      "horoscope workflow, success #{__MODULE__}",
       "v1.0.0",
       [
         input(:first_name),

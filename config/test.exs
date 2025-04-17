@@ -20,3 +20,8 @@ config :logger,
        format: "$time [$level] $metadata$message\n",
        level: :warning,
        metadata: [:pid]
+
+config :journey, :graphs, [
+  &Journey.Test.Support.create_test_graph1/0,
+  fn -> Journey.Test.Support.create_test_graph2() end
+]
