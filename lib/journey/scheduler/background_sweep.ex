@@ -31,7 +31,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
     try do
       Logger.info("#{prefix}: performing sweep")
       find_and_kickoff_abandoned_computations(nil)
-      find_and_kick_recently_ripened_pulse_values()
+      find_and_kick_recently_due_pulse_values(nil)
       Logger.info("#{prefix}: sweep complete")
     catch
       exception ->
@@ -124,15 +124,17 @@ defmodule Journey.Scheduler.BackgroundSweep do
     end)
   end
 
-  def find_and_kick_recently_ripened_pulse_values() do
+  def find_and_kick_recently_due_pulse_values(execution_id) do
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.info("#{prefix}: starting")
 
     now = System.system_time(:second)
     yesterday = now - 24 * 60 * 60
 
+    q = from_values(execution_id)
+
     kicked_count =
-      from(v in Value,
+      from(v in q,
         # TODO: scalability. Find a better way to limit the set than having a lower time bound.
         where:
           v.node_type == ^:pulse_once and
@@ -146,6 +148,14 @@ defmodule Journey.Scheduler.BackgroundSweep do
       |> Enum.count()
 
     Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+  end
+
+  defp from_values(nil) do
+    from(v in Value)
+  end
+
+  defp from_values(execution_id) do
+    from(v in Value, where: v.execution_id == ^execution_id)
   end
 
   defp from_computations(nil) do

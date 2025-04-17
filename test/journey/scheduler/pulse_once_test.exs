@@ -10,7 +10,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     execution = graph |> Journey.start_execution()
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
-    BackgroundSweep.find_and_kick_recently_ripened_pulse_values()
+    BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
@@ -22,7 +22,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
 
     Process.sleep(2000)
 
-    BackgroundSweep.find_and_kick_recently_ripened_pulse_values()
+    BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
