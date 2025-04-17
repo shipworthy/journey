@@ -19,6 +19,8 @@ defmodule Journey.Execution.Computation do
     field(:completion_time, :integer, default: nil)
     field(:deadline, :integer, default: nil)
     field(:error_details, :string, default: nil)
+    # revisions of the upstream nodes used to compute this value – e.g. %{upstream_node1: 6, upstream_node2: 9}
+    field(:computed_with, :map, default: nil)
     timestamps()
   end
 end

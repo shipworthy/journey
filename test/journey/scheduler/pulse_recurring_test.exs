@@ -1,0 +1,80 @@
+defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
+  use ExUnit.Case, async: true
+
+  import Journey.Node
+  alias Journey.Scheduler.BackgroundSweep
+
+  test "basic pulse_recurring flow" do
+    graph = simple_graph()
+    execution = graph |> Journey.start_execution()
+
+    execution = execution |> Journey.set_value(:user_name, "Mario")
+    BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
+
+    assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
+
+    assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse_recurring) == %{
+             greeting: "Hello, Mario",
+             user_name: "Mario",
+             time_to_issue_reminder_pulse_recurring: :redacted
+           }
+
+    # execution = execution |> Journey.load() |> IO.inspect(label: "execution at the end")
+
+    # Process.sleep(2000)
+
+    # BackgroundSweep.find_and_kick_recently_due_pulse_values()
+    # assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
+
+    # assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+    #          greeting: "Hello, Mario",
+    #          user_name: "Mario",
+    #          reminder: "Reminder: Hello, Mario",
+    #          time_to_issue_reminder_pulse: :redacted
+    #        }
+
+    # assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
+
+    # assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+    #          greeting: "Hello, Mario",
+    #          user_name: "Mario",
+    #          reminder: "Reminder: Hello, Mario",
+    #          time_to_issue_reminder_pulse: :redacted
+    #        }
+
+    # TODO: add a recompute (modify user_name) and watch the change propagate (think through use cases).
+  end
+
+  defp redact(map, key) do
+    Map.replace!(map, key, :redacted)
+  end
+
+  defp simple_graph() do
+    Journey.new_graph(
+      "simple graph #{__MODULE__}",
+      "1.0.0",
+      [
+        input(:user_name),
+        compute(
+          :greeting,
+          [:user_name, :user_name],
+          fn %{user_name: user_name} ->
+            {:ok, "Hello, #{user_name}"}
+          end
+        ),
+        pulse_recurring(
+          :time_to_issue_reminder_pulse_recurring,
+          [:greeting],
+          fn _ -> {:ok, System.system_time(:second) + 10} end
+        ),
+        compute(
+          :reminder,
+          [:greeting, :time_to_issue_reminder_pulse_recurring],
+          fn %{greeting: greeting} ->
+            {:ok, "Reminder: #{greeting}"}
+          end
+        )
+      ]
+    )
+  end
+end

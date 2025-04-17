@@ -110,7 +110,7 @@ defmodule Journey.Executions do
       end)
 
     updated_execution
-    |> Journey.Scheduler.Operations.advance()
+    |> Journey.Scheduler.advance()
   end
 
   def get_value(execution, node_name, timeout_ms) do
