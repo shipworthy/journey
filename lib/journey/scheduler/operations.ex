@@ -59,13 +59,13 @@ defmodule Journey.Scheduler.Operations do
 
       graph_node.f_compute.(computation_params)
       |> case do
-        {:ok, _result} = computation_result ->
+        {:ok, result} ->
           Logger.info("#{prefix}: async computation completed successfully")
-          Completions.mark_computation_as_completed(computation, input_versions_to_capture, computation_result)
+          Completions.record_success(computation, input_versions_to_capture, result)
 
-        {:error, _error_details} = computation_result ->
+        {:error, error_details} ->
           Logger.warning("#{prefix}: async computation completed with an error")
-          Completions.mark_computation_as_completed(computation, input_versions_to_capture, computation_result)
+          Completions.record_error(computation, error_details)
           jitter_ms = :rand.uniform(10_000)
           Process.sleep(jitter_ms)
       end
