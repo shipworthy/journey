@@ -29,10 +29,10 @@ defmodule Journey.Scheduler.BackgroundSweep do
     Logger.debug("#{prefix}: starting")
 
     try do
-      Logger.info("#{prefix}: performing sweep")
+      Logger.debug("#{prefix}: performing sweep")
       find_and_kickoff_abandoned_computations(nil)
       find_and_kick_recently_due_pulse_values(nil)
-      Logger.info("#{prefix}: sweep complete")
+      Logger.debug("#{prefix}: sweep complete")
     catch
       exception ->
         Logger.error("#{prefix}: #{inspect(exception)}")
@@ -59,7 +59,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
 
   def sweep_abandoned_computations(execution_id) do
     prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
-    Logger.info("#{prefix}: starting")
+    Logger.debug("#{prefix}: starting")
 
     current_epoch_second = System.system_time(:second)
 
@@ -80,7 +80,11 @@ defmodule Journey.Scheduler.BackgroundSweep do
         abandoned_computations
         |> Enum.each(fn ac -> Journey.Scheduler.Retry.maybe_schedule_a_retry(ac, repo) end)
 
-        Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
+        if abandoned_computations == [] do
+          Logger.debug("#{prefix}: no abandoned computation(s) found")
+        else
+          Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
+        end
 
         abandoned_computations
         |> Enum.map(fn ac ->
@@ -126,7 +130,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
 
   def find_and_kick_recently_due_pulse_values(execution_id) do
     prefix = "[#{mf()}] [#{inspect(self())}]"
-    Logger.info("#{prefix}: starting")
+    Logger.debug("#{prefix}: starting")
 
     now = System.system_time(:second)
     yesterday = now - 24 * 60 * 60
@@ -147,7 +151,11 @@ defmodule Journey.Scheduler.BackgroundSweep do
       |> Enum.map(fn swept_execution_id -> kick(swept_execution_id) end)
       |> Enum.count()
 
-    Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+    if kicked_count == 0 do
+      Logger.debug("#{prefix}: no recently due pulse value(s) found")
+    else
+      Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+    end
   end
 
   defp from_values(nil) do
