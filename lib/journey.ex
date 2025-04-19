@@ -200,6 +200,7 @@ defmodule Journey do
         type: :compute,
         upstream_nodes: upstream_nodes,
         f_compute: f_compute,
+        f_on_save: Keyword.get(opts, :f_on_save, nil),
         max_retries: Keyword.get(opts, :max_retries, 3),
         abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
       }
@@ -212,6 +213,7 @@ defmodule Journey do
         type: :compute,
         upstream_nodes: upstream_nodes,
         f_compute: f_compute,
+        f_on_save: Keyword.get(opts, :f_on_save, nil),
         mutates: Keyword.fetch!(opts, :mutates),
         max_retries: Keyword.get(opts, :max_retries, 3),
         abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
@@ -225,6 +227,7 @@ defmodule Journey do
         type: :pulse_recurring,
         upstream_nodes: upstream_nodes,
         f_compute: f_compute,
+        f_on_save: Keyword.get(opts, :f_on_save, nil),
         max_retries: Keyword.get(opts, :max_retries, 3),
         abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
       }
@@ -237,6 +240,7 @@ defmodule Journey do
         type: :pulse_once,
         upstream_nodes: upstream_nodes,
         f_compute: f_compute,
+        f_on_save: Keyword.get(opts, :f_on_save, nil),
         max_retries: Keyword.get(opts, :max_retries, 3),
         abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
       }

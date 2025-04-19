@@ -57,7 +57,16 @@ defmodule Journey.Scheduler do
       recurring_upstream_pulses_to_reschedule =
         find_things_to_reschedule(computation.computed_with, input_versions_to_capture)
 
-      graph_node.f_compute.(computation_params)
+      r =
+        try do
+          graph_node.f_compute.(computation_params)
+        rescue
+          e ->
+            Logger.error("#{prefix}: f_compute raised an exception, #{inspect(e)}")
+            {:error, "Exception. #{inspect(e)}"}
+        end
+
+      r
       |> case do
         {:ok, result} ->
           Logger.info("#{prefix}: async computation completed successfully")
@@ -69,6 +78,8 @@ defmodule Journey.Scheduler do
           jitter_ms = :rand.uniform(10_000)
           Process.sleep(jitter_ms)
       end
+
+      invoke_f_on_save(prefix, graph_node.f_on_save, execution.id, r)
 
       # TODO: how do we make sure rescheduling does not fall through cracks if something fails along the way?
       # TODO: perform the reschedule as part of the same transaction as marking the computation as completed.
@@ -86,6 +97,25 @@ defmodule Journey.Scheduler do
     end)
 
     execution
+  end
+
+  defp invoke_f_on_save(_prefix, nil, _eid, _result) do
+    nil
+  end
+
+  defp invoke_f_on_save(prefix, f, eid, result) do
+    Task.start(fn ->
+      Logger.info("#{prefix}: calling f_on_save")
+
+      try do
+        f.(eid, result)
+      rescue
+        e ->
+          Logger.error("#{prefix}: f_on_save failed with error: #{inspect(e)}")
+      end
+
+      Logger.info("#{prefix}: f_on_save completed")
+    end)
   end
 
   defp find_things_to_reschedule(original_computation_input_versions, new_computation_input_versions)
