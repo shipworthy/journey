@@ -13,6 +13,9 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
+    # Wait for the pulse to compute next execution time.
+    {:ok, _time} = Journey.get_value(execution, :time_to_issue_reminder_pulse_recurring, wait: true)
+
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse_recurring) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
