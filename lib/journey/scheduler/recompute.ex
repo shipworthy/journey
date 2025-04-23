@@ -12,8 +12,8 @@ defmodule Journey.Scheduler.Recompute do
   import Journey.Helpers.Log
 
   def detect_updates_and_create_re_computations(execution, graph) do
-    prefix = "[#{execution.id}] [EXPERIMENT#{mf()}]"
-    Logger.info("#{prefix}: starting")
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.debug("#{prefix}: starting")
 
     {:ok, new_computations} =
       Journey.Repo.transaction(fn repo ->
@@ -56,7 +56,11 @@ defmodule Journey.Scheduler.Recompute do
         end)
       end)
 
-    Logger.info("#{prefix}: completed. created #{length(new_computations)} new computations")
+    if new_computations == [] do
+      Logger.debug("#{prefix}: completed. no new re-computations to create")
+    else
+      Logger.info("#{prefix}: completed. created #{length(new_computations)} new computations")
+    end
   end
 
   defp get_all_set_values(execution_id, repo) do

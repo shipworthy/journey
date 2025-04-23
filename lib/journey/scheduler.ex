@@ -8,7 +8,7 @@ defmodule Journey.Scheduler do
 
   def advance(execution) do
     prefix = "[#{execution.id}] [#{mf()}] [#{inspect(self())}]"
-    Logger.info("#{prefix}: starting")
+    Logger.debug("#{prefix}: starting")
     advance_with_graph(prefix, execution, Journey.Graph.Catalog.fetch!(execution.graph_name))
   end
 
@@ -32,7 +32,7 @@ defmodule Journey.Scheduler do
     else
       execution
     end
-    |> tap(fn _ -> Logger.info("#{prefix}: done") end)
+    |> tap(fn _ -> Logger.debug("#{prefix}: done") end)
   end
 
   defp launch_computation(execution, computation) do
