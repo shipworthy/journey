@@ -20,7 +20,7 @@ defmodule Journey.Scheduler.Available do
   def grab_available_computations(execution, graph)
       when is_struct(execution, Execution) and is_struct(graph, Journey.Graph) do
     prefix = "[#{execution.id}] [#{mf()}]"
-    Logger.info("#{prefix}: grabbing available computation")
+    Logger.debug("#{prefix}: grabbing available computation")
 
     {:ok, computations_to_perform} =
       Journey.Repo.transaction(fn repo ->
@@ -69,7 +69,11 @@ defmodule Journey.Scheduler.Available do
       |> Enum.map_join(", ", fn computation -> computation.node_name end)
       |> String.trim()
 
-    Logger.info("#{prefix}: selected these computations: [#{selected_computation_names}]")
+    if selected_computation_names == "" do
+      Logger.debug("#{prefix}: no computations")
+    else
+      Logger.info("#{prefix}: selected these computations: [#{selected_computation_names}]")
+    end
 
     computations_to_perform
   end
