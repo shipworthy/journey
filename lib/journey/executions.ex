@@ -91,9 +91,9 @@ defmodule Journey.Executions do
   def set_value(execution, node_name, value) do
     {:ok, updated_execution} =
       Journey.Repo.transaction(fn repo ->
-        {1, [new_revision]} =
-          from(e in Execution, update: [inc: [revision: 1]], where: e.id == ^execution.id, select: e.revision)
-          |> repo.update_all([])
+        new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
+
+        now_seconds = System.system_time(:second)
 
         from(v in Execution.Value,
           where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
@@ -102,7 +102,8 @@ defmodule Journey.Executions do
           set: [
             ex_revision: new_revision,
             node_value: %{"v" => value},
-            set_time: System.os_time(:second)
+            updated_at: now_seconds,
+            set_time: now_seconds
           ]
         )
 
@@ -160,6 +161,36 @@ defmodule Journey.Executions do
       %{node_value: node_value} ->
         {:ok, node_value["v"]}
     end
+  end
+
+  # note: graph_name could be one of the filter params, when that's implemented.
+  # list("chickens graph", [:updated_at, :chicken_name], [{:inserted_at, :eq, "2023-10-01T00:00:00Z"}], limit: 10, page: 1)
+  # def list(graph_name, sort_by_fields, filter, opts \\ []) do
+
+  def list(graph_name, sort_by_fields)
+      when (is_nil(graph_name) or is_binary(graph_name)) and is_list(sort_by_fields) do
+    q = from(e in Execution)
+
+    q =
+      sort_by_fields
+      |> Enum.reduce(q, fn sort_field, acc ->
+        from(e in acc, order_by: [asc: ^sort_field])
+      end)
+
+    q =
+      if graph_name == nil do
+        q
+      else
+        from(e in q,
+          where: e.graph_name == ^graph_name
+        )
+      end
+
+    from(
+      e in q
+      # preload: [:values, :computations]
+    )
+    |> Journey.Repo.all()
   end
 
   defp backoff_sleep(attempt_count) when is_integer(attempt_count) and attempt_count >= 0 do

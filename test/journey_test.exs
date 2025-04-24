@@ -45,7 +45,56 @@ defmodule JourneyTest do
     end
   end
 
-  describe "set_value" do
+  describe "list_executions" do
+    test "sunny day, by graph name" do
+      execution =
+        basic_graph()
+        |> Journey.start_execution()
+
+      listed_execution_ids = Journey.list_executions(graph_name: execution.graph_name) |> Enum.map(& &1.id)
+      assert execution.id in listed_execution_ids
+    end
+
+    test "sunny day, sort by inserted_at (which is updated after a set_value)" do
+      execution_ids =
+        Enum.map(1..3, fn _ ->
+          basic_graph()
+          |> Journey.start_execution()
+          |> Map.get(:id)
+          |> tap(fn _ -> Process.sleep(1_000) end)
+        end)
+
+      # Updating the first execution should put it at the back.
+      [first_id | remaining_ids] = execution_ids
+
+      updated_execution =
+        first_id
+        |> Journey.load()
+        |> Journey.set_value(:first_name, "Mario")
+
+      expected_order = remaining_ids ++ [first_id]
+      {:ok, "Hello, Mario"} = Journey.get_value(updated_execution, :greeting, wait: true)
+
+      listed_execution_ids =
+        Journey.list_executions(graph_name: basic_graph().name, order_by_fields: [:updated_at])
+        |> Enum.map(& &1.id)
+        |> Enum.filter(fn id -> id in execution_ids end)
+
+      assert expected_order == listed_execution_ids
+    end
+
+    test "no executions" do
+      assert Journey.list_executions(graph_name: "no_such_graph") == []
+    end
+
+    test "unexpected option" do
+      assert_raise ArgumentError, "Unknown options: [:graph]. Known options: [:graph_name, :order_by_fields].", fn ->
+        Journey.list_executions(graph: "no_such_graph")
+      end
+    end
+  end
+
+  describe "set_value |" do
     test "sunny day" do
       execution =
         basic_graph()
@@ -53,6 +102,43 @@ defmodule JourneyTest do
         |> Journey.set_value(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
+    end
+
+    test "sunny day, updated_at timestamps get updated" do
+      execution =
+        basic_graph()
+        |> Journey.start_execution()
+
+      Process.sleep(1200)
+
+      execution =
+        execution
+        |> Journey.set_value(:first_name, "Mario")
+
+      assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
+      {:ok, greeting} = Journey.get_value(execution, :greeting, wait: true)
+      assert greeting == "Hello, Mario"
+
+      execution = execution |> Journey.load()
+
+      first_name_node = value_node(execution, :first_name)
+      assert first_name_node.inserted_at < first_name_node.updated_at
+
+      greeting_value_node = value_node(execution, :greeting)
+      assert greeting_value_node.inserted_at < greeting_value_node.updated_at
+
+      compute_node = computation_node(execution, :greeting)
+      assert compute_node.inserted_at < compute_node.updated_at
+
+      assert execution.inserted_at < execution.updated_at
+    end
+
+    def value_node(execution, node_name) do
+      execution.values |> Enum.find(fn x -> x.node_name == node_name end)
+    end
+
+    def computation_node(execution, node_name) do
+      execution.computations |> Enum.find(fn x -> x.node_name == node_name end)
     end
 
     test "unknown node" do
