@@ -80,9 +80,7 @@ defmodule Journey.Scheduler.Available do
 
   defp grab_this_computation(graph, execution, computation, repo) do
     # Increment revision on the execution.
-    {1, [new_revision]} =
-      from(e in Execution, update: [inc: [revision: 1]], where: e.id == ^execution.id, select: e.revision)
-      |> repo.update_all([])
+    new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
 
     # Mark the computation as "computing".
     graph_node = Graph.find_node_by_name(graph, computation.node_name)

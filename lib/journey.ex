@@ -124,6 +124,22 @@ defmodule Journey do
     load(execution.id)
   end
 
+  def list_executions(options \\ []) do
+    known_option_names = MapSet.new([:graph_name, :order_by_fields])
+    supplied_option_names = MapSet.new(Keyword.keys(options))
+    unexpected_option_names = MapSet.difference(supplied_option_names, known_option_names)
+
+    if unexpected_option_names != MapSet.new([]) do
+      raise ArgumentError,
+            "Unknown options: #{inspect(MapSet.to_list(unexpected_option_names))}. Known options: #{inspect(MapSet.to_list(known_option_names) |> Enum.sort())}."
+    end
+
+    graph_name = Keyword.get(options, :graph_name, nil)
+    order_by_field = Keyword.get(options, :order_by_fields, [:inserted_at])
+
+    Journey.Executions.list(graph_name, order_by_field)
+  end
+
   defmodule Node do
     @moduledoc """
     This module contains functions for creating nodes in a graph.
@@ -285,7 +301,7 @@ defmodule Journey do
   def set_value(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
-                is_boolean(value)) do
+                is_boolean(value) or is_atom(value)) do
     ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution, node_name, value)
   end

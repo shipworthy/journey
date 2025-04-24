@@ -3,7 +3,6 @@ defmodule Journey.Scheduler.Completions do
 
   import Ecto.Query
 
-  alias Journey.Execution
   alias Journey.Execution.Computation
   alias Journey.Execution.Value
 
@@ -30,21 +29,18 @@ defmodule Journey.Scheduler.Completions do
           |> repo.one!()
 
         if current_computation.state == :computing do
-          # Increment revision on the execution, for updating the value.
-          {1, [new_revision]} =
-            from(e in Execution,
-              update: [inc: [revision: 1]],
-              where: e.id == ^computation.execution_id,
-              select: e.revision
-            )
-            |> repo.update_all([])
+          new_revision =
+            Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
 
           # Mark the computation as "failed".
           # TODO: we might need to store inputs_to_capture in the computation, instead of the value.
+          now_seconds = System.system_time(:second)
+
           computation
           |> Ecto.Changeset.change(%{
             error_details: "#{inspect(error_details)}",
-            completion_time: System.system_time(:second),
+            completion_time: now_seconds,
+            updated_at: now_seconds,
             state: :failed,
             ex_revision_at_completion: new_revision
           })
@@ -75,14 +71,8 @@ defmodule Journey.Scheduler.Completions do
       |> repo.one!()
 
     if current_computation.state == :computing do
-      # Increment revision on the execution, for updating the value.
-      {1, [new_revision]} =
-        from(e in Execution,
-          update: [inc: [revision: 1]],
-          where: e.id == ^computation.execution_id,
-          select: e.revision
-        )
-        |> repo.update_all([])
+      new_revision =
+        Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
 
       # record_result(
       #   repo,
@@ -137,9 +127,12 @@ defmodule Journey.Scheduler.Completions do
       end
 
       # Mark the computation as "completed".
+      now_seconds = System.system_time(:second)
+
       computation
       |> Ecto.Changeset.change(%{
-        completion_time: System.system_time(:second),
+        completion_time: now_seconds,
+        updated_at: now_seconds,
         state: :success,
         computed_with: inputs_to_capture,
         ex_revision_at_completion: new_revision
@@ -193,6 +186,8 @@ defmodule Journey.Scheduler.Completions do
   defp set_value(execution_id, node_name, new_revision, repo, value) do
     node_name_as_string = node_name |> Atom.to_string()
 
+    now_seconds = System.system_time(:second)
+
     from(v in Value,
       where: v.execution_id == ^execution_id and v.node_name == ^node_name_as_string
     )
@@ -202,7 +197,8 @@ defmodule Journey.Scheduler.Completions do
         |> repo.update_all(
           set: [
             node_value: %{"v" => value},
-            set_time: System.system_time(:second)
+            updated_at: now_seconds,
+            set_time: now_seconds
           ]
         )
       else
@@ -210,7 +206,8 @@ defmodule Journey.Scheduler.Completions do
         |> repo.update_all(
           set: [
             node_value: %{"v" => value},
-            set_time: System.system_time(:second),
+            set_time: now_seconds,
+            updated_at: now_seconds,
             ex_revision: new_revision
           ]
         )
