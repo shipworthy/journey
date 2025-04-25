@@ -65,11 +65,11 @@ defmodule Journey.Executions do
   def load(execution_id, preload? \\ true) when is_binary(execution_id) and is_boolean(preload?) do
     if preload? do
       from(e in Execution, where: e.id == ^execution_id, preload: [:values, :computations])
-      |> Journey.Repo.one!()
+      |> Journey.Repo.one()
       |> convert_node_names_to_atoms()
     else
       from(e in Execution, where: e.id == ^execution_id)
-      |> Journey.Repo.one!()
+      |> Journey.Repo.one()
     end
   end
 

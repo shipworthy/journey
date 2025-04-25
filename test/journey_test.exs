@@ -4,6 +4,30 @@ defmodule JourneyTest do
 
   import Journey.Node
 
+  # TODO: split this into multiple modules that can be run in parallel
+
+  describe "load" do
+    test "sunny day" do
+      execution =
+        basic_graph()
+        |> Journey.start_execution()
+
+      loaded_by_id = Journey.load(execution.id)
+      loaded_by_execution = Journey.load(execution)
+
+      assert execution == loaded_by_id
+      assert execution == loaded_by_execution
+    end
+
+    test "no such execution" do
+      _execution =
+        basic_graph()
+        |> Journey.start_execution()
+
+      assert nil == Journey.load("no_such_execution_id")
+    end
+  end
+
   describe "get_value" do
     test "sunny day, input, not set, non-blocking" do
       execution =
