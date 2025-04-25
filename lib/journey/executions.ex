@@ -187,8 +187,8 @@ defmodule Journey.Executions do
       end
 
     from(
-      e in q
-      # preload: [:values, :computations]
+      e in q,
+      preload: [:values, :computations]
     )
     |> Journey.Repo.all()
   end
