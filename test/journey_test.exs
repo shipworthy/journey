@@ -51,8 +51,15 @@ defmodule JourneyTest do
         basic_graph()
         |> Journey.start_execution()
 
-      listed_execution_ids = Journey.list_executions(graph_name: execution.graph_name) |> Enum.map(& &1.id)
-      assert execution.id in listed_execution_ids
+      listed_executions = Journey.list_executions(graph_name: execution.graph_name)
+
+      for le <- listed_executions do
+        # Making sure that values and computations are loaded.
+        assert Enum.count(le.values) == 2
+        assert Enum.count(le.computations) == 1
+      end
+
+      assert execution.id in (listed_executions |> Enum.map(& &1.id))
     end
 
     test "sunny day, sort by inserted_at (which is updated after a set_value)" do
