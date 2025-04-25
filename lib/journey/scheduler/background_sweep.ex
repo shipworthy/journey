@@ -132,18 +132,21 @@ defmodule Journey.Scheduler.BackgroundSweep do
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
 
+    # Using the "scheduled window" approach. TODO: switch to best-effort + catch-up.
     now = System.system_time(:second)
-    yesterday = now - 24 * 60 * 60
+    precision_window_seconds = 5 * 60
+    half_hour_ago = now - precision_window_seconds
 
     q = from_values(execution_id)
 
     kicked_count =
       from(v in q,
-        # TODO: scalability. Find a better way to limit the set than having a lower time bound.
+        # TODO: do not select values that are already consumed by a downstream computation
+        # !value_already_consumed_by_a_downstream_computation and
         where:
           v.node_type == ^:pulse_once and
             fragment("CAST(?->>'v' AS INTEGER) < ?", v.node_value, ^now) and
-            fragment("CAST(?->>'v' AS INTEGER) > ?", v.node_value, ^yesterday)
+            fragment("CAST(?->>'v' AS INTEGER) > ?", v.node_value, ^half_hour_ago)
       )
       |> Journey.Repo.all()
       |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
@@ -154,7 +157,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
     if kicked_count == 0 do
       Logger.debug("#{prefix}: no recently due pulse value(s) found")
     else
-      Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+      Logger.debug("#{prefix}: completed. kicked #{kicked_count} execution(s)")
     end
   end
 
