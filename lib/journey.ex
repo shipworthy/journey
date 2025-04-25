@@ -61,7 +61,7 @@ defmodule Journey do
       iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
       iex> Journey.get_value(e, :zodiac_sign, wait: true)
       {:ok, "Taurus"}
-      iex> Journey.values(e)
+      iex> Journey.values(e) |> Map.delete(:execution_id)
       %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus"}
       iex>
       iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
@@ -69,7 +69,7 @@ defmodule Journey do
       iex> Journey.get_value(e, :horoscope, wait: true)
       {:ok, "🍪s await, Taurus Mario!"}
       iex>
-      iex> Journey.values(e)
+      iex> Journey.values(e) |> Map.delete(:execution_id)
       %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus"}
 
   """

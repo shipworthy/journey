@@ -23,6 +23,7 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
       |> Journey.set_value(:birth_month, "April")
 
     assert Journey.values_expanded(execution) == %{
+             execution_id: {:set, execution.id},
              astrological_sign: :not_set,
              birth_day: {:set, 26},
              birth_month: {:set, "April"},
@@ -48,6 +49,7 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)
 
     assert Journey.values_expanded(execution) == %{
+             execution_id: {:set, execution.id},
              astrological_sign: :not_set,
              birth_day: {:set, 26},
              birth_month: {:set, "April"},

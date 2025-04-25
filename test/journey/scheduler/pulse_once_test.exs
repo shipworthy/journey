@@ -21,6 +21,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     assert Journey.get_value(execution, :reminder, wait: 10_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+             execution_id: execution.id,
              greeting: "Hello, Mario",
              reminder: "Reminder: Hello, Mario",
              user_name: "Mario",
@@ -31,6 +32,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+             execution_id: execution.id,
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
@@ -40,6 +42,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+             execution_id: execution.id,
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",

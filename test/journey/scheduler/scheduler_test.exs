@@ -46,6 +46,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution = Journey.set_value(execution, :birth_month, "April")
 
       assert Journey.values_expanded(execution) == %{
+               execution_id: {:set, execution.id},
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -55,6 +56,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert BackgroundSweep.sweep_abandoned_computations(execution.id) == []
 
       assert Journey.values_expanded(execution) == %{
+               execution_id: {:set, execution.id},
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},

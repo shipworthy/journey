@@ -17,6 +17,15 @@ defmodule Journey.Executions do
           }
           |> repo.insert!()
 
+        %Execution.Value{
+          execution: execution,
+          node_name: "execution_id",
+          node_type: :input,
+          set_time: execution.inserted_at,
+          node_value: %{"v" => execution.id}
+        }
+        |> repo.insert!()
+
         # Create a value record for every graph node, regardless of the graph node's type.
         _values =
           nodes
