@@ -19,6 +19,10 @@ defmodule JourneyTest do
       assert execution == loaded_by_execution
     end
 
+    test "nil" do
+      assert nil == Journey.load(nil)
+    end
+
     test "no such execution" do
       _execution =
         basic_graph()
