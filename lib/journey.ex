@@ -116,6 +116,8 @@ defmodule Journey do
     |> Graph.Catalog.register()
   end
 
+  def load(nil), do: nil
+
   def load(execution_id) when is_binary(execution_id) do
     Journey.Executions.load(execution_id)
   end
