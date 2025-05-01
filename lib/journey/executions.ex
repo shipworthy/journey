@@ -88,11 +88,28 @@ defmodule Journey.Executions do
     |> Enum.into(%{})
   end
 
+  # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value) do
-    {:ok, updated_execution} =
-      Journey.Repo.transaction(fn repo ->
-        new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
+    prefix = "[#{mf()}][#{execution.id}.#{node_name}]"
+    Logger.info("#{prefix}: setting value")
 
+    Journey.Repo.transaction(fn repo ->
+      new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
+
+      current_value_node =
+        from(v in Execution.Value,
+          where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
+        )
+        |> repo.one!()
+
+      updating_to_the_same_value? =
+        current_value_node.set_time != nil and current_value_node.node_value != nil and
+          Map.has_key?(current_value_node.node_value, "v") and Map.get(current_value_node.node_value, "v") == value
+
+      if updating_to_the_same_value? do
+        Logger.info("no need to update, value unchanged, aborting transaction")
+        repo.rollback(execution)
+      else
         now_seconds = System.system_time(:second)
 
         from(v in Execution.Value,
@@ -106,12 +123,30 @@ defmodule Journey.Executions do
             set_time: now_seconds
           ]
         )
+        # credo:disable-for-lines:10 Credo.Check.Refactor.Nesting
+        |> case do
+          {1, _} ->
+            Logger.info("#{prefix}: value updated")
 
-        load(execution.id)
-      end)
+          {0, _} ->
+            Logger.error("#{prefix}: value not updated, aborting transaction")
+            repo.rollback(execution)
+        end
 
-    updated_execution
-    |> Journey.Scheduler.advance()
+        Journey.load(execution.id)
+      end
+    end)
+    |> case do
+      {:ok, updated_execution} ->
+        Logger.info("#{prefix}: value set successfully")
+
+        updated_execution
+        |> Journey.Scheduler.advance()
+
+      {:error, original_execution} ->
+        Logger.error("#{prefix}: value not set, transaction rolled back")
+        Journey.load(original_execution)
+    end
   end
 
   def get_value(execution, node_name, timeout_ms) do

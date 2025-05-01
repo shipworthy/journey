@@ -2,6 +2,8 @@ defmodule JourneyTest do
   use ExUnit.Case, async: true
   doctest Journey
 
+  import Journey.Helpers.Random, only: [random_string: 0]
+
   import Journey.Node
 
   # TODO: split this into multiple modules that can be run in parallel
@@ -9,7 +11,7 @@ defmodule JourneyTest do
   describe "load" do
     test "sunny day" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
 
       loaded_by_id = Journey.load(execution.id)
@@ -25,7 +27,7 @@ defmodule JourneyTest do
 
     test "no such execution" do
       _execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
 
       assert nil == Journey.load("no_such_execution_id")
@@ -35,7 +37,7 @@ defmodule JourneyTest do
   describe "get_value" do
     test "sunny day, input, not set, non-blocking" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
 
       assert Journey.get_value(execution, :first_name) == {:error, :not_set}
@@ -43,7 +45,7 @@ defmodule JourneyTest do
 
     test "sunny day, input, set, non-blocking" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
         |> Journey.set_value(:first_name, "Mario")
 
@@ -52,7 +54,7 @@ defmodule JourneyTest do
 
     test "sunny day, computation, set, blocking" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
         |> Journey.set_value(:first_name, "Mario")
 
@@ -61,7 +63,7 @@ defmodule JourneyTest do
 
     test "no such node" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
         |> Journey.set_value(:first_name, "Mario")
 
@@ -76,24 +78,27 @@ defmodule JourneyTest do
   describe "list_executions" do
     test "sunny day, by graph name" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
 
+      Process.sleep(1_000)
       listed_executions = Journey.list_executions(graph_name: execution.graph_name)
 
       for le <- listed_executions do
         # Making sure that values and computations are loaded.
         assert Enum.count(le.values) == 2
-        assert Enum.count(le.computations) == 1
+        assert Enum.count(le.computations) == 1, "#{inspect(le.computations)}"
       end
 
       assert execution.id in (listed_executions |> Enum.map(& &1.id))
     end
 
     test "sunny day, sort by inserted_at (which is updated after a set_value)" do
+      test_id = random_string()
+
       execution_ids =
         Enum.map(1..3, fn _ ->
-          basic_graph()
+          basic_graph(test_id)
           |> Journey.start_execution()
           |> Map.get(:id)
           |> tap(fn _ -> Process.sleep(1_000) end)
@@ -111,7 +116,7 @@ defmodule JourneyTest do
       {:ok, "Hello, Mario"} = Journey.get_value(updated_execution, :greeting, wait: true)
 
       listed_execution_ids =
-        Journey.list_executions(graph_name: basic_graph().name, order_by_fields: [:updated_at])
+        Journey.list_executions(graph_name: basic_graph(test_id).name, order_by_fields: [:updated_at])
         |> Enum.map(& &1.id)
         |> Enum.filter(fn id -> id in execution_ids end)
 
@@ -132,16 +137,52 @@ defmodule JourneyTest do
   describe "set_value |" do
     test "sunny day" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
         |> Journey.set_value(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
     end
 
+    test "setting value to the same value" do
+      execution_v1 =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+
+      execution_v1 |> Journey.set_value(:first_name, "Mario")
+      {:ok, "Mario"} = Journey.get_value(execution_v1, :first_name, wait: true)
+      {:ok, "Hello, Mario"} = Journey.get_value(execution_v1, :greeting, wait: true)
+      execution_after_first_set = execution_v1 |> Journey.load()
+
+      assert execution_after_first_set.revision > execution_v1.revision
+
+      execution_v1 |> Journey.set_value(:first_name, "Mario")
+      {:ok, "Mario"} = Journey.get_value(execution_v1, :first_name, wait: true)
+      execution_after_second_set = execution_v1 |> Journey.load()
+      assert execution_after_second_set.revision == execution_after_first_set.revision
+    end
+
+    test "setting value to a new value" do
+      execution_v1 =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+
+      execution_v2 = execution_v1 |> Journey.set_value(:first_name, "Mario")
+      {:ok, "Mario"} = Journey.get_value(execution_v1, :first_name, wait: true)
+      {:ok, "Hello, Mario"} = Journey.get_value(execution_v1, :greeting, wait: true)
+      assert execution_v2.revision > execution_v1.revision
+
+      execution_v3 = execution_v1 |> Journey.set_value(:first_name, "Luigi")
+      # TODO: add semantics for waiting for a computation to finish.
+      Process.sleep(500)
+      {:ok, "Luigi"} = Journey.get_value(execution_v3, :first_name, wait: true)
+      {:ok, "Hello, Luigi"} = Journey.get_value(execution_v3, :greeting, wait: true)
+      assert execution_v3.revision > execution_v2.revision
+    end
+
     test "sunny day, updated_at timestamps get updated" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
 
       Process.sleep(1200)
@@ -178,7 +219,7 @@ defmodule JourneyTest do
 
     test "unknown node" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
 
       assert_raise RuntimeError,
@@ -190,7 +231,7 @@ defmodule JourneyTest do
 
     test "not an input node" do
       execution =
-        basic_graph()
+        basic_graph(random_string())
         |> Journey.start_execution()
 
       assert_raise RuntimeError,
@@ -201,9 +242,9 @@ defmodule JourneyTest do
     end
   end
 
-  defp basic_graph() do
+  defp basic_graph(test_id) do
     Journey.new_graph(
-      "basic graph, greetings #{__MODULE__}",
+      "basic graph, greetings #{__MODULE__} #{test_id}",
       "1.0.0",
       [
         input(:first_name),
