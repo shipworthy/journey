@@ -111,7 +111,7 @@ defmodule Journey.Scheduler do
         f.(eid, result)
       rescue
         e ->
-          Logger.error("#{prefix}: f_on_save failed with error: #{inspect(e)}")
+          Logger.error("#{prefix}: f_on_save failed, it raised an exception: '#{inspect(e)}'")
       end
 
       Logger.info("#{prefix}: f_on_save completed")
