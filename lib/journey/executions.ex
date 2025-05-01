@@ -107,7 +107,7 @@ defmodule Journey.Executions do
           Map.has_key?(current_value_node.node_value, "v") and Map.get(current_value_node.node_value, "v") == value
 
       if updating_to_the_same_value? do
-        Logger.info("no need to update, value unchanged, aborting transaction")
+        Logger.info("#{prefix}: no need to update, value unchanged, aborting transaction")
         repo.rollback({:no_change, execution})
       else
         now_seconds = System.system_time(:second)
