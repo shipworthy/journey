@@ -108,7 +108,7 @@ defmodule Journey.Executions do
 
       if updating_to_the_same_value? do
         Logger.info("no need to update, value unchanged, aborting transaction")
-        repo.rollback(execution)
+        repo.rollback({:no_change, execution})
       else
         now_seconds = System.system_time(:second)
 
@@ -143,9 +143,13 @@ defmodule Journey.Executions do
         updated_execution
         |> Journey.Scheduler.advance()
 
-      {:error, original_execution} ->
-        Logger.error("#{prefix}: value not set, transaction rolled back")
+      {:error, {:no_change, original_execution}} ->
+        Logger.info("#{prefix}: value not set (updating for the same value), transaction rolled back")
         Journey.load(original_execution)
+
+      {:error, _} ->
+        Logger.error("#{prefix}: value not set, transaction rolled back")
+        Journey.load(execution)
     end
   end
 
