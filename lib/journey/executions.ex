@@ -155,7 +155,7 @@ defmodule Journey.Executions do
 
   def get_value(execution, node_name, timeout_ms) do
     prefix = "[#{execution.id}][#{node_name}][#{mf()}]"
-    Logger.info("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
+    Logger.debug("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
 
     monotonic_time_deadline =
       case timeout_ms do
@@ -170,8 +170,12 @@ defmodule Journey.Executions do
       end
 
     load_value(execution, node_name, monotonic_time_deadline, 0)
-    |> tap(fn {outcome, _result} ->
-      Logger.info("#{prefix}: done. #{inspect(outcome)}")
+    |> tap(fn
+      {:ok, _result} ->
+        Logger.debug("#{prefix}: done. success")
+
+      {outcome, _result} ->
+        Logger.warning("#{prefix}: done. outcome: '#{inspect(outcome)}'")
     end)
   end
 
