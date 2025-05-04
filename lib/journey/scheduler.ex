@@ -40,7 +40,7 @@ defmodule Journey.Scheduler do
 
     Task.start(fn ->
       prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"
-      Logger.info("#{prefix}: starting async computation")
+      Logger.debug("#{prefix}: starting async computation")
 
       graph_node =
         execution.graph_name
@@ -69,7 +69,7 @@ defmodule Journey.Scheduler do
       r
       |> case do
         {:ok, result} ->
-          Logger.info("#{prefix}: async computation completed successfully")
+          Logger.debug("#{prefix}: async computation completed successfully")
           Completions.record_success(computation, input_versions_to_capture, result)
 
         {:error, error_details} ->
@@ -105,7 +105,7 @@ defmodule Journey.Scheduler do
 
   defp invoke_f_on_save(prefix, f, eid, result) do
     Task.start(fn ->
-      Logger.info("#{prefix}: calling f_on_save")
+      Logger.debug("#{prefix}: calling f_on_save")
 
       try do
         f.(eid, result)
@@ -114,7 +114,7 @@ defmodule Journey.Scheduler do
           Logger.error("#{prefix}: f_on_save failed, it raised an exception: '#{inspect(e)}'")
       end
 
-      Logger.info("#{prefix}: f_on_save completed")
+      Logger.debug("#{prefix}: f_on_save completed")
     end)
   end
 
