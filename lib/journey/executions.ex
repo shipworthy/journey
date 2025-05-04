@@ -91,7 +91,7 @@ defmodule Journey.Executions do
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value) do
     prefix = "[#{mf()}][#{execution.id}.#{node_name}]"
-    Logger.info("#{prefix}: setting value")
+    Logger.debug("#{prefix}: setting value")
 
     Journey.Repo.transaction(fn repo ->
       new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
@@ -107,7 +107,7 @@ defmodule Journey.Executions do
           Map.has_key?(current_value_node.node_value, "v") and Map.get(current_value_node.node_value, "v") == value
 
       if updating_to_the_same_value? do
-        Logger.info("#{prefix}: no need to update, value unchanged, aborting transaction")
+        Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
         repo.rollback({:no_change, execution})
       else
         now_seconds = System.system_time(:second)
@@ -126,7 +126,7 @@ defmodule Journey.Executions do
         # credo:disable-for-lines:10 Credo.Check.Refactor.Nesting
         |> case do
           {1, _} ->
-            Logger.info("#{prefix}: value updated")
+            Logger.debug("#{prefix}: value updated")
 
           {0, _} ->
             Logger.error("#{prefix}: value not updated, aborting transaction")
@@ -144,7 +144,7 @@ defmodule Journey.Executions do
         |> Journey.Scheduler.advance()
 
       {:error, {:no_change, original_execution}} ->
-        Logger.info("#{prefix}: value not set (updating for the same value), transaction rolled back")
+        Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
         Journey.load(original_execution)
 
       {:error, _} ->
