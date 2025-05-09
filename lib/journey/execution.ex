@@ -8,6 +8,7 @@ defmodule Journey.Execution do
   schema "executions" do
     field(:graph_name, :string)
     field(:graph_version, :string)
+    field(:archived_at, :integer, default: nil)
     has_many(:values, Journey.Execution.Value)
     has_many(:computations, Journey.Execution.Computation)
     # has_many(:computations, Journey.Schema.Computation, preload_order: [asc: :ex_revision])
