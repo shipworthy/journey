@@ -10,10 +10,15 @@ defmodule Journey.Scheduler.Completions do
   import Journey.Helpers.Log
 
   def record_success(computation, inputs_to_capture, result) do
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()} :success]"
+
+    Logger.debug("#{prefix}] starting.")
+
     {:ok, _} =
       Journey.Repo.transaction(fn repo ->
         record_success_in_transaction(repo, computation, inputs_to_capture, result)
       end)
+      |> tap(fn _ -> Logger.debug("#{prefix}: done.") end)
   end
 
   def record_error(computation, error_details) do
@@ -196,7 +201,7 @@ defmodule Journey.Scheduler.Completions do
         q
         |> repo.update_all(
           set: [
-            node_value: %{"v" => value},
+            node_value: value,
             updated_at: now_seconds,
             set_time: now_seconds
           ]
@@ -205,7 +210,7 @@ defmodule Journey.Scheduler.Completions do
         q
         |> repo.update_all(
           set: [
-            node_value: %{"v" => value},
+            node_value: value,
             set_time: now_seconds,
             updated_at: now_seconds,
             ex_revision: new_revision

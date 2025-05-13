@@ -80,7 +80,7 @@ defmodule Journey.Executions do
         if is_nil(value.set_time) do
           :not_set
         else
-          {:set, if(is_nil(value.node_value), do: nil, else: Map.get(value.node_value, "v"))}
+          {:set, value.node_value}
         end
 
       {value.node_name, node_status}
@@ -104,7 +104,7 @@ defmodule Journey.Executions do
 
       updating_to_the_same_value? =
         current_value_node.set_time != nil and current_value_node.node_value != nil and
-          Map.has_key?(current_value_node.node_value, "v") and Map.get(current_value_node.node_value, "v") == value
+          current_value_node.node_value == value
 
       if updating_to_the_same_value? do
         Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
@@ -118,7 +118,7 @@ defmodule Journey.Executions do
         |> repo.update_all(
           set: [
             ex_revision: new_revision,
-            node_value: %{"v" => value},
+            node_value: value,
             updated_at: now_seconds,
             set_time: now_seconds
           ]
@@ -202,7 +202,7 @@ defmodule Journey.Executions do
         end
 
       %{node_value: node_value} ->
-        {:ok, node_value["v"]}
+        {:ok, node_value}
     end
   end
 

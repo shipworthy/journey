@@ -134,8 +134,8 @@ defmodule Journey.Scheduler.BackgroundSweep do
 
     # Using the "scheduled window" approach. TODO: switch to best-effort + catch-up.
     now = System.system_time(:second)
-    precision_window_seconds = 5 * 60
-    half_hour_ago = now - precision_window_seconds
+    precision_window_seconds = 10 * 60
+    cutoff_time = now - precision_window_seconds
 
     q = from_values(execution_id)
 
@@ -145,8 +145,8 @@ defmodule Journey.Scheduler.BackgroundSweep do
         # !value_already_consumed_by_a_downstream_computation and
         where:
           v.node_type == ^:pulse_once and
-            fragment("CAST(?->>'v' AS INTEGER) < ?", v.node_value, ^now) and
-            fragment("CAST(?->>'v' AS INTEGER) > ?", v.node_value, ^half_hour_ago)
+            fragment("CAST(? AS INTEGER) <= ?", v.node_value, ^now) and
+            fragment("CAST(? AS INTEGER) >= ?", v.node_value, ^cutoff_time)
       )
       |> Journey.Repo.all()
       |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
