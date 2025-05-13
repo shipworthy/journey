@@ -1,3 +1,16 @@
+defmodule Journey.Execution.Value.JsonbScalar do
+  @behaviour Ecto.Type
+
+  def type, do: :map
+
+  def cast(val), do: {:ok, val}
+  def load(val), do: {:ok, val}
+  def dump(val), do: {:ok, val}
+
+  def embed_as(_format), do: :self
+  def equal?(term1, term2), do: term1 == term2
+end
+
 defmodule Journey.Execution.Value do
   @moduledoc false
 
@@ -11,7 +24,7 @@ defmodule Journey.Execution.Value do
     belongs_to(:execution, Journey.Execution)
     field(:node_name, :string)
     field(:node_type, Ecto.Enum, values: [:input | ComputationType.values()])
-    field(:node_value, :map, default: nil)
+    field(:node_value, Journey.Execution.Value.JsonbScalar, default: nil)
     field(:set_time, :integer, default: nil)
     field(:ex_revision, :integer, default: nil)
     timestamps()

@@ -44,10 +44,10 @@ defmodule Journey.Scheduler.Available do
             %{node_type: :compute} ->
               true
 
-            %{node_type: :pulse_once, node_value: %{"v" => enabled_at}} ->
+            %{node_type: :pulse_once, node_value: enabled_at} ->
               System.system_time(:second) >= enabled_at
 
-            %{node_type: :pulse_recurring, node_value: %{"v" => enabled_at}} ->
+            %{node_type: :pulse_recurring, node_value: enabled_at} ->
               System.system_time(:second) >= enabled_at
 
             %{node_type: :input} ->

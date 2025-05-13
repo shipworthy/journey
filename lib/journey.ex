@@ -145,7 +145,7 @@ defmodule Journey do
   defmodule Node do
     @moduledoc """
     This module contains functions for creating nodes in a graph.
-    Nodes in a grqph can be of a few different types:
+    Nodes in a graph can be of a few different types:
     * `input/1` – a node that takes input from the user.
     * `compute/4` – a node that computes a value based on its upstream nodes.
     * `pulse_recurring/3` – a node that emits a time value on a recurring schedule.
