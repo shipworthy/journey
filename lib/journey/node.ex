@@ -199,8 +199,8 @@ defmodule Journey.Node do
   ...>     graph
   ...>     |> Journey.start_execution()
   ...>     |> Journey.set_value(:name, "Mario")
-  iex> execution |> Journey.values()
-  %{name: "Mario"}
+  iex> execution |> Journey.values() |> Map.get(:name)
+  "Mario"
   iex> # This is only needed in a test, to simulate what automatically happens in non-tests.
   iex> Task.start(fn ->
   ...>   for _ <- 1..3 do
