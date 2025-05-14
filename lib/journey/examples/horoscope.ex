@@ -5,7 +5,7 @@ defmodule Journey.Examples.Horoscope do
 
   def graph() do
     Journey.new_graph(
-      "horoscope workflow, success #{__MODULE__}",
+      "horoscope workflow, success #{__MODULE__}-#{Journey.Helpers.Random.random_string(5)}",
       "v1.0.0",
       [
         input(:first_name),

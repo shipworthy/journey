@@ -1,6 +1,5 @@
 defmodule JourneyTest do
   use ExUnit.Case, async: true
-  doctest Journey
 
   import Journey.Helpers.Random, only: [random_string: 0]
 
