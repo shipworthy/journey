@@ -1,7 +1,7 @@
 defmodule Journey do
   @moduledoc """
 
-  Journey lets you define, maintain, and execute computation graphs, with persistence, and scalability.
+  Journey lets you define, maintain, and execute computation graphs, with persistence, clarity, and scalability.
 
   For example, a web application that computes horoscopes can be modeled with a graph containing nodes for the user's **name** and **birthday** (supplied by the user), and for the user's **zodiac sign** and **horoscope** (auto-computed based on the user's name and birthday).
 
@@ -9,7 +9,9 @@ defmodule Journey do
 
   Every node's data is persisted, so if the user leaves the website, or the system crashes, the execution can be reloaded and continued from where it left off.
 
-  Computations run on any node your system is running, so your system is as scalable and distributed as you need it to be, without requiring any additional infrastructure.
+  Since computations run as part of your application, on any node where your application is running, your system is as scalable and distributed as you need it to be, without requiring any additional infrastructure or cloud services.
+
+  The essence of your functionality is captured in the graph, so your code is clear and easy to maintain.
 
   Here's an example of defining such a graph and executing an instance of it:
 
