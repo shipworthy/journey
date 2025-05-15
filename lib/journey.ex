@@ -76,7 +76,7 @@ defmodule Journey do
   %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus"}
   iex>
   iex> # 6. and we can always list executions.
-  iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_fields: [:inserted_at]) |> Enum.reverse() |> hd
+  iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
   iex> e.id == this_execution.id
   true
   ```
@@ -162,19 +162,41 @@ defmodule Journey do
 
   ## Examples:
 
-  ```elixir
-  iex> graph = Journey.Examples.Horoscope.graph()
-  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-  iex> executions = Journey.list_executions(graph_name: graph.name, order_by_fields: [:inserted_at])
-  iex> Enum.count(executions)
-  20
-  ```
+    iex> graph = Journey.Examples.Horoscope.graph()
+    iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
+    iex> executions = Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:inserted_at])
+    iex> Enum.count(executions)
+    20
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 1}]) |> Enum.count()
+    1
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gt, 7}]) |> Enum.count()
+    13
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gte, 7}]) |> Enum.count()
+    14
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lt, 7}]) |> Enum.count()
+    6
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 7}]) |> Enum.count()
+    7
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 10}]) |> Enum.count()
+    1
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a, b -> a == b end, 10}]) |> Enum.count()
+    1
+    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a -> a in [9, 12] end}]) |> Enum.count()
+    2
+    iex> Journey.list_executions(graph_name: graph.name, limit: 3) |> Enum.count()
+    3
+    iex> Journey.list_executions(graph_name: graph.name, limit: 10, offset: 15) |> Enum.count()
+    5
+
   """
 
   def list_executions(options \\ []) do
-    known_option_names = MapSet.new([:graph_name, :order_by_fields])
+    known_option_names = MapSet.new([:graph_name, :order_by_execution_fields, :value_filters, :limit, :offset])
     supplied_option_names = MapSet.new(Keyword.keys(options))
     unexpected_option_names = MapSet.difference(supplied_option_names, known_option_names)
+    value_filters = Keyword.get(options, :value_filters, [])
+    limit = Keyword.get(options, :limit, 10_000)
+    offset = Keyword.get(options, :offset, 0)
 
     if unexpected_option_names != MapSet.new([]) do
       raise ArgumentError,
@@ -182,9 +204,9 @@ defmodule Journey do
     end
 
     graph_name = Keyword.get(options, :graph_name, nil)
-    order_by_field = Keyword.get(options, :order_by_fields, [:inserted_at])
+    order_by_field = Keyword.get(options, :order_by_execution_fields, [:updated_at])
 
-    Journey.Executions.list(graph_name, order_by_field)
+    Journey.Executions.list(graph_name, order_by_field, value_filters, limit, offset)
   end
 
   @doc """
@@ -198,28 +220,26 @@ defmodule Journey do
 
   ## Examples:
 
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - start_execution doctest",
-  ...>       "v1.0.0",
-  ...>       [
-  ...>         input(:name),
-  ...>         compute(
-  ...>           :greeting,
-  ...>           [:name],
-  ...>           fn %{name: name} -> {:ok, "Hello, \#{name}!"} end
-  ...>         )
-  ...>       ]
-  ...>     )
-  iex> execution = Journey.start_execution(graph)
-  iex> execution.graph_name
-  "horoscope workflow - start_execution doctest"
-  iex> execution.graph_version
-  "v1.0.0"
-  iex> execution.revision
-  0
-  ```
+    iex> import Journey.Node
+    iex> graph = Journey.new_graph(
+    ...>       "horoscope workflow - start_execution doctest",
+    ...>       "v1.0.0",
+    ...>       [
+    ...>         input(:name),
+    ...>         compute(
+    ...>           :greeting,
+    ...>           [:name],
+    ...>           fn %{name: name} -> {:ok, "Hello, \#{name}!"} end
+    ...>         )
+    ...>       ]
+    ...>     )
+    iex> execution = Journey.start_execution(graph)
+    iex> execution.graph_name
+    "horoscope workflow - start_execution doctest"
+    iex> execution.graph_version
+    "v1.0.0"
+    iex> execution.revision
+    0
 
   """
   def start_execution(graph) when is_struct(graph, Graph) do
@@ -231,7 +251,11 @@ defmodule Journey do
   end
 
   @doc """
-  Expands and returns a list of values based on a predefined logic or transformation.
+  Returns a map containing all nodes in the execution with their current status.
+
+  Unlike `values/2` which only returns nodes with set values, this function returns all nodes
+  including those that haven't been set yet (marked as `:not_set`). Set values are returned
+  as tuples in the format `{:set, value}`.
 
   ## Examples:
 
@@ -247,15 +271,15 @@ defmodule Journey do
   ...>        ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
-  iex> Journey.values_expanded(execution)
+  iex> Journey.values_all(execution)
   %{name: :not_set, district: :not_set, last_name: :not_set}
   iex> execution = execution |> Journey.set_value(:name, "Mario")
-  iex> Journey.values_expanded(execution)
+  iex> Journey.values_all(execution)
   %{district: :not_set, last_name: :not_set, name: {:set, "Mario"}}
   ```
 
   """
-  def values_expanded(execution) when is_struct(execution, Execution) do
+  def values_all(execution) when is_struct(execution, Execution) do
     Executions.values(execution)
   end
 
@@ -267,17 +291,17 @@ defmodule Journey do
 
   ## Examples
 
-    ```elixir
-    iex> execution =
-    ...>    Journey.Examples.Horoscope.graph() |>
-    ...>    Journey.start_execution() |>
-    ...>    Journey.set_value(:birth_day, 26)
-    iex> Journey.values(execution)
-    %{birth_day: 26}
-    iex> execution = Journey.set_value(execution, :birth_month, "April")
-    iex> Journey.values(execution)
-    %{birth_day: 26, birth_month: "April"}
-    ```
+  ```elixir
+  iex> execution =
+  ...>    Journey.Examples.Horoscope.graph() |>
+  ...>    Journey.start_execution() |>
+  ...>    Journey.set_value(:birth_day, 26)
+  iex> Journey.values(execution)
+  %{birth_day: 26}
+  iex> execution = Journey.set_value(execution, :birth_month, "April")
+  iex> Journey.values(execution)
+  %{birth_day: 26, birth_month: "April"}
+  ```
 
   """
   def values(execution, opts \\ []) when is_struct(execution, Execution) and is_list(opts) do
@@ -291,7 +315,7 @@ defmodule Journey do
       end
 
     execution
-    |> values_expanded()
+    |> values_all()
     |> Enum.filter(fn {_k, v} ->
       v
       |> case do
@@ -323,7 +347,7 @@ defmodule Journey do
   iex> execution = Journey.set_value(execution, :name, "Mario")
   iex> execution |> Journey.values()
   %{name: "Mario"}
-  iex> execution |> Journey.values_expanded()
+  iex> execution |> Journey.values_all()
   %{name: {:set, "Mario"}, district: :not_set, last_name: :not_set}
   ```
 

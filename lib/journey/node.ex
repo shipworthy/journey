@@ -1,12 +1,12 @@
 defmodule Journey.Node do
   @moduledoc """
   This module contains functions for creating nodes in a graph.
-  Nodes in a graph can be of a few different types:
+  Nodes in a graph can be of several types:
   * `input/1` – a node that takes input from the user.
   * `compute/4` – a node that computes a value based on its upstream nodes.
-  * `pulse_recurring/3` – a node that emits a time value on a recurring schedule.
-  * `pulse_once/3` – a node that emits a value once, on a schedule.
   * `mutate/4` – a node that mutates the value of another node.
+  * `pulse_once/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule.
+  * `pulse_recurring/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.
   """
 
   alias Journey.Graph
@@ -19,7 +19,7 @@ defmodule Journey.Node do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - input doctest",
+  ...>       "`input()` doctest graph (just a few input nodes)",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:first_name),
@@ -59,7 +59,7 @@ defmodule Journey.Node do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - input doctest",
+  ...>       "`compute()` doctest graph (pig-latinize-ish a name)",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
@@ -108,7 +108,7 @@ defmodule Journey.Node do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow",
+  ...>       "`mutate()` doctest graph (a useless machine;)",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
@@ -116,9 +116,10 @@ defmodule Journey.Node do
   ...>           :remove_pii,
   ...>           [:name],
   ...>           fn %{name: _name} ->
+  ...>             # Return the new value for the "name" node.
   ...>             {:ok, "redacted"}
   ...>           end,
-  ...>           mutates: :name # The name of the node to be mutated.
+  ...>           mutates: :name # The name of an existing node whose value will be mutated.
   ...>         )
   ...>       ]
   ...>     )
@@ -148,23 +149,6 @@ defmodule Journey.Node do
   end
 
   @doc """
-  TODO: Document this function.
-
-  """
-  def pulse_recurring(name, upstream_nodes, f_compute, opts \\ [])
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
-    %Graph.Step{
-      name: name,
-      type: :pulse_recurring,
-      upstream_nodes: upstream_nodes,
-      f_compute: f_compute,
-      f_on_save: Keyword.get(opts, :f_on_save, nil),
-      max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
-    }
-  end
-
-  @doc """
   Creates a graph node that declares its readiness at a specific time.
 
   ## Examples:
@@ -172,7 +156,7 @@ defmodule Journey.Node do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - pulse_once doctest",
+  ...>       "`pulse_once()` doctest graph (it reminds you to take a nap in a couple of seconds;)",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
@@ -213,12 +197,28 @@ defmodule Journey.Node do
   ```
 
   """
-
   def pulse_once(name, upstream_nodes, f_compute, opts \\ [])
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :pulse_once,
+      upstream_nodes: upstream_nodes,
+      f_compute: f_compute,
+      f_on_save: Keyword.get(opts, :f_on_save, nil),
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+    }
+  end
+
+  @doc """
+  TODO: Document this function.
+
+  """
+  def pulse_recurring(name, upstream_nodes, f_compute, opts \\ [])
+      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+    %Graph.Step{
+      name: name,
+      type: :pulse_recurring,
       upstream_nodes: upstream_nodes,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),

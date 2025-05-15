@@ -206,34 +206,65 @@ defmodule Journey.Executions do
     end
   end
 
-  # note: graph_name could be one of the filter params, when that's implemented.
-  # list("chickens graph", [:updated_at, :chicken_name], [{:inserted_at, :eq, "2023-10-01T00:00:00Z"}], limit: 10, page: 1)
-  # def list(graph_name, sort_by_fields, filter, opts \\ []) do
-
-  def list(graph_name, sort_by_fields)
-      when (is_nil(graph_name) or is_binary(graph_name)) and is_list(sort_by_fields) do
-    q = from(e in Execution)
+  def list(graph_name, sort_by_ex_fields, value_filters, limit, offset)
+      when (is_nil(graph_name) or is_binary(graph_name)) and
+             is_list(sort_by_ex_fields) and
+             is_list(value_filters) and
+             is_number(limit) and
+             is_number(offset) do
+    q = from(e in Execution, limit: ^limit, offset: ^offset)
 
     q =
-      sort_by_fields
+      sort_by_ex_fields
       |> Enum.reduce(q, fn sort_field, acc ->
         from(e in acc, order_by: [asc: ^sort_field])
       end)
 
-    q =
-      if graph_name == nil do
-        q
-      else
-        from(e in q,
-          where: e.graph_name == ^graph_name
-        )
-      end
+    if graph_name == nil do
+      q
+    else
+      from(e in q, where: e.graph_name == ^graph_name)
+    end
+    |> add_filters(value_filters)
+  end
 
-    from(
-      e in q,
-      preload: [:values, :computations]
-    )
+  defp add_filters(q, value_filters) do
+    from(e in q, preload: [:values, :computations])
     |> Journey.Repo.all()
+    |> Enum.map(fn execution -> convert_node_names_to_atoms(execution) end)
+    |> Enum.filter(fn execution ->
+      Enum.all?(value_filters, fn
+        {value_node_name, comparator, value_node_value}
+        when is_atom(value_node_name) and
+               (comparator in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in] or
+                  is_function(comparator)) ->
+          value_node = find_value_by_name(execution, value_node_name)
+          value_node != nil and cmp(comparator).(value_node.node_value, value_node_value)
+
+        {value_node_name, comparator}
+        when is_atom(value_node_name) and
+               (comparator in [:is_nil, :is_not_nil] or
+                  is_function(comparator)) ->
+          value_node = find_value_by_name(execution, value_node_name)
+          value_node != nil and cmp(comparator).(value_node.node_value)
+      end)
+    end)
+  end
+
+  defp cmp(:eq), do: fn a, b -> a == b end
+  defp cmp(:neq), do: fn a, b -> a != b end
+  defp cmp(:lt), do: fn a, b -> a < b end
+  defp cmp(:lte), do: fn a, b -> a <= b end
+  defp cmp(:gt), do: fn a, b -> a > b end
+  defp cmp(:gte), do: fn a, b -> a >= b end
+  defp cmp(:in), do: fn a, b -> a in b end
+  defp cmp(:not_in), do: fn a, b -> a not in b end
+  defp cmp(:is_nil), do: fn a -> is_nil(a) end
+  defp cmp(:is_not_nil), do: fn a -> not is_nil(a) end
+  defp cmp(f) when is_function(f), do: f
+
+  defp find_value_by_name(execution, node_name) when is_atom(node_name) do
+    execution.values |> Enum.find(fn value -> value.node_name == node_name end)
   end
 
   defp backoff_sleep(attempt_count) when is_integer(attempt_count) and attempt_count >= 0 do

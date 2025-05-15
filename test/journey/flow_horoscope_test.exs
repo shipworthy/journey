@@ -59,7 +59,7 @@ defmodule Journey.HoroscopeTest do
         |> Journey.set_value(:birth_month, "April")
         |> Journey.set_value(:first_name, "Mario")
 
-      assert Journey.values_expanded(execution) == %{
+      assert Journey.values_all(execution) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -84,7 +84,7 @@ defmodule Journey.HoroscopeTest do
 
       execution = Journey.load(execution)
 
-      assert Journey.values_expanded(execution) == %{
+      assert Journey.values_all(execution) == %{
                astrological_sign: {:set, "Taurus"},
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
