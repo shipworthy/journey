@@ -162,31 +162,33 @@ defmodule Journey do
 
   ## Examples:
 
-    iex> graph = Journey.Examples.Horoscope.graph()
-    iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-    iex> executions = Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:inserted_at])
-    iex> Enum.count(executions)
-    20
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 1}]) |> Enum.count()
-    1
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gt, 7}]) |> Enum.count()
-    13
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gte, 7}]) |> Enum.count()
-    14
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lt, 7}]) |> Enum.count()
-    6
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 7}]) |> Enum.count()
-    7
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 10}]) |> Enum.count()
-    1
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a, b -> a == b end, 10}]) |> Enum.count()
-    1
-    iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a -> a in [9, 12] end}]) |> Enum.count()
-    2
-    iex> Journey.list_executions(graph_name: graph.name, limit: 3) |> Enum.count()
-    3
-    iex> Journey.list_executions(graph_name: graph.name, limit: 10, offset: 15) |> Enum.count()
-    5
+  ```elixir
+  iex> graph = Journey.Examples.Horoscope.graph()
+  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
+  iex> executions = Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:inserted_at])
+  iex> Enum.count(executions)
+  20
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 1}]) |> Enum.count()
+  1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gt, 7}]) |> Enum.count()
+  13
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gte, 7}]) |> Enum.count()
+  14
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lt, 7}]) |> Enum.count()
+  6
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 7}]) |> Enum.count()
+  7
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 10}]) |> Enum.count()
+  1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a, b -> a == b end, 10}]) |> Enum.count()
+  1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a -> a in [9, 12] end}]) |> Enum.count()
+  2
+  iex> Journey.list_executions(graph_name: graph.name, limit: 3) |> Enum.count()
+  3
+  iex> Journey.list_executions(graph_name: graph.name, limit: 10, offset: 15) |> Enum.count()
+  5
+  ```
 
   """
 
@@ -220,26 +222,28 @@ defmodule Journey do
 
   ## Examples:
 
-    iex> import Journey.Node
-    iex> graph = Journey.new_graph(
-    ...>       "horoscope workflow - start_execution doctest",
-    ...>       "v1.0.0",
-    ...>       [
-    ...>         input(:name),
-    ...>         compute(
-    ...>           :greeting,
-    ...>           [:name],
-    ...>           fn %{name: name} -> {:ok, "Hello, \#{name}!"} end
-    ...>         )
-    ...>       ]
-    ...>     )
-    iex> execution = Journey.start_execution(graph)
-    iex> execution.graph_name
-    "horoscope workflow - start_execution doctest"
-    iex> execution.graph_version
-    "v1.0.0"
-    iex> execution.revision
-    0
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "horoscope workflow - start_execution doctest",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:name),
+  ...>         compute(
+  ...>           :greeting,
+  ...>           [:name],
+  ...>           fn %{name: name} -> {:ok, "Hello, \#{name}!"} end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution.graph_name
+  "horoscope workflow - start_execution doctest"
+  iex> execution.graph_version
+  "v1.0.0"
+  iex> execution.revision
+  0
+  ```
 
   """
   def start_execution(graph) when is_struct(graph, Graph) do
