@@ -151,6 +151,8 @@ defmodule Journey.Node do
   @doc """
   Creates a graph node that declares its readiness at a specific time.
 
+  Once this node is unblocked, it will be executed to set the time at which it will unblock its downstream dependencies.
+
   ## Examples:
 
   ```elixir
@@ -185,7 +187,7 @@ defmodule Journey.Node do
   ...>     |> Journey.set_value(:name, "Mario")
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
-  iex> # This is only needed in a test, to simulate what automatically happens in non-tests.
+  iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> Task.start(fn ->
   ...>   for _ <- 1..3 do
   ...>     :timer.sleep(2_000)
