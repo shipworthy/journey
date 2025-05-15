@@ -212,11 +212,7 @@ defmodule Journey.Executions do
              is_list(value_filters) and
              is_number(limit) and
              is_number(offset) do
-    q =
-      from(e in Execution,
-        limit: ^limit,
-        offset: ^offset
-      )
+    q = from(e in Execution, limit: ^limit, offset: ^offset)
 
     q =
       sort_by_ex_fields
@@ -227,18 +223,13 @@ defmodule Journey.Executions do
     if graph_name == nil do
       q
     else
-      from(e in q,
-        where: e.graph_name == ^graph_name
-      )
+      from(e in q, where: e.graph_name == ^graph_name)
     end
     |> add_filters(value_filters)
   end
 
   defp add_filters(q, value_filters) do
-    from(
-      e in q,
-      preload: [:values, :computations]
-    )
+    from(e in q, preload: [:values, :computations])
     |> Journey.Repo.all()
     |> Enum.map(fn execution -> convert_node_names_to_atoms(execution) end)
     |> Enum.filter(fn execution ->
