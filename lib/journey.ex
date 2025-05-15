@@ -76,7 +76,7 @@ defmodule Journey do
   %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus"}
   iex>
   iex> # 6. and we can always list executions.
-  iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_fields: [:inserted_at]) |> Enum.reverse() |> hd
+  iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
   iex> e.id == this_execution.id
   true
   ```
@@ -165,16 +165,39 @@ defmodule Journey do
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
   iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-  iex> executions = Journey.list_executions(graph_name: graph.name, order_by_fields: [:inserted_at])
+  iex> executions = Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:inserted_at])
   iex> Enum.count(executions)
   20
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 1}]) |> Enum.count()
+  1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gt, 7}]) |> Enum.count()
+  13
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gte, 7}]) |> Enum.count()
+  14
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lt, 7}]) |> Enum.count()
+  6
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 7}]) |> Enum.count()
+  7
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 10}]) |> Enum.count()
+  1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a, b -> a == b end, 10}]) |> Enum.count()
+  1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a -> a in [9, 12] end}]) |> Enum.count()
+  2
+  iex> Journey.list_executions(graph_name: graph.name, limit: 3) |> Enum.count()
+  3
+  iex> Journey.list_executions(graph_name: graph.name, limit: 10, offset: 15) |> Enum.count()
+  5
   ```
   """
 
   def list_executions(options \\ []) do
-    known_option_names = MapSet.new([:graph_name, :order_by_fields])
+    known_option_names = MapSet.new([:graph_name, :order_by_execution_fields, :value_filters, :limit, :offset])
     supplied_option_names = MapSet.new(Keyword.keys(options))
     unexpected_option_names = MapSet.difference(supplied_option_names, known_option_names)
+    value_filters = Keyword.get(options, :value_filters, [])
+    limit = Keyword.get(options, :limit, 10_000)
+    offset = Keyword.get(options, :offset, 0)
 
     if unexpected_option_names != MapSet.new([]) do
       raise ArgumentError,
@@ -182,9 +205,9 @@ defmodule Journey do
     end
 
     graph_name = Keyword.get(options, :graph_name, nil)
-    order_by_field = Keyword.get(options, :order_by_fields, [:inserted_at])
+    order_by_field = Keyword.get(options, :order_by_execution_fields, [:updated_at])
 
-    Journey.Executions.list(graph_name, order_by_field)
+    Journey.Executions.list(graph_name, order_by_field, value_filters, limit, offset)
   end
 
   @doc """
