@@ -10,40 +10,40 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     execution = graph |> Journey.start_execution()
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
-    BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
+    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
     Process.sleep(2000)
-    BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
+    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
     Process.sleep(2000)
 
     assert Journey.get_value(execution, :reminder, wait: 10_000) == {:ok, "Reminder: Hello, Mario"}
 
-    assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+    assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
              greeting: "Hello, Mario",
              reminder: "Reminder: Hello, Mario",
              user_name: "Mario",
-             time_to_issue_reminder_pulse: :redacted
+             time_to_issue_reminder_schedule: :redacted
            }
 
-    BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
+    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
-    assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+    assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
-             time_to_issue_reminder_pulse: :redacted
+             time_to_issue_reminder_schedule: :redacted
            }
 
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
-    assert Journey.values(execution) |> redact(:time_to_issue_reminder_pulse) == %{
+    assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
-             time_to_issue_reminder_pulse: :redacted
+             time_to_issue_reminder_schedule: :redacted
            }
 
     # TODO: add a recompute (modify user_name) and watch the change propagate (think through use cases).
@@ -66,14 +66,14 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
             {:ok, "Hello, #{user_name}"}
           end
         ),
-        pulse_once(
-          :time_to_issue_reminder_pulse,
+        schedule_once(
+          :time_to_issue_reminder_schedule,
           [:greeting],
           fn _ -> {:ok, System.system_time(:second) + 1} end
         ),
         compute(
           :reminder,
-          [:greeting, :time_to_issue_reminder_pulse],
+          [:greeting, :time_to_issue_reminder_schedule],
           fn %{greeting: greeting} ->
             {:ok, "Reminder: #{greeting}"}
           end

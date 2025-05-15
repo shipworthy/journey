@@ -54,7 +54,7 @@ defmodule Journey.Scheduler do
         |> Enum.into(%{})
         |> Map.take(graph_node.upstream_nodes)
 
-      recurring_upstream_pulses_to_reschedule =
+      recurring_upstream_schedules_to_reschedule =
         find_things_to_reschedule(computation.computed_with, input_versions_to_capture)
 
       r =
@@ -83,7 +83,7 @@ defmodule Journey.Scheduler do
 
       # TODO: how do we make sure rescheduling does not fall through cracks if something fails along the way?
       # TODO: perform the reschedule as part of the same transaction as marking the computation as completed.
-      reschedule_recurring(recurring_upstream_pulses_to_reschedule)
+      reschedule_recurring(recurring_upstream_schedules_to_reschedule)
       advance(execution)
 
       # TODO: consider killing the computation after deadline (since we are likely to
@@ -121,13 +121,13 @@ defmodule Journey.Scheduler do
   defp find_things_to_reschedule(original_computation_input_versions, new_computation_input_versions)
        when (original_computation_input_versions == nil or is_map(original_computation_input_versions)) and
               is_map(new_computation_input_versions) do
-    # return the list of input nodes whose versions have changed, which are pulse_recurring
+    # return the list of input nodes whose versions have changed, which are schedule_recurring
     []
   end
 
-  defp reschedule_recurring(recurring_upstream_pulses_to_reschedule)
-       when is_list(recurring_upstream_pulses_to_reschedule) do
-    # create new computations for each of the pulse_recurring nodes identified in
-    # recurring_upstream_pulses_to_reschedule
+  defp reschedule_recurring(recurring_upstream_schedules_to_reschedule)
+       when is_list(recurring_upstream_schedules_to_reschedule) do
+    # create new computations for each of the schedule_recurring nodes identified in
+    # recurring_upstream_schedules_to_reschedule
   end
 end

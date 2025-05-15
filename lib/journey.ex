@@ -266,7 +266,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - pulse_recurring doctest",
+  ...>       "horoscope workflow - schedule_recurring doctest",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),

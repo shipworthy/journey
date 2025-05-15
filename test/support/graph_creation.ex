@@ -14,14 +14,14 @@ defmodule Journey.Test.Support do
             {:ok, "Hello, #{user_name}"}
           end
         ),
-        pulse_once(
-          :time_to_issue_reminder_pulse,
+        schedule_once(
+          :time_to_issue_reminder_schedule,
           [:greeting],
           fn _ -> {:ok, System.system_time(:second) + 1} end
         ),
         compute(
           :reminder,
-          [:greeting, :time_to_issue_reminder_pulse],
+          [:greeting, :time_to_issue_reminder_schedule],
           fn %{greeting: greeting} ->
             {:ok, "Reminder: #{greeting}"}
           end
@@ -43,14 +43,14 @@ defmodule Journey.Test.Support do
             {:ok, "Hello, #{user_name}"}
           end
         ),
-        pulse_once(
-          :time_to_issue_reminder_pulse,
+        schedule_once(
+          :time_to_issue_reminder_schedule,
           [:greeting],
           fn _ -> {:ok, System.system_time(:second) + 1} end
         ),
         compute(
           :reminder,
-          [:greeting, :time_to_issue_reminder_pulse],
+          [:greeting, :time_to_issue_reminder_schedule],
           fn %{greeting: greeting} ->
             {:ok, "Reminder: #{greeting}"}
           end

@@ -44,10 +44,10 @@ defmodule Journey.ExperimentsScripts do
       [
         input(:name),
         input(:email),
-        pulse_recurring(:remind_to_advocate_pulse, [], fn _ ->
+        schedule_recurring(:remind_to_advocate_schedule, [], fn _ ->
           {:ok, System.system_time(:second) + one_week_in_seconds()}
         end),
-        computation(:send_notification, [:name, :email, :remind_to_advocate_pulse], fn %{name: name, email: email} ->
+        computation(:send_notification, [:name, :email, :remind_to_advocate_schedule], fn %{name: name, email: email} ->
           send_reminder(name, email)
           {:ok, true}
         end)
@@ -72,7 +72,7 @@ defmodule Journey.ExperimentsScripts do
         compute(:house_rep, [:district], fn %{district: district} ->
           {:ok, get_house_rep(district)}
         end),
-        pulse(:hash_pii_pulse, [:name], fn %{name: name} ->
+        pulse(:hash_pii_schedule, [:name], fn %{name: name} ->
           {:ok, System.system_time(:second) + one_day_in_seconds()}
         end),
         value(:email_address),
@@ -95,7 +95,7 @@ defmodule Journey.ExperimentsScripts do
             end
           end)
         ),
-        mutate(:name, [:name, :encrypt_pii_pulse], fn %{name: name} ->
+        mutate(:name, [:name, :encrypt_pii_schedule], fn %{name: name} ->
           {:ok, hash(name)}
         end)
       ]
@@ -106,11 +106,11 @@ defmodule Journey.ExperimentsScripts do
     #   [
     #     input(:name),
     #     input(:email),
-    #     pulse(:remind_to_advocate_pulse, [], fn _ ->
+    #     pulse(:remind_to_advocate_schedule, [], fn _ ->
     #       scheduled_time = System.system_time(:second) + one_week_in_seconds()
     #       {:ok, scheduled_time}
     #     end),
-    #     computation(:send_notification, [:name, :email, :remind_to_advocate_pulse], fn name, email, notification_period ->
+    #     computation(:send_notification, [:name, :email, :remind_to_advocate_schedule], fn name, email, notification_period ->
     #       send_reminder(name, email)
     #       {:ok, true}
     #     end)
@@ -146,7 +146,7 @@ defmodule Journey.ExperimentsScripts do
       "v123",
       [
         input(:name),
-        pulse_once(:cleanup_pii, [], fn _ ->
+        schedule_once(:cleanup_pii, [], fn _ ->
           {:ok, System.system_time(:second) + 86_400}
         end),
         compute(
@@ -173,7 +173,7 @@ defmodule Journey.ExperimentsScripts do
       "v123",
       [
         input(:name),
-        pulse_once(:cleanup_pii_pulse, [], fn _ ->
+        schedule_once(:cleanup_pii_schedule, [], fn _ ->
           {:ok, System.system_time(:second) + 86_400}
         end),
         compute(
@@ -188,7 +188,7 @@ defmodule Journey.ExperimentsScripts do
         ),
         compute(
           :replace_name_with_hash,
-          [:name, :cleanup_pii_pulse],
+          [:name, :cleanup_pii_schedule],
           fn %{name: name} ->
             {:ok, hash(name)}
           end,
@@ -203,7 +203,7 @@ defmodule Journey.ExperimentsScripts do
       "v123",
       [
         input(:name),
-        pulse_once(:cleanup_pii_pulse, [], fn _ ->
+        schedule_once(:cleanup_pii_schedule, [], fn _ ->
           {:ok, System.system_time(:second) + 86_400}
         end),
         compute(
@@ -218,7 +218,7 @@ defmodule Journey.ExperimentsScripts do
         )
         # mutate(
         #   :replace_name_with_hash,
-        #   [:name, :cleanup_pii_pulse],
+        #   [:name, :cleanup_pii_schedule],
         #   fn %{name: name} ->
         #     {:ok, hash(name)}
         #   end,
@@ -236,11 +236,11 @@ defmodule Journey.ExperimentsScripts do
         input(:name),
         input(:email),
         input(:enabled),
-        pulse_recurring(:remind_to_advocate_pulse, [:enabled], fn
+        schedule_recurring(:remind_to_advocate_schedule, [:enabled], fn
           %{enabled: true} -> {:ok, System.system_time(:second) + one_week_in_seconds()}
           %{enabled: false} -> {:ok, nil}
         end),
-        compute(:send_notification, [:name, :email, :remind_to_advocate_pulse], fn %{name: name, email: email} ->
+        compute(:send_notification, [:name, :email, :remind_to_advocate_schedule], fn %{name: name, email: email} ->
           send_reminder(name, email)
           {:ok, true}
         end)
@@ -281,7 +281,7 @@ defmodule Journey.ExperimentsScripts do
             {:ok, compose_letter(senator1, name, zip, district)}
           end
         ),
-        pulse_once(:hash_pii_pulse, [:name], fn %{name: name} ->
+        schedule_once(:hash_pii_schedule, [:name], fn %{name: name} ->
           {:ok, System.system_time(:second) + one_day_in_seconds()}
         end),
         input(:email_address),
@@ -318,7 +318,7 @@ defmodule Journey.ExperimentsScripts do
         )
       ]
       # [
-      #   mutate(:name, [:name, :hash_pii_pulse], fn name ->
+      #   mutate(:name, [:name, :hash_pii_schedule], fn name ->
       #     {:ok, hash(name)}
       #   end)
       # ]

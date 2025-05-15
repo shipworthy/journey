@@ -71,7 +71,7 @@ defmodule Journey.Scheduler.Recompute do
       where:
         v.execution_id == ^execution_id and not is_nil(v.set_time) and
           (v.node_type == :compute or v.node_type == :input or
-             (v.node_type == :pulse_once and fragment("CAST(?->>'v' AS INTEGER) < ?", v.node_value, ^now) and
+             (v.node_type == :schedule_once and fragment("CAST(?->>'v' AS INTEGER) < ?", v.node_value, ^now) and
                 fragment("CAST(?->>'v' AS INTEGER) > ?", v.node_value, ^yesterday))),
       select: %{
         node_name: v.node_name,
