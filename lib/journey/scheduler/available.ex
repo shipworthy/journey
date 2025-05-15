@@ -29,7 +29,7 @@ defmodule Journey.Scheduler.Available do
             where:
               c.execution_id == ^execution.id and
                 c.state == ^:not_set and
-                c.computation_type in [^:compute, ^:pulse_once, ^:pulse_recurring],
+                c.computation_type in [^:compute, ^:schedule_once, ^:schedule_recurring],
             lock: "FOR UPDATE SKIP LOCKED"
           )
           |> repo.all()
@@ -44,10 +44,10 @@ defmodule Journey.Scheduler.Available do
             %{node_type: :compute} ->
               true
 
-            %{node_type: :pulse_once, node_value: enabled_at} ->
+            %{node_type: :schedule_once, node_value: enabled_at} ->
               System.system_time(:second) >= enabled_at
 
-            %{node_type: :pulse_recurring, node_value: enabled_at} ->
+            %{node_type: :schedule_recurring, node_value: enabled_at} ->
               System.system_time(:second) >= enabled_at
 
             %{node_type: :input} ->

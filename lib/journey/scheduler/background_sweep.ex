@@ -31,7 +31,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
     try do
       Logger.debug("#{prefix}: performing sweep")
       find_and_kickoff_abandoned_computations(nil)
-      find_and_kick_recently_due_pulse_values(nil)
+      find_and_kick_recently_due_schedule_values(nil)
       Logger.debug("#{prefix}: sweep complete")
     catch
       exception ->
@@ -128,7 +128,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
     end)
   end
 
-  def find_and_kick_recently_due_pulse_values(execution_id) do
+  def find_and_kick_recently_due_schedule_values(execution_id) do
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
 
@@ -144,7 +144,7 @@ defmodule Journey.Scheduler.BackgroundSweep do
         # TODO: do not select values that are already consumed by a downstream computation
         # !value_already_consumed_by_a_downstream_computation and
         where:
-          v.node_type == ^:pulse_once and
+          v.node_type == ^:schedule_once and
             fragment("CAST(? AS INTEGER) <= ?", v.node_value, ^now) and
             fragment("CAST(? AS INTEGER) >= ?", v.node_value, ^cutoff_time)
       )

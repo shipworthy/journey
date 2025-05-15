@@ -236,15 +236,13 @@ defmodule Journey.Executions do
       Enum.all?(value_filters, fn
         {value_node_name, comparator, value_node_value}
         when is_atom(value_node_name) and
-               (comparator in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in] or
-                  is_function(comparator)) ->
+               (comparator in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in] or is_function(comparator)) ->
           value_node = find_value_by_name(execution, value_node_name)
           value_node != nil and cmp(comparator).(value_node.node_value, value_node_value)
 
         {value_node_name, comparator}
         when is_atom(value_node_name) and
-               (comparator in [:is_nil, :is_not_nil] or
-                  is_function(comparator)) ->
+               (comparator in [:is_nil, :is_not_nil] or is_function(comparator)) ->
           value_node = find_value_by_name(execution, value_node_name)
           value_node != nil and cmp(comparator).(value_node.node_value)
       end)

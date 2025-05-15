@@ -5,8 +5,8 @@ defmodule Journey.Node do
   * `input/1` – a node that takes input from the user.
   * `compute/4` – a node that computes a value based on its upstream nodes.
   * `mutate/4` – a node that mutates the value of another node.
-  * `pulse_once/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule.
-  * `pulse_recurring/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.
+  * `schedule_once/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule.
+  * `schedule_recurring/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.
   """
 
   alias Journey.Graph
@@ -151,16 +151,18 @@ defmodule Journey.Node do
   @doc """
   Creates a graph node that declares its readiness at a specific time.
 
+  Once this node is unblocked, it will be executed to set the time at which it will unblock its downstream dependencies.
+
   ## Examples:
 
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "`pulse_once()` doctest graph (it reminds you to take a nap in a couple of seconds;)",
+  ...>       "`schedule_once()` doctest graph (it reminds you to take a nap in a couple of seconds;)",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
-  ...>         pulse_once(
+  ...>         schedule_once(
   ...>           :schedule_a_nap,
   ...>           [:name],
   ...>           fn %{name: _name} ->
@@ -185,11 +187,11 @@ defmodule Journey.Node do
   ...>     |> Journey.set_value(:name, "Mario")
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
-  iex> # This is only needed in a test, to simulate what automatically happens in non-tests.
+  iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> Task.start(fn ->
   ...>   for _ <- 1..3 do
   ...>     :timer.sleep(2_000)
-  ...>     Journey.Scheduler.BackgroundSweep.find_and_kick_recently_due_pulse_values(execution.id)
+  ...>     Journey.Scheduler.BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
   ...>   end
   ...> end)
   iex> execution |> Journey.get_value(:nap_time, wait: 10_000) # this will take a couple of seconds.
@@ -197,11 +199,11 @@ defmodule Journey.Node do
   ```
 
   """
-  def pulse_once(name, upstream_nodes, f_compute, opts \\ [])
+  def schedule_once(name, upstream_nodes, f_compute, opts \\ [])
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
       name: name,
-      type: :pulse_once,
+      type: :schedule_once,
       upstream_nodes: upstream_nodes,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
@@ -214,11 +216,11 @@ defmodule Journey.Node do
   TODO: Document this function.
 
   """
-  def pulse_recurring(name, upstream_nodes, f_compute, opts \\ [])
+  def schedule_recurring(name, upstream_nodes, f_compute, opts \\ [])
       when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
     %Graph.Step{
       name: name,
-      type: :pulse_recurring,
+      type: :schedule_recurring,
       upstream_nodes: upstream_nodes,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),

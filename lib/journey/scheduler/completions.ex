@@ -110,7 +110,7 @@ defmodule Journey.Scheduler.Completions do
             result
           )
 
-        :pulse_once ->
+        :schedule_once ->
           record_result(
             repo,
             graph_node.mutates,
@@ -120,7 +120,7 @@ defmodule Journey.Scheduler.Completions do
             result
           )
 
-        :pulse_recurring ->
+        :schedule_recurring ->
           record_result(
             repo,
             graph_node.mutates,
@@ -144,7 +144,7 @@ defmodule Journey.Scheduler.Completions do
       })
       |> repo.update!()
 
-      # TODO: if the computation was triggered by a pulse_recurring computation, create a new pulse_recurring computation for a future event.
+      # TODO: if the computation was triggered by a schedule_recurring computation, create a new schedule_recurring computation for a future event.
 
       Logger.debug("#{prefix}: done. marking as completed.")
     else
