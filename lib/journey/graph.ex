@@ -50,7 +50,11 @@ defmodule Journey.Graph do
   end
 
   defp validate_node(%Journey.Graph.Step{} = step, all_node_names) do
-    unknown_deps = MapSet.difference(MapSet.new(step.upstream_nodes), MapSet.new(all_node_names))
+    # TODO: implement
+    # MapSet.new(step.upstream_nodes)
+    all_upstream_node_names = []
+
+    unknown_deps = MapSet.difference(MapSet.new(all_upstream_node_names), MapSet.new(all_node_names))
 
     if Enum.any?(unknown_deps) do
       raise "Unknown upstream nodes in input node '#{inspect(step.name)}': #{Enum.join(unknown_deps, ", ")}"

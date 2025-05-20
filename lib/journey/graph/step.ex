@@ -1,6 +1,7 @@
 defmodule Journey.Graph.Step do
   @moduledoc false
 
+  # TODO: rename upstream_nodes to upstream_conditions
   defstruct [:name, :upstream_nodes, :f_compute, :f_on_save, :type, :mutates, :max_retries, :abandon_after_seconds]
 
   @type t :: %__MODULE__{

@@ -4,6 +4,7 @@ defmodule JourneyTest do
   import Journey.Helpers.Random, only: [random_string: 0]
 
   import Journey.Node
+  import Journey.Node.UpstreamDependencies
 
   # TODO: split this into multiple modules that can be run in parallel
 
@@ -308,7 +309,7 @@ defmodule JourneyTest do
         input(:first_name),
         compute(
           :greeting,
-          [:first_name],
+          unblocked_when({:first_name, &provided?/1}),
           fn %{first_name: first_name} ->
             {:ok, "Hello, #{first_name}"}
           end

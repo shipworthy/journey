@@ -88,7 +88,7 @@ defmodule Journey.Node do
 
   """
   def compute(name, upstream_nodes, f_compute, opts \\ [])
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :compute,
@@ -135,7 +135,19 @@ defmodule Journey.Node do
 
   """
   def mutate(name, upstream_nodes, f_compute, opts \\ [])
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      when is_atom(name) and is_function(f_compute) do
+    #         @type predicate_tree ::
+    #         {atom, (any -> boolean)} |
+    #         {:and, predicate_tree, predicate_tree} |
+    #         {:or, predicate_tree, predicate_tree} |
+    #         {:not, predicate_tree}
+
+    # @spec unblocked_when(predicate_tree) :: {:unblocked_when, predicate_tree}
+    # def unblocked_when(tree) do
+    #   validate_predicate_tree!(tree)
+    #   {:unblocked_when, tree}
+    # end
+
     %Graph.Step{
       name: name,
       type: :compute,
@@ -200,7 +212,7 @@ defmodule Journey.Node do
 
   """
   def schedule_once(name, upstream_nodes, f_compute, opts \\ [])
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :schedule_once,
@@ -217,7 +229,7 @@ defmodule Journey.Node do
 
   """
   def schedule_recurring(name, upstream_nodes, f_compute, opts \\ [])
-      when is_atom(name) and is_list(upstream_nodes) and is_function(f_compute) do
+      when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :schedule_recurring,

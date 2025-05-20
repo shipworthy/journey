@@ -26,6 +26,7 @@ defmodule Journey.Executions do
                 execution: execution,
                 node_name: Atom.to_string(graph_node.name),
                 node_type: graph_node.type,
+                ex_revision: execution.revision,
                 set_time: nil,
                 node_value: nil
               }
@@ -174,8 +175,8 @@ defmodule Journey.Executions do
       {:ok, _result} ->
         Logger.debug("#{prefix}: done. success")
 
-      {outcome, _result} ->
-        Logger.warning("#{prefix}: done. outcome: '#{inspect(outcome)}'")
+      {outcome, result} ->
+        Logger.info("#{prefix}: done. outcome: '#{inspect(outcome)}', result: '#{inspect(result)}'")
     end)
   end
 

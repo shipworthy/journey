@@ -252,6 +252,7 @@ defmodule Journey do
       graph.version,
       graph.nodes
     )
+    |> Journey.Scheduler.advance()
   end
 
   @doc """
