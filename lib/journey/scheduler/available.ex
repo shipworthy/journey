@@ -40,50 +40,48 @@ defmodule Journey.Scheduler.Available do
             where: v.execution_id == ^execution.id
           )
           |> repo.all()
-          # |> Enum.filter(fn
-          #   %{node_type: :compute} ->
-          #     true
-
-          #   %{node_type: :schedule_once, node_value: enabled_at} ->
-          #     System.system_time(:second) >= enabled_at
-
-          #   %{node_type: :schedule_recurring, node_value: enabled_at} ->
-          #     System.system_time(:second) >= enabled_at
-
-          #   %{node_type: :input} ->
-          #     true
-          # end)
           |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
-
-        # |> Enum.map(fn %{node_name: node_name} -> node_name end)
-        # |> MapSet.new()
 
         all_candidates_for_computation
         |> Enum.map(fn computation_candidate ->
           Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-            # computation_candidate,
             all_value_nodes,
             graph
             |> Graph.find_node_by_name(computation_candidate.node_name)
             |> Map.get(:upstream_nodes)
           )
           |> Map.put(:computation, computation_candidate)
-          # |> tap(fn c -> )
-          |> case do
-            %{ready?: true, conditions_met: conditions_met} = c ->
-              Logger.info(
-                "#{prefix}: computation ready: #{inspect(computation_candidate)}. conditions met: #{inspect(conditions_met)}"
-              )
 
-              c
+          # |> case do
+          #   %{ready?: true, conditions_met: conditions_met} = c ->
+          #     Logger.info(
+          #       "#{prefix}: computation ready: #{inspect(computation_candidate)}. conditions met: #{inspect(conditions_met)}"
+          #     )
 
-            %{ready?: false, conditions_not_met: conditions_not_met} = c ->
-              Logger.info(
-                "#{prefix}: computation not ready: #{inspect(computation_candidate)}. conditions not met: #{inspect(conditions_not_met)}"
-              )
+          #     c
 
-              c
-          end
+          #   %{ready?: false, conditions_not_met: conditions_not_met} = c ->
+          #     Logger.info(
+          #       "#{prefix}: computation not ready: #{inspect(computation_candidate)}. conditions not met: #{inspect(conditions_not_met)}"
+          #     )
+
+          #     c
+          # end
+        end)
+        |> Enum.map(fn
+          %{ready?: true, conditions_met: conditions_met} = c ->
+            Logger.info(
+              "#{prefix}: computation ready: #{inspect(c.computation)}. conditions met: #{inspect(conditions_met)}"
+            )
+
+            c
+
+          %{ready?: false, conditions_not_met: conditions_not_met} = c ->
+            Logger.info(
+              "#{prefix}: computation not ready: #{inspect(c.computation)}. conditions not met: #{inspect(conditions_not_met)}"
+            )
+
+            c
         end)
         |> Enum.filter(fn %{ready?: ready?} -> ready? end)
         |> Enum.map(fn %{ready?: true, computation: unblocked_computation, conditions_met: fulfilled_conditions} ->

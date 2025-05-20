@@ -94,6 +94,7 @@ defmodule Journey do
 
     ```elixir
     iex> import Journey.Node
+    iex> import Journey.Node.UpstreamDependencies
     iex> _graph = Journey.new_graph(
     ...>       "horoscope workflow",
     ...>       "v1.0.0",
@@ -110,7 +111,7 @@ defmodule Journey do
     ...>         ),
     ...>         compute(
     ...>           :horoscope,
-    ...>           unblocked_when({:and, [{:first_name, &provided?/1}, {:zodiac_sign, , &provided?/1}]}),
+    ...>           unblocked_when({:and, [{:first_name, &provided?/1}, {:zodiac_sign, &provided?/1}]}),
     ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
     ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
     ...>           end
