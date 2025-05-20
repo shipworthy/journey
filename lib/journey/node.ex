@@ -42,7 +42,7 @@ defmodule Journey.Node do
 
   The name must be an atom.
 
-  `upstream_nodes` is a list of atoms identifying the nodes that must have values before the computation executes.
+  `gated_by` is a list of atoms identifying the nodes that must have values before the computation executes.
 
   `f_compute` is the function that computes the value of the node, once the upstream dependencies are satisfied.
   The function is provided a map of the upstream nodes and their values as its argument and returns a tuple:
@@ -87,12 +87,12 @@ defmodule Journey.Node do
   ```
 
   """
-  def compute(name, upstream_nodes, f_compute, opts \\ [])
+  def compute(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :compute,
-      upstream_nodes: upstream_nodes,
+      gated_by: gated_by,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
@@ -134,7 +134,7 @@ defmodule Journey.Node do
   ```
 
   """
-  def mutate(name, upstream_nodes, f_compute, opts \\ [])
+  def mutate(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     #         @type predicate_tree ::
     #         {atom, (any -> boolean)} |
@@ -151,7 +151,7 @@ defmodule Journey.Node do
     %Graph.Step{
       name: name,
       type: :compute,
-      upstream_nodes: upstream_nodes,
+      gated_by: gated_by,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       mutates: Keyword.fetch!(opts, :mutates),
@@ -211,12 +211,12 @@ defmodule Journey.Node do
   ```
 
   """
-  def schedule_once(name, upstream_nodes, f_compute, opts \\ [])
+  def schedule_once(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :schedule_once,
-      upstream_nodes: upstream_nodes,
+      gated_by: gated_by,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
@@ -228,12 +228,12 @@ defmodule Journey.Node do
   TODO: Document this function.
 
   """
-  def schedule_recurring(name, upstream_nodes, f_compute, opts \\ [])
+  def schedule_recurring(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
       type: :schedule_recurring,
-      upstream_nodes: upstream_nodes,
+      gated_by: gated_by,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),

@@ -51,9 +51,9 @@ defmodule Journey.Graph do
 
   defp validate_node(%Journey.Graph.Step{} = step, all_node_names) do
     # TODO: implement
-    # MapSet.new(step.upstream_nodes)
+    # MapSet.new(step.gated_by)
     all_upstream_node_names =
-      step.upstream_nodes
+      step.gated_by
       |> Journey.Node.UpstreamDependencies.Computations.list_all_node_names()
       |> MapSet.new()
 

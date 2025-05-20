@@ -73,15 +73,15 @@ defmodule Journey.Scheduler.Recompute do
   end
 
   defp an_upstream_node_has_a_newer_version?(computation, graph, all_values) do
-    upstream_nodes =
+    gated_by =
       graph
       |> Graph.find_node_by_name(computation.node_name)
-      |> Map.get(:upstream_nodes)
+      |> Map.get(:gated_by)
       |> Journey.Node.UpstreamDependencies.Computations.list_all_node_names()
 
     current_node_revisions =
       all_values
-      |> Enum.filter(fn %{node_name: node_name} -> node_name in upstream_nodes end)
+      |> Enum.filter(fn %{node_name: node_name} -> node_name in gated_by end)
       |> Enum.map(fn %{node_name: node_name} = node -> {node_name, node.ex_revision} end)
       |> Enum.into(%{})
 

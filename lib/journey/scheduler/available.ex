@@ -48,7 +48,7 @@ defmodule Journey.Scheduler.Available do
             all_value_nodes,
             graph
             |> Graph.find_node_by_name(computation_candidate.node_name)
-            |> Map.get(:upstream_nodes)
+            |> Map.get(:gated_by)
           )
           |> Map.put(:computation, computation_candidate)
 
