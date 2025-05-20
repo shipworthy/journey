@@ -110,7 +110,7 @@ defmodule Journey do
     ...>         ),
     ...>         compute(
     ...>           :horoscope,
-    ...>           [:first_name, :zodiac_sign],
+    ...>           unblocked_when({:and, [{:first_name, &provided?/1}, {:zodiac_sign, , &provided?/1}]}),
     ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
     ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
     ...>           end
@@ -434,7 +434,7 @@ defmodule Journey do
     Executions.get_value(execution, node_name, timeout_ms)
   end
 
-  # TODO: move to execution or some such.
+  # TODO: move to a dedicated module, validations.ex or some such. invoke from executions.ex.
   defp ensure_known_node_name(execution, node_name) do
     all_node_names = execution.values |> Enum.map(& &1.node_name)
 
@@ -445,6 +445,7 @@ defmodule Journey do
     end
   end
 
+  # TODO: move to a dedicated module, validations.ex or some such. invoke from executions.ex.
   defp ensure_known_input_node_name(execution, node_name)
        when is_struct(execution, Journey.Execution) and is_atom(node_name) do
     graph = Journey.Graph.Catalog.fetch!(execution.graph_name)

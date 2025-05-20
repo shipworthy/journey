@@ -89,16 +89,16 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               :one_of_each_group,
               unblocked_when({
                 :lol,
-                {
-                  :or,
-                  {:g1_a, &provided?/1},
-                  {:g1_b, &provided?/1}
-                },
-                {
-                  :or,
-                  {:g2_a, &provided?/1},
-                  {:g2_b, &provided?/1}
-                }
+                [
+                  {
+                    :or,
+                    [{:g1_a, &provided?/1}, {:g1_b, &provided?/1}]
+                  },
+                  {
+                    :or,
+                    [{:g2_a, &provided?/1}, {:g2_b, &provided?/1}]
+                  }
+                ]
               }),
               fn _ ->
                 {:ok, "name set"}
@@ -125,16 +125,16 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               :one_of_each_group,
               unblocked_when({
                 :and,
-                {
-                  :or,
-                  {:g1_a, &provided?/1},
-                  {:g1_b, &provided?/1}
-                },
-                {
-                  :or,
-                  {:g2_a, &provided?/1},
-                  {:g2_b, &provided?/1}
-                }
+                [
+                  {
+                    :or,
+                    [{:g1_a, &provided?/1}, {:g1_b, &provided?/1}]
+                  },
+                  {
+                    :or,
+                    [{:g2_a, &provided?/1}, {:g2_b, &provided?/1}]
+                  }
+                ]
               }),
               fn r ->
                 r = r |> Map.delete(:one_of_each_group)
@@ -185,16 +185,16 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               :one_of_each_group,
               unblocked_when({
                 :and,
-                {
-                  :or,
-                  {:g1_a, &provided?/1},
-                  {:g1_b, &provided?/1}
-                },
-                {
-                  :or,
-                  {:g2_a, &provided?/1},
-                  {:g2_b, &provided?/1}
-                }
+                [
+                  {
+                    :or,
+                    [{:g1_a, &provided?/1}, {:g1_b, &provided?/1}]
+                  },
+                  {
+                    :or,
+                    [{:g2_a, &provided?/1}, {:g2_b, &provided?/1}]
+                  }
+                ]
               }),
               fn _ ->
                 {:ok, "name set"}
@@ -231,8 +231,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               :got_name,
               unblocked_when({
                 :or,
-                {:first_name, &provided?/1},
-                {:last_name, &provided?/1}
+                [{:first_name, &provided?/1}, {:last_name, &provided?/1}]
               }),
               fn _ ->
                 {:ok, "name set"}
@@ -269,8 +268,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               :got_name,
               unblocked_when({
                 :or,
-                {:first_name, &provided?/1},
-                {:last_name, &provided?/1}
+                [{:first_name, &provided?/1}, {:last_name, &provided?/1}]
               }),
               fn _ ->
                 {:ok, "name set"}
@@ -307,8 +305,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               :remove_pii_for_mario,
               unblocked_when({
                 :and,
-                {:first_name, &mario?/1},
-                {:last_name, &provided?/1}
+                [{:first_name, &mario?/1}, {:last_name, &provided?/1}]
               }),
               fn _ ->
                 {:ok, "redacted"}
@@ -349,8 +346,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               :remove_pii_for_mario,
               unblocked_when({
                 :and,
-                {:first_name, &mario?/1},
-                {:last_name, &provided?/1}
+                [{:first_name, &mario?/1}, {:last_name, &provided?/1}]
               }),
               fn _ ->
                 {:ok, "redacted"}

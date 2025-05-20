@@ -144,9 +144,10 @@ defmodule Journey.Scheduler.BackgroundSweep do
         # TODO: do not select values that are already consumed by a downstream computation
         # !value_already_consumed_by_a_downstream_computation and
         where:
-          v.node_type == ^:schedule_once and
-            fragment("CAST(? AS INTEGER) <= ?", v.node_value, ^now) and
-            fragment("CAST(? AS INTEGER) >= ?", v.node_value, ^cutoff_time)
+          v.node_type == ^:schedule_once or
+            (v.node_type == ^:schedule_recurring and
+               fragment("CAST(? AS INTEGER) <= ?", v.node_value, ^now) and
+               fragment("CAST(? AS INTEGER) >= ?", v.node_value, ^cutoff_time))
       )
       |> Journey.Repo.all()
       |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)

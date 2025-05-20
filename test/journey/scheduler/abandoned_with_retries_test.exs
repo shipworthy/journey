@@ -76,7 +76,7 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
         input(:birth_month),
         compute(
           :astrological_sign,
-          unblocked_when({:and, {:birth_month, &provided?/1}, {:birth_day, &provided?/1}}),
+          unblocked_when({:and, [{:birth_month, &provided?/1}, {:birth_day, &provided?/1}]}),
           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
             case behavior do
               :timeout ->
