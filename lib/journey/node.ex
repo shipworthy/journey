@@ -40,9 +40,13 @@ defmodule Journey.Node do
   @doc """
   Creates a self-computing node.
 
-  The name must be an atom.
+  `name` is an atom uniquely identifying the node in this graph.
 
-  `gated_by` is a list of atoms identifying the nodes that must have values before the computation executes.
+  `gated_by` defines when this node becomes eligible to compute.
+    Accepts either:
+    - A list of atom node names, e.g. `[:a, :b]`, indicating the node becomes unblocked when all of the listed nodes have a value.
+    - A structured condition (see [unblocked_when/1](`Journey.Node.UpstreamDependencies.unblocked_when/1`) )
+      allowing for logical operators (`:and`, `:or`) and custom value predicates (e.g. `unblocked_when({:and, [{:a, &provided?/1}, {:b, &provided?/1}]})`).
 
   `f_compute` is the function that computes the value of the node, once the upstream dependencies are satisfied.
   The function is provided a map of the upstream nodes and their values as its argument and returns a tuple:
@@ -73,7 +77,8 @@ defmodule Journey.Node do
   ...>           abandon_after_seconds: 60, # Optional (default: 60)
   ...>           f_on_save: fn _execution_id, _params ->
   ...>             # Optional callback to be called when the value is saved.
-  ...>             # This is useful for notifying other systems (e.g. a LiveView via PubSub.notify() – that the value has been saved).
+  ...>             # This is useful for notifying other systems (e.g. a LiveView
+  ...>             # via PubSub.notify()) – that the value has been saved.
   ...>             :ok
   ...>           end
   ...>         )
@@ -136,18 +141,6 @@ defmodule Journey.Node do
   """
   def mutate(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
-    #         @type predicate_tree ::
-    #         {atom, (any -> boolean)} |
-    #         {:and, predicate_tree, predicate_tree} |
-    #         {:or, predicate_tree, predicate_tree} |
-    #         {:not, predicate_tree}
-
-    # @spec unblocked_when(predicate_tree) :: {:unblocked_when, predicate_tree}
-    # def unblocked_when(tree) do
-    #   validate_predicate_tree!(tree)
-    #   {:unblocked_when, tree}
-    # end
-
     %Graph.Step{
       name: name,
       type: :compute,
