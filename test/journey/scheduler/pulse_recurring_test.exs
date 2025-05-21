@@ -2,7 +2,7 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
-  alias Journey.Scheduler.BackgroundSweep
+  import Journey.Scheduler.BackgroundSweeps.Scheduled, only: [find_and_kick_recently_due_schedule_values: 1]
 
   test "basic schedule_recurring flow" do
     # TODO: implement
@@ -10,21 +10,21 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
     execution = graph |> Journey.start_execution()
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
     Process.sleep(1000)
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
     {:ok, _time} = Journey.get_value(execution, :time_to_issue_reminder_schedule_recurring, wait: true)
 
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
     Process.sleep(1000)
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
     Process.sleep(1000)
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
     Process.sleep(1000)
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
     assert {:ok, "Reminder: Hello, Mario"} = Journey.get_value(execution, :reminder, wait: true)
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule_recurring) == %{

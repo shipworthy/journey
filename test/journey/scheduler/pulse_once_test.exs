@@ -2,7 +2,8 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
-  alias Journey.Scheduler.BackgroundSweep
+
+  import Journey.Scheduler.BackgroundSweeps.Scheduled, only: [find_and_kick_recently_due_schedule_values: 1]
 
   #   @tag :skip
   test "basic pulse" do
@@ -10,12 +11,12 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     execution = graph |> Journey.start_execution()
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
     Process.sleep(2000)
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
     Process.sleep(2000)
 
     assert Journey.get_value(execution, :reminder, wait: 10_000) == {:ok, "Reminder: Hello, Mario"}
@@ -27,7 +28,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
              time_to_issue_reminder_schedule: :redacted
            }
 
-    BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+    find_and_kick_recently_due_schedule_values(execution.id)
     assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
