@@ -4,7 +4,7 @@ defmodule Journey.MixProject do
   def project do
     [
       app: :journey,
-      version: "0.10.8",
+      version: "0.10.9",
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       package: package(),
