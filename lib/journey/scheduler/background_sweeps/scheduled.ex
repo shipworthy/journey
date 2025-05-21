@@ -1,18 +1,14 @@
 defmodule Journey.Scheduler.BackgroundSweeps.Scheduled do
   require Logger
   import Ecto.Query
-  # alias Journey.Execution.Value
-  import Ecto.Query
-  # alias Journey.Execution.Computation
-  alias Journey.Execution.Value
 
   import Journey.Helpers.Log
+  alias Journey.Execution.Value
 
-  def find_and_kick_recently_due_schedule_values(execution_id) do
+  def sweep(execution_id) do
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
 
-    # Using the "scheduled window" approach. TODO: switch to best-effort + catch-up.
     now = System.system_time(:second)
     precision_window_seconds = 10 * 60
     cutoff_time = now - precision_window_seconds
@@ -21,8 +17,6 @@ defmodule Journey.Scheduler.BackgroundSweeps.Scheduled do
 
     kicked_count =
       from(v in q,
-        # TODO: do not select values that are already consumed by a downstream computation
-        # !value_already_consumed_by_a_downstream_computation and
         where:
           v.node_type == ^:schedule_once or
             (v.node_type == ^:schedule_recurring and

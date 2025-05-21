@@ -5,6 +5,9 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   import Journey.Helpers.Log
 
+  alias Journey.Scheduler.BackgroundSweeps.Abandoned
+  alias Journey.Scheduler.BackgroundSweeps.Scheduled
+
   @mode if Mix.env() != :test, do: :auto, else: :manual
 
   def child_spec(_arg) do
@@ -27,8 +30,8 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
     try do
       Logger.debug("#{prefix}: performing sweep")
-      Journey.Scheduler.BackgroundSweeps.Abandoned.sweep(nil)
-      Journey.Scheduler.BackgroundSweeps.Scheduled.find_and_kick_recently_due_schedule_values(nil)
+      Abandoned.sweep(nil)
+      Scheduled.sweep(nil)
       Logger.debug("#{prefix}: sweep complete")
     catch
       exception ->
