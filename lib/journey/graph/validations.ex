@@ -7,6 +7,32 @@ defmodule Journey.Graph.Validations do
     |> validate_dependencies()
   end
 
+  def ensure_known_node_name(execution, node_name) do
+    all_node_names = execution.values |> Enum.map(& &1.node_name)
+
+    if node_name in all_node_names do
+      :ok
+    else
+      raise "'#{inspect(node_name)}' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: #{inspect(Enum.sort(all_node_names))}."
+    end
+  end
+
+  def ensure_known_input_node_name(execution, node_name)
+      when is_struct(execution, Journey.Execution) and is_atom(node_name) do
+    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+
+    all_input_node_names =
+      graph.nodes
+      |> Enum.filter(fn n -> n.type == :input end)
+      |> Enum.map(& &1.name)
+
+    if node_name in all_input_node_names do
+      :ok
+    else
+      raise "'#{inspect(node_name)}' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: #{inspect(Enum.sort(all_input_node_names))}."
+    end
+  end
+
   defp validate_dependencies(graph) do
     all_node_names = Enum.map(graph.nodes, & &1.name)
     graph.nodes |> Enum.each(fn node -> validate_node(node, all_node_names) end)
