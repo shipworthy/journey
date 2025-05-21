@@ -25,9 +25,9 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
   end
 
   def evaluate_computation_for_readiness(all_executions_values, {:or, conditions}) when is_list(conditions) do
-    results = Enum.map(conditions, fn c -> evaluate_computation_for_readiness(all_executions_values, c) end)
-    # result1 = evaluate_computation_for_readiness(all_executions_values, left)
-    # result2 = evaluate_computation_for_readiness(all_executions_values, right)
+    results =
+      conditions
+      |> Enum.map(fn c -> evaluate_computation_for_readiness(all_executions_values, c) end)
 
     if Enum.any?(results, fn r -> r.ready? end) do
       %{
@@ -45,9 +45,9 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
   end
 
   def evaluate_computation_for_readiness(all_executions_values, {:and, conditions}) when is_list(conditions) do
-    results = Enum.map(conditions, fn c -> evaluate_computation_for_readiness(all_executions_values, c) end)
-    # result1 = evaluate_computation_for_readiness(all_executions_values, left)
-    # result2 = evaluate_computation_for_readiness(all_executions_values, right)
+    results =
+      conditions
+      |> Enum.map(fn c -> evaluate_computation_for_readiness(all_executions_values, c) end)
 
     if Enum.all?(results, fn c -> c.ready? end) do
       %{
@@ -67,7 +67,8 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
   def evaluate_computation_for_readiness(all_executions_values, {upstream_node_name, f_condition})
       when is_atom(upstream_node_name) and is_function(f_condition, 1) do
     relevant_value_node =
-      all_executions_values |> Enum.find(fn %{node_name: node_name} -> node_name == upstream_node_name end)
+      all_executions_values
+      |> Enum.find(fn %{node_name: node_name} -> node_name == upstream_node_name end)
 
     if relevant_value_node == nil do
       raise "missing value node for #{upstream_node_name}"
