@@ -94,6 +94,7 @@ defmodule Journey do
 
     ```elixir
     iex> import Journey.Node
+    iex> import Journey.Node.UpstreamDependencies
     iex> _graph = Journey.new_graph(
     ...>       "horoscope workflow",
     ...>       "v1.0.0",
@@ -110,7 +111,13 @@ defmodule Journey do
     ...>         ),
     ...>         compute(
     ...>           :horoscope,
-    ...>           [:first_name, :zodiac_sign],
+    ...>           unblocked_when({
+    ...>             :and,
+    ...>             [
+    ...>               {:first_name, &provided?/1},
+    ...>               {:zodiac_sign, &provided?/1}
+    ...>             ]
+    ...>           }),
     ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
     ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
     ...>           end
@@ -123,7 +130,7 @@ defmodule Journey do
   def new_graph(name, version, nodes)
       when is_binary(name) and is_binary(version) and is_list(nodes) do
     Graph.new(name, version, nodes)
-    |> Journey.Graph.validate()
+    |> Journey.Graph.Validations.validate()
     |> Graph.Catalog.register()
   end
 
@@ -252,6 +259,7 @@ defmodule Journey do
       graph.version,
       graph.nodes
     )
+    |> Journey.Scheduler.advance()
   end
 
   @doc """
@@ -360,7 +368,7 @@ defmodule Journey do
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value) or is_atom(value)) do
-    ensure_known_input_node_name(execution, node_name)
+    Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution, node_name, value)
   end
 
@@ -407,7 +415,7 @@ defmodule Journey do
   """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    ensure_known_node_name(execution, node_name)
+    Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
     default_timeout_ms = 5_000
 
     timeout_ms =
@@ -431,32 +439,5 @@ defmodule Journey do
       end
 
     Executions.get_value(execution, node_name, timeout_ms)
-  end
-
-  # TODO: move to execution or some such.
-  defp ensure_known_node_name(execution, node_name) do
-    all_node_names = execution.values |> Enum.map(& &1.node_name)
-
-    if node_name in all_node_names do
-      :ok
-    else
-      raise "'#{inspect(node_name)}' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: #{inspect(Enum.sort(all_node_names))}."
-    end
-  end
-
-  defp ensure_known_input_node_name(execution, node_name)
-       when is_struct(execution, Journey.Execution) and is_atom(node_name) do
-    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
-
-    all_input_node_names =
-      graph.nodes
-      |> Enum.filter(fn n -> n.type == :input end)
-      |> Enum.map(& &1.name)
-
-    if node_name in all_input_node_names do
-      :ok
-    else
-      raise "'#{inspect(node_name)}' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: #{inspect(Enum.sort(all_input_node_names))}."
-    end
   end
 end

@@ -421,7 +421,7 @@ defmodule Journey.Scheduler.Operations do
   defp upstream_dependencies_fulfilled?(graph, computation, all_set_values) do
     graph
     |> Graph.find_node_by_name(computation.node_name)
-    |> Map.get(:upstream_nodes)
+    |> Map.get(:gated_by)
     |> Enum.all?(fn upstream_node_name ->
       MapSet.member?(all_set_values, upstream_node_name)
     end)

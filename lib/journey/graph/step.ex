@@ -1,11 +1,11 @@
 defmodule Journey.Graph.Step do
   @moduledoc false
 
-  defstruct [:name, :upstream_nodes, :f_compute, :f_on_save, :type, :mutates, :max_retries, :abandon_after_seconds]
+  defstruct [:name, :gated_by, :f_compute, :f_on_save, :type, :mutates, :max_retries, :abandon_after_seconds]
 
   @type t :: %__MODULE__{
           name: atom,
-          upstream_nodes: list,
+          gated_by: list,
           f_compute: function,
           f_on_save: function | nil,
           type: Journey.Execution.ComputationType.t(),

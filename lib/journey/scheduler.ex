@@ -18,15 +18,19 @@ defmodule Journey.Scheduler do
   end
 
   defp advance_with_graph(prefix, execution, graph) do
+    Logger.info("advance_with_graph #{prefix} starting")
     Journey.Scheduler.Recompute.detect_updates_and_create_re_computations(execution, graph)
 
-    available_computations = Journey.Scheduler.Available.grab_available_computations(execution, graph)
+    available_computations =
+      Journey.Scheduler.Available.grab_available_computations(execution, graph)
 
     if length(available_computations) > 0 do
       execution = Journey.load(execution)
 
       available_computations
-      |> Enum.each(fn to_compute -> launch_computation(execution, to_compute) end)
+      |> Enum.each(fn %{computation: to_compute, fulfilled_conditions: conditions_fulfilled} ->
+        launch_computation(execution, to_compute, conditions_fulfilled)
+      end)
 
       Journey.load(execution)
     else
@@ -35,7 +39,7 @@ defmodule Journey.Scheduler do
     |> tap(fn _ -> Logger.debug("#{prefix}: done") end)
   end
 
-  defp launch_computation(execution, computation) do
+  defp launch_computation(execution, computation, conditions_fulfilled) do
     computation_params = execution |> Journey.values(reload: false)
 
     Task.start(fn ->
@@ -48,11 +52,9 @@ defmodule Journey.Scheduler do
         |> Journey.Graph.find_node_by_name(computation.node_name)
 
       input_versions_to_capture =
-        execution
-        |> Map.get(:values)
-        |> Enum.map(fn v -> {v.node_name, v.ex_revision} end)
+        conditions_fulfilled
+        |> Enum.map(fn %{upstream_node: v} -> {v.node_name, v.ex_revision} end)
         |> Enum.into(%{})
-        |> Map.take(graph_node.upstream_nodes)
 
       recurring_upstream_schedules_to_reschedule =
         find_things_to_reschedule(computation.computed_with, input_versions_to_capture)
@@ -84,6 +86,7 @@ defmodule Journey.Scheduler do
       # TODO: how do we make sure rescheduling does not fall through cracks if something fails along the way?
       # TODO: perform the reschedule as part of the same transaction as marking the computation as completed.
       reschedule_recurring(recurring_upstream_schedules_to_reschedule)
+
       advance(execution)
 
       # TODO: consider killing the computation after deadline (since we are likely to

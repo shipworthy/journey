@@ -34,10 +34,11 @@ defmodule Journey.Scheduler.Recompute do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        all_set_values = get_all_set_values(execution.id, repo)
+        # all_set_values = get_all_set_values(execution.id, repo)
+        all_values = get_all_values(execution.id, repo)
 
         all_computations
-        |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_set_values) end)
+        |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_values) end)
         |> Enum.map(fn computation_to_re_create ->
           new_computation =
             %Execution.Computation{
@@ -63,50 +64,48 @@ defmodule Journey.Scheduler.Recompute do
     end
   end
 
-  defp get_all_set_values(execution_id, repo) do
-    now = System.system_time(:second)
-    yesterday = now - 24 * 60 * 60
-
+  defp get_all_values(execution_id, repo) do
     from(v in Value,
-      where:
-        v.execution_id == ^execution_id and not is_nil(v.set_time) and
-          (v.node_type == :compute or v.node_type == :input or
-             (v.node_type == :schedule_once and fragment("CAST(?->>'v' AS INTEGER) < ?", v.node_value, ^now) and
-                fragment("CAST(?->>'v' AS INTEGER) > ?", v.node_value, ^yesterday))),
-      select: %{
-        node_name: v.node_name,
-        node_revision: v.ex_revision,
-        node_value: v.node_value,
-        set_time: v.set_time
-      }
+      where: v.execution_id == ^execution_id
     )
     |> repo.all()
-    |> Enum.map(fn %{node_name: node_name} = n ->
-      node_name_as_atom = String.to_atom(node_name)
-      {node_name_as_atom, %{n | node_name: String.to_atom(node_name)}}
-    end)
-    |> Enum.into(%{})
+    |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
   end
 
-  defp an_upstream_node_has_a_newer_version?(computation, graph, all_computed_values) do
-    upstream_nodes =
+  defp an_upstream_node_has_a_newer_version?(computation, graph, all_values) do
+    gated_by =
       graph
       |> Graph.find_node_by_name(computation.node_name)
-      |> Map.get(:upstream_nodes)
+      |> Map.get(:gated_by)
+      |> Journey.Node.UpstreamDependencies.Computations.list_all_node_names()
 
-    all_upstream_nodes_have_values? =
-      upstream_nodes
-      |> Enum.all?(fn upstream_node_name ->
-        Map.has_key?(all_computed_values, upstream_node_name)
+    current_node_revisions =
+      all_values
+      |> Enum.filter(fn %{node_name: node_name} -> node_name in gated_by end)
+      |> Enum.map(fn %{node_name: node_name} = node -> {node_name, node.ex_revision} end)
+      |> Enum.into(%{})
+
+    computed_with_node_revisions =
+      computation.computed_with
+      |> case do
+        nil ->
+          %{}
+
+        node_and_revisions ->
+          node_and_revisions
+          |> Enum.map(fn {k, v} ->
+            {String.to_atom(k), v}
+          end)
+          |> Enum.into(%{})
+      end
+
+    any_new_versions? =
+      computed_with_node_revisions
+      |> Enum.any?(fn {upstream_node_name, computed_with_revision} ->
+        current_node_revisions[upstream_node_name] != nil and
+          current_node_revisions[upstream_node_name] > computed_with_revision
       end)
 
-    at_least_one_upstream_node_has_a_higher_version? =
-      upstream_nodes
-      |> Enum.any?(fn upstream_node_name ->
-        Map.has_key?(all_computed_values, upstream_node_name) and
-          computation.ex_revision_at_start <= all_computed_values[upstream_node_name].node_revision
-      end)
-
-    all_upstream_nodes_have_values? and at_least_one_upstream_node_has_a_higher_version?
+    any_new_versions?
   end
 end

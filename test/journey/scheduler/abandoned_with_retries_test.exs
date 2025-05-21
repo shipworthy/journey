@@ -1,4 +1,6 @@
 defmodule Journey.Scheduler.AbandonedWithRetriesTest do
+  import Journey.Node.UpstreamDependencies
+
   use ExUnit.Case,
     async: true,
     parameterize:
@@ -9,6 +11,8 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
 
   import Journey.Node
   alias Journey.Scheduler
+
+  import Journey.Node.UpstreamDependencies
 
   @tag :capture_log
   test "abandoned with retries", %{timeout_type: timeout_type} do
@@ -72,7 +76,7 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
         input(:birth_month),
         compute(
           :astrological_sign,
-          [:birth_month, :birth_day],
+          unblocked_when({:and, [{:birth_month, &provided?/1}, {:birth_day, &provided?/1}]}),
           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
             case behavior do
               :timeout ->

@@ -2,6 +2,8 @@ defmodule Journey.Test.HoroscopeGraph do
   @moduledoc false
   import Journey.Node
 
+  import Journey.Node.UpstreamDependencies
+
   def create_graph() do
     Journey.new_graph(
       "horoscope workflow, success #{__MODULE__}",
@@ -11,10 +13,10 @@ defmodule Journey.Test.HoroscopeGraph do
         input(:birth_day),
         input(:birth_month),
         compute(:astrological_sign, [:birth_month, :birth_day], &compute_sign/1),
-        compute(:horoscope, [:first_name, :astrological_sign], &compute_horoscope/1),
+        compute(:horoscope, unblocked_when([:first_name, :astrological_sign]), &compute_horoscope/1),
         compute(
           :library_of_congress_record,
-          [:horoscope, :first_name],
+          unblocked_when([:horoscope, :first_name]),
           fn %{
                horoscope: _horoscope,
                first_name: first_name
@@ -25,7 +27,7 @@ defmodule Journey.Test.HoroscopeGraph do
         ),
         mutate(
           :obfuscate_first_name,
-          [:first_name, :library_of_congress_record],
+          unblocked_when([:first_name, :library_of_congress_record]),
           fn %{first_name: first_name} ->
             encrypted_first_name = first_name |> String.graphemes() |> Enum.reverse() |> Enum.join("")
             {:ok, encrypted_first_name}
