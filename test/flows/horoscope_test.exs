@@ -1,4 +1,4 @@
-defmodule Journey.Test.HoroscopeGraph do
+defmodule Flows.Test.HoroscopeGraph do
   @moduledoc false
   import Journey.Node
 
@@ -49,13 +49,13 @@ defmodule Journey.Test.HoroscopeGraph do
   end
 end
 
-defmodule Journey.HoroscopeTest do
+defmodule Flows.HoroscopeTest do
   use ExUnit.Case, async: true
 
   describe "flow" do
     test "sunny day" do
       execution =
-        Journey.Test.HoroscopeGraph.create_graph()
+        Flows.Test.HoroscopeGraph.create_graph()
         |> Journey.start_execution()
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")

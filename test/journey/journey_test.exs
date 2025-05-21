@@ -1,4 +1,4 @@
-defmodule JourneyTest do
+defmodule Journey.JourneyTest do
   use ExUnit.Case, async: true
 
   import Journey.Helpers.Random, only: [random_string: 0]
