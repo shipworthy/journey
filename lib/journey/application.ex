@@ -15,7 +15,7 @@ defmodule Journey.Application do
       {Ecto.Migrator, repos: [Journey.Repo]},
       Journey.Graph.Catalog,
       {Task, fn -> initialize_graphs() end},
-      Journey.Scheduler.BackgroundSweep
+      Journey.Scheduler.BackgroundSweeps
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

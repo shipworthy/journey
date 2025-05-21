@@ -196,7 +196,7 @@ defmodule Journey.Node do
   iex> Task.start(fn ->
   ...>   for _ <- 1..3 do
   ...>     :timer.sleep(2_000)
-  ...>     Journey.Scheduler.BackgroundSweep.find_and_kick_recently_due_schedule_values(execution.id)
+  ...>     Journey.Scheduler.BackgroundSweeps.Scheduled.sweep(execution.id)
   ...>   end
   ...> end)
   iex> execution |> Journey.get_value(:nap_time, wait: 10_000) # this will take a couple of seconds.
