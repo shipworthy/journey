@@ -28,9 +28,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        abandoned_computations =
-          abandoned_computations
-          |> filter_out_graphless()
+        abandoned_computations = abandoned_computations |> filter_out_graphless()
 
         abandoned_computations
         |> Enum.each(fn ac -> Journey.Scheduler.Retry.maybe_schedule_a_retry(ac, repo) end)

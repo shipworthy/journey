@@ -1,4 +1,4 @@
-defmodule Journey.GraphConfigTest do
+defmodule Journey.Graph.ConfigTest do
   use ExUnit.Case, async: true
 
   test "pre-configured graphs are loaded" do
