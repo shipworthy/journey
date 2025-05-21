@@ -1,7 +1,7 @@
 defmodule Journey.Scheduler.AbandonedWithRetriesTest do
   import Journey.Node.UpstreamDependencies
 
-  import Journey.Scheduler.BackgroundSweeps.Abandoned, only: [find_and_kickoff_abandoned_computations: 1]
+  alias Journey.Scheduler.BackgroundSweeps.Abandoned
 
   use ExUnit.Case,
     async: true,
@@ -36,22 +36,22 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
 
     Process.sleep(2_000)
 
-    [swept_execution] = find_and_kickoff_abandoned_computations(execution.id)
+    [swept_execution] = Abandoned.sweep(execution.id)
 
     assert execution.id == swept_execution.id
     assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 1 == count_computations(execution.id, :astrological_sign, :computing)
     Process.sleep(2_000)
 
-    [swept_execution] = find_and_kickoff_abandoned_computations(execution.id)
+    [swept_execution] = Abandoned.sweep(execution.id)
 
     assert execution.id == swept_execution.id
     assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)
     Process.sleep(2_000)
-    [] = find_and_kickoff_abandoned_computations(execution.id)
+    [] = Abandoned.sweep(execution.id)
     Process.sleep(2_000)
-    [] = find_and_kickoff_abandoned_computations(execution.id)
+    [] = Abandoned.sweep(execution.id)
     Process.sleep(2_000)
     assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)

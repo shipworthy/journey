@@ -27,7 +27,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
     try do
       Logger.debug("#{prefix}: performing sweep")
-      Journey.Scheduler.BackgroundSweeps.Abandoned.find_and_kickoff_abandoned_computations(nil)
+      Journey.Scheduler.BackgroundSweeps.Abandoned.sweep(nil)
       Journey.Scheduler.BackgroundSweeps.Scheduled.find_and_kick_recently_due_schedule_values(nil)
       Logger.debug("#{prefix}: sweep complete")
     catch

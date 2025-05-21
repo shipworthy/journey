@@ -2,18 +2,17 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
   require Logger
   import Ecto.Query
   alias Journey.Execution.Computation
-  # alias Journey.Execution.Value
 
   import Journey.Helpers.Log
 
-  def find_and_kickoff_abandoned_computations(execution_id) do
-    sweep_abandoned_computations(execution_id)
+  def sweep(execution_id) do
+    find_and_maybe_reschedule(execution_id)
     |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
     |> Enum.uniq()
     |> Enum.map(fn swept_execution_id -> Journey.Scheduler.BackgroundSweeps.Kick.kick(swept_execution_id) end)
   end
 
-  def sweep_abandoned_computations(execution_id) do
+  def find_and_maybe_reschedule(execution_id) do
     prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
     Logger.debug("#{prefix}: starting")
 
