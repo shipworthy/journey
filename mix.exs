@@ -50,6 +50,7 @@ defmodule Journey.MixProject do
       {:ecto, "~> 3.12.5"},
       {:ecto_sql, "~> 3.12.1"},
       {:ex_doc, "~> 0.37", only: :dev, runtime: false},
+      {:mix_test_watch, "~> 1.2", only: [:dev, :test], runtime: false},
       {:nanoid, "~> 2.1.0"},
       {:parent, "~> 0.12.1"},
       {:postgrex, "~> 0.20.0"}

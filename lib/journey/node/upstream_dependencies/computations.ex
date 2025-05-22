@@ -5,7 +5,11 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
     node_names
   end
 
-  def list_all_node_names({_operation, conditions}) when is_list(conditions) do
+  def list_all_node_names({:not, {node_name, condition}}) when is_atom(node_name) and is_function(condition, 1) do
+    [node_name]
+  end
+
+  def list_all_node_names({operation, conditions}) when operation in [:and, :or] and is_list(conditions) do
     conditions
     |> Enum.flat_map(fn c -> list_all_node_names(c) end)
   end
@@ -85,6 +89,31 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
         ready?: false,
         conditions_met: [],
         conditions_not_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}]
+      }
+    end
+  end
+
+  def evaluate_computation_for_readiness(all_executions_values, {:not, {upstream_node_name, f_condition}})
+      when is_atom(upstream_node_name) and is_function(f_condition, 1) do
+    relevant_value_node =
+      all_executions_values
+      |> Enum.find(fn %{node_name: node_name} -> node_name == upstream_node_name end)
+
+    if relevant_value_node == nil do
+      raise "missing value node for #{upstream_node_name}"
+    end
+
+    if f_condition.(relevant_value_node) do
+      %{
+        ready?: false,
+        conditions_met: [],
+        conditions_not_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}]
+      }
+    else
+      %{
+        ready?: true,
+        conditions_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}],
+        conditions_not_met: []
       }
     end
   end
