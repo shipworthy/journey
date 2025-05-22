@@ -1,24 +1,29 @@
 defmodule JourneyMermaidConverter do
-  @moduledoc """
-  Converts Journey graphs to Mermaid graph definitions.
-  """
+  @moduledoc false
 
-  def compose_mermaid(graph) when is_struct(graph, Journey.Graph) do
+  def compose_mermaid(graph, opts \\ []) when is_struct(graph, Journey.Graph) do
+    show_legend = Keyword.get(opts, :legend, true)
     nodes = graph.nodes
+
+    legend_section = if show_legend, do: [build_legend(), ""], else: []
 
     # Build the mermaid definition
     [
       "graph TD",
-      build_legend(),
-      "",
+      legend_section,
       build_node_definitions(nodes),
       "",
       build_connections(nodes),
       "",
-      build_styling_with_nodes(nodes)
+      build_styling_with_nodes(nodes, show_legend)
     ]
     |> List.flatten()
     |> Enum.join("\n")
+  end
+
+  # Add a version without legend for cleaner graphs
+  def compose_mermaid_no_legend(graph) when is_struct(graph, Journey.Graph) do
+    compose_mermaid(graph, legend: false)
   end
 
   defp build_legend do
@@ -133,12 +138,10 @@ defmodule JourneyMermaidConverter do
   defp list_all_node_names(_), do: []
 
   defp extract_function_name(f) when is_function(f) do
-    # Try to extract function name from function info
     try do
       case Function.info(f) do
-        [module: module, name: name, arity: _arity, env: _, type: :external] ->
-          module_name = module |> Module.split() |> List.last()
-          "#{module_name}.#{name}"
+        [module: _module, name: name, arity: arity, env: _, type: :external] ->
+          "&#{name}/#{arity}"
 
         _ ->
           "anonymous fn"
@@ -148,30 +151,30 @@ defmodule JourneyMermaidConverter do
     end
   end
 
-  defp extract_function_name({module, function}) do
-    module_name = module |> Module.split() |> List.last()
-    "#{module_name}.#{function}"
-  end
-
-  defp extract_function_name({module, function, _arity}) do
-    module_name = module |> Module.split() |> List.last()
-    "#{module_name}.#{function}"
-  end
-
-  defp extract_function_name(_) do
-    "anonymous fn"
-  end
-
   defp sanitize_name(name) when is_atom(name) do
     name
     |> Atom.to_string()
     |> String.replace(~r/[^a-zA-Z0-9_]/, "_")
   end
 
-  defp build_styling_with_nodes(nodes) do
+  defp build_styling_with_nodes(nodes, show_legend) do
     # Categorize nodes by type
     {input_nodes, compute_nodes, schedule_nodes, mutate_nodes} =
       categorize_nodes(nodes)
+
+    legend_styles =
+      if show_legend do
+        [
+          "    %% Apply styles to legend nodes",
+          "    class LegendInput inputNode",
+          "    class LegendCompute computeNode",
+          "    class LegendSchedule scheduleNode",
+          "    class LegendMutate mutateNode",
+          ""
+        ]
+      else
+        []
+      end
 
     [
       "    %% Styling",
@@ -180,12 +183,7 @@ defmodule JourneyMermaidConverter do
       "    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000",
       "    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000",
       "",
-      "    %% Apply styles to legend nodes",
-      "    class LegendInput inputNode",
-      "    class LegendCompute computeNode",
-      "    class LegendSchedule scheduleNode",
-      "    class LegendMutate mutateNode",
-      "",
+      legend_styles,
       "    %% Apply styles to actual nodes",
       build_class_assignment("inputNode", input_nodes),
       build_class_assignment("computeNode", compute_nodes),
