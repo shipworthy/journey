@@ -7,6 +7,7 @@ defmodule Journey.Scheduler.Available do
   alias Journey.Execution.Computation
   alias Journey.Execution.Value
   alias Journey.Graph
+  alias Journey.Node.UpstreamDependencies
 
   require Logger
   import Journey.Helpers.Log
@@ -35,21 +36,22 @@ defmodule Journey.Scheduler.Available do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        all_value_nodes =
-          from(v in Value,
-            where: v.execution_id == ^execution.id
-          )
-          |> repo.all()
-          |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
+        all_value_nodes = Journey.Execution.Values.load_from_db(execution.id, repo)
+        # all_value_nodes =
+        #   from(v in Value,
+        #     where: v.execution_id == ^execution.id
+        #   )
+        #   |> repo.all()
+        #   |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
 
         all_candidates_for_computation
         |> Enum.map(fn computation_candidate ->
-          Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-            all_value_nodes,
+          gated_by =
             graph
             |> Graph.find_node_by_name(computation_candidate.node_name)
             |> Map.get(:gated_by)
-          )
+
+          UpstreamDependencies.Computations.evaluate_computation_for_readiness(all_value_nodes, gated_by)
           |> Map.put(:computation, computation_candidate)
 
           # |> case do
@@ -68,21 +70,83 @@ defmodule Journey.Scheduler.Available do
           #     c
           # end
         end)
-        |> Enum.map(fn
-          %{ready?: true, conditions_met: conditions_met} = c ->
-            Logger.info(
-              "#{prefix}: computation ready: #{inspect(c.computation)}. conditions met: #{inspect(conditions_met)}"
+        |> Enum.map(fn c ->
+          summary =
+            Journey.Scheduler.Introspection.readiness_state(
+              c.ready?,
+              c.conditions_met,
+              c.conditions_not_met,
+              c.computation.node_name
             )
 
-            c
+          Logger.info("#{prefix}: v0 [#{inspect(c.computation.node_name)}]\n=====\n#{summary}\n=====")
 
-          %{ready?: false, conditions_not_met: conditions_not_met} = c ->
-            Logger.info(
-              "#{prefix}: computation not ready: #{inspect(c.computation)}. conditions not met: #{inspect(conditions_not_met)}"
-            )
-
-            c
+          c
         end)
+        # |> Enum.map(fn
+        #   %{
+        #     ready?: ready?,
+        #     conditions_met: conditions_met,
+        #     conditions_not_met: conditions_not_met,
+        #     computation: computation
+        #   } = c ->
+        #     conditions_met =
+        #       conditions_met
+        #       |> compose_conditions_string()
+
+        #     conditions_not_met =
+        #       conditions_not_met
+        #       |> compose_conditions_string()
+
+        #     icon = if(ready?, do: "👍", else: "🛑")
+
+        #     summary =
+        #       """
+        #       ================
+        #       Node: #{inspect(computation.node_name)} #{icon}
+
+        #       Ready?: #{inspect(ready?)}
+
+        #       Conditions met:
+        #         #{conditions_met}
+
+        #       Conditions not met:
+        #         #{conditions_not_met}
+        #       ================
+        #       """
+
+        #     # |> conditions_met
+        #     # |> Enum.map(fn %{upstream_node: v} = r ->
+        #     #   %{r | upstream_node: Map.take(v, [:node_name, :ex_revision, :node_value])}
+
+        #     #   """
+        #     #   - #{v.node_name}: #{inspect(r.f_condition)} (#{v.ex_revision}}
+        #     #   """
+        #     # end)
+        #     # |> Enum.join("")
+
+        #     Logger.info("#{prefix}: [#{inspect(c.computation.node_name)}][#{icon}] \n#{summary}")
+
+        #     # %{ready?: false, conditions_not_met: conditions_not_met} = c ->
+        #     #   conditions_not_met =
+        #     #     conditions_not_met
+        #     #     |> compose_conditions_string()
+
+        #     #   # |> Enum.map(fn %{upstream_node: v} = r ->
+        #     #   #   %{r | upstream_node: Map.take(v, [:node_name, :ex_revision, :node_value])}
+
+        #     #   #   """
+        #     #   #   - #{v.node_name}: #{inspect(r.f_condition)} (#{v.ex_revision})
+        #     #   #   """
+        #     #   # end)
+        #     #   # |> Enum.join("")
+
+        #     #   Logger.info(
+        #     #     "#{prefix}: [#{inspect(c.computation.node_name)}][🛑] NOT ready to compute. conditions not met: #{conditions_not_met}"
+        #     #   )
+
+        #     c
+        # end)
         |> Enum.filter(fn %{ready?: ready?} -> ready? end)
         |> Enum.map(fn %{ready?: true, computation: unblocked_computation, conditions_met: fulfilled_conditions} ->
           %{
@@ -107,6 +171,16 @@ defmodule Journey.Scheduler.Available do
 
     computations_to_perform
   end
+
+  # defp compose_conditions_string(conditions) do
+  #   conditions
+  #   |> Enum.map(fn %{upstream_node: v, f_condition: f_condition} = r ->
+  #     fi = f_condition |> :erlang.fun_info()
+  #     value = if v.set_time == nil, do: v.node_value, else: "<not set>"
+  #     " - #{v.node_name}: #{fi[:module]}.#{fi[:name]} (rev: #{v.ex_revision}, val: #{inspect(value)})"
+  #   end)
+  #   |> Enum.join("\n")
+  # end
 
   def evaluate({value_node, f_condition}) when is_struct(value_node, Value) and is_function(f_condition, 1) do
     if f_condition.(value_node) do
