@@ -9,6 +9,8 @@ defmodule JourneyMermaidConverter do
     # Build the mermaid definition
     [
       "graph TD",
+      build_legend(),
+      "",
       build_node_definitions(nodes),
       "",
       build_connections(nodes),
@@ -17,6 +19,19 @@ defmodule JourneyMermaidConverter do
     ]
     |> List.flatten()
     |> Enum.join("\n")
+  end
+
+  defp build_legend do
+    [
+      "    %% Legend",
+      "    subgraph Legend[\"📖 Legend\"]",
+      "        LegendInput[\"Input Node<br/>User-provided data\"]",
+      "        LegendCompute[\"Compute Node<br/>(function_name)<br/>Business logic\"]",
+      "        LegendSchedule[\"Schedule Node<br/>(function_name)<br/>schedule_once node<br/>Time-based triggers\"]",
+      "        LegendMutate[\"Mutate Node<br/>(function_name)<br/>mutates: target_node<br/>Value transformation\"]",
+      "    end",
+      ""
+    ]
   end
 
   defp build_node_definitions(nodes) do
@@ -165,6 +180,13 @@ defmodule JourneyMermaidConverter do
       "    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000",
       "    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000",
       "",
+      "    %% Apply styles to legend nodes",
+      "    class LegendInput inputNode",
+      "    class LegendCompute computeNode",
+      "    class LegendSchedule scheduleNode",
+      "    class LegendMutate mutateNode",
+      "",
+      "    %% Apply styles to actual nodes",
       build_class_assignment("inputNode", input_nodes),
       build_class_assignment("computeNode", compute_nodes),
       build_class_assignment("scheduleNode", schedule_nodes),
