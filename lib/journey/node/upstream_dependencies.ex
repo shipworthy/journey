@@ -12,6 +12,14 @@ defmodule Journey.Node.UpstreamDependencies do
 
   def provided?(value_node), do: value_node.set_time != nil
 
+  def true?(value_node), do: value_node.set_time != nil and value_node.node_value == true
+  def false?(value_node), do: value_node.set_time != nil and value_node.node_value == false
+
+  def unblocked_when({:not, {upstream_node_name, f_condition}} = r)
+      when is_atom(upstream_node_name) and is_function(f_condition, 1) do
+    r
+  end
+
   def unblocked_when(list_of_required_upstream_nodes)
       when is_list(list_of_required_upstream_nodes) do
     {:and, Enum.map(list_of_required_upstream_nodes, fn node_name -> {node_name, &provided?/1} end)}
@@ -27,10 +35,6 @@ defmodule Journey.Node.UpstreamDependencies do
   def unblocked_when({operation, conditions})
       when operation in [:and, :or] and is_list(conditions) do
     {operation, conditions}
-  end
-
-  def unblocked_when({:not, expr}) do
-    {:not, unblocked_when(expr)}
   end
 
   def unblocked_when(invalid) do

@@ -291,4 +291,8 @@ defmodule Journey.Executions do
       Map.update!(map, key, &String.to_atom/1)
     end)
   end
+
+  # def convert_key_to_atom(map, key) do
+  #   Map.update!(map, key, &String.to_atom/1)
+  # end
 end
