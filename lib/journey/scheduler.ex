@@ -13,7 +13,7 @@ defmodule Journey.Scheduler do
   end
 
   defp advance_with_graph(prefix, execution, nil) do
-    Logger.error("#{prefix}: missing graph, (#{inspect(execution.graph_name)})")
+    Logger.debug("#{prefix}: missing graph, (#{inspect(execution.graph_name)})")
     execution
   end
 

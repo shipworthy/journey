@@ -278,18 +278,38 @@ defmodule Journey.Executions do
   defp convert_node_names_to_atoms(nil), do: nil
 
   defp convert_node_names_to_atoms(execution) do
+    computations =
+      convert_values_to_atoms(execution.computations, :node_name)
+      |> Enum.map(fn
+        %{computed_with: nil} = c ->
+          c
+
+        c ->
+          Map.update!(c, :computed_with, &convert_all_keys_to_atoms/1)
+      end)
+
     %Execution{
       execution
       | values: convert_values_to_atoms(execution.values, :node_name),
-        computations: convert_values_to_atoms(execution.computations, :node_name)
+        computations: computations
     }
   end
 
   def convert_values_to_atoms(collection_of_maps, key) do
     collection_of_maps
-    |> Enum.map(fn map ->
-      Map.update!(map, key, &String.to_atom/1)
+    |> Enum.map(fn
+      nil ->
+        nil
+
+      map ->
+        Map.update!(map, key, &String.to_atom/1)
     end)
+  end
+
+  def convert_all_keys_to_atoms(map) do
+    map
+    |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
+    |> Enum.into(%{})
   end
 
   # def convert_key_to_atom(map, key) do
