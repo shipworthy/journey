@@ -6,7 +6,8 @@ defmodule Journey.Scheduler.BackgroundSweeps do
   import Journey.Helpers.Log
 
   alias Journey.Scheduler.BackgroundSweeps.Abandoned
-  alias Journey.Scheduler.BackgroundSweeps.Scheduled
+  alias Journey.Scheduler.BackgroundSweeps.ScheduleOnce
+  alias Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
 
@@ -29,15 +30,21 @@ defmodule Journey.Scheduler.BackgroundSweeps do
     Logger.debug("#{prefix}: starting")
 
     try do
-      Logger.debug("#{prefix}: performing sweep")
-      Abandoned.sweep(nil)
-      Scheduled.sweep(nil)
-      Logger.debug("#{prefix}: sweep complete")
+      run_sweeps(nil)
     catch
       exception ->
         Logger.error("#{prefix}: #{inspect(exception)}")
     end
 
+    Logger.debug("#{prefix}: done")
+  end
+
+  def run_sweeps(execution_id) do
+    prefix = "#{mf()}[#{inspect(self())}]"
+    Logger.debug("#{prefix}: starting")
+    Abandoned.sweep(execution_id)
+    ScheduleOnce.sweep(execution_id)
+    ScheduleOnceDownstream.sweep(execution_id)
     Logger.debug("#{prefix}: done")
   end
 end

@@ -43,4 +43,26 @@ defmodule Journey.Scheduler.BackgroundSweeps.Scheduled do
   defp from_values(execution_id) do
     from(v in Value, where: v.execution_id == ^execution_id)
   end
+
+  # def sweep() do
+  #   # TODO: optimize and scale-ize.
+  #   # v0: brute force -- find schedule_once triggers that have not been computed, kick the execution.
+  #   # v0.1: v0 + only look in executions that are not archived.
+  #   # v0.2: v0.1 + paginate
+
+  #   from(c in Journey.Execution.Computation,
+  #     join: e in Journey.Execution,
+  #     on: c.execution_id == e.id,
+  #     where: c.node_type == ^:schedule_once and c.state == ^:not_set and is_nil(e.archived_at)
+  #   )
+  #   |> Journey.Repo.all()
+  #   |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
+  #   |> Enum.uniq()
+  #   |> Enum.map(fn swept_execution_id ->
+  #     swept_execution_id
+  #     |> Journey.load()
+  #     |> Journey.Scheduler.advance()
+  #   end)
+  #   |> Enum.count()
+  # end
 end
