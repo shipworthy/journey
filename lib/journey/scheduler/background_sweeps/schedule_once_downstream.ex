@@ -9,7 +9,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
   alias Journey.Execution.Value
 
   # TODO: the window value should be a property of the computation, settable by the application.
-  @execution_window_seconds 60 * 60
+  @rolling_window_seconds 60 * 60
 
   @doc false
   def sweep(execution_id) when is_nil(execution_id) or is_binary(execution_id) do
@@ -18,8 +18,8 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting #{execution_id}")
 
-    current_epoch_seconds = System.system_time(:second)
-    cutoff_time = current_epoch_seconds - @execution_window_seconds
+    now = System.system_time(:second)
+    cutoff_time = now - @rolling_window_seconds
 
     kicked_count =
       from(e in q_executions(execution_id),
@@ -32,7 +32,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
           c.computation_type == :schedule_once and
             c.state == :success and
             not is_nil(v.set_time) and
-            v.node_value >= ^cutoff_time,
+            (v.node_value <= ^now or
+               fragment("?::bigint", v.node_value) <= ^now) and
+            v.set_time >= ^cutoff_time,
         # TODO: consider only including executions that have un-computed computations.
         distinct: true,
         select: e.id
@@ -53,7 +55,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
   end
 
   defp q_executions(nil) do
-    from(e in Execution, where: not is_nil(e.archived_at))
+    from(e in Execution, where: is_nil(e.archived_at))
   end
 
   defp q_executions(execution_id) do
