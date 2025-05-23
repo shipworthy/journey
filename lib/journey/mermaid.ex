@@ -126,8 +126,8 @@ defmodule JourneyMermaidConverter do
 
   defp extract_function_name(f) when is_function(f) do
     case Function.info(f) do
-      [module: _module, name: name, arity: arity, env: _, type: :external] ->
-        "&#{name}/#{arity}"
+      [module: _module, name: name, arity: _arity, env: _, type: :external] ->
+        "#{name}"
 
       _ ->
         "anonymous fn"
@@ -229,7 +229,7 @@ defmodule JourneyMermaidConverter do
   def generated_at() do
     """
         %% Caption
-        caption[/"Generated at #{DateTime.now!("Etc/UTC")} UTC"/]
+        caption[/"Generated at #{DateTime.utc_now(:second)} UTC"/]
     """
   end
 end

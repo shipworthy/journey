@@ -165,7 +165,7 @@ defmodule Journey.Tools do
         verb = if node_type == :input, do: "set", else: "computed"
 
         "  - #{node_name}: '#{inspect(node_value)}' | #{inspect(node_type)}\n" <>
-          "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}"
+          "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}\n"
       end) <>
       """
       \n
