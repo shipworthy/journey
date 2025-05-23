@@ -48,7 +48,7 @@ defmodule Journey.Tools do
           c.execution_id == ^execution_id and
             c.state == ^:not_set and
             c.computation_type in [^:compute, ^:schedule_once, ^:schedule_recurring],
-        lock: "FOR UPDATE SKIP LOCKED"
+        lock: "FOR UPDATE"
       )
       |> Journey.Repo.all()
       |> Journey.Executions.convert_values_to_atoms(:node_name)
@@ -79,7 +79,7 @@ defmodule Journey.Tools do
       [value_node] =
         from(v in Value,
           where: v.execution_id == ^execution_id and v.node_name == ^value_node_name_str,
-          lock: "FOR UPDATE SKIP LOCKED"
+          lock: "FOR UPDATE"
         )
         |> repo.all()
         |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)

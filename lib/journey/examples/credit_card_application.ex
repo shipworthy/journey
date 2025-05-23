@@ -8,6 +8,10 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> # The customer starts the application process and provides their personal information.
   iex> graph = Journey.Examples.CreditCardApplication.graph()
   iex> execution = Journey.start_execution(graph)
+  iex>
+  iex> # This is only needed in a test, to perform background processing that happens automatically outside of tests.
+  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+  iex>
   iex> execution = execution |> Journey.set_value(:full_name, "Mario")
   iex> execution = execution |> Journey.set_value(:birth_date, "10/11/1981")
   iex> execution = execution |> Journey.set_value(:ssn, "123-45-6789")
@@ -29,8 +33,6 @@ defmodule Journey.Examples.CreditCardApplication do
       ssn_redacted: "updated :ssn",
       schedule_request_credit_card_reminder: "..."
     }
-  iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
-  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
   iex> # We haven't heard from the customer in a while, so let's send a reminder.
   iex> execution |> Journey.get_value(:send_preapproval_reminder, wait: 10_000)
   {:ok, true}

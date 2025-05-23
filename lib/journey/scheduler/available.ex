@@ -31,7 +31,7 @@ defmodule Journey.Scheduler.Available do
               c.execution_id == ^execution.id and
                 c.state == ^:not_set and
                 c.computation_type in [^:compute, ^:schedule_once, ^:schedule_recurring],
-            lock: "FOR UPDATE SKIP LOCKED"
+            lock: "FOR UPDATE"
           )
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
