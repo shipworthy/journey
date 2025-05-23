@@ -1,6 +1,8 @@
 defmodule Journey.ToolsTest do
   use ExUnit.Case, async: true
 
+  alias Journey.Scheduler.BackgroundSweeps
+
   describe "summarize/1" do
     test "basic validation" do
       graph = Journey.Test.Support.create_test_graph1()
@@ -32,13 +34,7 @@ defmodule Journey.ToolsTest do
         Journey.start_execution(graph)
         |> Journey.set_value(:user_name, "John Doe")
 
-      background_sweeps_task =
-        Task.async(fn ->
-          for _ <- 1..3 do
-            :timer.sleep(700)
-            Journey.Scheduler.BackgroundSweeps.Scheduled.sweep(execution.id)
-          end
-        end)
+      background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait: true)
 
@@ -51,7 +47,7 @@ defmodule Journey.ToolsTest do
              - Archived at: not archived
              """
 
-      Task.await(background_sweeps_task, 10_000)
+      BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
     end
   end
 
@@ -80,13 +76,7 @@ defmodule Journey.ToolsTest do
         Journey.start_execution(graph)
         |> Journey.set_value(:user_name, "John Doe")
 
-      {:ok, background_sweeps_task_pid} =
-        Task.start(fn ->
-          for _ <- 1..2000 do
-            :timer.sleep(1000)
-            Journey.Scheduler.BackgroundSweeps.Scheduled.sweep(execution.id)
-          end
-        end)
+      background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait: true)
       execution = execution |> Journey.load()
@@ -98,7 +88,7 @@ defmodule Journey.ToolsTest do
       execution = execution |> Journey.load()
       assert execution.revision == 12
 
-      Process.exit(background_sweeps_task_pid, :kill)
+      BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
     end
   end
 
@@ -133,20 +123,14 @@ defmodule Journey.ToolsTest do
         execution
         |> Journey.set_value(:user_name, "John Doe")
 
-      background_sweeps_task =
-        Task.async(fn ->
-          for _ <- 1..3 do
-            :timer.sleep(700)
-            Journey.Scheduler.BackgroundSweeps.Scheduled.sweep(execution.id)
-          end
-        end)
+      background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait: true)
 
       ocs = Journey.Tools.outstanding_computations(execution.id)
       assert ocs == []
 
-      Task.await(background_sweeps_task, 10_000)
+      BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
     end
   end
 end

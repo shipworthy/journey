@@ -30,12 +30,7 @@ defmodule Journey.Examples.CreditCardApplication do
       schedule_request_credit_card_reminder: "..."
     }
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
-  iex> Task.start(fn ->
-  ...>   for _ <- 1..3 do
-  ...>     :timer.sleep(2_000)
-  ...>     Journey.Scheduler.BackgroundSweeps.Scheduled.sweep(execution.id)
-  ...>   end
-  ...> end)
+  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
   iex> # We haven't heard from the customer in a while, so let's send a reminder.
   iex> execution |> Journey.get_value(:send_preapproval_reminder, wait: 10_000)
   {:ok, true}
@@ -65,6 +60,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> _execution = execution |> Journey.set_value(:credit_card_mailed, true)
   iex> execution |> Journey.get_value(:credit_card_mailed_notification, wait: true)
   {:ok, true}
+  iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```
 
