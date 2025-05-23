@@ -186,11 +186,12 @@ defmodule Journey.Examples.CreditCardApplication do
   require Logger
 
   import Journey.Node
+  import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
   def graph() do
     Journey.new_graph(
-      "credit card application graph (#{__MODULE__}-#{Journey.Helpers.Random.random_string(5)})",
+      "Credit Card Application flow graph",
       "v1.0.0",
       [
         input(:full_name),
@@ -203,13 +204,7 @@ defmodule Journey.Examples.CreditCardApplication do
         compute(:congratulate, unblocked_when({:preapproval_decision, &approved?/1}), &Compute.send_congrats/1),
         compute(
           :inform_of_rejection,
-          unblocked_when(
-            {:and,
-             [
-               {:preapproval_decision, &provided?/1},
-               {:preapproval_decision, &rejected?/1}
-             ]}
-          ),
+          unblocked_when({:preapproval_decision, &rejected?/1}),
           &Compute.send_rejection/1
         ),
         compute(
@@ -242,7 +237,7 @@ defmodule Journey.Examples.CreditCardApplication do
         input(:credit_card_mailed),
         compute(
           :credit_card_mailed_notification,
-          unblocked_when({:credit_card_mailed, &true?/1}),
+          unblocked_when({:and, [{:credit_card_mailed, &true?/1}, {:initiate_credit_card_issuance, &provided?/1}]}),
           &Compute.send_card_mailed_notification/1
         )
       ]

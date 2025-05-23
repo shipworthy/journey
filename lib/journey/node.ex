@@ -143,6 +143,7 @@ defmodule Journey.Node do
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
+      # TODO: make mutate into its own type.
       type: :compute,
       gated_by: gated_by,
       f_compute: f_compute,

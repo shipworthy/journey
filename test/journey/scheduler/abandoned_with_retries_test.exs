@@ -1,4 +1,5 @@
 defmodule Journey.Scheduler.AbandonedWithRetriesTest do
+  import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
   alias Journey.Scheduler.BackgroundSweeps.Abandoned

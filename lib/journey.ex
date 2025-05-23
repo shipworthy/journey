@@ -94,6 +94,7 @@ defmodule Journey do
 
     ```elixir
     iex> import Journey.Node
+    iex> import Journey.Node.Conditions
     iex> import Journey.Node.UpstreamDependencies
     iex> _graph = Journey.new_graph(
     ...>       "horoscope workflow",

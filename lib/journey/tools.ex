@@ -113,4 +113,123 @@ defmodule Journey.Tools do
     |> Journey.load()
     |> Journey.Scheduler.advance()
   end
+
+  def summarize(execution_id) when is_binary(execution_id) do
+    execution =
+      execution_id
+      |> Journey.load()
+
+    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+
+    set_values = execution.values |> Enum.filter(fn v -> v.set_time != nil end) |> Enum.sort_by(& &1.set_time, :desc)
+    not_set_values = execution.values |> Enum.filter(fn v -> v.set_time == nil end)
+
+    computations_completed =
+      execution.computations
+      |> Enum.filter(fn c -> c.ex_revision_at_completion != nil end)
+      |> Enum.sort_by(& &1.ex_revision_at_completion, :desc)
+
+    computations_outstanding =
+      execution.computations
+      |> Enum.filter(fn c -> c.ex_revision_at_completion == nil end)
+      |> Enum.sort_by(& &1.node_name, :desc)
+
+    archived_at =
+      case execution.archived_at do
+        nil -> "not archived"
+        _ -> DateTime.from_unix!(execution.archived_at)
+      end
+
+    now = System.system_time(:second)
+
+    """
+    Execution summary:
+    - ID: '#{execution_id}'
+    - Graph: '#{execution.graph_name}' | '#{execution.graph_version}'
+    - Archived at: #{archived_at}
+    - Created at: #{DateTime.from_unix!(execution.inserted_at)} UTC | #{now - execution.inserted_at} seconds ago
+    - Last updated at: #{DateTime.from_unix!(execution.updated_at)} UTC | #{now - execution.updated_at} seconds ago
+    - Duration: #{Number.Delimit.number_to_delimited(execution.updated_at - execution.inserted_at, precision: 0)} seconds
+    - Revision: #{execution.revision}
+
+    Values:
+    - Set:
+    """ <>
+      Enum.map_join(set_values, "\n", fn %{
+                                           node_type: node_type,
+                                           node_name: node_name,
+                                           set_time: set_time,
+                                           node_value: node_value,
+                                           ex_revision: ex_revision
+                                         } ->
+        verb = if node_type == :input, do: "set", else: "computed"
+
+        "  - #{node_name}: '#{inspect(node_value)}' | #{inspect(node_type)}\n" <>
+          "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}\n"
+      end) <>
+      """
+      \n
+      - Not set:
+      """ <>
+      Enum.map_join(not_set_values, "\n", fn %{node_type: node_type, node_name: node_name} ->
+        "  - #{node_name}: <unk> | #{inspect(node_type)}"
+      end) <>
+      """
+        \n
+      Computations:
+      - Completed:
+      """ <>
+      Enum.map_join(computations_completed, "\n", fn %{
+                                                       id: id,
+                                                       node_name: node_name,
+                                                       state: state,
+                                                       computation_type: computation_type,
+                                                       computed_with: computed_with,
+                                                       ex_revision_at_completion: ex_revision_at_completion
+                                                     } ->
+        "  - :#{node_name} (#{id}): #{inspect(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
+          "    inputs used: \n" <>
+          Enum.map_join(computed_with, "\n", fn
+            {node_name, revision} ->
+              "       #{inspect(node_name)} (rev #{revision})"
+          end)
+      end) <>
+      """
+      \n
+      - Outstanding:
+      """ <>
+      Enum.map_join(computations_outstanding, "\n", fn %{
+                                                         node_name: node_name,
+                                                         state: state,
+                                                         computation_type: computation_type
+                                                       } ->
+        readiness =
+          Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+            execution.values,
+            graph
+            |> Graph.find_node_by_name(node_name)
+            |> Map.get(:gated_by)
+          )
+
+        "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n" <>
+          Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
+            "       ✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
+          end) <>
+          Enum.map_join(readiness.conditions_not_met, "\n", fn %{upstream_node: v, f_condition: f} ->
+            "       🛑 #{inspect(v.node_name)} | #{f_name(f)}"
+          end)
+      end)
+  end
+
+  def generate_mermaid_graph(graph) do
+    JourneyMermaidConverter.compose_mermaid(graph)
+  end
+
+  defp f_name(fun) when is_function(fun) do
+    fi =
+      fun
+      |> :erlang.fun_info()
+
+    "&#{fi[:name]}/#{fi[:arity]}"
+  end
 end

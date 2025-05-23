@@ -4,6 +4,7 @@ defmodule Journey.JourneyTest do
   import Journey.Helpers.Random, only: [random_string: 0]
 
   import Journey.Node
+  import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
   # TODO: split this into multiple modules that can be run in parallel

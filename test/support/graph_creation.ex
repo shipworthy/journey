@@ -9,7 +9,7 @@ defmodule Journey.Test.Support do
         input(:user_name),
         compute(
           :greeting,
-          [:user_name, :user_name],
+          [:user_name],
           fn %{user_name: user_name} ->
             {:ok, "Hello, #{user_name}"}
           end

@@ -1,5 +1,8 @@
+# TODO: rename Computations to something more meaningful (e.g RuntimeEvaluation)
 defmodule Journey.Node.UpstreamDependencies.Computations do
   @moduledoc false
+
+  import Journey.Node.Conditions
 
   def list_all_node_names(node_names) when is_list(node_names) do
     node_names
@@ -17,6 +20,28 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
   def list_all_node_names({upstream_node_name, _f_condition})
       when is_atom(upstream_node_name) do
     [upstream_node_name]
+  end
+
+  # def upstream_nodes_and_functions()
+
+  def upstream_nodes_and_functions(node_names) when is_list(node_names) do
+    upstream_nodes_and_functions({:and, Enum.map(node_names, fn name -> {name, &provided?/1} end)})
+  end
+
+  def upstream_nodes_and_functions({:not, {node_name, f_condition}})
+      when is_atom(node_name) and is_function(f_condition, 1) do
+    # TODO: find a better way to communicate the ! (not) operator
+    [{node_name, f_condition}]
+  end
+
+  def upstream_nodes_and_functions({operation, conditions}) when operation in [:and, :or] and is_list(conditions) do
+    conditions
+    |> Enum.flat_map(fn c -> upstream_nodes_and_functions(c) end)
+  end
+
+  def upstream_nodes_and_functions({upstream_node_name, f_condition})
+      when is_atom(upstream_node_name) and is_function(f_condition, 1) do
+    [{upstream_node_name, f_condition}]
   end
 
   def evaluate_computation_for_readiness(all_executions_values, list_of_required_node_names)
