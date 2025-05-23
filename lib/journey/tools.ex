@@ -164,13 +164,14 @@ defmodule Journey.Tools do
                                          } ->
         verb = if node_type == :input, do: "set", else: "computed"
 
-        "  - #{node_name}: #{inspect(node_value)} | #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision} | #{inspect(node_type)}"
+        "  - #{node_name}: '#{inspect(node_value)}' | #{inspect(node_type)}\n" <>
+          "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}"
       end) <>
       """
       \n
       - Not set:
       """ <>
-      Enum.map_join(not_set_values, "\n", fn %{node_type: node_type, node_name: node_name, node_value: node_value} ->
+      Enum.map_join(not_set_values, "\n", fn %{node_type: node_type, node_name: node_name} ->
         "  - #{node_name}: <unk> | #{inspect(node_type)}"
       end) <>
       """

@@ -10,15 +10,25 @@ defmodule JourneyMermaidConverter do
     # Build the mermaid definition
     [
       "graph TD",
+      graph_section(nodes, graph.name, graph.version),
       legend_section,
-      build_node_definitions(nodes),
-      "",
-      build_connections(nodes),
-      "",
+      generated_at(),
       build_styling_with_nodes(nodes, show_legend)
     ]
     |> List.flatten()
     |> Enum.join("\n")
+  end
+
+  defp graph_section(nodes, graph_name, graph_version) do
+    [
+      "    %% Graph",
+      "    subgraph Graph[\"🧩 '#{graph_name}', version #{graph_version}\"]",
+      build_node_definitions(nodes),
+      "",
+      build_connections(nodes),
+      "    end",
+      ""
+    ]
   end
 
   # Add a version without legend for cleaner graphs
@@ -31,11 +41,10 @@ defmodule JourneyMermaidConverter do
       "    %% Legend",
       "    subgraph Legend[\"📖 Legend\"]",
       "        LegendInput[\"Input Node<br/>User-provided data\"]",
-      "        LegendCompute[\"Compute Node<br/>(function_name)<br/>Business logic\"]",
-      "        LegendSchedule[\"Schedule Node<br/>(function_name)<br/>schedule_once node<br/>Time-based triggers\"]",
-      "        LegendMutate[\"Mutate Node<br/>(function_name)<br/>mutates: target_node<br/>Value transformation\"]",
-      "    end",
-      ""
+      "        LegendCompute[\"Compute Node<br/>Self-computing value\"]",
+      "        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]",
+      "        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]",
+      "    end"
     ]
   end
 
@@ -45,36 +54,34 @@ defmodule JourneyMermaidConverter do
 
   # Handle Journey.Graph.Input nodes
   defp build_node_definition(%Journey.Graph.Input{name: name}) do
-    "    #{sanitize_name(name)}[#{name}]"
+    "        #{sanitize_name(name)}[#{name}]"
   end
 
-  # Handle Journey.Graph.Step nodes
   defp build_node_definition(%Journey.Graph.Step{name: name, type: type, f_compute: f_compute, mutates: mutates}) do
     function_name = extract_function_name(f_compute)
 
     cond do
-      # Check if it's a mutate node (has mutates field set)
+      # TODO: turn mutate into its own node type.
       mutates != nil ->
-        "    #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]"
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]"
 
-      # Otherwise check the type
       type == :compute ->
-        "    #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
 
       type == :schedule_once ->
-        "    #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>schedule_once node\"]"
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>schedule_once node\"]"
 
       type == :schedule_recurring ->
-        "    #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>schedule_recurring node\"]"
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>schedule_recurring node\"]"
 
       true ->
-        "    #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
     end
   end
 
   # Fallback for any other node types
   defp build_node_definition(%{name: name}) do
-    "    #{sanitize_name(name)}[#{name}]"
+    "        #{sanitize_name(name)}[#{name}]"
   end
 
   defp build_connections(nodes) do
@@ -96,58 +103,50 @@ defmodule JourneyMermaidConverter do
     []
   end
 
-  defp extract_connections(name, gated_by) when is_list(gated_by) do
-    # Simple list of dependencies
-    Enum.map(gated_by, fn dep ->
-      "    #{sanitize_name(dep)} --> #{sanitize_name(name)}"
-    end)
-  end
-
   defp extract_connections(name, gated_by) when is_atom(gated_by) do
     # Single dependency
-    ["    #{sanitize_name(gated_by)} --> #{sanitize_name(name)}"]
+    ["        #{sanitize_name(gated_by)} --> #{sanitize_name(name)}"]
   end
 
   defp extract_connections(name, gated_by) do
-    # Handle any unblocked_when conditions or other complex structures
-    deps = list_all_node_names(gated_by)
+    node_names_and_functions = Journey.Node.UpstreamDependencies.Computations.upstream_nodes_and_functions(gated_by)
 
-    Enum.map(deps, fn dep ->
-      "    #{sanitize_name(dep)} --> #{sanitize_name(name)}"
+    Enum.map(node_names_and_functions, fn {node_name, function} ->
+      caption =
+        function
+        |> extract_condition_function_name()
+        |> case do
+          "" -> ""
+          function_name -> "|#{function_name}|"
+        end
+
+      "        #{sanitize_name(node_name)} --> #{caption} #{sanitize_name(name)}"
     end)
   end
 
-  # Use the same logic as Journey.Node.UpstreamDependencies.Computations.list_all_node_names/1
-  defp list_all_node_names(node_names) when is_list(node_names) do
-    node_names
-  end
-
-  defp list_all_node_names({:not, {node_name, _condition}}) when is_atom(node_name) do
-    [node_name]
-  end
-
-  defp list_all_node_names({operation, conditions}) when operation in [:and, :or] and is_list(conditions) do
-    conditions
-    |> Enum.flat_map(&list_all_node_names/1)
-  end
-
-  defp list_all_node_names({upstream_node_name, _f_condition}) when is_atom(upstream_node_name) do
-    [upstream_node_name]
-  end
-
-  defp list_all_node_names(_), do: []
-
   defp extract_function_name(f) when is_function(f) do
-    try do
-      case Function.info(f) do
-        [module: _module, name: name, arity: arity, env: _, type: :external] ->
-          "&#{name}/#{arity}"
+    case Function.info(f) do
+      [module: _module, name: name, arity: arity, env: _, type: :external] ->
+        "&#{name}/#{arity}"
 
-        _ ->
-          "anonymous fn"
-      end
-    rescue
-      _ -> "anonymous fn"
+      _ ->
+        "anonymous fn"
+    end
+  end
+
+  defp extract_condition_function_name(f) when is_function(f) do
+    f
+    |> Function.info()
+    |> case do
+      [module: _module, name: name, arity: _arity, env: _, type: :external] ->
+        if name == :provided? do
+          ""
+        else
+          "#{name}"
+        end
+
+      _ ->
+        ""
     end
   end
 
@@ -225,6 +224,13 @@ defmodule JourneyMermaidConverter do
   defp build_class_assignment(class_name, node_names) do
     node_list = Enum.join(node_names, ",")
     "    class #{node_list} #{class_name}"
+  end
+
+  def generated_at() do
+    """
+        %% Caption
+        caption[/"Generated at #{DateTime.now!("Etc/UTC")} UTC"/]
+    """
   end
 end
 

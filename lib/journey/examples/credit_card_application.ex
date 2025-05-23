@@ -186,11 +186,12 @@ defmodule Journey.Examples.CreditCardApplication do
   require Logger
 
   import Journey.Node
+  import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
   def graph() do
     Journey.new_graph(
-      "credit card application graph (#{__MODULE__}-#{Journey.Helpers.Random.random_string(5)})",
+      "Credit Card Application flow graph",
       "v1.0.0",
       [
         input(:full_name),

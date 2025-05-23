@@ -4,6 +4,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
   require Logger
 
   import Journey.Node
+  import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
   # def provided?(value_node), do: value_node.set_time != nil
