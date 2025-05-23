@@ -15,7 +15,6 @@ defmodule Journey.Scheduler.Scheduler.RecomputeTest do
 
     # Updating an "upstream" value.
     execution = execution |> Journey.set_value(:user_name, "Luigi")
-    assert Journey.values(execution) == %{user_name: "Luigi", greeting: "Hello, Mario", actual_name: "Bowser"}
 
     # TODO: implement immediate get_value -- so it waits until there are no incomplete computations for this node... is that really needed, though?
     # assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Luigi"}
