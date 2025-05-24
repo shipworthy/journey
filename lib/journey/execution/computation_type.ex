@@ -1,7 +1,7 @@
 defmodule Journey.Execution.ComputationType do
   @moduledoc false
 
-  @type t :: :unknown | :compute | :mutation | :schedule_once | :schedule_recurring
+  @type t :: :unknown | :compute | :mutate | :schedule_once | :schedule_recurring | :archive
 
   @doc """
   Returns all possible types of computations.
@@ -11,9 +11,10 @@ defmodule Journey.Execution.ComputationType do
   def values() do
     [
       :compute,
-      :mutation,
+      :mutate,
       :schedule_once,
-      :schedule_recurring
+      :schedule_recurring,
+      :archive
     ]
   end
 end

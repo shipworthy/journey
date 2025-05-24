@@ -30,7 +30,7 @@ defmodule Journey.Scheduler.Available do
             where:
               c.execution_id == ^execution.id and
                 c.state == ^:not_set and
-                c.computation_type in [^:compute, ^:schedule_once, ^:schedule_recurring],
+                c.computation_type in [^:compute, ^:mutate, ^:schedule_once, ^:schedule_recurring],
             lock: "FOR UPDATE"
           )
           |> repo.all()

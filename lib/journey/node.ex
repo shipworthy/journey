@@ -144,7 +144,7 @@ defmodule Journey.Node do
     %Graph.Step{
       name: name,
       # TODO: make mutate into its own type.
-      type: :compute,
+      type: :mutate,
       gated_by: gated_by,
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
