@@ -33,12 +33,14 @@ defmodule Journey.Examples.CreditCardApplication do
       ssn_redacted: "updated :ssn",
       schedule_request_credit_card_reminder: "..."
     }
-  iex> # We haven't heard from the customer in a while, so let's send a reminder.
+  iex> # We haven't heard from the customer, so we'll send a reminder in a few days (seconds;).
   iex> execution |> Journey.get_value(:send_preapproval_reminder, wait: 10_000)
   {:ok, true}
-  iex> # The customer likes the pre-approval, and requests an actual credit card.
+  iex>
+  iex> # Reminded, the customer requests an actual credit card.
   iex> _execution = execution |> Journey.set_value(:credit_card_requested, true)
-  iex> # ... which tells the folks in fulfillment department to issue the card.
+  iex> # ... which triggers issuing the card.
+  iex>
   iex> execution |> Journey.get_value(:initiate_credit_card_issuance, wait: true)
   {:ok, true}
   iex> execution |> Journey.values() |> Map.update!(:schedule_request_credit_card_reminder, fn _ -> "..." end)
@@ -52,16 +54,18 @@ defmodule Journey.Examples.CreditCardApplication do
       full_name: "Mario",
       ssn: "<redacted>",
       ssn_redacted: "updated :ssn",
+      send_preapproval_reminder: true,
       credit_card_requested: true,
       initiate_credit_card_issuance: true,
-      schedule_request_credit_card_reminder: "...",
-      send_preapproval_reminder: true
+      schedule_request_credit_card_reminder: "..."
     }
+  iex>
   iex> # Eventually, the fulfillment department marks the credit card as mailed.
-  iex> # Eventually, the fulfillment department marks the credit card as mailed.
-  iex> _execution = execution |> Journey.set_value(:credit_card_mailed, true)
+  iex> # Which triggers an email notifying the customer that the card has been mailed.
+  iex> execution = execution |> Journey.set_value(:credit_card_mailed, true)
   iex> execution |> Journey.get_value(:credit_card_mailed_notification, wait: true)
   {:ok, true}
+  iex> # This is only needed in tests.
   iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```
@@ -124,7 +128,7 @@ defmodule Journey.Examples.CreditCardApplication do
     """
     def choose_the_time_to_send_reminder(values) do
       Logger.info("choose_the_time_to_send_reminder: starting. values #{inspect(values)}")
-      when_to_send_reminder = System.system_time(:second) + 2
+      when_to_send_reminder = System.system_time(:second) + 6
       as_dt = DateTime.from_unix!(when_to_send_reminder)
       Logger.info("choose_the_time_to_send_reminder: to be sent at #{as_dt}.")
       {:ok, when_to_send_reminder}
