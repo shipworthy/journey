@@ -62,6 +62,8 @@ defmodule Journey do
 
   And that's it!
 
+  ## What Exactly Does Journey Provide?
+
   Despite this simplicity of use, here are a few things provided by Journey that are worth noting:
 
   * Persistence: Executions are persisted, so if the user leaves the web site, or if the system crashes, their execution can be reloaded and continued from where it left off.
