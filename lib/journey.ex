@@ -155,14 +155,18 @@ defmodule Journey do
   ```
 
   """
-  def load(nil), do: nil
+  def load(_, _opts \\ [])
 
-  def load(execution_id) when is_binary(execution_id) do
+  def load(nil, _), do: nil
+
+  def load(execution_id, opts) when is_binary(execution_id) do
+    _include_archived? = Keyword.get(opts, :include_archived, false)
+
     Journey.Executions.load(execution_id)
   end
 
-  def load(execution) when is_struct(execution, Execution) do
-    load(execution.id)
+  def load(execution, opts) when is_struct(execution, Execution) do
+    load(execution.id, opts)
   end
 
   @doc """

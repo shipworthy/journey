@@ -143,7 +143,6 @@ defmodule Journey.Node do
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
-      # TODO: make mutate into its own type.
       type: :mutate,
       gated_by: gated_by,
       f_compute: f_compute,
@@ -152,6 +151,50 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
     }
+  end
+
+  @doc """
+  Creates a graph node that mutates the value of another node.
+
+  ## Examples:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "`archive()` doctest graph (a useless machine that archives itself immediately;)",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:name),
+  ...>         archive(:archive, [:name])
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution.archived_at == nil
+  true
+  iex> execution = Journey.set_value(execution, :name, "Mario")
+  iex> {:ok, _} = Journey.get_value(execution, :archive, wait: true)
+  iex> execution = Journey.load(execution)
+  iex> execution.archived_at == nil
+  false
+  ```
+
+  """
+  def archive(name, gated_by, opts \\ [])
+      when is_atom(name) do
+    %Graph.Step{
+      name: name,
+      type: :compute,
+      gated_by: gated_by,
+      f_compute: &archive_graph/1,
+      f_on_save: Keyword.get(opts, :f_on_save, nil),
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+    }
+  end
+
+  defp archive_graph(e) do
+    archived_at = Journey.Executions.archive_execution(e.execution_id)
+    {:ok, archived_at}
   end
 
   @doc """

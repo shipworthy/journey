@@ -17,6 +17,17 @@ defmodule Journey.Executions do
           }
           |> repo.insert!()
 
+        # Each execution gets a value holding its execution ID.
+        %Execution.Value{
+          execution: execution,
+          node_name: "execution_id",
+          node_type: :input,
+          ex_revision: execution.revision,
+          set_time: System.system_time(:second),
+          node_value: execution.id
+        }
+        |> repo.insert!()
+
         # Create a value record for every graph node, regardless of the graph node's type.
         _values =
           nodes
@@ -61,6 +72,18 @@ defmodule Journey.Executions do
       end)
 
     execution
+  end
+
+  defp q_execution(execution_id, true) do
+    from(e in Execution,
+      where: e.id == ^execution_id and is_nil(e.archived_at)
+    )
+  end
+
+  defp q_execution(execution_id, false) do
+    from(e in Execution,
+      where: e.id == ^execution_id
+    )
   end
 
   def load(execution_id, preload? \\ true) when is_binary(execution_id) and is_boolean(preload?) do
@@ -227,6 +250,18 @@ defmodule Journey.Executions do
       from(e in q, where: e.graph_name == ^graph_name)
     end
     |> add_filters(value_filters)
+  end
+
+  def archive_execution(execution_id) do
+    prefix = "[#{mf()}][#{execution_id}]"
+    Logger.debug("#{prefix}: archiving execution")
+
+    now = System.system_time(:second)
+
+    from(e in Execution, where: e.id == ^execution_id)
+    |> Journey.Repo.update_all(set: [archived_at: now, updated_at: now])
+
+    now
   end
 
   defp add_filters(q, value_filters) do
