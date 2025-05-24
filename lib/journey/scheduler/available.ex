@@ -48,18 +48,18 @@ defmodule Journey.Scheduler.Available do
           UpstreamDependencies.Computations.evaluate_computation_for_readiness(all_value_nodes, gated_by)
           |> Map.put(:computation, computation_candidate)
         end)
-        |> Enum.map(fn c ->
-          summary =
-            Journey.Scheduler.Introspection.readiness_state(
-              c.ready?,
-              c.conditions_met,
-              c.conditions_not_met,
-              c.computation.node_name
-            )
+        # |> Enum.map(fn c ->
+        #   summary =
+        #     Journey.Scheduler.Introspection.readiness_state(
+        #       c.ready?,
+        #       c.conditions_met,
+        #       c.conditions_not_met,
+        #       c.computation.node_name
+        #     )
 
-          Logger.info("#{prefix}: v0 [#{inspect(c.computation.node_name)}]\n=====\n#{summary}\n=====")
-          c
-        end)
+        #   Logger.info("#{prefix}: v0 [#{inspect(c.computation.node_name)}]\n=====\n#{summary}\n=====")
+        #   c
+        # end)
         |> Enum.filter(fn %{ready?: ready?} -> ready? end)
         |> Enum.map(fn %{ready?: true, computation: unblocked_computation, conditions_met: fulfilled_conditions} ->
           %{

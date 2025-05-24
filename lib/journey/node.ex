@@ -28,8 +28,8 @@ defmodule Journey.Node do
   ...>        ]
   ...>     )
   iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:first_name, "Mario")
-  iex> Journey.values(execution)
-  %{first_name: "Mario"}
+  iex> Journey.values(execution) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
+  %{first_name: "Mario", execution_id: "EXEC..."}
   ```
 
   """
@@ -87,8 +87,8 @@ defmodule Journey.Node do
   iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:name, "Alice")
   iex> execution |> Journey.get_value(:pig_latin_ish_name, wait: true)
   {:ok, "Alice-ay"}
-  iex> execution |> Journey.values()
-  %{name: "Alice", pig_latin_ish_name: "Alice-ay"}
+  iex> execution |> Journey.values() |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
+  %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "EXEC..."}
   ```
 
   """
@@ -134,8 +134,8 @@ defmodule Journey.Node do
   ...>     |> Journey.set_value(:name, "Mario")
   iex> execution |> Journey.get_value(:remove_pii, wait: true)
   {:ok, "updated :name"}
-  iex> execution |> Journey.values()
-  %{name: "redacted", remove_pii: "updated :name"}
+  iex> execution |> Journey.values() |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
+  %{name: "redacted", remove_pii: "updated :name",  execution_id: "EXEC..."}
   ```
 
   """

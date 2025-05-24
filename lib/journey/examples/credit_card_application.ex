@@ -20,7 +20,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> # This kicks off the pre-approval process, which eventually completes.
   iex> execution |> Journey.get_value(:preapproval_process_completed, wait: true)
   {:ok, true}
-  iex> execution |> Journey.values() |> Map.update!(:schedule_request_credit_card_reminder, fn _ -> "..." end)
+  iex> execution |> Journey.values() |> Map.update!(:schedule_request_credit_card_reminder, fn _ -> "..." end) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
   %{
       preapproval_process_completed: true,
       birth_date: "10/11/1981",
@@ -31,7 +31,8 @@ defmodule Journey.Examples.CreditCardApplication do
       full_name: "Mario",
       ssn: "<redacted>",
       ssn_redacted: "updated :ssn",
-      schedule_request_credit_card_reminder: "..."
+      schedule_request_credit_card_reminder: "...",
+      execution_id: "EXEC..."
     }
   iex> # We haven't heard from the customer, so we'll send a reminder in a few days (seconds;).
   iex> execution |> Journey.get_value(:send_preapproval_reminder, wait: 10_000)
@@ -43,7 +44,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex>
   iex> execution |> Journey.get_value(:initiate_credit_card_issuance, wait: true)
   {:ok, true}
-  iex> execution |> Journey.values() |> Map.update!(:schedule_request_credit_card_reminder, fn _ -> "..." end)
+  iex> execution |> Journey.values() |> Map.update!(:schedule_request_credit_card_reminder, fn _ -> "..." end) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
   %{
       preapproval_process_completed: true,
       birth_date: "10/11/1981",
@@ -57,7 +58,8 @@ defmodule Journey.Examples.CreditCardApplication do
       send_preapproval_reminder: true,
       credit_card_requested: true,
       initiate_credit_card_issuance: true,
-      schedule_request_credit_card_reminder: "..."
+      schedule_request_credit_card_reminder: "...",
+      execution_id: "EXEC..."
     }
   iex>
   iex> # Eventually, the fulfillment department marks the credit card as mailed.

@@ -19,29 +19,38 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
 
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
-    assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
+    assert Journey.values(execution)
+           |> redact(:time_to_issue_reminder_schedule)
+           |> Map.update!(:execution_id, fn _ -> "EXEC..." end) == %{
              greeting: "Hello, Mario",
              reminder: "Reminder: Hello, Mario",
              user_name: "Mario",
-             time_to_issue_reminder_schedule: :redacted
+             time_to_issue_reminder_schedule: :redacted,
+             execution_id: "EXEC..."
            }
 
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
-    assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
+    assert Journey.values(execution)
+           |> redact(:time_to_issue_reminder_schedule)
+           |> Map.update!(:execution_id, fn _ -> "EXEC..." end) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
-             time_to_issue_reminder_schedule: :redacted
+             time_to_issue_reminder_schedule: :redacted,
+             execution_id: "EXEC..."
            }
 
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
-    assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
+    assert Journey.values(execution)
+           |> redact(:time_to_issue_reminder_schedule)
+           |> Map.update!(:execution_id, fn _ -> "EXEC..." end) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
-             time_to_issue_reminder_schedule: :redacted
+             time_to_issue_reminder_schedule: :redacted,
+             execution_id: "EXEC..."
            }
 
     end_time = System.system_time(:second)
