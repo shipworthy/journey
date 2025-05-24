@@ -138,6 +138,22 @@ defmodule Journey do
   @doc """
   Loads the latest version of the execution with the supplied ID.
 
+  Archived executions are not loaded by default, but can be included by setting the `include_archived: true` option.
+
+  ## Parameters:
+  - `execution_id` – the ID of the execution to load, or a `%Journey.Execution{}` struct.
+
+  ## Options:
+  - `opts` – a keyword list of options. Supported options:
+    - `:preload` – whether to preload the execution's nodes and values. Defaults to `true`.
+    - `:include_archived` – whether to include archived executions. Defaults to `false`. If set to `true`, archived executions will be loaded even if they are not visible in the list of executions.
+
+  ## Returns:
+  - A `%Journey.Execution{}` struct representing the loaded execution, or `nil` if the execution does not exist or is archived and not included.
+  - If the execution is loaded successfully, it will have a `revision` field indicating the version of the execution.
+  - If the execution is not found, it will return `nil`.
+  - If the execution is archived and `include_archived: false` (or if `include_archived: ` is missing), it will return `nil`.
+
   ## Examples:
 
   ```elixir
@@ -176,6 +192,19 @@ defmodule Journey do
   @doc """
   Lists existing executions.
 
+  Archived executions are not included by default, but can be included by setting the `include_archived: true` option.
+
+  ## Options:
+  - `:graph_name` – the name of the graph for which to list executions.
+  - `:order_by_execution_fields` – a list of fields by which to order the executions. Defaults to `[:updated_at]`.
+  - `:value_filters` – a list of filters to apply to the execution values. Each filter is a tuple in the format `{node_name, operator, value}` or `{node_name, function, value}`. Supported operators are `:eq`, `:gt`, `:gte`, `:lt`, `:lte`. The function can be any function that takes two arguments and returns a boolean.
+  - `:limit` – the maximum number of executions to return. Defaults to `10_000`.
+  - `:offset` – the offset from which to start returning executions. Defaults to `0`.
+  - `:include_archived` – whether to include archived executions. Defaults to `false`.
+
+  ## Returns:
+  - A list of `%Journey.Execution{}` structs representing the executions that match the given criteria.
+
   ## Examples:
 
   ```elixir
@@ -204,20 +233,24 @@ defmodule Journey do
   3
   iex> Journey.list_executions(graph_name: graph.name, limit: 10, offset: 15) |> Enum.count()
   5
+  iex> Journey.list_executions(graph_name: graph.name, include_archived: true) |> Enum.count()
+  20
   ```
 
   """
 
   def list_executions(options \\ []) do
-    check_options(options, [:graph_name, :order_by_execution_fields, :value_filters, :limit, :offset])
+    check_options(options, [:graph_name, :order_by_execution_fields, :value_filters, :limit, :offset, :include_archived])
+
     value_filters = Keyword.get(options, :value_filters, [])
     limit = Keyword.get(options, :limit, 10_000)
     offset = Keyword.get(options, :offset, 0)
 
     graph_name = Keyword.get(options, :graph_name, nil)
     order_by_field = Keyword.get(options, :order_by_execution_fields, [:updated_at])
+    include_archived = Keyword.get(options, :include_archived, false)
 
-    Journey.Executions.list(graph_name, order_by_field, value_filters, limit, offset)
+    Journey.Executions.list(graph_name, order_by_field, value_filters, limit, offset, include_archived)
   end
 
   @doc """
@@ -347,6 +380,8 @@ defmodule Journey do
   @doc """
   Sets the value for an input node in an execution.
 
+  If the newly supplied value unblocks any downstream computations, they will be scheduled for execution (and the computed values will eventually become available).
+
   ## Examples
 
   ```elixir
@@ -357,7 +392,11 @@ defmodule Journey do
   ...>       [
   ...>         input(:name),
   ...>         input(:last_name),
-  ...>         input(:district)
+  ...>         compute(
+  ...>           :greeting,
+  ...>           [:name, :last_name],
+  ...>           fn %{name: name, last_name: last_name} -> {:ok, "Hello, \#{name} \#{last_name}!"} end
+  ...>         )
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
@@ -365,7 +404,14 @@ defmodule Journey do
   iex> execution |> Journey.values() |> redact(:execution_id)
   %{name: "Mario", execution_id: "..."}
   iex> execution |> Journey.values_all() |> redact(:execution_id)
-  %{name: {:set, "Mario"}, district: :not_set, last_name: :not_set, execution_id: {:set, "..."}}
+  %{name: {:set, "Mario"}, greeting: :not_set, last_name: :not_set, execution_id: {:set, "..."}}
+  iex> execution = Journey.set_value(execution, :last_name, "Bowser")
+  iex> # The downstream computed value now becomes available:
+  iex> Journey.get_value(execution, :greeting, wait: true)
+  {:ok, "Hello, Mario Bowser!"}
+  iex> execution |> Journey.values() |> redact(:execution_id)
+  %{name: "Mario", greeting: "Hello, Mario Bowser!", last_name: "Bowser", execution_id: "..."}
+
   ```
 
   """
@@ -447,6 +493,79 @@ defmodule Journey do
 
     Executions.get_value(execution, node_name, timeout_ms)
   end
+
+  @doc """
+  Archives the supplied execution.
+
+  Once an execution is archived, it is no longer visible in the list of executions, and cannot be loaded unless explicitly requested with the `include_archived: true` option. The background processing of the execution will stop.
+
+  ## Parameters:
+  - `execution` or `execution_id`: The execution to archive, or the ID of the execution to archive.
+
+  Returns
+  * the time (unix epoch in seconds) of the execution's archived_at timestamp.
+
+  ## Examples
+
+    ```elixir
+    iex> execution =
+    ...>    Journey.Examples.Horoscope.graph() |>
+    ...>    Journey.start_execution() |>
+    ...>    Journey.set_value(:birth_day, 26)
+    iex> execution.archived_at
+    nil
+    iex> archived_at = Journey.archive(execution)
+    iex> archived_at == nil
+    false
+    iex> # Archived executions are invisible.
+    iex> Journey.load(execution)
+    nil
+    iex> # Archiving an archived execution has no effect.
+    iex> archived_at == Journey.archive(execution)
+    true
+    ```
+  """
+  def archive(execution_id) when is_binary(execution_id) do
+    Journey.Executions.archive_execution(execution_id)
+  end
+
+  def archive(execution) when is_struct(execution, Journey.Execution), do: Journey.archive(execution.id)
+
+  @doc """
+  Un-archives the supplied execution, if it is archived.
+
+  ## Parameters:
+  - `execution` or `execution_id`: The execution to un-archive, or the ID of the execution to un-archive.
+
+  Returns
+  * :ok
+
+  ## Examples
+
+    ```elixir
+    iex> execution =
+    ...>    Journey.Examples.Horoscope.graph() |>
+    ...>    Journey.start_execution() |>
+    ...>    Journey.set_value(:birth_day, 26)
+    iex> _archived_at = Journey.archive(execution)
+    iex> # The execution is now archived, and it is no longer visible.
+    iex> nil == Journey.load(execution, include_archived: false)
+    true
+    iex> Journey.unarchive(execution)
+    :ok
+    iex> # The execution is now un-archived, and it can now be loaded.
+    iex> nil == Journey.load(execution, include_archived: false)
+    false
+    iex> # Un-archiving an un-archived execution has no effect.
+    iex> Journey.unarchive(execution)
+    :ok
+    ```
+  """
+  def unarchive(execution_id) when is_binary(execution_id) do
+    Journey.Executions.unarchive_execution(execution_id)
+  end
+
+  def unarchive(execution) when is_struct(execution, Journey.Execution), do: Journey.unarchive(execution.id)
 
   defp check_options(supplied_option_names_kwl, known_option_names_list) do
     supplied_option_names = MapSet.new(Keyword.keys(supplied_option_names_kwl))

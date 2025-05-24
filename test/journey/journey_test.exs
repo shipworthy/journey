@@ -187,7 +187,7 @@ defmodule Journey.JourneyTest do
 
     test "unexpected option" do
       assert_raise ArgumentError,
-                   "Unknown options: [:graph]. Known options: [:graph_name, :limit, :offset, :order_by_execution_fields, :value_filters].",
+                   "Unknown options: [:graph]. Known options: [:graph_name, :include_archived, :limit, :offset, :order_by_execution_fields, :value_filters].",
                    fn ->
                      Journey.list_executions(graph: "no_such_graph")
                    end

@@ -236,13 +236,21 @@ defmodule Journey.Executions do
     end
   end
 
-  def list(graph_name, sort_by_ex_fields, value_filters, limit, offset)
+  def list(graph_name, sort_by_ex_fields, value_filters, limit, offset, include_archived?)
       when (is_nil(graph_name) or is_binary(graph_name)) and
              is_list(sort_by_ex_fields) and
              is_list(value_filters) and
              is_number(limit) and
-             is_number(offset) do
+             is_number(offset) and
+             is_boolean(include_archived?) do
     q = from(e in Execution, limit: ^limit, offset: ^offset)
+
+    q =
+      if include_archived? do
+        q
+      else
+        from(e in q, where: is_nil(e.archived_at))
+      end
 
     q =
       sort_by_ex_fields
@@ -260,14 +268,58 @@ defmodule Journey.Executions do
 
   def archive_execution(execution_id) do
     prefix = "[#{mf()}][#{execution_id}]"
-    Logger.debug("#{prefix}: archiving execution")
+    Logger.info("#{prefix}: archiving execution")
 
-    now = System.system_time(:second)
+    {:ok, archived_at_time} =
+      Journey.Repo.transaction(fn repo ->
+        current_execution =
+          from(e in Execution, where: e.id == ^execution_id)
+          |> repo.one!()
 
-    from(e in Execution, where: e.id == ^execution_id)
-    |> Journey.Repo.update_all(set: [archived_at: now, updated_at: now])
+        if current_execution.archived_at != nil do
+          Logger.info("#{prefix}: execution already archived (#{current_execution.archived_at})")
+          current_execution.archived_at
+        else
+          now = System.system_time(:second)
+          Logger.info("#{prefix}: setting archived_at to #{now}")
+          Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
 
-    now
+          from(e in Execution, where: e.id == ^execution_id)
+          |> Journey.Repo.update_all(set: [archived_at: now, updated_at: now])
+
+          now
+        end
+      end)
+
+    archived_at_time
+  end
+
+  def unarchive_execution(execution_id) do
+    prefix = "[#{mf()}][#{execution_id}]"
+    Logger.info("#{prefix}: unarchiving execution")
+
+    {:ok, :ok} =
+      Journey.Repo.transaction(fn repo ->
+        current_execution =
+          from(e in Execution, where: e.id == ^execution_id)
+          |> repo.one!()
+
+        if current_execution.archived_at == nil do
+          Logger.info("#{prefix}: execution not archived, nothing to do")
+          :ok
+        else
+          Logger.info("#{prefix}: setting archived_at property to nil")
+          now = System.system_time(:second)
+          Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
+
+          from(e in Execution, where: e.id == ^execution_id)
+          |> Journey.Repo.update_all(set: [archived_at: nil, updated_at: now])
+
+          :ok
+        end
+      end)
+
+    :ok
   end
 
   defp add_filters(q, value_filters) do
