@@ -68,31 +68,37 @@ defmodule Journey.Executions do
         # }
         # TODO: investigate if this helps with loading newly updated data (making sure we always get it back), if not -- find a
         #  solution, and do this outside of the transaction.
-        load(execution.id)
+        load(execution.id, true, false)
       end)
 
     execution
   end
 
-  defp q_execution(execution_id, true) do
-    from(e in Execution,
+  defp q_execution(execution_id, include_archived?) when include_archived? == false do
+    from(
+      e in Execution,
       where: e.id == ^execution_id and is_nil(e.archived_at)
     )
   end
 
-  defp q_execution(execution_id, false) do
-    from(e in Execution,
+  defp q_execution(execution_id, include_archived?) when include_archived? == true do
+    from(
+      e in Execution,
       where: e.id == ^execution_id
     )
   end
 
-  def load(execution_id, preload? \\ true) when is_binary(execution_id) and is_boolean(preload?) do
+  def load(execution_id, preload?, include_archived?)
+      when is_binary(execution_id) and is_boolean(preload?) and is_boolean(include_archived?) do
     if preload? do
-      from(e in Execution, where: e.id == ^execution_id, preload: [:values, :computations])
+      from(e in q_execution(execution_id, include_archived?),
+        where: e.id == ^execution_id,
+        preload: [:values, :computations]
+      )
       |> Journey.Repo.one()
       |> convert_node_names_to_atoms()
     else
-      from(e in Execution, where: e.id == ^execution_id)
+      from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
       |> Journey.Repo.one()
     end
   end

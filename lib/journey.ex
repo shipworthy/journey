@@ -160,9 +160,11 @@ defmodule Journey do
   def load(nil, _), do: nil
 
   def load(execution_id, opts) when is_binary(execution_id) do
-    _include_archived? = Keyword.get(opts, :include_archived, false)
-
-    Journey.Executions.load(execution_id)
+    Journey.Executions.load(
+      execution_id,
+      Keyword.get(opts, :preload, true),
+      Keyword.get(opts, :include_archived, false)
+    )
   end
 
   def load(execution, opts) when is_struct(execution, Execution) do

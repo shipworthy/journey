@@ -26,7 +26,9 @@ defmodule Journey.Node.ArchiveTest do
       execution = Journey.set_value(execution, :user_name, "John Doe")
       assert {:ok, "Hello, John Doe"} = Journey.get_value(execution, :greeting, wait: true)
       {:ok, _a} = Journey.get_value(execution, :archival, wait: true)
-      execution = execution |> Journey.load()
+      assert nil == execution |> Journey.load(), "archived executions are no not load'able by default"
+
+      execution = execution |> Journey.load(include_archived: true)
       assert execution.archived_at != nil
     end
   end

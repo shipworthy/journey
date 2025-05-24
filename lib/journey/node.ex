@@ -173,7 +173,9 @@ defmodule Journey.Node do
   true
   iex> execution = Journey.set_value(execution, :name, "Mario")
   iex> {:ok, _} = Journey.get_value(execution, :archive, wait: true)
-  iex> execution = Journey.load(execution)
+  iex> Journey.load(execution)
+  nil
+  iex> execution = Journey.load(execution, include_archived: true)
   iex> execution.archived_at == nil
   false
   ```
