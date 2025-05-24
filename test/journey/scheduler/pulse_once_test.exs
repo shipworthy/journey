@@ -3,23 +3,21 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
 
   import Journey.Node
 
-  alias Journey.Scheduler.BackgroundSweeps.Scheduled
+  alias Journey.Scheduler.BackgroundSweeps
 
-  #   @tag :skip
   test "basic pulse" do
     graph = simple_graph()
     execution = graph |> Journey.start_execution()
 
+    start_time = System.system_time(:second)
+
+    background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+
     execution = execution |> Journey.set_value(:user_name, "Mario")
-    Scheduled.sweep(execution.id)
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
-    Process.sleep(2000)
-    Scheduled.sweep(execution.id)
-    Process.sleep(2000)
-
-    assert Journey.get_value(execution, :reminder, wait: 10_000) == {:ok, "Reminder: Hello, Mario"}
+    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
              greeting: "Hello, Mario",
@@ -28,8 +26,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
              time_to_issue_reminder_schedule: :redacted
            }
 
-    Scheduled.sweep(execution.id)
-    assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
+    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
              greeting: "Hello, Mario",
@@ -38,7 +35,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
              time_to_issue_reminder_schedule: :redacted
            }
 
-    assert Journey.get_value(execution, :reminder, wait: true) == {:ok, "Reminder: Hello, Mario"}
+    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule) == %{
              greeting: "Hello, Mario",
@@ -46,6 +43,12 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
              reminder: "Reminder: Hello, Mario",
              time_to_issue_reminder_schedule: :redacted
            }
+
+    end_time = System.system_time(:second)
+
+    assert end_time - start_time >= 10
+
+    BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
     # TODO: add a recompute (modify user_name) and watch the change propagate (think through use cases).
   end
@@ -70,7 +73,7 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
         schedule_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
-          fn _ -> {:ok, System.system_time(:second) + 1} end
+          fn _ -> {:ok, System.system_time(:second) + 10} end
         ),
         compute(
           :reminder,

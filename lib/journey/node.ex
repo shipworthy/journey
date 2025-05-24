@@ -194,14 +194,11 @@ defmodule Journey.Node do
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
-  iex> Task.start(fn ->
-  ...>   for _ <- 1..3 do
-  ...>     :timer.sleep(2_000)
-  ...>     Journey.Scheduler.BackgroundSweeps.Scheduled.sweep(execution.id)
-  ...>   end
-  ...> end)
+  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
   iex> execution |> Journey.get_value(:nap_time, wait: 10_000) # this will take a couple of seconds.
   {:ok, "It's time to take a nap, Mario!"}
+  iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+
   ```
 
   """

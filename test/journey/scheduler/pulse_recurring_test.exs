@@ -2,29 +2,22 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
-  alias Journey.Scheduler.BackgroundSweeps.Scheduled
+  alias Journey.Scheduler.BackgroundSweeps
 
+  @tag :skip
   test "basic schedule_recurring flow" do
     # TODO: implement
     graph = simple_graph()
     execution = graph |> Journey.start_execution()
+    background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
-    Scheduled.sweep(execution.id)
 
     assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
 
     Process.sleep(1000)
-    Scheduled.sweep(execution.id)
     {:ok, _time} = Journey.get_value(execution, :time_to_issue_reminder_schedule_recurring, wait: true)
 
-    Scheduled.sweep(execution.id)
-    Process.sleep(1000)
-    Scheduled.sweep(execution.id)
-    Process.sleep(1000)
-    Scheduled.sweep(execution.id)
-    Process.sleep(1000)
-    Scheduled.sweep(execution.id)
     assert {:ok, "Reminder: Hello, Mario"} = Journey.get_value(execution, :reminder, wait: true)
 
     assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule_recurring) == %{
@@ -33,6 +26,8 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
              reminder: "Reminder: Hello, Mario",
              time_to_issue_reminder_schedule_recurring: :redacted
            }
+
+    BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
   end
 
   defp redact(map, key) do

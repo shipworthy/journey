@@ -23,7 +23,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
         abandoned_computations =
           from(c in from_computations(execution_id),
             where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
-            lock: "FOR UPDATE SKIP LOCKED"
+            lock: "FOR UPDATE"
           )
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)

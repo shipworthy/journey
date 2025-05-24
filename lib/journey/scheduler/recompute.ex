@@ -29,7 +29,7 @@ defmodule Journey.Scheduler.Recompute do
           from(c in Computation,
             where: c.id in subquery(latest_computation_ids),
             # TODO: here and elsewhere, experiment with a regular "SELECT FOR UPDATE", no "SKIP LOCKED".
-            lock: "FOR UPDATE SKIP LOCKED"
+            lock: "FOR UPDATE"
           )
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)

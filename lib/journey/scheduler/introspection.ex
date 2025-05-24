@@ -25,9 +25,7 @@ defmodule Journey.Scheduler.Introspection do
 
     """
     Node: #{inspect(computation_name)}
-
     Blocked?: #{inspect(!ready?)} #{icon}
-
     Upstream prerequisites:
     - met:
     #{conditions_met}
