@@ -160,6 +160,8 @@ defmodule Journey do
   def load(nil, _), do: nil
 
   def load(execution_id, opts) when is_binary(execution_id) do
+    check_options(opts, [:preload, :include_archived])
+
     Journey.Executions.load(
       execution_id,
       Keyword.get(opts, :preload, true),
@@ -207,17 +209,10 @@ defmodule Journey do
   """
 
   def list_executions(options \\ []) do
-    known_option_names = MapSet.new([:graph_name, :order_by_execution_fields, :value_filters, :limit, :offset])
-    supplied_option_names = MapSet.new(Keyword.keys(options))
-    unexpected_option_names = MapSet.difference(supplied_option_names, known_option_names)
+    check_options(options, [:graph_name, :order_by_execution_fields, :value_filters, :limit, :offset])
     value_filters = Keyword.get(options, :value_filters, [])
     limit = Keyword.get(options, :limit, 10_000)
     offset = Keyword.get(options, :offset, 0)
-
-    if unexpected_option_names != MapSet.new([]) do
-      raise ArgumentError,
-            "Unknown options: #{inspect(MapSet.to_list(unexpected_option_names))}. Known options: #{inspect(MapSet.to_list(known_option_names) |> Enum.sort())}."
-    end
 
     graph_name = Keyword.get(options, :graph_name, nil)
     order_by_field = Keyword.get(options, :order_by_execution_fields, [:updated_at])
@@ -325,6 +320,8 @@ defmodule Journey do
 
   """
   def values(execution, opts \\ []) when is_struct(execution, Execution) and is_list(opts) do
+    check_options(opts, [:reload])
+
     reload? = Keyword.get(opts, :reload, true)
 
     execution =
@@ -423,6 +420,8 @@ defmodule Journey do
   """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
+    check_options(opts, [:wait])
+
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
     default_timeout_ms = 5_000
 
@@ -447,5 +446,17 @@ defmodule Journey do
       end
 
     Executions.get_value(execution, node_name, timeout_ms)
+  end
+
+  defp check_options(supplied_option_names_kwl, known_option_names_list) do
+    supplied_option_names = MapSet.new(Keyword.keys(supplied_option_names_kwl))
+    known_option_names = MapSet.new(known_option_names_list)
+
+    unexpected_option_names = MapSet.difference(supplied_option_names, known_option_names)
+
+    if unexpected_option_names != MapSet.new([]) do
+      raise ArgumentError,
+            "Unknown options: #{inspect(MapSet.to_list(unexpected_option_names))}. Known options: #{inspect(MapSet.to_list(known_option_names) |> Enum.sort())}."
+    end
   end
 end
