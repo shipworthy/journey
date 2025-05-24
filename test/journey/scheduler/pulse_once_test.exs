@@ -20,37 +20,35 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
-           |> redact(:time_to_issue_reminder_schedule)
-           |> Map.update!(:execution_id, fn _ -> "EXEC..." end) == %{
+           |> redact([:time_to_issue_reminder_schedule, :execution_id]) ==
+             %{
+               greeting: "Hello, Mario",
+               reminder: "Reminder: Hello, Mario",
+               user_name: "Mario",
+               time_to_issue_reminder_schedule: 1_234_567_890,
+               execution_id: "..."
+             }
+
+    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
+
+    assert Journey.values(execution)
+           |> redact([:time_to_issue_reminder_schedule, :execution_id]) == %{
              greeting: "Hello, Mario",
-             reminder: "Reminder: Hello, Mario",
              user_name: "Mario",
-             time_to_issue_reminder_schedule: :redacted,
-             execution_id: "EXEC..."
+             reminder: "Reminder: Hello, Mario",
+             time_to_issue_reminder_schedule: 1_234_567_890,
+             execution_id: "..."
            }
 
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
-           |> redact(:time_to_issue_reminder_schedule)
-           |> Map.update!(:execution_id, fn _ -> "EXEC..." end) == %{
+           |> redact([:time_to_issue_reminder_schedule, :execution_id]) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
-             time_to_issue_reminder_schedule: :redacted,
-             execution_id: "EXEC..."
-           }
-
-    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
-
-    assert Journey.values(execution)
-           |> redact(:time_to_issue_reminder_schedule)
-           |> Map.update!(:execution_id, fn _ -> "EXEC..." end) == %{
-             greeting: "Hello, Mario",
-             user_name: "Mario",
-             reminder: "Reminder: Hello, Mario",
-             time_to_issue_reminder_schedule: :redacted,
-             execution_id: "EXEC..."
+             time_to_issue_reminder_schedule: 1_234_567_890,
+             execution_id: "..."
            }
 
     end_time = System.system_time(:second)
@@ -60,10 +58,6 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
     # TODO: add a recompute (modify user_name) and watch the change propagate (think through use cases).
-  end
-
-  defp redact(map, key) do
-    Map.replace!(map, key, :redacted)
   end
 
   defp simple_graph() do

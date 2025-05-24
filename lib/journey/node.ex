@@ -28,8 +28,8 @@ defmodule Journey.Node do
   ...>        ]
   ...>     )
   iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:first_name, "Mario")
-  iex> Journey.values(execution) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{first_name: "Mario", execution_id: "EXEC..."}
+  iex> Journey.values(execution) |> redact(:execution_id)
+  %{first_name: "Mario", execution_id: "..."}
   ```
 
   """
@@ -87,8 +87,8 @@ defmodule Journey.Node do
   iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:name, "Alice")
   iex> execution |> Journey.get_value(:pig_latin_ish_name, wait: true)
   {:ok, "Alice-ay"}
-  iex> execution |> Journey.values() |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "EXEC..."}
+  iex> execution |> Journey.values() |> redact(:execution_id)
+  %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "..."}
   ```
 
   """
@@ -134,8 +134,8 @@ defmodule Journey.Node do
   ...>     |> Journey.set_value(:name, "Mario")
   iex> execution |> Journey.get_value(:remove_pii, wait: true)
   {:ok, "updated :name"}
-  iex> execution |> Journey.values() |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{name: "redacted", remove_pii: "updated :name",  execution_id: "EXEC..."}
+  iex> execution |> Journey.values() |> redact(:execution_id)
+  %{name: "redacted", remove_pii: "updated :name",  execution_id: "..."}
   ```
 
   """
@@ -273,5 +273,29 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
     }
+  end
+
+  @doc false
+  def redact(map, key) when is_map(map) and is_atom(key) do
+    map
+    |> Map.update!(
+      key,
+      fn
+        {:set, _} -> {:set, "..."}
+        value when is_binary(value) -> "..."
+        value when is_integer(value) -> 1_234_567_890
+      end
+    )
+  end
+
+  @doc false
+  def redact(map, keys) when is_map(map) and is_list(keys) do
+    keys
+    |> Enum.reduce(
+      map,
+      fn key, acc when is_atom(key) and is_map(acc) ->
+        redact(acc, key)
+      end
+    )
   end
 end

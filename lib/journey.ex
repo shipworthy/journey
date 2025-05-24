@@ -64,16 +64,16 @@ defmodule Journey do
   iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
   iex> Journey.get_value(e, :zodiac_sign, wait: true)
   {:ok, "Taurus"}
-  iex> Journey.values(e) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "EXEC..."}
+  iex> Journey.values(e) |> redact(:execution_id)
+  %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "..."}
   iex>
   iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
   iex> e = Journey.set_value(e, :first_name, "Mario")
   iex> Journey.get_value(e, :horoscope, wait: true)
   {:ok, "🍪s await, Taurus Mario!"}
   iex>
-  iex> Journey.values(e) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "EXEC..."}
+  iex> Journey.values(e) |> redact(:execution_id)
+  %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "..."}
   iex>
   iex> # 6. and we can always list executions.
   iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
@@ -288,11 +288,11 @@ defmodule Journey do
   ...>        ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
-  iex> Journey.values_all(execution) |> Map.update!(:execution_id, fn _ -> {:set, "EXEC..."} end)
-  %{name: :not_set, district: :not_set, last_name: :not_set, execution_id: {:set, "EXEC..."}}
+  iex> Journey.values_all(execution) |> redact(:execution_id)
+  %{name: :not_set, district: :not_set, last_name: :not_set, execution_id: {:set, "..."}}
   iex> execution = execution |> Journey.set_value(:name, "Mario")
-  iex> Journey.values_all(execution) |> Map.update!(:execution_id, fn _ -> {:set, "EXEC..."} end)
-  %{district: :not_set, last_name: :not_set, name: {:set, "Mario"}, execution_id: {:set, "EXEC..."}}
+  iex> Journey.values_all(execution) |> redact(:execution_id)
+  %{district: :not_set, last_name: :not_set, name: {:set, "Mario"}, execution_id: {:set, "..."}}
   ```
 
   """
@@ -309,15 +309,16 @@ defmodule Journey do
   ## Examples
 
   ```elixir
+  iex> import Journey.Node
   iex> execution =
   ...>    Journey.Examples.Horoscope.graph() |>
   ...>    Journey.start_execution() |>
   ...>    Journey.set_value(:birth_day, 26)
-  iex> Journey.values(execution) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{birth_day: 26, execution_id: "EXEC..."}
+  iex> Journey.values(execution) |> redact(:execution_id)
+  %{birth_day: 26, execution_id: "..."}
   iex> execution = Journey.set_value(execution, :birth_month, "April")
-  iex> Journey.values(execution) |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{birth_day: 26, birth_month: "April", execution_id: "EXEC..."}
+  iex> Journey.values(execution) |> redact(:execution_id)
+  %{birth_day: 26, birth_month: "April", execution_id: "..."}
   ```
 
   """
@@ -362,10 +363,10 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set_value(execution, :name, "Mario")
-  iex> execution |> Journey.values() |> Map.update!(:execution_id, fn _ -> "EXEC..." end)
-  %{name: "Mario", execution_id: "EXEC..."}
-  iex> execution |> Journey.values_all() |> Map.update!(:execution_id, fn _ -> {:set, "EXEC..."} end)
-  %{name: {:set, "Mario"}, district: :not_set, last_name: :not_set, execution_id: {:set, "EXEC..."}}
+  iex> execution |> Journey.values() |> redact(:execution_id)
+  %{name: "Mario", execution_id: "..."}
+  iex> execution |> Journey.values_all() |> redact(:execution_id)
+  %{name: {:set, "Mario"}, district: :not_set, last_name: :not_set, execution_id: {:set, "..."}}
   ```
 
   """

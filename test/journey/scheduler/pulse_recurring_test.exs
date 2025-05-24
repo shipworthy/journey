@@ -20,18 +20,15 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
 
     assert {:ok, "Reminder: Hello, Mario"} = Journey.get_value(execution, :reminder, wait: true)
 
-    assert Journey.values(execution) |> redact(:time_to_issue_reminder_schedule_recurring) == %{
+    assert Journey.values(execution) |> redact([:time_to_issue_reminder_schedule_recurring, :execution_id]) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
-             time_to_issue_reminder_schedule_recurring: :redacted
+             time_to_issue_reminder_schedule_recurring: 1_234_567_890,
+             execution_id: "..."
            }
 
     BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
-  end
-
-  defp redact(map, key) do
-    Map.replace!(map, key, :redacted)
   end
 
   defp simple_graph() do
