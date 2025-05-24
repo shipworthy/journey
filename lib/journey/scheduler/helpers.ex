@@ -10,7 +10,7 @@ defmodule Journey.Scheduler.Helpers do
 
   def graph_from_execution_id(execution_id) do
     execution_id
-    |> Journey.Executions.load(false)
+    |> Journey.Executions.load(false, true)
     |> Map.get(:graph_name)
     |> Journey.Graph.Catalog.fetch!()
   end

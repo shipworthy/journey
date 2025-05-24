@@ -44,20 +44,22 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert [] = Abandoned.find_and_maybe_reschedule(execution.id)
       execution = Journey.set_value(execution, :birth_month, "April")
 
-      assert Journey.values_all(execution) == %{
+      assert Journey.values_all(execution) |> redact(:execution_id) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
-               first_name: :not_set
+               first_name: :not_set,
+               execution_id: {:set, "..."}
              }
 
       assert Abandoned.find_and_maybe_reschedule(execution.id) == []
 
-      assert Journey.values_all(execution) == %{
+      assert Journey.values_all(execution) |> redact(:execution_id) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
-               first_name: :not_set
+               first_name: :not_set,
+               execution_id: {:set, "..."}
              }
     end
 

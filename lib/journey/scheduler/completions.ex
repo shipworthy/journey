@@ -100,7 +100,7 @@ defmodule Journey.Scheduler.Completions do
             result
           )
 
-        :mutation ->
+        :mutate ->
           record_result(
             repo,
             graph_node.mutates,

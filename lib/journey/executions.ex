@@ -17,6 +17,17 @@ defmodule Journey.Executions do
           }
           |> repo.insert!()
 
+        # Each execution gets a value holding its execution ID.
+        %Execution.Value{
+          execution: execution,
+          node_name: "execution_id",
+          node_type: :input,
+          ex_revision: execution.revision,
+          set_time: System.system_time(:second),
+          node_value: execution.id
+        }
+        |> repo.insert!()
+
         # Create a value record for every graph node, regardless of the graph node's type.
         _values =
           nodes
@@ -57,19 +68,37 @@ defmodule Journey.Executions do
         # }
         # TODO: investigate if this helps with loading newly updated data (making sure we always get it back), if not -- find a
         #  solution, and do this outside of the transaction.
-        load(execution.id)
+        load(execution.id, true, false)
       end)
 
     execution
   end
 
-  def load(execution_id, preload? \\ true) when is_binary(execution_id) and is_boolean(preload?) do
+  defp q_execution(execution_id, include_archived?) when include_archived? == false do
+    from(
+      e in Execution,
+      where: e.id == ^execution_id and is_nil(e.archived_at)
+    )
+  end
+
+  defp q_execution(execution_id, include_archived?) when include_archived? == true do
+    from(
+      e in Execution,
+      where: e.id == ^execution_id
+    )
+  end
+
+  def load(execution_id, preload?, include_archived?)
+      when is_binary(execution_id) and is_boolean(preload?) and is_boolean(include_archived?) do
     if preload? do
-      from(e in Execution, where: e.id == ^execution_id, preload: [:values, :computations])
+      from(e in q_execution(execution_id, include_archived?),
+        where: e.id == ^execution_id,
+        preload: [:values, :computations]
+      )
       |> Journey.Repo.one()
       |> convert_node_names_to_atoms()
     else
-      from(e in Execution, where: e.id == ^execution_id)
+      from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
       |> Journey.Repo.one()
     end
   end
@@ -207,13 +236,21 @@ defmodule Journey.Executions do
     end
   end
 
-  def list(graph_name, sort_by_ex_fields, value_filters, limit, offset)
+  def list(graph_name, sort_by_ex_fields, value_filters, limit, offset, include_archived?)
       when (is_nil(graph_name) or is_binary(graph_name)) and
              is_list(sort_by_ex_fields) and
              is_list(value_filters) and
              is_number(limit) and
-             is_number(offset) do
+             is_number(offset) and
+             is_boolean(include_archived?) do
     q = from(e in Execution, limit: ^limit, offset: ^offset)
+
+    q =
+      if include_archived? do
+        q
+      else
+        from(e in q, where: is_nil(e.archived_at))
+      end
 
     q =
       sort_by_ex_fields
@@ -227,6 +264,62 @@ defmodule Journey.Executions do
       from(e in q, where: e.graph_name == ^graph_name)
     end
     |> add_filters(value_filters)
+  end
+
+  def archive_execution(execution_id) do
+    prefix = "[#{mf()}][#{execution_id}]"
+    Logger.info("#{prefix}: archiving execution")
+
+    {:ok, archived_at_time} =
+      Journey.Repo.transaction(fn repo ->
+        current_execution =
+          from(e in Execution, where: e.id == ^execution_id)
+          |> repo.one!()
+
+        if current_execution.archived_at != nil do
+          Logger.info("#{prefix}: execution already archived (#{current_execution.archived_at})")
+          current_execution.archived_at
+        else
+          now = System.system_time(:second)
+          Logger.info("#{prefix}: setting archived_at to #{now}")
+          Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
+
+          from(e in Execution, where: e.id == ^execution_id)
+          |> Journey.Repo.update_all(set: [archived_at: now, updated_at: now])
+
+          now
+        end
+      end)
+
+    archived_at_time
+  end
+
+  def unarchive_execution(execution_id) do
+    prefix = "[#{mf()}][#{execution_id}]"
+    Logger.info("#{prefix}: unarchiving execution")
+
+    {:ok, :ok} =
+      Journey.Repo.transaction(fn repo ->
+        current_execution =
+          from(e in Execution, where: e.id == ^execution_id)
+          |> repo.one!()
+
+        if current_execution.archived_at == nil do
+          Logger.info("#{prefix}: execution not archived, nothing to do")
+          :ok
+        else
+          Logger.info("#{prefix}: setting archived_at property to nil")
+          now = System.system_time(:second)
+          Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
+
+          from(e in Execution, where: e.id == ^execution_id)
+          |> Journey.Repo.update_all(set: [archived_at: nil, updated_at: now])
+
+          :ok
+        end
+      end)
+
+    :ok
   end
 
   defp add_filters(q, value_filters) do
