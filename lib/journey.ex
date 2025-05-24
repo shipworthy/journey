@@ -1,21 +1,94 @@
 defmodule Journey do
   @moduledoc """
 
-  Journey lets you define, maintain, and execute computation graphs, with persistence, clarity, and scalability.
+  ## TL;DR
 
-  For example, a web application that computes horoscopes can be modeled with a graph containing nodes for the user's **name** and **birthday** (supplied by the user), and for the user's **zodiac sign** and **horoscope** (auto-computed based on the user's name and birthday).
+  Journey is a library for building and executing computation graphs. It allows you to define the flow of data and computations in your application in a clear, structured way, while providing features like persistence, scalability, and reliability.
 
-  Once a user starts the flow on your website, your application starts a new execution of the graph, populates it with the data provided by the user (**name**, **birthday**), and reads the data that gets auto-computed by the graph (**zodiac sign**, **horoscope**).
+  Consider a simple Horoscope application that computes a user's zodiac sign and horoscope based on their birthday. The application will ask the user to `input` their name and birthday, and it then auto-`compute`s their zodiac sign and horoscope.
 
-  Every node's data is persisted, so if the user leaves the website, or the system crashes, the execution can be reloaded and continued from where it left off.
+  This application can be thought of as a graph of nodes, where each node represents a piece of user-provided data or the result of a computation. Add functions for computing the zodiac sign and horoscope, and capture the sequencing of the computations, and you have a graph that captures the flow of data and computations in your application. When a user visits your application, you can start the execution of the graph, to accept and store user provided inputs (name, birthday), and to compute the zodiac sign and horoscope based on these inputs.
 
-  Since computations run as part of your application, on any node where your application is running, your system is as scalable and distributed as you need it to be, without requiring any additional infrastructure or cloud services.
+  Journey provides a way to define such graphs, and to run their executions, to serve your user flows.
 
-  The essence of your functionality is captured in the graph, so your code is clear and easy to maintain.
+  ## Step-by-Step
 
-  Here's an example of defining such a graph and executing an instance of it:
+  Below is an example of defining a Journey graph for this Horoscope application.
 
-  ## Examples
+  This graph captures user `input`s, and defines `compute`ations (together with their functions and prerequisites):
+
+  ```elixir
+  graph = Journey.new_graph(
+    "horoscope workflow - module doctest",
+    "v1.0.0",
+    [
+      input(:first_name),
+      input(:birth_day),
+      input(:birth_month),
+      compute(
+        :zodiac_sign,
+        [:birth_month, :birth_day],
+        &compute_zodiac_sign/1
+      ),
+      compute(
+        :horoscope,
+        [:first_name, :zodiac_sign],
+        &compute_horoscope/1
+      )
+    ]
+  )
+  ```
+
+  Once a customer lands on your web page, and starts a new flow, your application will start a new execution of the graph,
+
+  ```elixir
+  execution = Journey.start_execution(graph)
+  ```
+
+  and it will populate the execution the input values provided by the user (name, birthday) as they become available:
+
+  ```elixir
+  execution = Journey.set_value(execution, :first_name, "Mario")
+  execution = Journey.set_value(execution, :birth_day, 5)
+  execution = Journey.set_value(execution, :birth_month, "May")
+  ```
+
+  Providing these input values will trigger automatic computations of the customer's zodiac_sign and the horoscope, which can then be read from the execution and rendered on the web page.
+
+  ```
+  {:ok, zodiac_sign} = Journey.get_value(execution, :zodiac_sign, wait: true)
+  {:ok, horoscope} = Journey.get_value(execution, :horoscope, wait: true)
+  ```
+
+  And that's it!
+
+  Despite this simplicity of use, here are a few things provided by Journey that are worth noting:
+
+  * Persistence: Executions are persisted, so if the user leaves the web site, or if the system crashes, their execution can be reloaded and continued from where it left off.
+
+  * Scaling: Since Journey runs as part of your application, it scales with your your application, Your graph's computations (`&compute_zodiac_sign/1` and `&compute_horoscope/1` in the example above) run on the same nodes where the replicas of your application is running. No additional infrastructure or cloud services are needed.
+
+  * Reliability: The `compute` functions are subject to customizable retry policy, so if `&compute_horoscope/1` fails because of a temporary glitch (e.g. the LLM service it uses for drafting horoscopes is currently overloaded), it will be retried.
+
+  * Code Structure: The flow of your application is capture in the Journey graph, and the business logic is captured in the compute functions (`&compute_zodiac_sign/1` and `&compute_horoscope/1`). This clean separation supports you in structuring the functionality of your application in a clear, easy to understand and maintain way.
+
+  * Conditional flow: Journey allows you to define conditions for when a node is to be unblocked. So you if your graph includes "credit_approval_decision" node, the decision can inform which part of the graph is to be executed next (sending a "congrats!" email and starting the credit card issuance process, or sending a "sad trombone" email).
+
+  * Graph Visualization: Journey provides tools for visualizing your application's graph, so you can easily see the flow of data and computations in your application, and to share and discuss it with your team.
+
+  * Scheduling: Your graph can include computations that are scheduled to run at a later time, or on a recurring basis. Daily horoscope emails! A reminder email if they haven't visited the web site in a while! A "happy birthday" email!
+
+  * Removing PII. Journey gives you an easy way to erase sensitive data once it is no longer needed. For example, your Credit Card Application graph can include a step to remove the SSN once the credit score has been computed.
+
+  * Tooling and visualization: Journey provides a set of tools for introspecting and managing executions, and for visualizing your application's graph.
+
+  See the Credit Card Application example in `Journey.Examples.CreditCardApplication` for a more in-depth example of using Journey to build a more complex application.
+
+
+  ## Example
+
+  Putting together the components of the horoscope example into a complete, running doctest example:
+
 
   ```elixir
   iex> # 1. Define a graph capturing the data and the logic of the application -
