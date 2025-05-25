@@ -2,14 +2,15 @@ defmodule Journey.Scheduler.Recompute do
   @moduledoc false
 
   import Ecto.Query
+  require Logger
 
   alias Journey.Execution
   alias Journey.Execution.Computation
   alias Journey.Execution.Value
   alias Journey.Graph
 
-  require Logger
   import Journey.Helpers.Log
+  import Journey.Node.UpstreamDependencies.Computations, only: [unblocked?: 2]
 
   def detect_updates_and_create_re_computations(execution, graph) do
     prefix = "[#{execution.id}] [#{mf()}]"
@@ -38,7 +39,9 @@ defmodule Journey.Scheduler.Recompute do
         all_values = get_all_values(execution.id, repo)
 
         all_computations
+        # credo:disable-for-lines:10 Credo.Check.Refactor.FilterFilter
         |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_values) end)
+        |> Enum.filter(fn c -> unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by) end)
         |> Enum.map(fn computation_to_re_create ->
           new_computation =
             %Execution.Computation{

@@ -24,6 +24,11 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
 
   # def upstream_nodes_and_functions()
 
+  def unblocked?(all_executions_values, gated_by) when is_list(all_executions_values) do
+    r = evaluate_computation_for_readiness(all_executions_values, gated_by)
+    r.ready?
+  end
+
   def upstream_nodes_and_functions(node_names) when is_list(node_names) do
     upstream_nodes_and_functions({:and, Enum.map(node_names, fn name -> {name, &provided?/1} end)})
   end
