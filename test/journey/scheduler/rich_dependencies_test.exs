@@ -139,7 +139,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
               }),
               fn r ->
                 r = r |> Map.delete(:one_of_each_group)
-                {:ok, "name set, #{inspect(r)}"}
+                {:ok, "name set, #{inspect(r, custom_options: [sort_maps: true])}"}
               end
             )
           ]
@@ -150,7 +150,8 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = execution |> Journey.set_value(:g1_a, "g1_a set")
       execution = execution |> Journey.set_value(:g2_a, "g2_a set")
 
-      assert {:ok, "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set\", g2_a: \"g2_a set\"}"} ==
+      assert {:ok,
+              "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set\", g2_a: \"g2_a set\", last_updated_at: #{Journey.values(execution).last_updated_at}}"} ==
                execution |> Journey.get_value(:one_of_each_group, wait: true)
 
       execution = execution |> Journey.load()
@@ -166,7 +167,8 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = execution |> Journey.load()
       assert execution.revision == 7
 
-      assert {:ok, "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set, v2\", g2_a: \"g2_a set\"}"} ==
+      assert {:ok,
+              "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set, v2\", g2_a: \"g2_a set\", last_updated_at: #{Journey.values(execution).last_updated_at}}"} ==
                execution |> Journey.load() |> Journey.get_value(:one_of_each_group, wait: true)
     end
 

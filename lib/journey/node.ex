@@ -28,8 +28,8 @@ defmodule Journey.Node do
   ...>        ]
   ...>     )
   iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:first_name, "Mario")
-  iex> Journey.values(execution) |> redact(:execution_id)
-  %{first_name: "Mario", execution_id: "..."}
+  iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
+  %{first_name: "Mario", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
 
   """
@@ -87,8 +87,8 @@ defmodule Journey.Node do
   iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:name, "Alice")
   iex> execution |> Journey.get_value(:pig_latin_ish_name, wait: true)
   {:ok, "Alice-ay"}
-  iex> execution |> Journey.values() |> redact(:execution_id)
-  %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "..."}
+  iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
+  %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
 
   """
@@ -134,8 +134,8 @@ defmodule Journey.Node do
   ...>     |> Journey.set_value(:name, "Mario")
   iex> execution |> Journey.get_value(:remove_pii, wait: true)
   {:ok, "updated :name"}
-  iex> execution |> Journey.values() |> redact(:execution_id)
-  %{name: "redacted", remove_pii: "updated :name",  execution_id: "..."}
+  iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
+  %{name: "redacted", remove_pii: "updated :name",  execution_id: "...", last_updated_at: 1_234_567_890}
   ```
 
   """
@@ -283,7 +283,8 @@ defmodule Journey.Node do
     |> Map.update!(
       key,
       fn
-        {:set, _} -> {:set, "..."}
+        {:set, value} when is_binary(value) -> {:set, "..."}
+        {:set, value} when is_integer(value) -> {:set, 1_234_567_890}
         value when is_binary(value) -> "..."
         value when is_integer(value) -> 1_234_567_890
       end
