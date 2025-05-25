@@ -21,7 +21,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> # This kicks off the pre-approval process, which eventually completes.
   iex> execution |> Journey.get_value(:preapproval_process_completed, wait: true)
   {:ok, true}
-  iex> execution |> Journey.values() |> redact([:schedule_request_credit_card_reminder, :last_updated_at]) |> redact(:execution_id)
+  iex> execution |> Journey.values() |> redact([:schedule_request_credit_card_reminder, :last_updated_at, :execution_id])
   %{
       preapproval_process_completed: true,
       birth_date: "10/11/1981",
@@ -70,6 +70,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> execution = execution |> Journey.set_value(:credit_card_mailed, true)
   iex> execution |> Journey.get_value(:credit_card_mailed_notification, wait: true)
   {:ok, true}
+  iex> {:ok, _} = execution |> Journey.get_value(:archive, wait: 20_000)
   iex> # This is only needed in tests.
   iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
@@ -181,6 +182,17 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, true}
     end
 
+    @doc """
+    This function schedules archiving the execution.
+    """
+    def choose_the_time_to_archive(values) do
+      Logger.debug("choose_the_time_to_archive: starting. values #{inspect(values)}")
+      when_to_archive = System.system_time(:second) + 5
+      as_dt = DateTime.from_unix!(when_to_archive)
+      Logger.debug("choose_the_time_to_archive: to be archived at #{as_dt}.")
+      {:ok, when_to_archive}
+    end
+
     defp redact(map, key) when is_map(map) and is_atom(key) do
       if Map.has_key?(map, key) do
         Map.put(map, key, "...")
@@ -244,9 +256,27 @@ defmodule Journey.Examples.CreditCardApplication do
         input(:credit_card_mailed),
         compute(
           :credit_card_mailed_notification,
-          unblocked_when({:and, [{:credit_card_mailed, &true?/1}, {:initiate_credit_card_issuance, &provided?/1}]}),
+          unblocked_when({
+            :and,
+            [
+              {:credit_card_mailed, &true?/1},
+              {:initiate_credit_card_issuance, &provided?/1}
+            ]
+          }),
           &Compute.send_card_mailed_notification/1
-        )
+        ),
+        schedule_once(
+          :schedule_archival,
+          unblocked_when({
+            :and,
+            [
+              {:last_updated_at, &provided?/1},
+              {:or, [{:credit_card_mailed_notification, &provided?/1}, {:inform_of_rejection, &provided?/1}]}
+            ]
+          }),
+          &Compute.choose_the_time_to_archive/1
+        ),
+        archive(:archive, [:schedule_archival])
       ]
     )
   end

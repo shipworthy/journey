@@ -18,41 +18,28 @@ defmodule Journey.Executions do
           |> repo.insert!()
 
         now = System.system_time(:second)
-        # Each execution gets a value holding its execution ID.
-        %Execution.Value{
-          execution: execution,
-          node_name: "execution_id",
-          node_type: :input,
-          ex_revision: execution.revision,
-          set_time: now,
-          node_value: execution.id
-        }
-        |> repo.insert!()
-
-        %Execution.Value{
-          execution: execution,
-          node_name: "last_updated_at",
-          node_type: :input,
-          ex_revision: execution.revision,
-          set_time: now,
-          node_value: now
-        }
-        |> repo.insert!()
 
         # Create a value record for every graph node, regardless of the graph node's type.
         _values =
           nodes
-          |> Enum.map(fn
-            graph_node ->
-              %Execution.Value{
-                execution: execution,
-                node_name: Atom.to_string(graph_node.name),
-                node_type: graph_node.type,
-                ex_revision: execution.revision,
-                set_time: nil,
-                node_value: nil
-              }
-              |> repo.insert!()
+          |> Enum.map(fn graph_node ->
+            # credo:disable-for-lines:10 Credo.Check.Refactor.Nesting
+            {set_time, node_value} =
+              case graph_node.name do
+                :execution_id -> {now, execution.id}
+                :last_updated_at -> {now, now}
+                _ -> {nil, nil}
+              end
+
+            %Execution.Value{
+              execution: execution,
+              node_name: Atom.to_string(graph_node.name),
+              node_type: graph_node.type,
+              ex_revision: execution.revision,
+              set_time: set_time,
+              node_value: node_value
+            }
+            |> repo.insert!()
           end)
 
         # Create computations for computable nodes.
