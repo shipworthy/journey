@@ -69,7 +69,7 @@ defmodule Journey.JourneyTest do
         |> Journey.set_value(:first_name, "Mario")
 
       assert_raise RuntimeError,
-                   "':no_such_node' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: [:execution_id, :first_name, :greeting].",
+                   "':no_such_node' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: [:execution_id, :first_name, :greeting, :last_updated_at].",
                    fn ->
                      Journey.get_value(execution, :no_such_node, wait: true) == {:ok, "Hello, Mario"}
                    end
@@ -144,7 +144,7 @@ defmodule Journey.JourneyTest do
 
       for le <- listed_executions do
         # Making sure that values and computations are loaded.
-        assert Enum.count(le.values) == 3
+        assert Enum.count(le.values) == 4
         assert Enum.count(le.computations) == 1, "#{inspect(le.computations)}"
       end
 

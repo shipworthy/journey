@@ -139,16 +139,16 @@ defmodule Journey do
   iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
   iex> Journey.get_value(e, :zodiac_sign, wait: true)
   {:ok, "Taurus"}
-  iex> Journey.values(e) |> redact(:execution_id)
-  %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "..."}
+  iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
+  %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
   iex>
   iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
   iex> e = Journey.set_value(e, :first_name, "Mario")
   iex> Journey.get_value(e, :horoscope, wait: true)
   {:ok, "🍪s await, Taurus Mario!"}
   iex>
-  iex> Journey.values(e) |> redact(:execution_id)
-  %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "..."}
+  iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
+  %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
   iex>
   iex> # 6. and we can always list executions.
   iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
@@ -379,6 +379,9 @@ defmodule Journey do
   including those that haven't been set yet (marked as `:not_set`). Set values are returned
   as tuples in the format `{:set, value}`.
 
+  ## Options:
+  * `:reload` – whether to reload the execution before fetching the values. Defaults to `true`.
+
   ## Examples:
 
   ```elixir
@@ -393,15 +396,26 @@ defmodule Journey do
   ...>        ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
-  iex> Journey.values_all(execution) |> redact(:execution_id)
-  %{name: :not_set, district: :not_set, last_name: :not_set, execution_id: {:set, "..."}}
+  iex> Journey.values_all(execution) |> redact([:execution_id, :last_updated_at])
+  %{name: :not_set, district: :not_set, last_name: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
   iex> execution = execution |> Journey.set_value(:name, "Mario")
-  iex> Journey.values_all(execution) |> redact(:execution_id)
-  %{district: :not_set, last_name: :not_set, name: {:set, "Mario"}, execution_id: {:set, "..."}}
+  iex> Journey.values_all(execution) |> redact([:execution_id, :last_updated_at])
+  %{district: :not_set, last_name: :not_set, name: {:set, "Mario"}, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
   ```
 
   """
-  def values_all(execution) when is_struct(execution, Execution) do
+  def values_all(execution, opts \\ []) when is_struct(execution, Execution) do
+    check_options(opts, [:reload])
+
+    reload? = Keyword.get(opts, :reload, true)
+
+    execution =
+      if reload? do
+        Journey.load(execution)
+      else
+        execution
+      end
+
     Executions.values(execution)
   end
 
@@ -419,11 +433,11 @@ defmodule Journey do
   ...>    Journey.Examples.Horoscope.graph() |>
   ...>    Journey.start_execution() |>
   ...>    Journey.set_value(:birth_day, 26)
-  iex> Journey.values(execution) |> redact(:execution_id)
-  %{birth_day: 26, execution_id: "..."}
+  iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
+  %{birth_day: 26, execution_id: "...", last_updated_at: 1234567890}
   iex> execution = Journey.set_value(execution, :birth_month, "April")
-  iex> Journey.values(execution) |> redact(:execution_id)
-  %{birth_day: 26, birth_month: "April", execution_id: "..."}
+  iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
+  %{birth_day: 26, birth_month: "April", execution_id: "...", last_updated_at: 1234567890}
   ```
 
   """
@@ -476,16 +490,16 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set_value(execution, :name, "Mario")
-  iex> execution |> Journey.values() |> redact(:execution_id)
-  %{name: "Mario", execution_id: "..."}
-  iex> execution |> Journey.values_all() |> redact(:execution_id)
-  %{name: {:set, "Mario"}, greeting: :not_set, last_name: :not_set, execution_id: {:set, "..."}}
+  iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
+  %{name: "Mario", execution_id: "...", last_updated_at: 1234567890}
+  iex> execution |> Journey.values_all() |> redact([:execution_id, :last_updated_at])
+  %{name: {:set, "Mario"}, greeting: :not_set, last_name: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
   iex> execution = Journey.set_value(execution, :last_name, "Bowser")
   iex> # The downstream computed value now becomes available:
   iex> Journey.get_value(execution, :greeting, wait: true)
   {:ok, "Hello, Mario Bowser!"}
-  iex> execution |> Journey.values() |> redact(:execution_id)
-  %{name: "Mario", greeting: "Hello, Mario Bowser!", last_name: "Bowser", execution_id: "..."}
+  iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
+  %{name: "Mario", greeting: "Hello, Mario Bowser!", last_name: "Bowser", execution_id: "...", last_updated_at: 1234567890}
 
   ```
 

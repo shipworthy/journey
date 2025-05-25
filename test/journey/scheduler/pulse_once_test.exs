@@ -20,35 +20,38 @@ defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
-           |> redact([:time_to_issue_reminder_schedule, :execution_id]) ==
+           |> redact([:time_to_issue_reminder_schedule, :execution_id, :last_updated_at]) ==
              %{
                greeting: "Hello, Mario",
                reminder: "Reminder: Hello, Mario",
                user_name: "Mario",
                time_to_issue_reminder_schedule: 1_234_567_890,
-               execution_id: "..."
+               execution_id: "...",
+               last_updated_at: 1_234_567_890
              }
 
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
-           |> redact([:time_to_issue_reminder_schedule, :execution_id]) == %{
+           |> redact([:time_to_issue_reminder_schedule, :execution_id, :last_updated_at]) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
              time_to_issue_reminder_schedule: 1_234_567_890,
-             execution_id: "..."
+             execution_id: "...",
+             last_updated_at: 1_234_567_890
            }
 
     assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
-           |> redact([:time_to_issue_reminder_schedule, :execution_id]) == %{
+           |> redact([:time_to_issue_reminder_schedule, :execution_id, :last_updated_at]) == %{
              greeting: "Hello, Mario",
              user_name: "Mario",
              reminder: "Reminder: Hello, Mario",
              time_to_issue_reminder_schedule: 1_234_567_890,
-             execution_id: "..."
+             execution_id: "...",
+             last_updated_at: 1_234_567_890
            }
 
     end_time = System.system_time(:second)

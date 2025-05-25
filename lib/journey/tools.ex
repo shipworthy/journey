@@ -117,7 +117,7 @@ defmodule Journey.Tools do
   def summarize(execution_id) when is_binary(execution_id) do
     execution =
       execution_id
-      |> Journey.load()
+      |> Journey.load(include_archived: true)
 
     graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
 
@@ -151,6 +151,8 @@ defmodule Journey.Tools do
     - Last updated at: #{DateTime.from_unix!(execution.updated_at)} UTC | #{now - execution.updated_at} seconds ago
     - Duration: #{Number.Delimit.number_to_delimited(execution.updated_at - execution.inserted_at, precision: 0)} seconds
     - Revision: #{execution.revision}
+    - # of Values: #{Enum.count(set_values)} (set) / #{Enum.count(execution.values)} (total)
+    - # of Computations: #{Enum.count(execution.computations)}
 
     Values:
     - Set:

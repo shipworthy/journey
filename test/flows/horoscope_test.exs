@@ -63,7 +63,7 @@ defmodule Flows.HoroscopeTest do
         |> Journey.set_value(:birth_month, "April")
         |> Journey.set_value(:first_name, "Mario")
 
-      assert Journey.values_all(execution) |> redact(:execution_id) == %{
+      assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
                astrological_sign: :not_set,
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -71,7 +71,8 @@ defmodule Flows.HoroscopeTest do
                horoscope: :not_set,
                library_of_congress_record: :not_set,
                obfuscate_first_name: :not_set,
-               execution_id: {:set, "..."}
+               execution_id: {:set, "..."},
+               last_updated_at: {:set, 1_234_567_890}
              }
 
       assert Journey.get_value(execution, :astrological_sign) == {:error, :not_set}
@@ -89,7 +90,7 @@ defmodule Flows.HoroscopeTest do
 
       execution = Journey.load(execution)
 
-      assert Journey.values_all(execution) |> redact(:execution_id) == %{
+      assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
                astrological_sign: {:set, "Taurus"},
                birth_day: {:set, 26},
                birth_month: {:set, "April"},
@@ -97,7 +98,8 @@ defmodule Flows.HoroscopeTest do
                horoscope: {:set, "🍪s await, Taurus Mario!"},
                library_of_congress_record: {:set, "Mario's horoscope was submitted for archival."},
                obfuscate_first_name: {:set, "updated :first_name"},
-               execution_id: {:set, "..."}
+               execution_id: {:set, "..."},
+               last_updated_at: {:set, 1_234_567_890}
              }
     end
   end

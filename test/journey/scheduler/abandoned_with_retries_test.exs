@@ -28,12 +28,13 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
       |> Journey.set_value(:birth_day, 26)
       |> Journey.set_value(:birth_month, "April")
 
-    assert Journey.values_all(execution) |> redact(:execution_id) == %{
+    assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
              astrological_sign: :not_set,
              birth_day: {:set, 26},
              birth_month: {:set, "April"},
              first_name: :not_set,
-             execution_id: {:set, "..."}
+             execution_id: {:set, "..."},
+             last_updated_at: {:set, 1_234_567_890}
            }
 
     Process.sleep(2_000)
@@ -58,12 +59,13 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
     assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)
 
-    assert Journey.values_all(execution) |> redact(:execution_id) == %{
+    assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
              astrological_sign: :not_set,
              birth_day: {:set, 26},
              birth_month: {:set, "April"},
              first_name: :not_set,
-             execution_id: {:set, "..."}
+             execution_id: {:set, "..."},
+             last_updated_at: {:set, 1_234_567_890}
            }
   end
 
