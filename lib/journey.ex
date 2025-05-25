@@ -379,6 +379,9 @@ defmodule Journey do
   including those that haven't been set yet (marked as `:not_set`). Set values are returned
   as tuples in the format `{:set, value}`.
 
+  ## Options:
+  * `:reload` – whether to reload the execution before fetching the values. Defaults to `true`.
+
   ## Examples:
 
   ```elixir
@@ -401,7 +404,18 @@ defmodule Journey do
   ```
 
   """
-  def values_all(execution) when is_struct(execution, Execution) do
+  def values_all(execution, opts \\ []) when is_struct(execution, Execution) do
+    check_options(opts, [:reload])
+
+    reload? = Keyword.get(opts, :reload, true)
+
+    execution =
+      if reload? do
+        Journey.load(execution)
+      else
+        execution
+      end
+
     Executions.values(execution)
   end
 
