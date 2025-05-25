@@ -1,6 +1,8 @@
 defmodule Journey.Graph do
   @moduledoc false
 
+  import Journey.Node, only: [input: 1]
+
   defstruct [:name, :version, :nodes]
   @type t :: %__MODULE__{name: String.t(), nodes: list}
 
@@ -9,7 +11,7 @@ defmodule Journey.Graph do
     %__MODULE__{
       name: name,
       version: version,
-      nodes: nodes
+      nodes: [input(:execution_id), input(:last_updated_at)] ++ nodes
     }
   end
 
