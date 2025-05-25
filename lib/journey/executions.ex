@@ -17,14 +17,25 @@ defmodule Journey.Executions do
           }
           |> repo.insert!()
 
+        now = System.system_time(:second)
         # Each execution gets a value holding its execution ID.
         %Execution.Value{
           execution: execution,
           node_name: "execution_id",
           node_type: :input,
           ex_revision: execution.revision,
-          set_time: System.system_time(:second),
+          set_time: now,
           node_value: execution.id
+        }
+        |> repo.insert!()
+
+        %Execution.Value{
+          execution: execution,
+          node_name: "last_updated_at",
+          node_type: :input,
+          ex_revision: execution.revision,
+          set_time: now,
+          node_value: now
         }
         |> repo.insert!()
 
@@ -57,17 +68,8 @@ defmodule Journey.Executions do
               state: :not_set
             }
             |> repo.insert!()
-
-            # |> IO.inspect(label: :new_computation)
           end)
 
-        # %Execution{
-        #   execution
-        #   | values: convert_values_to_atoms(values, :node_name),
-        #     computations: convert_values_to_atoms(computations, :node_name)
-        # }
-        # TODO: investigate if this helps with loading newly updated data (making sure we always get it back), if not -- find a
-        #  solution, and do this outside of the transaction.
         load(execution.id, true, false)
       end)
 
@@ -142,6 +144,15 @@ defmodule Journey.Executions do
       else
         now_seconds = System.system_time(:second)
 
+        #         %Execution.Value{
+        #   execution: execution,
+        #   node_name: "last_updated_at",
+        #   node_type: :input,
+        #   ex_revision: execution.revision,
+        #   set_time: now,
+        #   node_value: now
+        # }
+
         from(v in Execution.Value,
           where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
         )
@@ -156,6 +167,19 @@ defmodule Journey.Executions do
         # credo:disable-for-lines:10 Credo.Check.Refactor.Nesting
         |> case do
           {1, _} ->
+            # Update the "last_updated_at" value.
+            from(v in Execution.Value,
+              where: v.execution_id == ^execution.id and v.node_name == "last_updated_at"
+            )
+            |> repo.update_all(
+              set: [
+                ex_revision: new_revision,
+                node_value: now_seconds,
+                updated_at: now_seconds,
+                set_time: now_seconds
+              ]
+            )
+
             Logger.debug("#{prefix}: value updated")
 
           {0, _} ->
@@ -399,10 +423,20 @@ defmodule Journey.Executions do
     end)
   end
 
-  def convert_all_keys_to_atoms(map) do
+  def convert_all_keys_to_atoms(nil), do: nil
+
+  def convert_all_keys_to_atoms(map) when is_map(map) do
     map
     |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
     |> Enum.into(%{})
+  end
+
+  def computation_db_to_atoms(nil), do: nil
+
+  def computation_db_to_atoms(computation) when is_struct(computation, Journey.Execution.Computation) do
+    computation
+    |> Map.update!(:node_name, fn n -> String.to_atom(n) end)
+    |> Map.update!(:computed_with, &convert_all_keys_to_atoms/1)
   end
 
   # def convert_key_to_atom(map, key) do

@@ -207,6 +207,18 @@ defmodule Journey.Scheduler.Completions do
           ]
         )
       else
+        from(v in Value,
+          where: v.execution_id == ^execution_id and v.node_name == "last_updated_at"
+        )
+        |> repo.update_all(
+          set: [
+            ex_revision: new_revision,
+            node_value: now_seconds,
+            updated_at: now_seconds,
+            set_time: now_seconds
+          ]
+        )
+
         q
         |> repo.update_all(
           set: [
