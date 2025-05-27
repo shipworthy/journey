@@ -30,7 +30,7 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
     execution = execution |> Journey.set_value(:keep_sending_reminders, true)
 
     # A reminder should get scheduled into the future.
-    {:ok, scheduled_time} = Journey.get_value(execution, :schedule_a_reminder, wait: true) |> IO.inspect()
+    {:ok, scheduled_time} = Journey.get_value(execution, :schedule_a_reminder, wait: true)
     now = System.system_time(:second)
     assert scheduled_time > now
 
