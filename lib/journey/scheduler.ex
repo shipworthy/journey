@@ -8,17 +8,17 @@ defmodule Journey.Scheduler do
 
   def advance(execution) do
     prefix = "[#{execution.id}] [#{mf()}] [#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting")
+    Logger.info("#{prefix}: starting")
     advance_with_graph(prefix, execution, Journey.Graph.Catalog.fetch!(execution.graph_name))
   end
 
   defp advance_with_graph(prefix, execution, nil) do
-    Logger.debug("#{prefix}: missing graph, (#{inspect(execution.graph_name)})")
+    Logger.info("#{prefix}: missing graph, (#{inspect(execution.graph_name)})")
     execution
   end
 
   defp advance_with_graph(prefix, execution, graph) do
-    Logger.debug("advance_with_graph #{prefix} starting")
+    Logger.info("advance_with_graph #{prefix} starting")
     Journey.Scheduler.Recompute.detect_updates_and_create_re_computations(execution, graph)
 
     available_computations =
@@ -36,7 +36,7 @@ defmodule Journey.Scheduler do
     else
       execution
     end
-    |> tap(fn _ -> Logger.debug("#{prefix}: done") end)
+    |> tap(fn _ -> Logger.info("#{prefix}: done") end)
   end
 
   defp launch_computation(execution, computation, conditions_fulfilled) do

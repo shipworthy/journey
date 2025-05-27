@@ -274,6 +274,7 @@ defmodule Journey.Node do
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      #      grace_window_seconds: Keyword.get(opts, :grace_window_seconds, 60)
     }
   end
 

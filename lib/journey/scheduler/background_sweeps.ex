@@ -6,6 +6,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
   import Journey.Helpers.Log
 
   alias Journey.Scheduler.BackgroundSweeps.Abandoned
+  alias Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring
   alias Journey.Scheduler.BackgroundSweeps.ScheduleOnce
   alias Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream
 
@@ -41,17 +42,12 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   def run_sweeps(execution_id) do
     prefix = "#{mf()}[#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting")
+    Logger.debug("#{prefix}: starting CHICKEN")
     Abandoned.sweep(execution_id)
     ScheduleOnce.sweep(execution_id)
     ScheduleOnceDownstream.sweep(execution_id)
+    RegenerateScheduleRecurring.sweep(execution_id)
     Logger.debug("#{prefix}: done")
-  end
-
-  defp sweep_forever(eid) do
-    :timer.sleep(1000)
-    Journey.Scheduler.BackgroundSweeps.run_sweeps(eid)
-    sweep_forever(eid)
   end
 
   def start_background_sweeps_in_test(eid) do
@@ -61,5 +57,11 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   def stop_background_sweeps_in_test(background_sweeps_pid) do
     Process.exit(background_sweeps_pid, :kill)
+  end
+
+  defp sweep_forever(eid) do
+    :timer.sleep(1000)
+    Journey.Scheduler.BackgroundSweeps.run_sweeps(eid)
+    sweep_forever(eid)
   end
 end

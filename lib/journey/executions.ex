@@ -110,7 +110,7 @@ defmodule Journey.Executions do
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value) do
     prefix = "[#{mf()}][#{execution.id}.#{node_name}]"
-    Logger.debug("#{prefix}: setting value")
+    Logger.warning("#{prefix}: setting value")
 
     Journey.Repo.transaction(fn repo ->
       new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
@@ -126,7 +126,7 @@ defmodule Journey.Executions do
           current_value_node.node_value == value
 
       if updating_to_the_same_value? do
-        Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
+        Logger.warning("#{prefix}: no need to update, value unchanged, aborting transaction")
         repo.rollback({:no_change, execution})
       else
         now_seconds = System.system_time(:second)
@@ -167,7 +167,7 @@ defmodule Journey.Executions do
               ]
             )
 
-            Logger.debug("#{prefix}: value updated")
+            Logger.warning("#{prefix}: value updated")
 
           {0, _} ->
             Logger.error("#{prefix}: value not updated, aborting transaction")
@@ -179,13 +179,13 @@ defmodule Journey.Executions do
     end)
     |> case do
       {:ok, updated_execution} ->
-        Logger.info("#{prefix}: value set successfully")
+        Logger.warning("#{prefix}: value set successfully")
 
         updated_execution
         |> Journey.Scheduler.advance()
 
       {:error, {:no_change, original_execution}} ->
-        Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
+        Logger.warning("#{prefix}: value not set (updating for the same value), transaction rolled back")
         Journey.load(original_execution)
 
       {:error, _} ->
@@ -196,7 +196,7 @@ defmodule Journey.Executions do
 
   def get_value(execution, node_name, timeout_ms) do
     prefix = "[#{execution.id}][#{node_name}][#{mf()}]"
-    Logger.debug("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
+    Logger.info("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
 
     monotonic_time_deadline =
       case timeout_ms do
@@ -213,7 +213,7 @@ defmodule Journey.Executions do
     load_value(execution, node_name, monotonic_time_deadline, 0)
     |> tap(fn
       {:ok, _result} ->
-        Logger.debug("#{prefix}: done. success")
+        Logger.info("#{prefix}: done. success")
 
       {outcome, result} ->
         Logger.info("#{prefix}: done. outcome: '#{inspect(outcome)}', result: '#{inspect(result)}'")

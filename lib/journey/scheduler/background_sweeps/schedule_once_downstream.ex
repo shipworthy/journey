@@ -1,3 +1,4 @@
+# TODO: change this to indicate that this schedules both single and recurring computations.
 defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
   @moduledoc false
 
@@ -10,6 +11,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
 
   # TODO: the window value should be a property of the computation, settable by the application.
   @rolling_window_seconds 60 * 60
+  # note that this only manages whether the computation is kicked, not whether it is actually computed.
 
   defp q_execution_ids_to_advance(execution_id) do
     now = System.system_time(:second)
