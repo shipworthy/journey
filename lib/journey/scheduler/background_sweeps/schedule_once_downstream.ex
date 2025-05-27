@@ -23,7 +23,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
           v.node_name == c.node_name and
           v.node_type == c.computation_type,
       where:
-        c.computation_type == :schedule_once and
+        c.computation_type in [:schedule_once, :schedule_recurring] and
           c.state == :success and
           not is_nil(v.set_time) and
           (v.node_value <= ^now or
