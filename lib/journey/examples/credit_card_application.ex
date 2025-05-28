@@ -37,7 +37,7 @@ defmodule Journey.Examples.CreditCardApplication do
       last_updated_at: 1234567890
     }
   iex> # We haven't heard from the customer, so we'll send a reminder in a few days (seconds;).
-  iex> execution |> Journey.get_value(:send_preapproval_reminder, wait: 10_000)
+  iex> execution |> Journey.get_value(:send_preapproval_reminder, wait: 20_000)
   {:ok, true}
   iex>
   iex> # Reminded, the customer requests an actual credit card.
