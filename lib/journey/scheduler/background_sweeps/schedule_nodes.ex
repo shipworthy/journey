@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnce do
+defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
   @moduledoc false
 
   require Logger
@@ -23,7 +23,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnce do
         join: e in Journey.Execution,
         on: c.execution_id == e.id,
         where:
-          c.computation_type == ^:schedule_once and
+          c.computation_type in [^:schedule_once, ^:schedule_recurring] and
             c.state == ^:not_set and
             is_nil(e.archived_at)
       )

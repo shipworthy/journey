@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
+defmodule Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule do
   @moduledoc false
 
   require Logger

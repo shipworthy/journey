@@ -7,8 +7,8 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   alias Journey.Scheduler.BackgroundSweeps.Abandoned
   alias Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleOnce
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream
+  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
+  alias Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
 
@@ -44,8 +44,8 @@ defmodule Journey.Scheduler.BackgroundSweeps do
     prefix = "#{mf()}[#{inspect(self())}]"
     Logger.debug("#{prefix}: starting CHICKEN")
     Abandoned.sweep(execution_id)
-    ScheduleOnce.sweep(execution_id)
-    ScheduleOnceDownstream.sweep(execution_id)
+    ScheduleNodes.sweep(execution_id)
+    UnblockedBySchedule.sweep(execution_id)
     RegenerateScheduleRecurring.sweep(execution_id)
     Logger.debug("#{prefix}: done")
   end
