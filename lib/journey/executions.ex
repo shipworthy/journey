@@ -179,7 +179,7 @@ defmodule Journey.Executions do
     end)
     |> case do
       {:ok, updated_execution} ->
-        Logger.debug("#{prefix}: value set successfully")
+        Logger.info("#{prefix}: value set successfully")
 
         updated_execution
         |> Journey.Scheduler.advance()
@@ -216,7 +216,7 @@ defmodule Journey.Executions do
         Logger.debug("#{prefix}: done. success")
 
       {outcome, result} ->
-        Logger.debug("#{prefix}: done. outcome: '#{inspect(outcome)}', result: '#{inspect(result)}'")
+        Logger.info("#{prefix}: done. outcome: '#{inspect(outcome)}', result: '#{inspect(result)}'")
     end)
   end
 
@@ -279,7 +279,7 @@ defmodule Journey.Executions do
 
   def archive_execution(execution_id) do
     prefix = "[#{mf()}][#{execution_id}]"
-    Logger.debug("#{prefix}: archiving execution")
+    Logger.info("#{prefix}: archiving execution")
 
     {:ok, archived_at_time} =
       Journey.Repo.transaction(fn repo ->
@@ -288,11 +288,11 @@ defmodule Journey.Executions do
           |> repo.one!()
 
         if current_execution.archived_at != nil do
-          Logger.debug("#{prefix}: execution already archived (#{current_execution.archived_at})")
+          Logger.info("#{prefix}: execution already archived (#{current_execution.archived_at})")
           current_execution.archived_at
         else
           now = System.system_time(:second)
-          Logger.debug("#{prefix}: setting archived_at to #{now}")
+          Logger.info("#{prefix}: setting archived_at to #{now}")
           Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
 
           from(e in Execution, where: e.id == ^execution_id)
@@ -307,7 +307,7 @@ defmodule Journey.Executions do
 
   def unarchive_execution(execution_id) do
     prefix = "[#{mf()}][#{execution_id}]"
-    Logger.debug("#{prefix}: unarchiving execution")
+    Logger.info("#{prefix}: unarchiving execution")
 
     {:ok, :ok} =
       Journey.Repo.transaction(fn repo ->
@@ -316,10 +316,10 @@ defmodule Journey.Executions do
           |> repo.one!()
 
         if current_execution.archived_at == nil do
-          Logger.debug("#{prefix}: execution not archived, nothing to do")
+          Logger.info("#{prefix}: execution not archived, nothing to do")
           :ok
         else
-          Logger.debug("#{prefix}: setting archived_at property to nil")
+          Logger.info("#{prefix}: setting archived_at property to nil")
           now = System.system_time(:second)
           Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
 
