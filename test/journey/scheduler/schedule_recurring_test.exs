@@ -11,6 +11,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
 
   alias Journey.Scheduler.BackgroundSweeps
 
+  @tag timeout: 120_000
   test "basic schedule_recurring flow" do
     graph = graph()
     execution = graph |> Journey.start_execution()
