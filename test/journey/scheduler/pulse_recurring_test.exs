@@ -3,6 +3,8 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
 
   require Logger
 
+  import Journey.Helpers.Log
+
   import Journey.Node
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
@@ -28,7 +30,7 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
 
     execution = execution |> Journey.set_value(:keep_sending_reminders, true)
 
-    # A reminder should get scheduled into the future, but not yet executed.
+    # Reminder 1 should get scheduled into the future, but not yet executed.
     {:ok, original_scheduled_time} = Journey.get_value(execution, :schedule_a_reminder, wait: true)
     assert original_scheduled_time > System.system_time(:second)
 
@@ -44,30 +46,38 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
     assert Journey.load(execution).computations |> Enum.count() == 2
 
     # Wait for that future to arrive and watch the first reminder get generated.
-    Process.sleep(original_scheduled_time - System.system_time(:second) + 1)
+    until_scheduled_time_ms = (original_scheduled_time - System.system_time(:second) + 1) * 1000
+    Process.sleep(until_scheduled_time_ms)
+
+    # Reminder 1 generated.
     assert {:ok, 1} = Journey.get_value(execution, :send_a_reminder, wait: 50_000)
-
-    new_state = Journey.values(execution)
-
-    assert new_state |> redact([:last_updated_at, :schedule_a_reminder]) == %{
-             execution_id: execution.id,
-             keep_sending_reminders: true,
-             last_updated_at: 1_234_567_890,
-             schedule_a_reminder: 1_234_567_890,
-             send_a_reminder: 1,
-             user_name: "Mario"
-           }
-
-    assert new_state.schedule_a_reminder >= original_scheduled_time + 10
     Process.sleep(1000)
 
-    # Another scheduled time got picked.
+    # Reminder 2 scheduled.
     {:ok, scheduled_time2} = Journey.get_value(execution, :schedule_a_reminder, wait: true)
-    assert scheduled_time2 == new_state.schedule_a_reminder
+    assert scheduled_time2 >= original_scheduled_time + 10
     assert scheduled_time2 > System.system_time(:second)
-    Process.sleep(scheduled_time2 - System.system_time(:second) + 5)
-    Journey.Tools.summarize(execution.id) |> IO.puts()
-    Process.sleep(10_000)
+
+    # Waiting for reminder 2's time to arrive.
+    until_reminder2_ms = (scheduled_time2 - System.system_time(:second) + 1) * 1000
+    Process.sleep(until_reminder2_ms)
+    # Journey.Tools.summarize(execution.id) |> IO.puts()
+
+    # Reminder 2 issued.
+    assert {:ok, 2} = Journey.get_value(execution, :send_a_reminder, wait: 50_000)
+    Process.sleep(1_000)
+
+    # Reminded 3 was scheduled.
+    {:ok, scheduled_time3} = Journey.get_value(execution, :schedule_a_reminder, wait: true)
+    assert scheduled_time3 >= scheduled_time2 + 10
+    assert scheduled_time3 > System.system_time(:second)
+
+    # But before reminder 3 could fire, reminders get turned off.
+    execution = execution |> Journey.set_value(:keep_sending_reminders, false)
+
+    # Even if we wait for a while, reminder 3 will not fire.
+    until_reminder3_ms = (scheduled_time3 - System.system_time(:second) + 5) * 1_000
+    Process.sleep(until_reminder3_ms)
     assert {:ok, 2} = Journey.get_value(execution, :send_a_reminder, wait: 50_000)
 
     BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
@@ -102,14 +112,14 @@ defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
 
   defp schedule_next_reminder(%{execution_id: execution_id}) do
     next_reminder_time = System.system_time(:second) + 10
-    Logger.error("schedule_next_reminder[#{execution_id}]: scheduling for '#{DateTime.from_unix!(next_reminder_time)}'")
+    Logger.debug("[#{execution_id}] [#{mf()}]: scheduling for '#{DateTime.from_unix!(next_reminder_time)}'")
     {:ok, next_reminder_time}
   end
 
   defp send_reminder(%{user_name: user_name, execution_id: execution_id} = v) do
     reminder_count = Map.get(v, :send_a_reminder, 0) + 1
     reminder = "Here is your reminder #{reminder_count}, #{user_name}"
-    Logger.error("send_reminder[#{execution_id}][#{reminder_count}]: '#{reminder}'")
+    Logger.debug("[#{execution_id}] [#{mf()}]: '#{reminder}'")
     {:ok, reminder_count}
   end
 end

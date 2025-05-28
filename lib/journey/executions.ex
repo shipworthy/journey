@@ -109,8 +109,8 @@ defmodule Journey.Executions do
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value) do
-    prefix = "[#{mf()}][#{execution.id}.#{node_name}]"
-    Logger.warning("#{prefix}: setting value")
+    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
+    Logger.debug("#{prefix}: setting value, #{inspect(value)}")
 
     Journey.Repo.transaction(fn repo ->
       new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
@@ -126,7 +126,7 @@ defmodule Journey.Executions do
           current_value_node.node_value == value
 
       if updating_to_the_same_value? do
-        Logger.warning("#{prefix}: no need to update, value unchanged, aborting transaction")
+        Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
         repo.rollback({:no_change, execution})
       else
         now_seconds = System.system_time(:second)
@@ -167,7 +167,7 @@ defmodule Journey.Executions do
               ]
             )
 
-            Logger.warning("#{prefix}: value updated")
+            Logger.debug("#{prefix}: value updated")
 
           {0, _} ->
             Logger.error("#{prefix}: value not updated, aborting transaction")
@@ -179,13 +179,13 @@ defmodule Journey.Executions do
     end)
     |> case do
       {:ok, updated_execution} ->
-        Logger.warning("#{prefix}: value set successfully")
+        Logger.debug("#{prefix}: value set successfully")
 
         updated_execution
         |> Journey.Scheduler.advance()
 
       {:error, {:no_change, original_execution}} ->
-        Logger.warning("#{prefix}: value not set (updating for the same value), transaction rolled back")
+        Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
         Journey.load(original_execution)
 
       {:error, _} ->
@@ -195,8 +195,8 @@ defmodule Journey.Executions do
   end
 
   def get_value(execution, node_name, timeout_ms) do
-    prefix = "[#{execution.id}][#{node_name}][#{mf()}]"
-    Logger.info("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
+    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
+    Logger.debug("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
 
     monotonic_time_deadline =
       case timeout_ms do
@@ -213,10 +213,10 @@ defmodule Journey.Executions do
     load_value(execution, node_name, monotonic_time_deadline, 0)
     |> tap(fn
       {:ok, _result} ->
-        Logger.info("#{prefix}: done. success")
+        Logger.debug("#{prefix}: done. success")
 
       {outcome, result} ->
-        Logger.info("#{prefix}: done. outcome: '#{inspect(outcome)}', result: '#{inspect(result)}'")
+        Logger.debug("#{prefix}: done. outcome: '#{inspect(outcome)}', result: '#{inspect(result)}'")
     end)
   end
 
@@ -279,7 +279,7 @@ defmodule Journey.Executions do
 
   def archive_execution(execution_id) do
     prefix = "[#{mf()}][#{execution_id}]"
-    Logger.info("#{prefix}: archiving execution")
+    Logger.debug("#{prefix}: archiving execution")
 
     {:ok, archived_at_time} =
       Journey.Repo.transaction(fn repo ->
@@ -288,11 +288,11 @@ defmodule Journey.Executions do
           |> repo.one!()
 
         if current_execution.archived_at != nil do
-          Logger.info("#{prefix}: execution already archived (#{current_execution.archived_at})")
+          Logger.debug("#{prefix}: execution already archived (#{current_execution.archived_at})")
           current_execution.archived_at
         else
           now = System.system_time(:second)
-          Logger.info("#{prefix}: setting archived_at to #{now}")
+          Logger.debug("#{prefix}: setting archived_at to #{now}")
           Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
 
           from(e in Execution, where: e.id == ^execution_id)
@@ -307,7 +307,7 @@ defmodule Journey.Executions do
 
   def unarchive_execution(execution_id) do
     prefix = "[#{mf()}][#{execution_id}]"
-    Logger.info("#{prefix}: unarchiving execution")
+    Logger.debug("#{prefix}: unarchiving execution")
 
     {:ok, :ok} =
       Journey.Repo.transaction(fn repo ->
@@ -316,10 +316,10 @@ defmodule Journey.Executions do
           |> repo.one!()
 
         if current_execution.archived_at == nil do
-          Logger.info("#{prefix}: execution not archived, nothing to do")
+          Logger.debug("#{prefix}: execution not archived, nothing to do")
           :ok
         else
-          Logger.info("#{prefix}: setting archived_at property to nil")
+          Logger.debug("#{prefix}: setting archived_at property to nil")
           now = System.system_time(:second)
           Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
 

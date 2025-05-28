@@ -1,6 +1,4 @@
 defmodule Journey do
-  require Logger
-
   @moduledoc """
 
   ## TL;DR
@@ -557,7 +555,6 @@ defmodule Journey do
   """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    Logger.info("get_value[#{execution.id}.#{node_name}], options: #{inspect(opts)}")
     check_options(opts, [:wait])
 
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
@@ -584,9 +581,6 @@ defmodule Journey do
       end
 
     Executions.get_value(execution, node_name, timeout_ms)
-    |> tap(fn x ->
-      Logger.info("get_value[#{execution.id}.#{node_name}] returned: #{inspect(x)}")
-    end)
   end
 
   @doc """

@@ -16,7 +16,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring do
     # that have computed their scheduled time and whose scheduled time has passed.
 
     prefix = "[#{mf()}] [#{inspect(self())}]"
-    Logger.info("#{prefix}: starting #{execution_id}")
+    Logger.debug("#{prefix}: starting #{execution_id}")
 
     now = System.system_time(:second)
 
@@ -53,9 +53,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring do
       |> Enum.count()
 
     if regenerated_count == 0 do
-      Logger.info("#{prefix}: no schedule_recurring nodes need regeneration")
+      Logger.debug("#{prefix}: no schedule_recurring nodes need regeneration")
     else
-      Logger.info("#{prefix}: regenerated #{regenerated_count} schedule_recurring computation(s)")
+      Logger.debug("#{prefix}: regenerated #{regenerated_count} schedule_recurring computation(s)")
     end
   end
 
@@ -82,7 +82,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring do
       }
       |> Journey.Repo.insert!()
 
-    Logger.warning("Created a new :not_set computation for #{execution_id}.#{node_name}.#{c.id}")
+    prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"
+
+    Logger.debug("#{prefix}: created a new :not_set computation, #{c.id}")
     c
   end
 

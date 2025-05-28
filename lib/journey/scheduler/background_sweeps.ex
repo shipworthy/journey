@@ -60,7 +60,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
   end
 
   defp sweep_forever(eid) do
-    :timer.sleep(1000)
+    :timer.sleep(500)
     Journey.Scheduler.BackgroundSweeps.run_sweeps(eid)
     sweep_forever(eid)
   end

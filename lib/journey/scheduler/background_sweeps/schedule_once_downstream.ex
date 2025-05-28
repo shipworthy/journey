@@ -1,4 +1,3 @@
-# TODO: change this to indicate that this schedules both single and recurring computations.
 defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
   @moduledoc false
 
@@ -10,8 +9,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
   alias Journey.Execution.Value
 
   # TODO: the window value should be a property of the computation, settable by the application.
+  # TODO: OR - make this 3 times the sweeper period – likely to get picked up, but the window is smaller.
+  # make sweeper period configurable in configuration for v1
   @rolling_window_seconds 60 * 60
-  # note that this only manages whether the computation is kicked, not whether it is actually computed.
 
   defp q_execution_ids_to_advance(execution_id) do
     now = System.system_time(:second)
@@ -31,7 +31,6 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream do
           (v.node_value <= ^now or
              fragment("?::bigint", v.node_value) <= ^now) and
           v.set_time >= ^cutoff_time,
-      # TODO: consider only including executions that have un-computed computations.
       distinct: true,
       select: e.id
     )

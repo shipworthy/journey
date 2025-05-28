@@ -52,7 +52,7 @@ defmodule Journey.Scheduler.Recompute do
             }
             |> repo.insert!()
 
-          Logger.info(
+          Logger.debug(
             "#{prefix}: created a new re-computation, #{new_computation.id}.#{new_computation.node_name}. an upstream node has a newer version"
           )
 
@@ -63,7 +63,7 @@ defmodule Journey.Scheduler.Recompute do
     if new_computations == [] do
       Logger.debug("#{prefix}: completed. no new re-computations to create")
     else
-      Logger.info("#{prefix}: completed. created #{length(new_computations)} new computations")
+      Logger.debug("#{prefix}: completed. created #{length(new_computations)} new computations")
     end
   end
 
