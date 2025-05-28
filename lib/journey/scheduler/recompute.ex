@@ -35,7 +35,6 @@ defmodule Journey.Scheduler.Recompute do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        # all_set_values = get_all_set_values(execution.id, repo)
         all_values = get_all_values(execution.id, repo)
 
         all_computations

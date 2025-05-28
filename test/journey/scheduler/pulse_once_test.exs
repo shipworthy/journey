@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.Scheduler.PulseOnceTest do
+defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
   use ExUnit.Case, async: true
 
   import Journey.Node

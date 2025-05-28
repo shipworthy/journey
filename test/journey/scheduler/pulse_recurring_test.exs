@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.Scheduler.PulseRecurringTest do
+defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
   use ExUnit.Case, async: true
 
   require Logger
