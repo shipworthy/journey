@@ -12,13 +12,15 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
 
+  @sweeper_period :timer.seconds(5)
+
   def child_spec(_arg) do
     Periodic.child_spec(
       id: __MODULE__,
       mode: @mode,
       initial_delay: :timer.seconds(:rand.uniform(20) + 5),
       run: &run/0,
-      every: :timer.seconds(5),
+      every: @sweeper_period,
       delay_mode: :shifted
     )
   end
@@ -45,7 +47,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
     Logger.debug("#{prefix}: starting CHICKEN")
     Abandoned.sweep(execution_id)
     ScheduleNodes.sweep(execution_id)
-    UnblockedBySchedule.sweep(execution_id)
+    UnblockedBySchedule.sweep(execution_id, @sweeper_period)
     RegenerateScheduleRecurring.sweep(execution_id)
     Logger.debug("#{prefix}: done")
   end

@@ -8,14 +8,11 @@ defmodule Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule do
   alias Journey.Execution
   alias Journey.Execution.Value
 
-  # TODO: the window value should be a property of the computation, settable by the application.
-  # TODO: OR - make this 3 times the sweeper period – likely to get picked up, but the window is smaller.
-  # make sweeper period configurable in configuration for v1
-  @rolling_window_seconds 60 * 60
+  defp q_execution_ids_to_advance(execution_id, sweeper_period) do
+    # Find all executions that have schedule_* computations that have "recently" come due.
 
-  defp q_execution_ids_to_advance(execution_id) do
     now = System.system_time(:second)
-    cutoff_time = now - @rolling_window_seconds
+    cutoff_time = now - sweeper_period * 5
 
     from(e in q_executions(execution_id),
       join: c in assoc(e, :computations),
@@ -37,14 +34,15 @@ defmodule Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule do
   end
 
   @doc false
-  def sweep(execution_id) when is_nil(execution_id) or is_binary(execution_id) do
+  def sweep(execution_id, sweeper_period)
+      when (is_nil(execution_id) or is_binary(execution_id)) and is_number(sweeper_period) do
     # Find and compute all un-computed computations that are downstream of computed schedule_once computations, that are due within the scheduled time window
 
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting #{execution_id}")
 
     kicked_count =
-      q_execution_ids_to_advance(execution_id)
+      q_execution_ids_to_advance(execution_id, sweeper_period)
       |> Journey.Repo.all()
       |> Enum.map(fn swept_execution_id ->
         swept_execution_id
