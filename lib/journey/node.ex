@@ -200,7 +200,7 @@ defmodule Journey.Node do
   end
 
   @doc """
-  Creates a graph node that declares its readiness at a specific time.
+  Creates a graph node that declares its readiness at a specific time, once.
 
   Once this node is unblocked, it will be executed to set the time at which it will unblock its downstream dependencies.
 
@@ -261,9 +261,60 @@ defmodule Journey.Node do
   end
 
   @doc """
-  TODO: Document this function.
+  Creates a graph node that declares its readiness at a specific time, time after time.
+
+  Once this node is unblocked, it will be repeatedly computed, to set the time at which it will unblock its downstream dependencies.
+
+  This is useful for triggering recurring tasks, such as sending reminders or notifications.
+
+  ## Examples:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "`schedule_recurring()` doctest graph (it issues 'reminders' every few seconds)",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:name),
+  ...>         schedule_recurring(
+  ...>           :schedule_a_reminder,
+  ...>           [:name],
+  ...>           fn _ ->
+  ...>             soon = System.system_time(:second) + 2
+  ...>             {:ok, soon}
+  ...>           end
+  ...>         ),
+  ...>         compute(
+  ...>           :send_a_reminder,
+  ...>           [:name, :schedule_a_reminder],
+  ...>           fn %{name: name} = v ->
+  ...>             reminder_count = Map.get(v, :send_a_reminder, 0) + 1
+  ...>             IO.puts("[\#{System.system_time(:second)}] \#{name}, here is your scheduled reminder # \#{reminder_count}.")
+  ...>             {:ok, reminder_count}
+  ...>           end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution =
+  ...>     graph
+  ...>     |> Journey.start_execution()
+  ...>     |> Journey.set_value(:name, "Mario")
+  iex> execution |> Journey.values() |> Map.get(:name)
+  "Mario"
+  iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
+  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+  iex> Journey.get_value(execution, :send_a_reminder, wait: 10_000)
+  {:ok, 1}
+  iex> Process.sleep(10_000)
+  iex> {:ok, reminder_count} = Journey.get_value(execution, :send_a_reminder, wait: 10_000)
+  iex> reminder_count
+  6
+  iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+
+  ```
 
   """
+
   def schedule_recurring(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
