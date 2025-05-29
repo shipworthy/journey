@@ -83,7 +83,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
       if Map.get(known_graphs, c.execution_id) == true do
         true
       else
-        Logger.error("skipping computation #{c.id} / #{c.execution_id} because of unknown graph")
+        Logger.warning("skipping computation #{c.id} / #{c.execution_id} because of unknown graph")
         false
       end
     end)
