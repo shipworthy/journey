@@ -109,8 +109,8 @@ defmodule Journey.Executions do
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value) do
-    prefix = "[#{mf()}][#{execution.id}.#{node_name}]"
-    Logger.debug("#{prefix}: setting value")
+    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
+    Logger.debug("#{prefix}: setting value, #{inspect(value)}")
 
     Journey.Repo.transaction(fn repo ->
       new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
@@ -195,7 +195,7 @@ defmodule Journey.Executions do
   end
 
   def get_value(execution, node_name, timeout_ms) do
-    prefix = "[#{execution.id}][#{node_name}][#{mf()}]"
+    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     Logger.debug("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
 
     monotonic_time_deadline =

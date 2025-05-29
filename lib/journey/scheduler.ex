@@ -18,7 +18,8 @@ defmodule Journey.Scheduler do
   end
 
   defp advance_with_graph(prefix, execution, graph) do
-    Logger.debug("advance_with_graph #{prefix} starting")
+    prefix = "#{prefix} [advance_with_graph]"
+    Logger.debug("#{prefix} starting")
     Journey.Scheduler.Recompute.detect_updates_and_create_re_computations(execution, graph)
 
     available_computations =

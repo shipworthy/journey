@@ -6,10 +6,13 @@ defmodule Journey.Scheduler.BackgroundSweeps do
   import Journey.Helpers.Log
 
   alias Journey.Scheduler.BackgroundSweeps.Abandoned
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleOnce
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleOnceDownstream
+  alias Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring
+  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
+  alias Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
+
+  @sweeper_period :timer.seconds(5)
 
   def child_spec(_arg) do
     Periodic.child_spec(
@@ -17,7 +20,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
       mode: @mode,
       initial_delay: :timer.seconds(:rand.uniform(20) + 5),
       run: &run/0,
-      every: :timer.seconds(5),
+      every: @sweeper_period,
       delay_mode: :shifted
     )
   end
@@ -41,17 +44,12 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   def run_sweeps(execution_id) do
     prefix = "#{mf()}[#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting")
+    Logger.debug("#{prefix}: starting CHICKEN")
     Abandoned.sweep(execution_id)
-    ScheduleOnce.sweep(execution_id)
-    ScheduleOnceDownstream.sweep(execution_id)
+    ScheduleNodes.sweep(execution_id)
+    UnblockedBySchedule.sweep(execution_id, @sweeper_period)
+    RegenerateScheduleRecurring.sweep(execution_id)
     Logger.debug("#{prefix}: done")
-  end
-
-  defp sweep_forever(eid) do
-    :timer.sleep(1000)
-    Journey.Scheduler.BackgroundSweeps.run_sweeps(eid)
-    sweep_forever(eid)
   end
 
   def start_background_sweeps_in_test(eid) do
@@ -61,5 +59,11 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   def stop_background_sweeps_in_test(background_sweeps_pid) do
     Process.exit(background_sweeps_pid, :kill)
+  end
+
+  defp sweep_forever(eid) do
+    :timer.sleep(500)
+    Journey.Scheduler.BackgroundSweeps.run_sweeps(eid)
+    sweep_forever(eid)
   end
 end
