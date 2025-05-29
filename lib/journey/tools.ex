@@ -121,6 +121,10 @@ defmodule Journey.Tools do
 
     graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
 
+    if graph == nil do
+      raise "Graph '#{execution.graph_name}' not found in catalog."
+    end
+
     set_values = execution.values |> Enum.filter(fn v -> v.set_time != nil end) |> Enum.sort_by(& &1.set_time, :desc)
     not_set_values = execution.values |> Enum.filter(fn v -> v.set_time == nil end)
 
