@@ -5,7 +5,9 @@ config :journey, Journey.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  port: 5438
+  port: 5438,
+  queue_target: 1000,
+  queue_interval: 2000
 
 config :journey, ecto_repos: [Journey.Repo]
 
@@ -14,3 +16,7 @@ config :logger,
        format: "$time [$level] $metadata$message\n",
        level: :warning,
        metadata: [:pid]
+
+config :journey, :graphs, [
+  &Journey.Examples.CreditCardApplication.graph/0
+]

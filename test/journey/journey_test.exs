@@ -233,8 +233,9 @@ defmodule Journey.JourneyTest do
       assert execution_v2.revision > execution_v1.revision
 
       execution_v3 = execution_v1 |> Journey.set_value(:first_name, "Luigi")
-      # TODO: add semantics for waiting for a computation to finish.
-      Process.sleep(500)
+      # Give the new value a bit of time to propagate.
+      # TODO: add semantics for waiting for value whose revision is greater than a particular value.
+      Process.sleep(2000)
       {:ok, "Luigi"} = Journey.get_value(execution_v3, :first_name, wait: true)
       {:ok, "Hello, Luigi"} = Journey.get_value(execution_v3, :greeting, wait: true)
       assert execution_v3.revision > execution_v2.revision
