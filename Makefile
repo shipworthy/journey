@@ -5,13 +5,14 @@
 	format \
 	format-check \
 	lint \
-	test
+	test \
+	test-load
 
 
 POSTGRES_DB_CONTAINER_NAME?=new_journey-postgres-db
 
 
-all: build format-check lint test
+all: build format-check lint test test-load
 
 
 all-clean: clean deps-get all
@@ -56,3 +57,7 @@ lint:
 
 test:
 	mix test --warnings-as-errors --cover
+
+
+test-load:
+	mix run test_load/sunny_day.exs

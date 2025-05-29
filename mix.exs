@@ -40,8 +40,8 @@ defmodule Journey.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_), do: ["lib"]
+  defp elixirc_paths(:test), do: ["lib", "test_load", "test/support"]
+  defp elixirc_paths(_), do: ["lib", "test_load"]
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
