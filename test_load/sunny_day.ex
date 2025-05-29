@@ -60,10 +60,6 @@ defmodule LoadTest.SunnyDay do
   end
 
   def lifetime_success(e) do
-    # e =
-    #   graph
-    #   |> Journey.start_execution()
-
     Logger.info("lifetime_success[#{e.id}]: starting")
 
     e =
@@ -84,6 +80,8 @@ defmodule LoadTest.SunnyDay do
     e = e |> Journey.set_value(:credit_card_mailed, true)
     {:ok, true} = e |> Journey.get_value(:credit_card_mailed_notification, wait: 45_000)
     {:ok, _} = e |> Journey.get_value(:archive, wait: 45_000)
+    Logger.info("lifetime_success[#{e.id}]: completed")
+
     e
   end
 end

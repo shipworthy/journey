@@ -5,7 +5,8 @@
 	format \
 	format-check \
 	lint \
-	test
+	test \
+	test-load
 
 
 POSTGRES_DB_CONTAINER_NAME?=new_journey-postgres-db
