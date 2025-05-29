@@ -44,7 +44,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   def run_sweeps(execution_id) do
     prefix = "#{mf()}[#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting CHICKEN")
+    Logger.debug("#{prefix}: starting sweeps for execution_id: #{inspect(execution_id)}")
     Abandoned.sweep(execution_id)
     ScheduleNodes.sweep(execution_id)
     UnblockedBySchedule.sweep(execution_id, @sweeper_period)
