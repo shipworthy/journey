@@ -12,7 +12,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule do
     # Find all executions that have schedule_* computations that have "recently" come due.
 
     now = System.system_time(:second)
-    cutoff_time = now - sweeper_period * 5
+    cutoff_time = now - max(sweeper_period * 5, 60)
 
     from(e in q_executions(execution_id),
       join: c in assoc(e, :computations),
@@ -20,10 +20,11 @@ defmodule Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule do
       on:
         v.execution_id == e.id and
           v.node_name == c.node_name and
-          v.node_type == c.computation_type,
+          v.node_type == c.computation_type and
+          v.node_type in [:schedule_once, :schedule_recurring] and
+          c.computation_type in [:schedule_once, :schedule_recurring],
       where:
-        c.computation_type in [:schedule_once, :schedule_recurring] and
-          c.state == :success and
+        c.state == :success and
           not is_nil(v.set_time) and
           (v.node_value <= ^now or
              fragment("?::bigint", v.node_value) <= ^now) and
@@ -41,15 +42,24 @@ defmodule Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule do
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting #{execution_id}")
 
+    q = q_execution_ids_to_advance(execution_id, sweeper_period)
+
     kicked_count =
-      q_execution_ids_to_advance(execution_id, sweeper_period)
-      |> Journey.Repo.all()
-      |> Enum.map(fn swept_execution_id ->
-        swept_execution_id
-        |> Journey.load()
-        |> Journey.Scheduler.advance()
-      end)
-      |> Enum.count()
+      try do
+        q
+        |> Journey.Repo.all()
+        |> Enum.map(fn swept_execution_id ->
+          swept_execution_id
+          |> Journey.load()
+          |> Journey.Scheduler.advance()
+        end)
+        |> Enum.count()
+      rescue
+        e ->
+          Logger.error("#{prefix}: error while sweeping: #{inspect(e)}")
+          Logger.error("#{prefix}: query: #{inspect(Journey.Repo.to_sql(:all, q))}")
+          reraise e, __STACKTRACE__
+      end
 
     if kicked_count == 0 do
       Logger.debug("#{prefix}: no recently due pulse value(s) found")
