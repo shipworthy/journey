@@ -20,7 +20,7 @@ defmodule Journey.Scheduler.Recompute do
       Journey.Repo.transaction(fn repo ->
         latest_computation_ids =
           from(c in Computation,
-            where: c.execution_id == ^execution.id and c.computation_type == :compute and c.state != ^:not_set,
+            where: c.execution_id == ^execution.id and c.computation_type in [:compute, :mutate] and c.state != ^:not_set,
             order_by: [desc: c.ex_revision_at_start],
             distinct: c.node_name,
             select: c.id
