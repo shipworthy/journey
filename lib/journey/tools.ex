@@ -146,6 +146,7 @@ defmodule Journey.Tools do
 
     now = System.system_time(:second)
 
+    # TODO: put :abandoned computations into a separate section.
     """
     Execution summary:
     - ID: '#{execution_id}'

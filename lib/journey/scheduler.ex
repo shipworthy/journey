@@ -6,6 +6,11 @@ defmodule Journey.Scheduler do
   require Logger
   import Journey.Helpers.Log
 
+  def advance(nil) do
+    Logger.warning("[#{mf()}] [#{inspect(self())}] - advancing a nil execution")
+    nil
+  end
+
   def advance(execution) do
     prefix = "[#{execution.id}] [#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")

@@ -21,16 +21,22 @@ defmodule LoadTest.SunnyDay do
     tasks =
       for e <- executions do
         Task.async(fn ->
-          e = lifetime_success(e)
+          try do
+            e = lifetime_success(e)
 
-          e
-          |> Journey.get_value(:archive)
-          |> case do
-            {:ok, _} ->
-              Logger.debug("#{e.id}: execution completed successfully.")
+            e
+            |> Journey.get_value(:archive)
+            |> case do
+              {:ok, _} ->
+                Logger.debug("#{e.id}: execution completed successfully.")
 
-            _huh ->
-              Logger.error("#{e.id}: execution failed.")
+              _huh ->
+                Logger.error("#{e.id}: execution failed.")
+                Journey.Tools.summarize(e.id) |> IO.puts()
+            end
+          rescue
+            exception ->
+              Logger.error("#{inspect(e.id)}: execution raised an exception: #{inspect(exception)}")
               Journey.Tools.summarize(e.id) |> IO.puts()
           end
         end)

@@ -202,6 +202,10 @@ defmodule Journey.Examples.CreditCardApplication do
     end
   end
 
+  def long_time_since_last_update?(%{node_value: last_updated_at, execution_id: _execution_id}) do
+    System.system_time(:second) - last_updated_at > 60 * 60 * 24
+  end
+
   require Logger
 
   import Journey.Node
@@ -268,9 +272,9 @@ defmodule Journey.Examples.CreditCardApplication do
         schedule_once(
           :schedule_archival,
           unblocked_when({
-            :and,
+            :or,
             [
-              {:last_updated_at, &provided?/1},
+              {:last_updated_at, &long_time_since_last_update?/1},
               {:or, [{:credit_card_mailed_notification, &provided?/1}, {:inform_of_rejection, &provided?/1}]}
             ]
           }),
