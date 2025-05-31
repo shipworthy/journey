@@ -3,7 +3,9 @@ defmodule Journey do
 
   ## TL;DR
 
-  Journey is a library for building and executing computation graphs. It allows you to define the flow of data and computations in your application in a clear, structured way, while providing features like persistence, scalability, and reliability.
+  Journey is a library for building and executing computation graphs.
+
+  It lets you define your application as a self-computing graph and run it without having to worry about the nitty-gritty of persistence, scalability, or reliability.
 
   Consider a simple Horoscope application that computes a user's zodiac sign and horoscope based on their birthday. The application will ask the user to `input` their name and birthday, and it then auto-`compute`s their zodiac sign and horoscope.
 
