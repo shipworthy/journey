@@ -42,6 +42,8 @@ db-local-rebuild:
 deps-get:
 	mix deps.get
 
+dev-team:
+	npx @anthropic-ai/claude-code
 
 format:
 	mix format
