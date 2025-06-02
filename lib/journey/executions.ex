@@ -366,7 +366,7 @@ defmodule Journey.Executions do
   defp cmp(:is_not_nil), do: fn a -> not is_nil(a) end
   defp cmp(f) when is_function(f), do: f
 
-  defp find_value_by_name(execution, node_name) when is_atom(node_name) do
+  def find_value_by_name(execution, node_name) when is_atom(node_name) do
     execution.values |> Enum.find(fn value -> value.node_name == node_name end)
   end
 
