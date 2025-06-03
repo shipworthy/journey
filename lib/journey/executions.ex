@@ -426,6 +426,10 @@ defmodule Journey.Executions do
     |> Map.update!(:computed_with, &convert_all_keys_to_atoms/1)
   end
 
+  def find_computations_by_node_name(execution, node_name) when is_atom(node_name) do
+    execution.computations |> Enum.filter(fn c -> c.node_name == node_name end)
+  end
+
   # def convert_key_to_atom(map, key) do
   #   Map.update!(map, key, &String.to_atom/1)
   # end

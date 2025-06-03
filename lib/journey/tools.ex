@@ -196,10 +196,19 @@ defmodule Journey.Tools do
                                                      } ->
         "  - :#{node_name} (#{id}): #{inspect(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
           "    inputs used: \n" <>
-          Enum.map_join(computed_with, "\n", fn
-            {node_name, revision} ->
-              "       #{inspect(node_name)} (rev #{revision})"
-          end)
+          case computed_with do
+            nil ->
+              "       <none>\n"
+
+            [] ->
+              "       <none>\n"
+
+            _ ->
+              Enum.map_join(computed_with, "\n", fn
+                {node_name, revision} ->
+                  "       #{inspect(node_name)} (rev #{revision})"
+              end)
+          end
       end) <>
       """
       \n

@@ -48,6 +48,9 @@ defmodule Journey.Scheduler do
   defp launch_computation(execution, computation, conditions_fulfilled) do
     computation_params = execution |> Journey.values(reload: false)
 
+    # Start the computation in a separate process, as a "fire-and-forget" task.
+    # Note that this task is intentionally not OTP-"supervised" – we are using
+    # database-based supervision instead.
     Task.start(fn ->
       prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"
       Logger.debug("#{prefix}: starting async computation")
@@ -61,9 +64,6 @@ defmodule Journey.Scheduler do
         conditions_fulfilled
         |> Enum.map(fn %{upstream_node: v} -> {v.node_name, v.ex_revision} end)
         |> Enum.into(%{})
-
-      recurring_upstream_schedules_to_reschedule =
-        find_things_to_reschedule(computation.computed_with, input_versions_to_capture)
 
       r =
         try do
@@ -89,26 +89,21 @@ defmodule Journey.Scheduler do
 
       invoke_f_on_save(prefix, graph_node.f_on_save, execution.id, r)
 
-      # TODO: how do we make sure rescheduling does not fall through cracks if something fails along the way?
-      # TODO: perform the reschedule as part of the same transaction as marking the computation as completed.
-      reschedule_recurring(recurring_upstream_schedules_to_reschedule)
-
       advance(execution)
 
-      # TODO: consider killing the computation after deadline (since we are likely to
-      # start other instances of the computation, doing this sounds like a good idea).
-      # This could probably be as simple as some version of starting the computation as linked to this process,
-      # and exiting the parent after the deadline or when the computation completes, whichever comes first.
-      #
-      # t = Task.async(fn ->  node.f_compute.(params)  end)
+      # TODO: kill the computation after a deadline (since we are likely to start other instances
+      # of the computation), e.g. some version of
+      # t = Task.async(fn -> node.f_compute.(params) end)
       # Task.await(t, abandoned_after)
       # pros: no lingering tasks. cons: abrupt termination, extra logic.
+      # TODO: limit the number of concurrent computations, to avoid overloading the system.
     end)
 
     execution
   end
 
-  defp invoke_f_on_save(_prefix, nil, _eid, _result) do
+  defp invoke_f_on_save(prefix, nil, _eid, _result) do
+    Logger.debug("#{prefix}: f_on_save is not defined, skipping")
     nil
   end
 
@@ -120,23 +115,10 @@ defmodule Journey.Scheduler do
         f.(eid, result)
       rescue
         e ->
-          Logger.error("#{prefix}: f_on_save failed, it raised an exception: '#{inspect(e)}'")
+          Logger.error("#{prefix}: f_on_save raised an exception: '#{inspect(e)}'")
       end
 
       Logger.debug("#{prefix}: f_on_save completed")
     end)
-  end
-
-  defp find_things_to_reschedule(original_computation_input_versions, new_computation_input_versions)
-       when (original_computation_input_versions == nil or is_map(original_computation_input_versions)) and
-              is_map(new_computation_input_versions) do
-    # return the list of input nodes whose versions have changed, which are schedule_recurring
-    []
-  end
-
-  defp reschedule_recurring(recurring_upstream_schedules_to_reschedule)
-       when is_list(recurring_upstream_schedules_to_reschedule) do
-    # create new computations for each of the schedule_recurring nodes identified in
-    # recurring_upstream_schedules_to_reschedule
   end
 end
