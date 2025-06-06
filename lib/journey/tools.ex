@@ -181,51 +181,7 @@ defmodule Journey.Tools do
       Enum.map_join(not_set_values, "\n", fn %{node_type: node_type, node_name: node_name} ->
         "  - #{node_name}: <unk> | #{inspect(node_type)}"
       end) <>
-      """
-        \n
-      Computations:
-      - Completed:
-      """ <>
-      Enum.map_join(computations_completed, "\n", fn %{
-                                                       id: id,
-                                                       node_name: node_name,
-                                                       state: state,
-                                                       computation_type: computation_type,
-                                                       computed_with: computed_with,
-                                                       ex_revision_at_completion: ex_revision_at_completion
-                                                     } ->
-        "  - :#{node_name} (#{id}): #{inspect(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
-          "    inputs used: \n" <>
-          Enum.map_join(computed_with, "\n", fn
-            {node_name, revision} ->
-              "       #{inspect(node_name)} (rev #{revision})"
-          end)
-      end) <>
-      """
-      \n
-      - Outstanding:
-      """ <>
-      Enum.map_join(computations_outstanding, "\n", fn %{
-                                                         node_name: node_name,
-                                                         state: state,
-                                                         computation_type: computation_type
-                                                       } ->
-        readiness =
-          Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-            execution.values,
-            graph
-            |> Graph.find_node_by_name(node_name)
-            |> Map.get(:gated_by)
-          )
-
-        "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n" <>
-          Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
-            "       ✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
-          end) <>
-          Enum.map_join(readiness.conditions_not_met, "\n", fn %{upstream_node: v, f_condition: f} ->
-            "       🛑 #{inspect(v.node_name)} | #{f_name(f)}"
-          end)
-      end)
+      list_computations(graph, execution.values, computations_completed, computations_outstanding)
   end
 
   def generate_mermaid_graph(graph) do
@@ -238,5 +194,62 @@ defmodule Journey.Tools do
       |> :erlang.fun_info()
 
     "&#{fi[:name]}/#{fi[:arity]}"
+  end
+
+  def list_computations(graph, values, computations_completed, computations_outstanding) do
+    """
+      \n
+    Computations:
+    - Completed:
+    """ <>
+      Enum.map_join(computations_completed, "\n", &completed_computation/1) <>
+      """
+      \n
+      - Outstanding:
+      """ <>
+      Enum.map_join(computations_outstanding, "\n", fn oc -> outstanding_computation(graph, values, oc) end)
+  end
+
+  defp completed_computation(%{
+         id: id,
+         node_name: node_name,
+         state: state,
+         computation_type: computation_type,
+         computed_with: computed_with,
+         ex_revision_at_completion: ex_revision_at_completion
+       }) do
+    "  - :#{node_name} (#{id}): #{inspect(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
+      "    inputs used: \n" <>
+      case computed_with do
+        nil ->
+          "       <none>\n"
+
+        [] ->
+          "       <none>\n"
+
+        _ ->
+          Enum.map_join(computed_with, "\n", fn
+            {node_name, revision} ->
+              "       #{inspect(node_name)} (rev #{revision})"
+          end)
+      end
+  end
+
+  defp outstanding_computation(graph, values, %{node_name: node_name, state: state, computation_type: computation_type}) do
+    readiness =
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        values,
+        graph
+        |> Graph.find_node_by_name(node_name)
+        |> Map.get(:gated_by)
+      )
+
+    "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n" <>
+      Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
+        "       ✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
+      end) <>
+      Enum.map_join(readiness.conditions_not_met, "\n", fn %{upstream_node: v, f_condition: f} ->
+        "       🛑 #{inspect(v.node_name)} | #{f_name(f)}"
+      end)
   end
 end

@@ -5,7 +5,7 @@ defmodule Journey do
 
   Journey is a library for building and executing computation graphs.
 
-  It lets you define your application as a self-computing graph and run it without having to worry about the nitty-gritty of persistence, scalability, or reliability.
+  It lets you define your application as a self-computing graph and run it without having to worry about the nitty-gritty of persistence, dependencies, scalability, or reliability.
 
   Consider a simple Horoscope application that computes a user's zodiac sign and horoscope based on their birthday. The application will ask the user to `input` their name and birthday, and it then auto-`compute`s their zodiac sign and horoscope.
 
@@ -70,19 +70,19 @@ defmodule Journey do
 
   * Persistence: Executions are persisted, so if the user leaves the web site, or if the system crashes, their execution can be reloaded and continued from where it left off.
 
-  * Scaling: Since Journey runs as part of your application, it scales with your your application, Your graph's computations (`&compute_zodiac_sign/1` and `&compute_horoscope/1` in the example above) run on the same nodes where the replicas of your application is running. No additional infrastructure or cloud services are needed.
+  * Scaling: Since Journey runs as part of your application, it scales with your your application, Your graph's computations (`&compute_zodiac_sign/1` and `&compute_horoscope/1` in the example above) run on the same nodes where the replicas of your application are running. No additional infrastructure or cloud services are needed.
 
   * Reliability: The `compute` functions are subject to customizable retry policy, so if `&compute_horoscope/1` fails because of a temporary glitch (e.g. the LLM service it uses for drafting horoscopes is currently overloaded), it will be retried.
 
   * Code Structure: The flow of your application is capture in the Journey graph, and the business logic is captured in the compute functions (`&compute_zodiac_sign/1` and `&compute_horoscope/1`). This clean separation supports you in structuring the functionality of your application in a clear, easy to understand and maintain way.
 
-  * Conditional flow: Journey allows you to define conditions for when a node is to be unblocked. So you if your graph includes "credit_approval_decision" node, the decision can inform which part of the graph is to be executed next (sending a "congrats!" email and starting the credit card issuance process, or sending a "sad trombone" email).
+  * Conditional flow: Journey allows you to define conditions for when a node is to be unblocked. So you if your graph includes a "credit_approval_decision" node, the decision can inform which part of the graph is to be executed next (sending a "congrats!" email and starting the credit card issuance process, or sending a "sad trombone" email).
 
   * Graph Visualization: Journey provides tools for visualizing your application's graph, so you can easily see the flow of data and computations in your application, and to share and discuss it with your team.
 
   * Scheduling: Your graph can include computations that are scheduled to run at a later time, or on a recurring basis. Daily horoscope emails! A reminder email if they haven't visited the web site in a while! A "happy birthday" email!
 
-  * Removing PII. Journey gives you an easy way to erase sensitive data once it is no longer needed. For example, your Credit Card Application graph can include a step to remove the SSN once the credit score has been computed.
+  * Removing PII. Journey gives you an easy way to erase sensitive data once it is no longer needed. For example, your Credit Card Application graph can include a step to remove the SSN once the credit score has been computed. TODO: include links to the relevant portion of the example.
 
   * Tooling and visualization: Journey provides a set of tools for introspecting and managing executions, and for visualizing your application's graph.
 
@@ -587,6 +587,10 @@ defmodule Journey do
 
   @doc """
   Archives the supplied execution.
+
+  TODO: "A node defined as an "archive()" node..."
+
+  TODO: include an example of defining an archive node in a graph -- inline, or by linking it to the credit card application example.
 
   Once an execution is archived, it is no longer visible in the list of executions, and cannot be loaded unless explicitly requested with the `include_archived: true` option. The background processing of the execution will stop.
 
