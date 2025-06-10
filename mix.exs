@@ -14,7 +14,7 @@ defmodule Journey.MixProject do
       name: "Journey",
       docs: [
         main: "readme",
-        extras: ["README.md", "LICENSE"]
+        extras: ["README.md", "LICENSE.md"]
       ],
       test_coverage: [
         summary: [
