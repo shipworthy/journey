@@ -1,6 +1,6 @@
 # Journey License
 
-Copyright (c) 2023-2025 Mark Markaryan
+Copyright (c) 2021-2025 Mark Markaryan
 
 Journey is dual-licensed to support individuals and small teams while ensuring that commercial use contributes to its ongoing development.
 
