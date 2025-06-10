@@ -46,11 +46,11 @@ defmodule Journey.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.12", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.12.5"},
       {:ecto_sql, "~> 3.12.1"},
-      {:ex_doc, "~> 0.37", only: :dev, runtime: false},
-      {:mix_test_watch, "~> 1.2", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.38.2", only: :dev, runtime: false},
+      {:mix_test_watch, "~> 1.3", only: [:dev, :test], runtime: false},
       {:nanoid, "~> 2.1.0"},
       {:number, "~> 1.0.5"},
       {:parent, "~> 0.12.1"},
