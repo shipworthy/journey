@@ -13,7 +13,7 @@ defmodule Journey.MixProject do
       start_permanent: Mix.env() == :prod,
       name: "Journey",
       docs: [
-        main: "readme",
+        main: "Journey",
         extras: ["README.md", "LICENSE.md"]
       ],
       test_coverage: [
