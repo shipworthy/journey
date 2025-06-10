@@ -73,5 +73,7 @@ This license does **not** comply with the Open Source Definition as defined by t
 ---
 
 – Mark Markaryan
+
 [github.com/markmark206/journey](https://github.com/markmark206/journey)
+
 [gojourney.dev](https://gojourney.dev)
