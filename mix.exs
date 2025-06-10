@@ -26,8 +26,13 @@ defmodule Journey.MixProject do
   def package do
     [
       name: "journey",
-      licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/markmark206/journey"}
+      description:
+        "Journey is a library for defining and running self-computing dataflow graphs with persistence, reliability, and scalability.",
+      licenses: ["Journey License"],
+      links: %{
+        "GitHub" => "https://github.com/markmark206/journey",
+        "License" => "https://github.com/markmark206/journey/blob/main/LICENSE.md"
+      }
     ]
   end
 
