@@ -673,4 +673,20 @@ defmodule Journey do
             "Unknown options: #{inspect(MapSet.to_list(unexpected_option_names))}. Known options: #{inspect(MapSet.to_list(known_option_names) |> Enum.sort())}."
     end
   end
+
+  @license_info IO.puts("""
+                Journey is dual-licensed to support individuals and small teams while ensuring that commercial use contributes to its ongoing development.
+
+                Journey is free to use for individuals and small teams (≤2 engineers and ≤$10k/month in revenue).
+
+                For all other uses, please purchase a license: [https://gojourney.dev](https://gojourney.dev).
+
+                Please see LICENSE.md for the full license text.
+
+                Thank you for using Journey!
+                """)
+
+  def license_info do
+    @license_info
+  end
 end
