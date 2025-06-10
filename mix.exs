@@ -1,10 +1,12 @@
 defmodule Journey.MixProject do
   use Mix.Project
 
+  @version "0.10.9"
+
   def project do
     [
       app: :journey,
-      version: "0.10.9",
+      version: @version,
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       package: package(),
@@ -31,7 +33,7 @@ defmodule Journey.MixProject do
       licenses: ["Journey License"],
       links: %{
         "GitHub" => "https://github.com/markmark206/journey",
-        "License" => "https://github.com/markmark206/journey/blob/main/LICENSE.md"
+        "License" => "https://github.com/markmark206/journey/blob/v#{@version}/LICENSE.md"
       }
     ]
   end
