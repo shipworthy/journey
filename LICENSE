@@ -1,18 +1,16 @@
 # Journey License
 
-## TL;DR (Informal Summary)
-
-Journey is free to use for individuals and small teams (≤2 engineers and ≤$10k/month in revenue).
-
-For all other uses, please purchase a license: [https://gojourney.dev](https://gojourney.dev)
-
-Thank you!
-
----
-
 Copyright (c) 2023-2025 Mark Markaryan
 
 Journey is dual-licensed to support individuals and small teams while ensuring that commercial use contributes to its ongoing development.
+
+---
+
+## 0. TL;DR (Informal Summary)
+
+Journey is free to use for individuals and small teams (≤2 engineers and ≤$10k/month in revenue).
+
+For all other uses, please purchase a license: [https://gojourney.dev](https://gojourney.dev).
 
 ---
 
@@ -75,5 +73,5 @@ This license does **not** comply with the Open Source Definition as defined by t
 ---
 
 – Mark Markaryan
-https://github.com/markmark206/journey
-https://gojourney.dev
+[github.com/markmark206/journey](https://github.com/markmark206/journey)
+[gojourney.dev](https://gojourney.dev)
