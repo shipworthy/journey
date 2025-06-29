@@ -14,4 +14,4 @@ def deps do
 end
 ```
 
-Documentation can be found at <https://hexdocs.pm/journey>.
+Documentation can be found at <https://shipworthy.hexdocs.pm/journey/>.

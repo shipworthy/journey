@@ -1,4 +1,6 @@
 defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
+  @moduledoc false
+
   require Logger
   import Ecto.Query
   alias Journey.Execution.Computation

@@ -1,4 +1,6 @@
 defmodule Journey.Execution.Value.JsonbScalar do
+  @moduledoc false
+
   @behaviour Ecto.Type
 
   def type, do: :map

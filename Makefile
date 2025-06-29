@@ -4,6 +4,9 @@
 	build-test \
 	format \
 	format-check \
+	hex-pm-publish-doc-private \
+	hex-pm-publish-private \
+	hex-pm-revert \
 	lint \
 	test \
 	test-load
@@ -53,8 +56,21 @@ format-check:
 	mix format --check-formatted
 
 
+hex-pm-publish-private:
+	mix hex.publish --organization shipworthy
+
+
+hex-pm-publish-doc-private:
+	mix hex.publish docs --organization shipworthy
+
+
+hex-pm-revert:
+	mix hex.publish --organization shipworthy --revert $(PUBLISHED_VERSION)
+
+
 lint:
 	mix credo --all --strict
+	mix hex.outdated || true
 
 
 test:

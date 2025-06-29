@@ -1,9 +1,18 @@
 defmodule LoadTest.SunnyDay do
   @moduledoc """
-  Standalone load test script for Journey execution system.
+  This is a standalone load test script for Journey execution system.
 
   This script creates concurrent executions following different trajectories
   to validate system behavior under load.
+
+  Usage example:
+  ```elixir
+  iex> r = LoadTest.SunnyDay.run(5)
+  iex> r.success
+  true
+  iex> r.metrics.number_of_executions
+  5
+  ```
   """
 
   require Logger
@@ -22,7 +31,7 @@ defmodule LoadTest.SunnyDay do
       for e <- executions do
         Task.async(fn ->
           try do
-            e = lifetime_success(e)
+            e = lifetime_success_flow(e)
 
             e
             |> Journey.get_value(:archive)
@@ -65,8 +74,8 @@ defmodule LoadTest.SunnyDay do
     total_memory / (1024 * 1024)
   end
 
-  def lifetime_success(e) do
-    Logger.info("lifetime_success[#{e.id}]: starting")
+  def lifetime_success_flow(e) do
+    Logger.info("lifetime_success_flow[#{e.id}]: starting")
 
     e =
       e
@@ -86,7 +95,7 @@ defmodule LoadTest.SunnyDay do
     e = e |> Journey.set_value(:credit_card_mailed, true)
     {:ok, true} = e |> Journey.get_value(:credit_card_mailed_notification, wait: 45_000)
     {:ok, _} = e |> Journey.get_value(:archive, wait: 45_000)
-    Logger.info("lifetime_success[#{e.id}]: completed")
+    Logger.info("lifetime_success_flow[#{e.id}]: completed")
 
     e
   end
