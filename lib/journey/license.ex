@@ -1,4 +1,6 @@
 defmodule Journey.License.Functions do
+  @moduledoc false
+
   @license_key_env_var_name "JOURNEY_LICENSE_KEY"
   @license_key_skip_verification_env_var_name "JOURNEY_LICENSE_KEY_SKIP_VERIFICATION"
 
@@ -92,6 +94,8 @@ defmodule Journey.License.Functions do
 end
 
 defmodule Journey.License do
+  @moduledoc false
+
   @validation_result Journey.License.Functions.validate()
 
   def license_info do
