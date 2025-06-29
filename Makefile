@@ -4,7 +4,9 @@
 	build-test \
 	format \
 	format-check \
+	hex-pm-publish-doc-private \
 	hex-pm-publish-private \
+	hex-pm-revert \
 	lint \
 	test \
 	test-load
