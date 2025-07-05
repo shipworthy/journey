@@ -1,6 +1,7 @@
 .PHONY: \
 	all \
 	build \
+	build-docs \
 	build-test \
 	format \
 	format-check \
@@ -24,6 +25,10 @@ all-clean: clean deps-get all
 build:
 	mix clean
 	mix compile --warnings-as-errors --force
+	mix docs --proglang elixir
+
+
+build-docs:
 	mix docs --proglang elixir
 
 
