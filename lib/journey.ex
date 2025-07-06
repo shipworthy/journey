@@ -72,7 +72,7 @@ defmodule Journey do
 
   * Scaling: Since Journey runs as part of your application, it scales with your your application, Your graph's computations (`&compute_zodiac_sign/1` and `&compute_horoscope/1` in the example above) run on the same nodes where the replicas of your application are running. No additional infrastructure or cloud services are needed.
 
-  * Reliability: The `compute` functions are subject to customizable retry policy, so if `&compute_horoscope/1` fails because of a temporary glitch (e.g. the LLM service it uses for drafting horoscopes is currently overloaded), it will be retried.
+  * Reliability: Journey uses database-based supervision of computation tasks: The `compute` functions are subject to customizable retry policy, so if `&compute_horoscope/1` fails because of a temporary glitch (e.g. the LLM service it uses for drafting horoscopes is currently overloaded), it will be retried.
 
   * Code Structure: The flow of your application is capture in the Journey graph, and the business logic is captured in the compute functions (`&compute_zodiac_sign/1` and `&compute_horoscope/1`). This clean separation supports you in structuring the functionality of your application in a clear, easy to understand and maintain way.
 
@@ -523,6 +523,7 @@ defmodule Journey do
     * `true` – wait until the value is available, or until timeout
     * a positive integer – wait for the supplied number of milliseconds (default: 5_000)
     * `:infinity` – wait indefinitely
+    This is useful for self-computing nodes, where the value is computed asynchronously.
 
   Returns
   * `{:ok, value}` – the value is set
