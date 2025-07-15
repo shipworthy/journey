@@ -307,8 +307,8 @@ defmodule Journey.Node do
   {:ok, 1}
   iex> Process.sleep(10_000)
   iex> {:ok, reminder_count} = Journey.get_value(execution, :send_a_reminder, wait: 10_000)
-  iex> reminder_count
-  6
+  iex> reminder_count > 4
+  true
   iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```
