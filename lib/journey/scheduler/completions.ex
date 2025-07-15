@@ -173,7 +173,7 @@ defmodule Journey.Scheduler.Completions do
       node_name,
       new_revision,
       repo,
-      "updated #{inspect(node_to_mutate)}"
+      "updated #{inspect(node_to_mutate)} (at #{inspect(System.system_time(:second))})"
     )
 
     # Record the result in the value node being mutated.
