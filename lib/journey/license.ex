@@ -115,11 +115,13 @@ defmodule Journey.License.Functions do
       "❓ Journey: The build key (provided via #{@license_key_env_var_name} env var) is not valid. Get a build key at https://gojourney.dev"
 
   defp message_from_response(:network_error),
-    do: """
-    ❓ Journey: Unable to verify your build key due to a network error. You can still use Journey, but please ensure you have a valid build key. https://gojourney.dev
+    do:
+      """
+      ❓ Journey: Unable to verify your build key due to a network error. You can still use Journey, but please ensure you have a valid build key. https://gojourney.dev
 
-    ℹ️ Journey: You can disable this validation by setting the #{@license_key_skip_verification_env_var_name} environment variable to 'true'.
-    """
+      ℹ️ Journey: You can disable this validation by setting the #{@license_key_skip_verification_env_var_name} environment variable to 'true'.
+      """
+      |> String.trim()
 
   defp message_from_response(status),
     do:
