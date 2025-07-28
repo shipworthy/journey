@@ -11,6 +11,7 @@
 	lint \
 	test \
 	test-load \
+	test-performance \
 	validate
 
 
@@ -91,6 +92,10 @@ test:
 
 test-load:
 	mix run test_load/sunny_day.exs
+
+
+test-performance:
+	mix run test_load/performance_benchmark.exs
 
 validate: format-check build-test lint test
 
