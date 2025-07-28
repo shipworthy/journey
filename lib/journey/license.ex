@@ -10,7 +10,6 @@ defmodule Journey.License.Functions do
     |> case do
       nil ->
         IO.puts("👋 Journey license key is not found (#{@license_key_env_var_name} environment var is not set).")
-        IO.puts("")
         print_license_info()
         :not_set
 
@@ -53,7 +52,6 @@ defmodule Journey.License.Functions do
       end
 
     result |> message_from_response() |> IO.puts()
-    IO.puts("")
     print_license_info()
     result
   end
@@ -61,9 +59,7 @@ defmodule Journey.License.Functions do
   defp print_license_info() do
     IO.puts("""
     🚀 Journey is free for non-commercial and small projects (≤$10k/month in revenue).
-
-    🔑 All other uses require a build key. Get yours at https://gojourney.dev | See LICENSE.md for full terms.
-
+    🔑 All other uses require a build key. Get yours at https://gojourney.dev/your_keys
     🙏 Thank you for using Journey!
     """)
   end
