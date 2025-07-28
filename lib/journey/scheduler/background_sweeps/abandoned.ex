@@ -24,7 +24,11 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
       Journey.Repo.transaction(fn repo ->
         abandoned_computations =
           from(c in from_computations(execution_id),
-            where: c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second,
+            join: e in Journey.Execution,
+            on: c.execution_id == e.id,
+            where:
+              c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second and
+                is_nil(e.archived_at),
             lock: "FOR UPDATE"
           )
           |> repo.all()
