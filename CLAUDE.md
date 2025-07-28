@@ -2,10 +2,36 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+When trying to understand the codebase, and whenever making a change, please read the file completely, and following the guidelines, and follow the "Pre-change checklist" and "Post-change checklist".
+
+
+## Guidelines for Making Changes
+- Be clear about the request for the change. If not clear, ask clarifying questions of the requester.
+- Err on the side of minimal changes and simple tests.
+- Consider creating basic tests, err on the side of simplicity, avoid mocking.
+- Prioritize correctness, of course, and clarity of the code.
+- Use idiomatic Elixir. Notions from other languages and ecosystems might not apply, and might be counter-productive and overly complex. Ask yourself: "is the concern I am addressing a real concern in Elixir?"
+- Consider applying patterns already existing in the codebase, and incorporate existing patterns into your changes.
+- When looking into using a package or an API, consider the reputation and potential vulnerability and risks involved in taking on that dependency.
+- Pay attention to making sure that the system is secure and cannot be hacked into, and that customer data is secure.
+- This project uses Makefile, which contains shortcuts for common operations (e.g. "test" or "validate").
+
+## Pre-change checklist
+- Plan multi-step tasks with TodoWrite
+- Please only provide factual information, based on up-to-date reputable sources (e.g. package documentation on hex.pm). When making assumptions or guessing, please clearly state so.
+
+## Post-change checklist
+- Before declaring any code change completed, please validate it by running `make validate`, and address all new issues.
+- If your change raised test coverage, please update test_coverage threshold in mix.exs to reflect the increase.
+- Ask the question: "Can this be further simplified, or does the current implementation provide a good balance of simplicity, clarity, functionality?"
+
 ## Common Development Commands
 
+### Validating a code or test change before declaring it done
+- `make validate` - runs format checkers, linters, and tests.
+
 ### Testing
-- `mix test` - Run all tests with coverage and warnings as errors
+- `make test` - Run all tests with coverage and warnings as errors
 - `mix test test/path/to/specific_test.exs` - Run a specific test file
 - `mix test.watch` - Watch for file changes and run tests automatically
 
@@ -15,7 +41,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `make format` - Format code with `mix format`
 - `make format-check` - Check if code is formatted (CI-friendly)
 - `make lint` - Run Credo linting with strict mode
-- `make test` - Run tests with coverage
 
 ### Development Database
 - `make db-local-rebuild` - Recreate local PostgreSQL container

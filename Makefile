@@ -10,7 +10,8 @@
 	hex-pm-revert \
 	lint \
 	test \
-	test-load
+	test-load \
+	validate
 
 
 POSTGRES_DB_CONTAINER_NAME?=new_journey-postgres-db
@@ -25,6 +26,12 @@ all-clean: clean deps-get all
 build:
 	mix clean
 	mix compile --warnings-as-errors --force
+	mix docs --proglang elixir
+
+
+build-test:
+	MIX_ENV=test mix clean
+	MIX_ENV=test mix compile --warnings-as-errors --force
 	mix docs --proglang elixir
 
 
@@ -84,3 +91,6 @@ test:
 
 test-load:
 	mix run test_load/sunny_day.exs
+
+validate: format-check build-test lint test
+
