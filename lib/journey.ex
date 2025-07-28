@@ -521,7 +521,7 @@ defmodule Journey do
   * `:wait` – whether or not to wait for the value to be set. This option can have the following values:
     * `false` or `0` – return immediately without waiting (default)
     * `true` – wait until the value is available, or until timeout
-    * a positive integer – wait for the supplied number of milliseconds (default: 5_000)
+    * a positive integer – wait for the supplied number of milliseconds (default: 15_000)
     * `:infinity` – wait indefinitely
     This is useful for self-computing nodes, where the value is computed asynchronously.
 
