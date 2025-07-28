@@ -20,13 +20,18 @@ defmodule LoadTest.PerformanceBenchmark do
   require Logger
   import Ecto.Query
 
-  @scenarios [
-    :scheduler_stress,
-    :high_frequency_values,
-    :time_based_queries,
-    :archive_unarchive_workload,
-    :scheduled_computation_load
-  ]
+  @just_the_sweepts false
+  @scenarios if @just_the_sweepts,
+               do: [],
+               else:
+                 [
+                   :scheduler_stress,
+                   :high_frequency_values,
+                   :time_based_queries,
+                   :archive_unarchive_workload,
+                   :scheduled_computation_load
+                 ] ++
+                   [:sweeper]
 
   def run(opts \\ []) do
     concurrency = Keyword.get(opts, :concurrency, 20)
@@ -35,7 +40,7 @@ defmodule LoadTest.PerformanceBenchmark do
     IO.puts("Starting performance benchmark with #{concurrency} concurrent executions, #{iterations} iterations")
 
     initial_memory = get_memory_usage_mb()
-    start_time = System.monotonic_time(:microsecond)
+    start_time = System.monotonic_time(:millisecond)
 
     # Run all test scenarios in parallel
     scenario_results =
@@ -43,12 +48,12 @@ defmodule LoadTest.PerformanceBenchmark do
       |> Task.async_stream(
         fn scenario ->
           IO.puts("[#{scenario}]: Running scenario")
-          scenario_start = System.monotonic_time(:microsecond)
+          scenario_start = System.monotonic_time(:millisecond)
           result = run_scenario(scenario, concurrency, iterations)
-          scenario_end = System.monotonic_time(:microsecond)
+          scenario_end = System.monotonic_time(:millisecond)
 
           # Add timing to result
-          duration_ms = ((scenario_end - scenario_start) / 1000) |> round()
+          duration_ms = scenario_end - scenario_start
           result_with_timing = Map.put(result, :duration_ms, duration_ms)
           IO.puts("[#{scenario}]: scenario completed after #{duration_ms} ms")
           {scenario, result_with_timing}
@@ -58,10 +63,10 @@ defmodule LoadTest.PerformanceBenchmark do
       |> Enum.map(fn {:ok, result} -> result end)
       |> Map.new()
 
-    end_time = System.monotonic_time(:microsecond)
+    end_time = System.monotonic_time(:millisecond)
     final_memory = get_memory_usage_mb()
 
-    total_duration_ms = ((end_time - start_time) / 1000) |> round()
+    total_duration_ms = end_time - start_time
 
     results = %{
       success: true,
@@ -108,6 +113,47 @@ defmodule LoadTest.PerformanceBenchmark do
       total_values: values_count,
       total_computations: computations_count,
       note: "Complex telemetry disabled for compatibility"
+    }
+  end
+
+  # Scenario 0: Sweeper "test"
+  defp run_scenario(:sweeper, _concurrency, _iterations) do
+    # Trigger multiple background sweeps to stress scheduler queries
+    sweep_results =
+      1..4
+      |> Enum.map(fn i ->
+        Process.sleep(100)
+
+        IO.puts("[#{i}] running background sweeps")
+        background_sweep_start = System.monotonic_time(:second)
+        Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil)
+        background_sweep_duration = System.monotonic_time(:second) - background_sweep_start
+        IO.puts("[#{i}] background sweeps completed after #{background_sweep_duration}s")
+
+        IO.puts("[#{i}] running unblocked sweeps")
+        unblocked_sweep_start = System.monotonic_time(:second)
+        Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
+        unblocked_sweep_duration = System.monotonic_time(:second) - unblocked_sweep_start
+        IO.puts("[#{i}] unblocked sweeps completed after #{unblocked_sweep_duration}s")
+
+        {i, background_sweep_duration, unblocked_sweep_duration}
+      end)
+
+    %{
+      executions_created: 0,
+      background_sweeps: sweep_results |> length(),
+      sweeps_timing:
+        "\n" <>
+          (sweep_results
+           |> Enum.map(fn {i, background_sweep_duration, unblocked_sweep_duration} ->
+             """
+             #{i}:
+                 background sweep: #{background_sweep_duration}
+                 unblocked sweeps: #{unblocked_sweep_duration}
+                 total: #{background_sweep_duration + unblocked_sweep_duration} s
+             """
+           end)
+           |> Enum.join(""))
     }
   end
 
