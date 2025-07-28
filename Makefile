@@ -84,3 +84,6 @@ test:
 
 test-load:
 	mix run test_load/sunny_day.exs
+
+validate: format-check lint test
+
