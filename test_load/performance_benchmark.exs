@@ -22,41 +22,41 @@ defmodule LoadTest.PerformanceBenchmark do
 
   @scenarios [
     :scheduler_stress,
-    :high_frequency_values, 
+    :high_frequency_values,
     :time_based_queries,
     :archive_unarchive_workload,
     :scheduled_computation_load
   ]
 
   def run(opts \\ []) do
-    concurrency = Keyword.get(opts, :concurrency, 20)  # Reduced default for testing
-    iterations = Keyword.get(opts, :iterations, 50)    # Reduced default for testing
-    
-    Logger.info("Starting performance benchmark with #{concurrency} concurrent executions, #{iterations} iterations")
-    
+    concurrency = Keyword.get(opts, :concurrency, 20)
+    iterations = Keyword.get(opts, :iterations, 50)
+
+    IO.puts("Starting performance benchmark with #{concurrency} concurrent executions, #{iterations} iterations")
+
     initial_memory = get_memory_usage_mb()
     start_time = System.monotonic_time(:microsecond)
-    
+
     # Run all test scenarios
-    scenario_results = 
+    scenario_results =
       @scenarios
       |> Enum.map(fn scenario ->
-        Logger.info("Running scenario: #{scenario}")
+        IO.puts("Running scenario: #{scenario}")
         scenario_start = System.monotonic_time(:microsecond)
         result = run_scenario(scenario, concurrency, iterations)
         scenario_end = System.monotonic_time(:microsecond)
-        
+
         # Add timing to result
         result_with_timing = Map.put(result, :duration_ms, (scenario_end - scenario_start) / 1000)
         {scenario, result_with_timing}
       end)
       |> Map.new()
-    
+
     end_time = System.monotonic_time(:microsecond)
     final_memory = get_memory_usage_mb()
-    
+
     total_duration_ms = (end_time - start_time) / 1000
-    
+
     results = %{
       success: true,
       total_duration_ms: total_duration_ms,
@@ -73,7 +73,7 @@ defmodule LoadTest.PerformanceBenchmark do
         scenarios: @scenarios
       }
     }
-    
+
     print_performance_report(results)
     results
   end
@@ -81,6 +81,7 @@ defmodule LoadTest.PerformanceBenchmark do
   # Helper function to deterministically choose a scenario based on execution ID
   defp choose_scenario(execution_id) do
     hash = :erlang.phash2(execution_id)
+
     case rem(hash, 4) do
       0 -> :untouched
       1 -> :basic_info
@@ -95,7 +96,7 @@ defmodule LoadTest.PerformanceBenchmark do
     executions_count = from(e in Journey.Execution, select: count(e.id)) |> Journey.Repo.one()
     values_count = from(v in Journey.Execution.Value, select: count(v.id)) |> Journey.Repo.one()
     computations_count = from(c in Journey.Execution.Computation, select: count(c.id)) |> Journey.Repo.one()
-    
+
     %{
       total_executions: executions_count,
       total_values: values_count,
@@ -107,15 +108,15 @@ defmodule LoadTest.PerformanceBenchmark do
   # Scenario 1: Scheduler Stress Test
   defp run_scenario(:scheduler_stress, concurrency, iterations) do
     # Create many executions with various computation states
-    executions = 
+    executions =
       1..iterations
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
         Journey.start_execution(graph)
       end)
-    
+
     # Set different values to create mixed computation states
-    tasks = 
+    tasks =
       executions
       |> Enum.chunk_every(div(length(executions), concurrency) + 1)
       |> Enum.map(fn chunk ->
@@ -123,22 +124,25 @@ defmodule LoadTest.PerformanceBenchmark do
           Enum.each(chunk, fn execution ->
             # Partially complete some executions to create various states
             scenario = choose_scenario(execution.id)
-            
+
             case scenario do
-              :untouched -> 
+              :untouched ->
                 # Leave in initial state
                 :ok
+
               :basic_info ->
                 # Set some inputs
                 execution
                 |> Journey.set_value(:full_name, "Test User #{scenario}")
                 |> Journey.set_value(:birth_date, "01/01/1990")
+
               :with_ssn ->
                 # Complete more steps
                 execution
                 |> Journey.set_value(:full_name, "Test User #{scenario}")
                 |> Journey.set_value(:birth_date, "01/01/1990")
                 |> Journey.set_value(:ssn, "111-22-3333")
+
               :nearly_complete ->
                 # Nearly complete
                 execution
@@ -150,21 +154,21 @@ defmodule LoadTest.PerformanceBenchmark do
           end)
         end)
       end)
-    
+
     Task.await_many(tasks, 60_000)
-    
+
     # Trigger multiple background sweeps to stress scheduler queries
-    sweep_tasks = 
-      1..5  # Reduced from 10 for faster testing
+    sweep_tasks =
+      1..5
       |> Enum.map(fn _ ->
         Task.async(fn ->
           Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil)
           Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
         end)
       end)
-    
+
     Task.await_many(sweep_tasks, 30_000)
-    
+
     %{
       executions_created: length(executions),
       background_sweeps: 10
@@ -174,22 +178,24 @@ defmodule LoadTest.PerformanceBenchmark do
   # Scenario 2: High-Frequency Value Updates  
   defp run_scenario(:high_frequency_values, concurrency, iterations) do
     # Create base executions
-    executions = 
-      1..div(iterations, 4) # Reduced for faster testing
+    # Reduced for faster testing
+    executions =
+      1..div(iterations, 4)
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
         Journey.start_execution(graph)
       end)
-    
+
     # Rapidly update values across executions
-    update_tasks = 
+    update_tasks =
       1..concurrency
       |> Enum.map(fn worker_id ->
         Task.async(fn ->
-          1..div(iterations, 2) # Reduced updates per worker
+          # Reduced updates per worker
+          1..div(iterations, 2)
           |> Enum.each(fn i ->
             execution = Enum.at(executions, rem(i, length(executions)))
-            
+
             # Rapidly update different node values
             case rem(i, 4) do
               0 -> Journey.set_value(execution, :full_name, "Updated #{worker_id}-#{i}")
@@ -200,9 +206,9 @@ defmodule LoadTest.PerformanceBenchmark do
           end)
         end)
       end)
-    
+
     Task.await_many(update_tasks, 60_000)
-    
+
     %{
       base_executions: length(executions),
       total_updates: concurrency * div(iterations, 2)
@@ -212,27 +218,29 @@ defmodule LoadTest.PerformanceBenchmark do
   # Scenario 3: Time-Based Queries  
   defp run_scenario(:time_based_queries, concurrency, iterations) do
     # Create executions with staggered timing
-    executions = 
-      1..div(iterations, 2) # Reduced for faster testing
+    executions =
+      1..div(iterations, 2)
       |> Enum.map(fn i ->
         graph = Journey.Examples.CreditCardApplication.graph()
         execution = Journey.start_execution(graph)
-        
+
         # Stagger the value setting times slightly
         if rem(i, 5) == 0, do: Process.sleep(1)
         execution |> Journey.set_value(:full_name, "Time Test #{i}")
-        
+
         execution
       end)
-    
+
     # Query for recent changes using time-based filters
-    query_tasks = 
-      1..div(concurrency, 2) # Reduced queries
+    # Reduced queries
+    query_tasks =
+      1..div(concurrency, 2)
       |> Enum.map(fn _ ->
         Task.async(fn ->
           now = System.system_time(:second)
-          cutoff_time = now - 30 # Last 30 seconds
-          
+          # Last 30 seconds
+          cutoff_time = now - 30
+
           # Query for recent value changes
           from(v in Journey.Execution.Value,
             where: v.set_time >= ^cutoff_time,
@@ -241,9 +249,9 @@ defmodule LoadTest.PerformanceBenchmark do
           |> Journey.Repo.one()
         end)
       end)
-    
+
     Task.await_many(query_tasks, 30_000)
-    
+
     %{
       executions_with_staggered_times: length(executions),
       time_based_queries: div(concurrency, 2)
@@ -253,23 +261,25 @@ defmodule LoadTest.PerformanceBenchmark do
   # Scenario 4: Archive/Unarchive Workload
   defp run_scenario(:archive_unarchive_workload, _concurrency, iterations) do
     # Create executions
-    executions = 
-      1..div(iterations, 2) # Reduced for faster testing
+    # Reduced for faster testing
+    executions =
+      1..div(iterations, 2)
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
         Journey.start_execution(graph)
       end)
-    
+
     # Archive half of them
     executions
     |> Enum.take(div(length(executions), 2))
     |> Enum.each(fn execution ->
       Journey.Executions.archive_execution(execution.id)
     end)
-    
+
     # Query active executions (should use partial index)
-    active_counts = 
-      1..5 # Just a few queries
+    # Just a few queries
+    active_counts =
+      1..5
       |> Enum.map(fn _ ->
         from(e in Journey.Execution,
           where: is_nil(e.archived_at),
@@ -277,7 +287,7 @@ defmodule LoadTest.PerformanceBenchmark do
         )
         |> Journey.Repo.one()
       end)
-    
+
     %{
       total_executions: length(executions),
       archived_count: div(length(executions), 2),
@@ -289,12 +299,13 @@ defmodule LoadTest.PerformanceBenchmark do
   # Scenario 5: Scheduled Computation Load
   defp run_scenario(:scheduled_computation_load, _concurrency, iterations) do
     # Create executions and trigger scheduled computations
-    executions = 
-      1..div(iterations, 4) # Reduced for faster testing
+    # Reduced for faster testing
+    executions =
+      1..div(iterations, 4)
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
         execution = Journey.start_execution(graph)
-        
+
         # Complete enough steps to trigger scheduled computations
         execution
         |> Journey.set_value(:full_name, "Scheduled Test")
@@ -302,18 +313,18 @@ defmodule LoadTest.PerformanceBenchmark do
         |> Journey.set_value(:ssn, "111-22-3333")
         |> Journey.set_value(:email_address, "scheduled@example.com")
       end)
-    
+
     # Let computations process briefly
     Process.sleep(2000)
-    
+
     # Query scheduled computations (should use partial index)
-    scheduled_count = 
+    scheduled_count =
       from(c in Journey.Execution.Computation,
         where: not is_nil(c.scheduled_time),
         select: count(c.id)
       )
       |> Journey.Repo.one()
-    
+
     %{
       executions_with_schedules: length(executions),
       scheduled_computations_found: scheduled_count
@@ -330,30 +341,38 @@ defmodule LoadTest.PerformanceBenchmark do
     IO.puts("\n" <> String.duplicate("=", 80))
     IO.puts("JOURNEY PERFORMANCE BENCHMARK RESULTS")
     IO.puts(String.duplicate("=", 80))
-    
+
     IO.puts("\nOVERALL METRICS:")
     IO.puts("  Total Duration: #{Float.round(results.total_duration_ms, 2)} ms")
-    IO.puts("  Memory Usage: #{Float.round(results.memory.initial_mb, 2)} → #{Float.round(results.memory.final_mb, 2)} MB (Δ #{Float.round(results.memory.delta_mb, 2)} MB)")
-    IO.puts("  Configuration: #{results.configuration.concurrency} concurrent, #{results.configuration.iterations} iterations")
-    
+
+    IO.puts(
+      "  Memory Usage: #{Float.round(results.memory.initial_mb, 2)} → #{Float.round(results.memory.final_mb, 2)} MB (Δ #{Float.round(results.memory.delta_mb, 2)} MB)"
+    )
+
+    IO.puts(
+      "  Configuration: #{results.configuration.concurrency} concurrent, #{results.configuration.iterations} iterations"
+    )
+
     IO.puts("\nDATABASE METRICS:")
     db = results.database_metrics
     IO.puts("  Total Executions: #{db.total_executions}")
     IO.puts("  Total Values: #{db.total_values}")
     IO.puts("  Total Computations: #{db.total_computations}")
     IO.puts("  Note: #{db.note}")
-    
+
     IO.puts("\nSCENARIO RESULTS:")
+
     Enum.each(results.scenario_results, fn {scenario, metrics} ->
       IO.puts("  #{scenario}:")
       IO.puts("    Duration: #{Float.round(metrics.duration_ms, 2)} ms")
+
       metrics
       |> Map.delete(:duration_ms)
       |> Enum.each(fn {key, value} ->
         IO.puts("    #{key}: #{value}")
       end)
     end)
-    
+
     IO.puts("\n" <> String.duplicate("=", 80))
   end
 end
