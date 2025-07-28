@@ -38,10 +38,10 @@ defmodule LoadTest.PerformanceBenchmark do
     start_time = System.monotonic_time(:microsecond)
 
     # Run all test scenarios in parallel
-    scenario_tasks =
+    scenario_results =
       @scenarios
-      |> Enum.map(fn scenario ->
-        Task.async(fn ->
+      |> Task.async_stream(
+        fn scenario ->
           IO.puts("[#{scenario}]: Running scenario")
           scenario_start = System.monotonic_time(:microsecond)
           result = run_scenario(scenario, concurrency, iterations)
@@ -52,13 +52,10 @@ defmodule LoadTest.PerformanceBenchmark do
           result_with_timing = Map.put(result, :duration_ms, duration_ms)
           IO.puts("[#{scenario}]: scenario completed after #{duration_ms} ms")
           {scenario, result_with_timing}
-        end)
-      end)
-
-    scenario_results =
-      scenario_tasks
-      # 10 minute timeout for all scenarios (allows for database contention)
-      |> Task.await_many(600_000)
+        end,
+        timeout: 600_000
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
       |> Map.new()
 
     end_time = System.monotonic_time(:microsecond)
