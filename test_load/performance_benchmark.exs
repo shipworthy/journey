@@ -20,8 +20,8 @@ defmodule LoadTest.PerformanceBenchmark do
   require Logger
   import Ecto.Query
 
-  # @just_the_sweepts false
-  @just_the_sweepts true
+  @just_the_sweepts false
+  # @just_the_sweepts true
   @scenarios if(@just_the_sweepts,
                do: [],
                else: [
@@ -126,22 +126,22 @@ defmodule LoadTest.PerformanceBenchmark do
         Process.sleep(1000)
 
         IO.puts("[#{i}] running abandoned sweeps")
-        abandoned_sweep_start = System.monotonic_time(:second)
+        abandoned_sweep_start = System.monotonic_time(:millisecond)
         Journey.Scheduler.BackgroundSweeps.Abandoned.sweep(nil)
-        abandoned_sweep_duration = System.monotonic_time(:second) - abandoned_sweep_start
-        IO.puts("[#{i}] abandoned sweeps completed after #{abandoned_sweep_duration}s")
+        abandoned_sweep_duration = System.monotonic_time(:millisecond) - abandoned_sweep_start
+        IO.puts("[#{i}] abandoned sweeps completed after #{abandoned_sweep_duration}ms")
 
-        IO.puts("[#{i}] running background sweeps")
-        background_sweep_start = System.monotonic_time(:second)
+        IO.puts("[#{i}] running ScheduleNodes sweeps")
+        background_sweep_start = System.monotonic_time(:millisecond)
         Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil)
-        background_sweep_duration = System.monotonic_time(:second) - background_sweep_start
-        IO.puts("[#{i}] background sweeps completed after #{background_sweep_duration}s")
+        background_sweep_duration = System.monotonic_time(:millisecond) - background_sweep_start
+        IO.puts("[#{i}] ScheduleNodes sweeps completed after #{background_sweep_duration}ms")
 
         IO.puts("[#{i}] running unblocked sweeps")
-        unblocked_sweep_start = System.monotonic_time(:second)
+        unblocked_sweep_start = System.monotonic_time(:millisecond)
         Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
-        unblocked_sweep_duration = System.monotonic_time(:second) - unblocked_sweep_start
-        IO.puts("[#{i}] unblocked sweeps completed after #{unblocked_sweep_duration}s")
+        unblocked_sweep_duration = System.monotonic_time(:millisecond) - unblocked_sweep_start
+        IO.puts("[#{i}] unblocked sweeps completed after #{unblocked_sweep_duration}ms")
 
         {i, abandoned_sweep_duration, background_sweep_duration, unblocked_sweep_duration}
       end)
@@ -158,7 +158,7 @@ defmodule LoadTest.PerformanceBenchmark do
                  abandoned sweep: #{abandoned_sweep_duration}
                  background sweep: #{background_sweep_duration}
                  unblocked sweeps: #{unblocked_sweep_duration}
-                 total: #{abandoned_sweep_duration + background_sweep_duration + unblocked_sweep_duration} s
+                 total: #{abandoned_sweep_duration + background_sweep_duration + unblocked_sweep_duration} ms
              """
            end)
            |> Enum.join(""))
