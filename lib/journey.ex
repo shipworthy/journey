@@ -561,7 +561,7 @@ defmodule Journey do
     check_options(opts, [:wait])
 
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
-    default_timeout_ms = 5_000
+    default_timeout_ms = 15_000
 
     timeout_ms =
       opts
