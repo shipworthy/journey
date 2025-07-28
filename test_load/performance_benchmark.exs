@@ -37,25 +37,34 @@ defmodule LoadTest.PerformanceBenchmark do
     initial_memory = get_memory_usage_mb()
     start_time = System.monotonic_time(:microsecond)
 
-    # Run all test scenarios
-    scenario_results =
+    # Run all test scenarios in parallel
+    scenario_tasks =
       @scenarios
       |> Enum.map(fn scenario ->
-        IO.puts("Running scenario: #{scenario}")
-        scenario_start = System.monotonic_time(:microsecond)
-        result = run_scenario(scenario, concurrency, iterations)
-        scenario_end = System.monotonic_time(:microsecond)
+        Task.async(fn ->
+          IO.puts("[#{scenario}]: Running scenario")
+          scenario_start = System.monotonic_time(:microsecond)
+          result = run_scenario(scenario, concurrency, iterations)
+          scenario_end = System.monotonic_time(:microsecond)
 
-        # Add timing to result
-        result_with_timing = Map.put(result, :duration_ms, (scenario_end - scenario_start) / 1000)
-        {scenario, result_with_timing}
+          # Add timing to result
+          duration_ms = ((scenario_end - scenario_start) / 1000) |> round()
+          result_with_timing = Map.put(result, :duration_ms, duration_ms)
+          IO.puts("[#{scenario}]: scenario completed after #{duration_ms} ms")
+          {scenario, result_with_timing}
+        end)
       end)
+
+    scenario_results =
+      scenario_tasks
+      # 10 minute timeout for all scenarios (allows for database contention)
+      |> Task.await_many(600_000)
       |> Map.new()
 
     end_time = System.monotonic_time(:microsecond)
     final_memory = get_memory_usage_mb()
 
-    total_duration_ms = (end_time - start_time) / 1000
+    total_duration_ms = ((end_time - start_time) / 1000) |> round()
 
     results = %{
       success: true,
@@ -162,16 +171,19 @@ defmodule LoadTest.PerformanceBenchmark do
       1..5
       |> Enum.map(fn _ ->
         Task.async(fn ->
-          Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil)
-          Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
+          [
+            Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil),
+            Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
+          ]
         end)
       end)
 
-    Task.await_many(sweep_tasks, 30_000)
+    sweep_results = Task.await_many(sweep_tasks, 30_000)
+    total_sweeps = sweep_results |> List.flatten() |> length()
 
     %{
       executions_created: length(executions),
-      background_sweeps: 10
+      background_sweeps: total_sweeps
     }
   end
 
@@ -343,7 +355,7 @@ defmodule LoadTest.PerformanceBenchmark do
     IO.puts(String.duplicate("=", 80))
 
     IO.puts("\nOVERALL METRICS:")
-    IO.puts("  Total Duration: #{Float.round(results.total_duration_ms, 2)} ms")
+    IO.puts("  Total Duration: #{results.total_duration_ms} ms")
 
     IO.puts(
       "  Memory Usage: #{Float.round(results.memory.initial_mb, 2)} → #{Float.round(results.memory.final_mb, 2)} MB (Δ #{Float.round(results.memory.delta_mb, 2)} MB)"
@@ -364,7 +376,7 @@ defmodule LoadTest.PerformanceBenchmark do
 
     Enum.each(results.scenario_results, fn {scenario, metrics} ->
       IO.puts("  #{scenario}:")
-      IO.puts("    Duration: #{Float.round(metrics.duration_ms, 2)} ms")
+      IO.puts("    Duration: #{metrics.duration_ms} ms")
 
       metrics
       |> Map.delete(:duration_ms)
