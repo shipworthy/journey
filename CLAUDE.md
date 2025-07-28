@@ -9,7 +9,7 @@ When trying to understand the codebase, and whenever making a change, please rea
 - Be clear about the request for the change. If not clear, ask clarifying questions of the requester.
 - Err on the side of minimal changes and simple tests.
 - Consider creating basic tests, err on the side of simplicity, avoid mocking.
-- Prioritize correctness, of course, and clarity of the code.
+- Prioritize correctness, of course, and clarity and readbility of the code for Elixir developers.
 - Use idiomatic Elixir. Notions from other languages and ecosystems might not apply, and might be counter-productive and overly complex. Ask yourself: "is the concern I am addressing a real concern in Elixir?"
 - Consider applying patterns already existing in the codebase, and incorporate existing patterns into your changes.
 - When looking into using a package or an API, consider the reputation and potential vulnerability and risks involved in taking on that dependency.
