@@ -40,7 +40,7 @@ defmodule Journey.Scheduler.SweepRunTest do
 
     test "invalid without started_at" do
       attrs = %{
-        sweep_type: "schedule_nodes"
+        sweep_type: :schedule_nodes
       }
 
       changeset = SweepRun.changeset(%SweepRun{}, attrs)
