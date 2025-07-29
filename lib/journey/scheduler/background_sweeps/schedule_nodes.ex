@@ -71,6 +71,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
     from(c in Computation, where: c.execution_id == ^execution_id)
   end
 
+  @beginning_of_time_unix 0
+  @overlap_buffer_seconds 60
+
   def get_last_sweep_cutoff(sweep_type) do
     # Get timestamp from last completed sweep, with fallback
     last_completion =
@@ -84,9 +87,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
 
     # Use last sweep start time, or fallback to beginning of time
     if last_completion == nil do
-      0
+      @beginning_of_time_unix
     else
-      last_completion - 60
+      last_completion - @overlap_buffer_seconds
     end
   end
 
