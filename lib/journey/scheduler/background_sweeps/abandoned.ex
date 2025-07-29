@@ -58,7 +58,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
 
     computations_marked_as_abandoned
     |> Enum.map(fn ac ->
-      Logger.warning("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
+      Logger.info("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
       ac
     end)
   end
@@ -89,7 +89,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
       if Map.get(known_graphs, c.execution_id) == true do
         true
       else
-        Logger.warning("skipping computation #{c.id} / #{c.execution_id} because of unknown graph")
+        Logger.info("skipping computation #{c.id} / #{c.execution_id} because of unknown graph")
         false
       end
     end)

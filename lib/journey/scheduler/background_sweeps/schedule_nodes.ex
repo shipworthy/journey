@@ -6,41 +6,60 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
 
   import Journey.Helpers.Log
   alias Journey.Execution.Computation
+  alias Journey.Scheduler.SweepRun
 
   @doc false
   def sweep(execution_id) when is_nil(execution_id) or is_binary(execution_id) do
     # Find and compute all unblocked uncomputed schedule_once computations.
-    # TODO: optimize and scale-ize.
-    # v0: brute force -- find schedule_once triggers that have not been computed, kick the execution.
-    # v0.1: v0 + only look in executions that are not archived.
-    # v0.2: v0.1 + paginate
+    # Optimized to only process executions updated since last sweep.
 
     prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting #{execution_id}")
 
-    kicked_count =
-      from(c in q_computations(execution_id),
-        join: e in Journey.Execution,
-        on: c.execution_id == e.id,
-        where:
-          c.computation_type in [^:schedule_once, ^:schedule_recurring] and
-            c.state == ^:not_set and
-            is_nil(e.archived_at)
-      )
-      |> Journey.Repo.all()
-      |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
-      |> Enum.uniq()
-      |> Enum.map(fn swept_execution_id ->
-        swept_execution_id
-        |> Journey.load()
-        |> Journey.Scheduler.advance()
-      end)
-      |> Enum.count()
+    sweep_start = System.os_time(:second)
 
-    if kicked_count == 0 do
-      Logger.debug("#{prefix}: no recently due pulse value(s) found")
-    else
-      Logger.debug("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+    # Record sweep start
+    sweep_run = record_sweep_start("schedule_nodes", sweep_start)
+
+    try do
+      # Get cutoff time from last completed sweep
+      cutoff_time = get_last_sweep_cutoff("schedule_nodes")
+
+      kicked_count =
+        from(c in q_computations(execution_id),
+          join: e in Journey.Execution,
+          on: c.execution_id == e.id,
+          where:
+            c.computation_type in [^:schedule_once, ^:schedule_recurring] and
+              c.state == ^:not_set and
+              is_nil(e.archived_at) and
+              e.updated_at >= ^cutoff_time
+        )
+        |> Journey.Repo.all()
+        |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
+        |> Enum.uniq()
+        |> Enum.map(fn swept_execution_id ->
+          swept_execution_id
+          |> Journey.load()
+          |> Journey.Scheduler.advance()
+        end)
+        |> Enum.count()
+
+      # Record sweep completion
+      record_sweep_completion(sweep_run, kicked_count)
+
+      if kicked_count == 0 do
+        Logger.debug("#{prefix}: no recently due pulse value(s) found")
+      else
+        Logger.warning("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+      end
+
+      kicked_count
+    rescue
+      error ->
+        Logger.error("#{prefix}: error during sweep: #{inspect(error)}")
+        # Don't record completion on error
+        reraise error, __STACKTRACE__
     end
   end
 
@@ -50,5 +69,38 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
 
   defp q_computations(execution_id) do
     from(c in Computation, where: c.execution_id == ^execution_id)
+  end
+
+  def get_last_sweep_cutoff(sweep_type) do
+    # Get timestamp from last completed sweep, with fallback
+    last_completion =
+      from(sr in SweepRun,
+        where: sr.sweep_type == ^sweep_type and not is_nil(sr.completed_at),
+        order_by: [desc: sr.completed_at],
+        limit: 1,
+        select: sr.started_at
+      )
+      |> Journey.Repo.one()
+
+    # Use last sweep start time, or fallback to 1 hour ago for safety
+    last_completion || System.os_time(:second) - 3600
+  end
+
+  defp record_sweep_start(sweep_type, started_at) do
+    %SweepRun{}
+    |> SweepRun.changeset(%{
+      sweep_type: sweep_type,
+      started_at: started_at
+    })
+    |> Journey.Repo.insert!()
+  end
+
+  defp record_sweep_completion(sweep_run, executions_processed) do
+    sweep_run
+    |> SweepRun.changeset(%{
+      completed_at: System.os_time(:second),
+      executions_processed: executions_processed
+    })
+    |> Journey.Repo.update!()
   end
 end
