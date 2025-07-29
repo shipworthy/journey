@@ -51,7 +51,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
       if kicked_count == 0 do
         Logger.debug("#{prefix}: no recently due pulse value(s) found")
       else
-        Logger.warning("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+        Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
       end
 
       kicked_count
