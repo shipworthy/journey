@@ -20,9 +20,9 @@ defmodule LoadTest.PerformanceBenchmark do
   require Logger
   import Ecto.Query
 
-  @just_the_sweepts false
-  # @just_the_sweepts true
-  @scenarios if(@just_the_sweepts,
+  @just_the_sweeps false
+  # @just_the_sweeps true
+  @scenarios if(@just_the_sweeps,
                do: [],
                else: [
                  :scheduler_stress,
@@ -238,7 +238,7 @@ defmodule LoadTest.PerformanceBenchmark do
     }
   end
 
-  # Scenario 2: High-Frequency Value Updates  
+  # Scenario 2: High-Frequency Value Updates
   defp run_scenario(:high_frequency_values, concurrency, iterations) do
     # Create base executions
     # Reduced for faster testing
@@ -278,7 +278,7 @@ defmodule LoadTest.PerformanceBenchmark do
     }
   end
 
-  # Scenario 3: Time-Based Queries  
+  # Scenario 3: Time-Based Queries
   defp run_scenario(:time_based_queries, concurrency, iterations) do
     # Create executions with staggered timing
     executions =
