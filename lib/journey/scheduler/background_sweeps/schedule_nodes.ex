@@ -82,8 +82,12 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
       )
       |> Journey.Repo.one()
 
-    # Use last sweep start time, or fallback to 1 hour ago for safety
-    last_completion || System.os_time(:second) - 3600
+    # Use last sweep start time, or fallback to beginning of time
+    if last_completion == nil do
+      0
+    else
+      last_completion - 60
+    end
   end
 
   defp record_sweep_start(sweep_type, started_at) do

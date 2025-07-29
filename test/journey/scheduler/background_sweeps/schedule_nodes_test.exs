@@ -158,7 +158,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
   end
 
   describe "get_last_sweep_cutoff/1" do
-    test "returns last completed sweep's started_at timestamp" do
+    test "returns last completed sweep's started_at timestamp minus 60 seconds" do
       # Use very recent timestamps to ensure ours is the most recent
       sweep_time = System.os_time(:second)
 
@@ -167,18 +167,16 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
 
       cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
 
-      # Should return our sweep's start time (most recent)
-      assert cutoff == sweep_run.started_at
+      # Should return our sweep's start time minus 60 seconds for overlap
+      assert cutoff == sweep_run.started_at - 60
     end
 
     test "returns fallback when no sweeps for given type exist" do
       # Use a different sweep type that hasn't been used
       cutoff = ScheduleNodes.get_last_sweep_cutoff("nonexistent_type")
 
-      # Should be approximately 1 hour ago
-      expected_fallback = System.os_time(:second) - 3600
-      # Within 5 seconds
-      assert abs(cutoff - expected_fallback) < 5
+      # Should return 0 (beginning of time) when no previous sweeps
+      assert cutoff == 0
     end
 
     test "ignores incomplete sweeps (no completed_at)" do
@@ -193,9 +191,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       # Get the most recent completed sweep
       cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
 
-      # It should be at least as old as our completed sweep
+      # It should be at least as old as our completed sweep minus 60 seconds
       # (might be newer if other tests ran)
-      assert cutoff >= complete_sweep.started_at
+      assert cutoff >= complete_sweep.started_at - 60
     end
 
     test "returns most recent completed sweep when multiple exist" do
@@ -208,8 +206,8 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
 
       cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
 
-      # Should be at least as recent as our recent_sweep
-      assert cutoff >= recent_sweep.started_at
+      # Should be at least as recent as our recent_sweep minus 60 seconds
+      assert cutoff >= recent_sweep.started_at - 60
     end
 
     test "filters by sweep_type correctly" do
@@ -222,8 +220,8 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
 
       cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
 
-      # Should get schedule_nodes sweep, not unblocked_by_schedule
-      assert cutoff >= schedule_sweep.started_at
+      # Should get schedule_nodes sweep minus 60, not unblocked_by_schedule
+      assert cutoff >= schedule_sweep.started_at - 60
     end
   end
 
