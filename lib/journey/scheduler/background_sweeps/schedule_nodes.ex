@@ -33,11 +33,11 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
             c.computation_type in [^:schedule_once, ^:schedule_recurring] and
               c.state == ^:not_set and
               is_nil(e.archived_at) and
-              e.updated_at >= ^cutoff_time
+              e.updated_at >= ^cutoff_time,
+          select: c.execution_id,
+          distinct: true
         )
         |> Journey.Repo.all()
-        |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
-        |> Enum.uniq()
         |> Enum.map(fn swept_execution_id ->
           swept_execution_id
           |> Journey.load()
