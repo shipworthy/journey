@@ -55,7 +55,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring do
     if regenerated_count == 0 do
       Logger.debug("#{prefix}: no schedule_recurring nodes need regeneration")
     else
-      Logger.debug("#{prefix}: regenerated #{regenerated_count} schedule_recurring computation(s)")
+      Logger.info("#{prefix}: regenerated #{regenerated_count} schedule_recurring computation(s)")
     end
   end
 

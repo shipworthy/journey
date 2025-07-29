@@ -20,18 +20,19 @@ defmodule LoadTest.PerformanceBenchmark do
   require Logger
   import Ecto.Query
 
-  @just_the_sweepts false
-  @scenarios if @just_the_sweepts,
+  @just_the_sweeps false
+  # @just_the_sweeps true
+  @scenarios if(@just_the_sweeps,
                do: [],
-               else:
-                 [
-                   :scheduler_stress,
-                   :high_frequency_values,
-                   :time_based_queries,
-                   :archive_unarchive_workload,
-                   :scheduled_computation_load
-                 ] ++
-                   [:sweeper]
+               else: [
+                 :scheduler_stress,
+                 :high_frequency_values,
+                 :time_based_queries,
+                 :archive_unarchive_workload,
+                 :scheduled_computation_load
+               ]
+             ) ++
+               [:sweeper]
 
   def run(opts \\ []) do
     concurrency = Keyword.get(opts, :concurrency, 20)
@@ -122,21 +123,27 @@ defmodule LoadTest.PerformanceBenchmark do
     sweep_results =
       1..4
       |> Enum.map(fn i ->
-        Process.sleep(100)
+        Process.sleep(1000)
 
-        IO.puts("[#{i}] running background sweeps")
-        background_sweep_start = System.monotonic_time(:second)
+        IO.puts("[#{i}] running abandoned sweeps")
+        abandoned_sweep_start = System.monotonic_time(:millisecond)
+        Journey.Scheduler.BackgroundSweeps.Abandoned.sweep(nil)
+        abandoned_sweep_duration = System.monotonic_time(:millisecond) - abandoned_sweep_start
+        IO.puts("[#{i}] abandoned sweeps completed after #{abandoned_sweep_duration}ms")
+
+        IO.puts("[#{i}] running ScheduleNodes sweeps")
+        background_sweep_start = System.monotonic_time(:millisecond)
         Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil)
-        background_sweep_duration = System.monotonic_time(:second) - background_sweep_start
-        IO.puts("[#{i}] background sweeps completed after #{background_sweep_duration}s")
+        background_sweep_duration = System.monotonic_time(:millisecond) - background_sweep_start
+        IO.puts("[#{i}] ScheduleNodes sweeps completed after #{background_sweep_duration}ms")
 
         IO.puts("[#{i}] running unblocked sweeps")
-        unblocked_sweep_start = System.monotonic_time(:second)
+        unblocked_sweep_start = System.monotonic_time(:millisecond)
         Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
-        unblocked_sweep_duration = System.monotonic_time(:second) - unblocked_sweep_start
-        IO.puts("[#{i}] unblocked sweeps completed after #{unblocked_sweep_duration}s")
+        unblocked_sweep_duration = System.monotonic_time(:millisecond) - unblocked_sweep_start
+        IO.puts("[#{i}] unblocked sweeps completed after #{unblocked_sweep_duration}ms")
 
-        {i, background_sweep_duration, unblocked_sweep_duration}
+        {i, abandoned_sweep_duration, background_sweep_duration, unblocked_sweep_duration}
       end)
 
     %{
@@ -145,12 +152,13 @@ defmodule LoadTest.PerformanceBenchmark do
       sweeps_timing:
         "\n" <>
           (sweep_results
-           |> Enum.map(fn {i, background_sweep_duration, unblocked_sweep_duration} ->
+           |> Enum.map(fn {i, abandoned_sweep_duration, background_sweep_duration, unblocked_sweep_duration} ->
              """
              #{i}:
+                 abandoned sweep: #{abandoned_sweep_duration}
                  background sweep: #{background_sweep_duration}
                  unblocked sweeps: #{unblocked_sweep_duration}
-                 total: #{background_sweep_duration + unblocked_sweep_duration} s
+                 total: #{abandoned_sweep_duration + background_sweep_duration + unblocked_sweep_duration} ms
              """
            end)
            |> Enum.join(""))
@@ -230,7 +238,7 @@ defmodule LoadTest.PerformanceBenchmark do
     }
   end
 
-  # Scenario 2: High-Frequency Value Updates  
+  # Scenario 2: High-Frequency Value Updates
   defp run_scenario(:high_frequency_values, concurrency, iterations) do
     # Create base executions
     # Reduced for faster testing
@@ -270,7 +278,7 @@ defmodule LoadTest.PerformanceBenchmark do
     }
   end
 
-  # Scenario 3: Time-Based Queries  
+  # Scenario 3: Time-Based Queries
   defp run_scenario(:time_based_queries, concurrency, iterations) do
     # Create executions with staggered timing
     executions =
@@ -434,3 +442,27 @@ end
 
 # Run the benchmark with default parameters
 LoadTest.PerformanceBenchmark.run()
+
+_still_computing_computations = """
+
+journey_dev=# select computations.id, computations.state, computations.execution_id, computations.deadline - EXTRACT(EPOCH FROM NOW()), executions.archived_at from computations join executions on computations.execution_id = executions.id where state='computing' order by deadline desc;
+           id            |   state   |       execution_id       | ?column?  | archived_at
+-------------------------+-----------+--------------------------+-----------+-------------
+ CMP1HM55EAXLYV485ZJ1EJZ | computing | EXEC5A6Z01BM8YZZXDXMBYJE | -3.495476 |
+ CMP14AZGR5H1DR6TT7LB1EB | computing | EXEC8HHMJ8V65GDA852EBHHB | -3.495476 |
+ CMPZ0XE0B7G7B7HDRX8XZTH | computing | EXEC00H927E2HE98R20T597B | -3.495476 |
+ CMPB62MLZLZDYT8ETA64BYB | computing | EXEC2YMJEAJ86MRX6DD9VJA1 | -3.495476 |
+ CMPA0J2ZYZDVZ64R8559HAJ | computing | EXECVJVX6TB7YG6DV0XTMHL9 | -3.495476 |
+ CMPYM212H25VB4Z299ADH27 | computing | EXECJ6VEL0276EBVG6RJ2GHT | -3.495476 |
+ CMPL063902VJM92RDYYJHTD | computing | EXECR31YR4JY13DXHDJ00YRR | -3.495476 |
+ CMPL4Z1RJEZ3ZEE9RM42R7M | computing | EXECV4XBYZE3MXJMM0V1D16T | -3.495476 |
+ CMPMAG9R86HAX2TJ6Y0E781 | computing | EXECA78EZ90MJ1MVL204YAAD | -3.495476 |
+ CMPRYZ9ZZ88VA8ZD2A7AB8Y | computing | EXEC6THJJ70LZ06YA24A990M | -3.495476 |
+ CMP4LJZB6TD8E1DRA846LRA | computing | EXEC2XT86G6AEG0TAGTG6EG5 | -3.495476 |
+ CMPZR5G3LLJX3L0ZDJ7JGR3 | computing | EXECDGV5MJBVBJ6VEET447L6 | -3.495476 |
+ CMPE9L4E7R80VYLHVER9735 | computing | EXECZL318YRLH55HD6379MVJ | -3.495476 |
+ CMPBJ80EELLAAZB3T03GH29 | computing | EXECVRG764T4VTJTZB5RR603 | -3.495476 |
+ CMPEBT821JV4Z3J4ED18D6B | computing | EXECDRD9046Y37ZX339656XJ | -3.495476 |
+(15 rows)
+
+"""

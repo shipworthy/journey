@@ -89,8 +89,16 @@ Journey is an Elixir library for building and executing computation graphs. It p
 ### Database Setup
 
 The application uses PostgreSQL with Ecto. Configuration in `config/` files:
-- Development database runs on localhost with custom credentials
-- Test database setup via `config/test.exs`
+- Development database runs in a docker container, that can be accessed as follows:
+
+```
+ $ docker exec -it new_journey-postgres-db  psql -U postgres journey_dev -c "SELECT COUNT(*) FROM computations;"
+ count
+-------
+ 12033
+(1 row)
+```
+
 - Migrations in `priv/repo/migrations/`
 
 ### Testing Patterns
