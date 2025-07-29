@@ -6,7 +6,7 @@ defmodule Journey.Scheduler.SweepRunTest do
   describe "changeset/2" do
     test "valid changeset with required fields" do
       attrs = %{
-        sweep_type: "schedule_nodes",
+        sweep_type: :schedule_nodes,
         started_at: System.os_time(:second)
       }
 
@@ -18,7 +18,7 @@ defmodule Journey.Scheduler.SweepRunTest do
       now = System.os_time(:second)
 
       attrs = %{
-        sweep_type: "schedule_nodes",
+        sweep_type: :schedule_nodes,
         started_at: now,
         completed_at: now + 5,
         executions_processed: 42
@@ -50,23 +50,18 @@ defmodule Journey.Scheduler.SweepRunTest do
 
     test "validates sweep_type inclusion" do
       attrs = %{
-        sweep_type: "invalid_type",
+        sweep_type: :invalid_type,
         started_at: System.os_time(:second)
       }
 
       changeset = SweepRun.changeset(%SweepRun{}, attrs)
       refute changeset.valid?
 
-      assert changeset.errors[:sweep_type] ==
-               {"is invalid",
-                [
-                  validation: :inclusion,
-                  enum: ["schedule_nodes", "unblocked_by_schedule", "abandoned", "regenerate_schedule_recurring"]
-                ]}
+      assert {"is invalid", _} = changeset.errors[:sweep_type]
     end
 
     test "accepts all valid sweep_types" do
-      valid_types = ["schedule_nodes", "unblocked_by_schedule", "abandoned", "regenerate_schedule_recurring"]
+      valid_types = [:schedule_nodes, :unblocked_by_schedule, :abandoned, :regenerate_schedule_recurring]
 
       for sweep_type <- valid_types do
         attrs = %{

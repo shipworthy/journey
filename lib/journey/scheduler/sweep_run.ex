@@ -7,7 +7,15 @@ defmodule Journey.Scheduler.SweepRun do
   @primary_key {:id, :string, autogenerate: {Journey.Helpers.Random, :object_id, ["SWEEP"]}}
 
   schema "sweep_runs" do
-    field(:sweep_type, :string)
+    field(:sweep_type, Ecto.Enum,
+      values: [
+        :schedule_nodes,
+        :unblocked_by_schedule,
+        :abandoned,
+        :regenerate_schedule_recurring
+      ]
+    )
+
     field(:started_at, :integer)
     field(:completed_at, :integer)
     field(:executions_processed, :integer)
@@ -19,11 +27,5 @@ defmodule Journey.Scheduler.SweepRun do
     sweep_run
     |> cast(attrs, [:sweep_type, :started_at, :completed_at, :executions_processed])
     |> validate_required([:sweep_type, :started_at])
-    |> validate_inclusion(:sweep_type, [
-      "schedule_nodes",
-      "unblocked_by_schedule",
-      "abandoned",
-      "regenerate_schedule_recurring"
-    ])
   end
 end

@@ -17,7 +17,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
 
       # Record a sweep that happened after old_exec was created
       sweep_time = System.os_time(:second)
-      sweep_run = insert_completed_sweep_run("schedule_nodes", sweep_time, sweep_time)
+      sweep_run = insert_completed_sweep_run(:schedule_nodes, sweep_time, sweep_time)
 
       # Wait again to ensure new execution has later timestamp
       Process.sleep(1000)
@@ -42,7 +42,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       new_sweep_runs =
         Journey.Repo.all(
           from sr in SweepRun,
-            where: sr.sweep_type == "schedule_nodes" and sr.started_at > ^sweep_run.started_at
+            where: sr.sweep_type == :schedule_nodes and sr.started_at > ^sweep_run.started_at
         )
 
       # There should be at least 1 new sweep run (could be more from background tasks)
@@ -76,7 +76,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       _exec = create_execution_with_schedule()
 
       # Insert incomplete sweep (no completed_at)
-      insert_incomplete_sweep_run("schedule_nodes", System.os_time(:second) - 30)
+      insert_incomplete_sweep_run(:schedule_nodes, System.os_time(:second) - 30)
 
       # Should process at least our execution (uses 1 hour fallback)
       kicked_count = ScheduleNodes.sweep(nil)
@@ -109,7 +109,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       new_sweep_runs =
         Journey.Repo.all(
           from sr in SweepRun,
-            where: sr.sweep_type == "schedule_nodes",
+            where: sr.sweep_type == :schedule_nodes,
             order_by: [desc: sr.started_at],
             limit: 1
         )
@@ -142,7 +142,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       new_sweep_runs =
         Journey.Repo.all(
           from sr in SweepRun,
-            where: sr.sweep_type == "schedule_nodes",
+            where: sr.sweep_type == :schedule_nodes,
             order_by: [desc: sr.started_at],
             limit: 1
         )
@@ -163,9 +163,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       sweep_time = System.os_time(:second)
 
       # Insert our sweep run with current timestamp
-      sweep_run = insert_completed_sweep_run("schedule_nodes", sweep_time, sweep_time + 1)
+      sweep_run = insert_completed_sweep_run(:schedule_nodes, sweep_time, sweep_time + 1)
 
-      cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
+      cutoff = ScheduleNodes.get_last_sweep_cutoff(:schedule_nodes)
 
       # Should return our sweep's start time minus 60 seconds for overlap
       assert cutoff == sweep_run.started_at - 60
@@ -173,7 +173,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
 
     test "returns fallback when no sweeps for given type exist" do
       # Use a different sweep type that hasn't been used
-      cutoff = ScheduleNodes.get_last_sweep_cutoff("nonexistent_type")
+      cutoff = ScheduleNodes.get_last_sweep_cutoff(:regenerate_schedule_recurring)
 
       # Should return 0 (beginning of time) when no previous sweeps
       assert cutoff == 0
@@ -185,11 +185,11 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       incomplete_time = base_time - 20
       complete_time = base_time - 40
 
-      insert_incomplete_sweep_run("schedule_nodes", incomplete_time)
-      complete_sweep = insert_completed_sweep_run("schedule_nodes", complete_time, complete_time + 5)
+      insert_incomplete_sweep_run(:schedule_nodes, incomplete_time)
+      complete_sweep = insert_completed_sweep_run(:schedule_nodes, complete_time, complete_time + 5)
 
       # Get the most recent completed sweep
-      cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
+      cutoff = ScheduleNodes.get_last_sweep_cutoff(:schedule_nodes)
 
       # It should be at least as old as our completed sweep minus 60 seconds
       # (might be newer if other tests ran)
@@ -201,10 +201,10 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       old_time = base_time - 100
       recent_time = base_time - 50
 
-      insert_completed_sweep_run("schedule_nodes", old_time, old_time + 5)
-      recent_sweep = insert_completed_sweep_run("schedule_nodes", recent_time, recent_time + 5)
+      insert_completed_sweep_run(:schedule_nodes, old_time, old_time + 5)
+      recent_sweep = insert_completed_sweep_run(:schedule_nodes, recent_time, recent_time + 5)
 
-      cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
+      cutoff = ScheduleNodes.get_last_sweep_cutoff(:schedule_nodes)
 
       # Should be at least as recent as our recent_sweep minus 60 seconds
       assert cutoff >= recent_sweep.started_at - 60
@@ -215,10 +215,10 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       schedule_time = base_time - 50
       unblocked_time = base_time - 30
 
-      schedule_sweep = insert_completed_sweep_run("schedule_nodes", schedule_time, schedule_time + 5)
-      _unblocked_sweep = insert_completed_sweep_run("unblocked_by_schedule", unblocked_time, unblocked_time + 5)
+      schedule_sweep = insert_completed_sweep_run(:schedule_nodes, schedule_time, schedule_time + 5)
+      _unblocked_sweep = insert_completed_sweep_run(:unblocked_by_schedule, unblocked_time, unblocked_time + 5)
 
-      cutoff = ScheduleNodes.get_last_sweep_cutoff("schedule_nodes")
+      cutoff = ScheduleNodes.get_last_sweep_cutoff(:schedule_nodes)
 
       # Should get schedule_nodes sweep minus 60, not unblocked_by_schedule
       assert cutoff >= schedule_sweep.started_at - 60
@@ -236,7 +236,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
 
       # Record sweep after baseline
       sweep_time = System.os_time(:second)
-      insert_completed_sweep_run("schedule_nodes", sweep_time, sweep_time)
+      insert_completed_sweep_run(:schedule_nodes, sweep_time, sweep_time)
 
       # Wait again
       Process.sleep(1000)

@@ -19,11 +19,11 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
     sweep_start = System.os_time(:second)
 
     # Record sweep start
-    sweep_run = record_sweep_start("schedule_nodes", sweep_start)
+    sweep_run = record_sweep_start(:schedule_nodes, sweep_start)
 
     try do
       # Get cutoff time from last completed sweep
-      cutoff_time = get_last_sweep_cutoff("schedule_nodes")
+      cutoff_time = get_last_sweep_cutoff(:schedule_nodes)
 
       kicked_count =
         from(c in q_computations(execution_id),
