@@ -521,7 +521,7 @@ defmodule Journey do
   * `:wait` – whether or not to wait for the value to be set. This option can have the following values:
     * `false` or `0` – return immediately without waiting (default)
     * `true` – wait until the value is available, or until timeout
-    * a positive integer – wait for the supplied number of milliseconds (default: 5_000)
+    * a positive integer – wait for the supplied number of milliseconds (default: 15_000)
     * `:infinity` – wait indefinitely
     This is useful for self-computing nodes, where the value is computed asynchronously.
 
@@ -561,7 +561,7 @@ defmodule Journey do
     check_options(opts, [:wait])
 
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
-    default_timeout_ms = 5_000
+    default_timeout_ms = 15_000
 
     timeout_ms =
       opts

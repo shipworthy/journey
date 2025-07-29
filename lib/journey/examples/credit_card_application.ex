@@ -286,16 +286,16 @@ defmodule Journey.Examples.CreditCardApplication do
   end
 
   defp approved?(%{node_value: value} = _credit_decision_node) do
-    Logger.info("approved?: starting. Value: #{value}")
+    Logger.debug("approved?: starting. Value: #{value}")
     result = value == "approved"
-    Logger.info("approved?: completed. result: #{result}")
+    Logger.debug("approved?: completed. result: #{result}")
     result
   end
 
   defp rejected?(%{node_value: value} = _credit_decision_node) do
-    Logger.info("rejected?: starting. Value: #{value}")
+    Logger.debug("rejected?: starting. Value: #{value}")
     result = value == "rejected"
-    Logger.info("rejected?: completed. result: #{result}")
+    Logger.debug("rejected?: completed. result: #{result}")
     result
   end
 
