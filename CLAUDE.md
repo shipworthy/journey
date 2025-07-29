@@ -89,7 +89,7 @@ Journey is an Elixir library for building and executing computation graphs. It p
 ### Database Setup
 
 The application uses PostgreSQL with Ecto. Configuration in `config/` files:
-- Development database runs in a docker container, that can be accessed as follows:
+- "Development" database (used for running performance tests) runs in a docker container, that can be accessed as follows:
 
 ```
  $ docker exec -it new_journey-postgres-db  psql -U postgres journey_dev -c "SELECT COUNT(*) FROM computations;"
@@ -98,6 +98,16 @@ The application uses PostgreSQL with Ecto. Configuration in `config/` files:
  12033
 (1 row)
 ```
+- "Test" database (used for `make test`) runs in a docker container, that can be accessed as follows:
+
+```
+$ docker exec -it new_journey-postgres-db  psql -U postgres journey_test -c "SELECT COUNT(*) FROM computations;"
+ count
+-------
+  9877
+(1 row)
+```
+
 
 - Migrations in `priv/repo/migrations/`
 
@@ -108,6 +118,13 @@ Tests use ExUnit and include:
 - Integration tests for full workflow scenarios
 - Background sweep simulation for scheduled nodes using `Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test/1`
 - Tests often use the `redact/2` helper to mask dynamic values like timestamps and IDs
+
+### Performance Tests
+
+The codebase includes performance tests
+* executed via `run test-performance`
+* implemented in `test_load/performance_benchmark.exs`
+Running test multiple times often helps establish performance dynamics as the dataset grows.
 
 ### Development Notes
 
