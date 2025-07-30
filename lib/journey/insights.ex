@@ -113,24 +113,18 @@ defmodule Journey.Insights do
   end
 
   defp fetch_computation_stats(graph_name, graph_version) do
-    # Get execution IDs for this graph/version
-    execution_ids =
-      from(e in Execution,
-        where:
-          e.graph_name == ^graph_name and
-            e.graph_version == ^graph_version,
-        select: e.id
-      )
-      |> Repo.all()
-
-    # Count computations by state
+    # Use a single JOIN query to get computation stats
+    # This avoids loading all execution IDs into memory
     state_counts =
       ComputationState.values()
       |> Enum.map(fn state ->
         count =
           from(c in Computation,
+            join: e in Execution,
+            on: c.execution_id == e.id,
             where:
-              c.execution_id in ^execution_ids and
+              e.graph_name == ^graph_name and
+                e.graph_version == ^graph_version and
                 c.state == ^state,
             select: count(c.id)
           )
@@ -143,7 +137,11 @@ defmodule Journey.Insights do
     # Get most recently created computation timestamp
     most_recently_created =
       from(c in Computation,
-        where: c.execution_id in ^execution_ids,
+        join: e in Execution,
+        on: c.execution_id == e.id,
+        where:
+          e.graph_name == ^graph_name and
+            e.graph_version == ^graph_version,
         select: max(c.inserted_at)
       )
       |> Repo.one()
@@ -152,7 +150,11 @@ defmodule Journey.Insights do
     # Get most recently updated computation timestamp
     most_recently_updated =
       from(c in Computation,
-        where: c.execution_id in ^execution_ids,
+        join: e in Execution,
+        on: c.execution_id == e.id,
+        where:
+          e.graph_name == ^graph_name and
+            e.graph_version == ^graph_version,
         select: max(c.updated_at)
       )
       |> Repo.one()
@@ -167,8 +169,8 @@ defmodule Journey.Insights do
 
   defp format_timestamp(nil), do: nil
 
-  defp format_timestamp(timestamp) do
-    timestamp
+  defp format_timestamp(timestamp) when is_integer(timestamp) do
+    DateTime.from_unix!(timestamp)
     |> DateTime.to_iso8601()
   end
 end
