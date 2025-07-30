@@ -568,7 +568,6 @@ defmodule Journey do
     check_options(opts, [:wait, :wait_new])
 
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
-    default_timeout_ms = 15_000
 
     wait_new = Keyword.get(opts, :wait_new, false)
     wait = Keyword.get(opts, :wait, false)
@@ -578,7 +577,7 @@ defmodule Journey do
       raise ArgumentError, "Options :wait and :wait_new are mutually exclusive"
     end
 
-    timeout_ms = determine_timeout(wait_new, wait, default_timeout_ms)
+    timeout_ms = determine_timeout(wait_new, wait)
 
     Executions.get_value(execution, node_name, timeout_ms, wait_new: wait_new != false)
   end
@@ -660,26 +659,23 @@ defmodule Journey do
 
   def unarchive(execution) when is_struct(execution, Journey.Execution), do: Journey.unarchive(execution.id)
 
-  # wait_new cases (wait must be false due to mutual exclusion check)
-  defp determine_timeout(wait_new, false, _default_timeout_ms) when wait_new == false or wait_new == 0, do: nil
-  defp determine_timeout(true, false, default_timeout_ms), do: default_timeout_ms
-  defp determine_timeout(:infinity, false, _default_timeout_ms), do: :infinity
-  defp determine_timeout(wait_new, false, _default_timeout_ms) when is_integer(wait_new) and wait_new > 0, do: wait_new
+  @default_timeout_ms 15_000
 
-  # wait cases (wait_new must be false due to mutual exclusion check)
-  defp determine_timeout(false, wait, _default_timeout_ms) when wait == false or wait == 0, do: nil
-  defp determine_timeout(false, true, default_timeout_ms), do: default_timeout_ms
-  defp determine_timeout(false, :infinity, _default_timeout_ms), do: :infinity
-  defp determine_timeout(false, wait, _default_timeout_ms) when is_integer(wait) and wait > 0, do: wait
+  defp determine_timeout(false, false), do: nil
+  defp determine_timeout(wait_new, false), do: timeout_value(wait_new)
+  defp determine_timeout(false, wait), do: timeout_value(wait)
 
-  # default case for invalid combinations
-  defp determine_timeout(wait_new, wait, _default_timeout_ms) do
+  defp determine_timeout(wait_new, wait) do
     raise ArgumentError,
           "Invalid timeout options: wait_new: #{inspect(wait_new)}, wait: #{inspect(wait)}. " <>
-            "Valid values: false, 0, true, :infinity, or positive integer (milliseconds). " <>
+            "Valid values: false, 0, true (in which case the default is #{@default_timeout_ms}), :infinity, or positive integer (milliseconds). " <>
             "Options :wait and :wait_new are mutually exclusive."
   end
 
+  defp timeout_value(v) when is_integer(v) or v == :infinity, do: v
+  defp timeout_value(true), do: @default_timeout_ms
+
+  # default case for invalid combinations
   defp check_options(supplied_option_names_kwl, known_option_names_list) do
     supplied_option_names = MapSet.new(Keyword.keys(supplied_option_names_kwl))
     known_option_names = MapSet.new(known_option_names_list)

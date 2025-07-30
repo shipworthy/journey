@@ -239,6 +239,7 @@ defmodule Journey.Executions do
     |> Journey.Repo.one()
     |> case do
       nil ->
+        # TODO: if no node, and we need to wait, keep waiting.
         Logger.debug("#{prefix}: value not found.")
         {:error, :no_such_value}
 
