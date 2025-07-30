@@ -577,9 +577,9 @@ defmodule Journey do
       raise ArgumentError, "Options :wait and :wait_new are mutually exclusive"
     end
 
-    timeout_ms = determine_timeout(wait_new, wait)
+    timeout_ms_or_infinity = determine_timeout(wait_new, wait)
 
-    Executions.get_value(execution, node_name, timeout_ms, wait_new: wait_new != false)
+    Executions.get_value(execution, node_name, timeout_ms_or_infinity, wait_new: wait_new != false)
   end
 
   @doc """

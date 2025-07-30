@@ -258,7 +258,8 @@ defmodule Journey.Executions do
     end
   end
 
-  defp load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count) do
+  defp load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count)
+       when monotonic_time_deadline == :infinity or is_integer(monotonic_time_deadline) do
     prefix = "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}] wait_new"
 
     # Get the starting revision from the execution parameter
