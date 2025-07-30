@@ -194,9 +194,15 @@ defmodule Journey.Executions do
     end
   end
 
-  def get_value(execution, node_name, timeout_ms) do
+  def get_value(execution, node_name, timeout_ms, opts \\ []) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
-    Logger.debug("#{prefix}: starting." <> if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: ""))
+    wait_new = Keyword.get(opts, :wait_new, false)
+
+    Logger.debug(
+      "#{prefix}: starting." <>
+        if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: "") <>
+        if(wait_new, do: " (wait_new: true)", else: "")
+    )
 
     monotonic_time_deadline =
       case timeout_ms do
@@ -210,7 +216,11 @@ defmodule Journey.Executions do
           System.monotonic_time(:millisecond) + ms
       end
 
-    load_value(execution, node_name, monotonic_time_deadline, 0)
+    if wait_new do
+      load_value_wait_new(execution, node_name, monotonic_time_deadline, 0)
+    else
+      load_value(execution, node_name, monotonic_time_deadline, 0)
+    end
     |> tap(fn
       {:ok, _result} ->
         Logger.debug("#{prefix}: done. success")
@@ -229,6 +239,7 @@ defmodule Journey.Executions do
     |> Journey.Repo.one()
     |> case do
       nil ->
+        # TODO: if no node, and we need to wait, keep waiting.
         Logger.debug("#{prefix}: value not found.")
         {:error, :no_such_value}
 
@@ -245,6 +256,52 @@ defmodule Journey.Executions do
       %{node_value: node_value} ->
         {:ok, node_value}
     end
+  end
+
+  defp load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count)
+       when monotonic_time_deadline == :infinity or is_integer(monotonic_time_deadline) do
+    prefix = "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}] wait_new"
+
+    # Get the starting revision from the execution parameter
+    starting_value = find_value_by_name(execution, node_name)
+    starting_revision = if starting_value, do: starting_value.ex_revision, else: 0
+
+    Logger.debug("#{prefix}: waiting for revision > #{starting_revision}")
+
+    # Query for current value in the database
+    current_value =
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
+      )
+      |> Journey.Repo.one()
+
+    if current_value != nil and current_value.ex_revision > starting_revision do
+      # Found a newer revision with a value set
+      Logger.debug("#{prefix}: found newer revision #{current_value.ex_revision}")
+      {:ok, current_value.node_value}
+    else
+      # Either no value exists yet OR revision hasn't advanced - keep waiting
+      current_revision = if current_value, do: current_value.ex_revision, else: "none"
+
+      if deadline_exceeded?(monotonic_time_deadline) do
+        Logger.info(
+          "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
+        )
+
+        {:error, :not_set}
+      else
+        Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
+        backoff_sleep(call_count)
+        load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
+      end
+    end
+  end
+
+  defp deadline_exceeded?(monotonic_time_deadline) when is_nil(monotonic_time_deadline), do: true
+  defp deadline_exceeded?(monotonic_time_deadline) when monotonic_time_deadline == :infinity, do: false
+
+  defp deadline_exceeded?(monotonic_time_deadline) when is_integer(monotonic_time_deadline) do
+    monotonic_time_deadline < System.monotonic_time(:millisecond)
   end
 
   def list(graph_name, sort_by_ex_fields, value_filters, limit, offset, include_archived?)

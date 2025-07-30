@@ -85,7 +85,7 @@ defmodule Journey.Node do
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:name, "Alice")
-  iex> execution |> Journey.get_value(:pig_latin_ish_name, wait: true)
+  iex> execution |> Journey.get_value(:pig_latin_ish_name, wait_any: true)
   {:ok, "Alice-ay"}
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "...", last_updated_at: 1_234_567_890}
@@ -132,7 +132,7 @@ defmodule Journey.Node do
   ...>     graph
   ...>     |> Journey.start_execution()
   ...>     |> Journey.set_value(:name, "Mario")
-  iex> execution |> Journey.get_value(:remove_pii, wait: true)
+  iex> execution |> Journey.get_value(:remove_pii, wait_any: true)
   {:ok, "updated :name"}
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "redacted", remove_pii: "updated :name",  execution_id: "...", last_updated_at: 1_234_567_890}
@@ -172,7 +172,7 @@ defmodule Journey.Node do
   iex> execution.archived_at == nil
   true
   iex> execution = Journey.set_value(execution, :name, "Mario")
-  iex> {:ok, _} = Journey.get_value(execution, :archive, wait: true)
+  iex> {:ok, _} = Journey.get_value(execution, :archive, wait_any: true)
   iex> Journey.load(execution)
   nil
   iex> execution = Journey.load(execution, include_archived: true)
@@ -240,7 +240,7 @@ defmodule Journey.Node do
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
-  iex> execution |> Journey.get_value(:nap_time, wait: 10_000) # this will take a couple of seconds.
+  iex> execution |> Journey.get_value(:nap_time, wait_any: 10_000) # this will take a couple of seconds.
   {:ok, "It's time to take a nap, Mario!"}
   iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
@@ -304,11 +304,12 @@ defmodule Journey.Node do
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
   iex> # Verify initial reminder
-  iex> Journey.get_value(execution, :send_a_reminder, wait: 10_000)
-  {:ok, 1}
-  iex> # Wait for multiple scheduled executions
+  iex> {:ok, reminder_count}  = Journey.get_value(execution, :send_a_reminder, wait_any: 10_000)
+  iex> reminder_count == 1 or reminder_count == 2
+  true
+  iex> # Give a few seconds for a few reminders to take place.
   iex> Process.sleep(10_000)
-  iex> {:ok, reminder_count} = Journey.get_value(execution, :send_a_reminder, wait: 10_000)
+  iex> {:ok, reminder_count} = Journey.get_value(execution, :send_a_reminder, wait_any: 10_000)
   iex> # Verify recurring behavior happened "a reasonable number of times"
   iex> # With 2-second intervals over 10 seconds, we expect 4-6 additional reminders
   iex> reminder_count >= 5 and reminder_count <= 7

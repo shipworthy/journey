@@ -26,7 +26,7 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
 
-      # TODO: replace sleep with get_value(execution, :astrological_sign, wait: true)
+      # TODO: replace sleep with get_value(execution, :astrological_sign, wait_any: true)
       Process.sleep(11_000)
       assert 2 == count_computations(execution.id, :astrological_sign, :failed)
       assert 0 == count_computations(execution.id, :astrological_sign, :computing)

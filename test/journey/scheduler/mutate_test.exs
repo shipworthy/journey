@@ -18,25 +18,25 @@ defmodule Journey.Scheduler.Scheduler.MutateTest do
       Process.sleep(2000)
       execution = execution |> Journey.load()
       assert Journey.Executions.find_value_by_name(execution, :switch_position).ex_revision == 1
-      assert Journey.get_value(execution, :switch_position, wait: true) == {:ok, "off"}
+      assert Journey.get_value(execution, :switch_position, wait_any: true) == {:ok, "off"}
 
       execution = execution |> Journey.set_value(:switch_position, "on")
       Process.sleep(2000)
       execution = execution |> Journey.load()
       assert Journey.Executions.find_value_by_name(execution, :switch_position).ex_revision == 4
-      assert Journey.get_value(execution, :switch_position, wait: true) == {:ok, "off"}
+      assert Journey.get_value(execution, :switch_position, wait_any: true) == {:ok, "off"}
 
       execution = execution |> Journey.set_value(:switch_position, "on")
       Process.sleep(2000)
       execution = execution |> Journey.load()
       assert Journey.Executions.find_value_by_name(execution, :switch_position).ex_revision == 7
-      assert Journey.get_value(execution, :switch_position, wait: true) == {:ok, "off"}
+      assert Journey.get_value(execution, :switch_position, wait_any: true) == {:ok, "off"}
 
       execution = execution |> Journey.set_value(:switch_position, "on")
       Process.sleep(2000)
       execution = execution |> Journey.load()
       assert Journey.Executions.find_value_by_name(execution, :switch_position).ex_revision == 10
-      assert Journey.get_value(execution, :switch_position, wait: true) == {:ok, "off"}
+      assert Journey.get_value(execution, :switch_position, wait_any: true) == {:ok, "off"}
 
       Journey.Tools.summarize(execution.id) |> IO.puts()
     end

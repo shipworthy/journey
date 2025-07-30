@@ -58,8 +58,8 @@ defmodule Journey do
   Providing these input values will trigger automatic computations of the customer's zodiac_sign and the horoscope, which can then be read from the execution and rendered on the web page.
 
   ```
-  {:ok, zodiac_sign} = Journey.get_value(execution, :zodiac_sign, wait: true)
-  {:ok, horoscope} = Journey.get_value(execution, :horoscope, wait: true)
+  {:ok, zodiac_sign} = Journey.get_value(execution, :zodiac_sign, wait_any: true)
+  {:ok, horoscope} = Journey.get_value(execution, :horoscope, wait_any: true)
   ```
 
   And that's it!
@@ -139,14 +139,14 @@ defmodule Journey do
   iex> e = Journey.set_value(e, :birth_month, "April")
   iex>
   iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
-  iex> Journey.get_value(e, :zodiac_sign, wait: true)
+  iex> Journey.get_value(e, :zodiac_sign, wait_any: true)
   {:ok, "Taurus"}
   iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
   %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
   iex>
   iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
   iex> e = Journey.set_value(e, :first_name, "Mario")
-  iex> Journey.get_value(e, :horoscope, wait: true)
+  iex> Journey.get_value(e, :horoscope, wait_any: true)
   {:ok, "🍪s await, Taurus Mario!"}
   iex>
   iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
@@ -240,7 +240,7 @@ defmodule Journey do
   0
   iex> execution |> Journey.set_value(:birth_day, 26) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
   iex> # Wait for the computations to complete, and reload the execution, which will now have a new revision.
-  iex> Journey.get_value(execution, :library_of_congress_record, wait: true)
+  iex> Journey.get_value(execution, :library_of_congress_record, wait_any: true)
   {:ok, "Mario's horoscope was submitted for archival."}
   iex> execution = execution.id |> Journey.load()
   iex> execution.revision
@@ -498,7 +498,7 @@ defmodule Journey do
   %{name: {:set, "Mario"}, greeting: :not_set, last_name: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
   iex> execution = Journey.set_value(execution, :last_name, "Bowser")
   iex> # The downstream computed value now becomes available:
-  iex> Journey.get_value(execution, :greeting, wait: true)
+  iex> Journey.get_value(execution, :greeting, wait_any: true)
   {:ok, "Hello, Mario Bowser!"}
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "Mario", greeting: "Hello, Mario Bowser!", last_name: "Bowser", execution_id: "...", last_updated_at: 1234567890}
@@ -518,12 +518,19 @@ defmodule Journey do
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
   ## Options:
-  * `:wait` – whether or not to wait for the value to be set. This option can have the following values:
+  * `:wait_any` – whether or not to wait for the value to be set. This option can have the following values:
     * `false` or `0` – return immediately without waiting (default)
     * `true` – wait until the value is available, or until timeout
     * a positive integer – wait for the supplied number of milliseconds (default: 15_000)
     * `:infinity` – wait indefinitely
     This is useful for self-computing nodes, where the value is computed asynchronously.
+  * `:wait_new` – whether to wait for a new revision of the value. This option can have the following values:
+    * `false` – do not wait for a new revision (default)
+    * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet
+    * a positive integer – wait for the supplied number of milliseconds for a new revision
+    This is useful for avoiding race conditions when a value triggers dependent computations.
+
+  Note: `:wait_any` and `:wait_new` are mutually exclusive.
 
   Returns
   * `{:ok, value}` – the value is set
@@ -546,44 +553,33 @@ defmodule Journey do
     iex> execution = Journey.set_value(execution, :birth_month, "April")
     iex> Journey.get_value(execution, :astrological_sign)
     {:error, :not_set}
-    iex> Journey.get_value(execution, :astrological_sign, wait: true)
+    iex> Journey.get_value(execution, :astrological_sign, wait_any: true)
     {:ok, "Taurus"}
-    iex> Journey.get_value(execution, :horoscope, wait: 2_000)
+    iex> Journey.get_value(execution, :horoscope, wait_any: 2_000)
     {:error, :not_set}
     iex> execution = Journey.set_value(execution, :first_name, "Mario")
-    iex> Journey.get_value(execution, :horoscope, wait: true)
+    iex> Journey.get_value(execution, :horoscope, wait_any: true)
     {:ok, "🍪s await, Taurus Mario!"}
     ```
 
   """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    check_options(opts, [:wait])
+    check_options(opts, [:wait_any, :wait_new])
 
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
-    default_timeout_ms = 15_000
 
-    timeout_ms =
-      opts
-      |> Keyword.get(:wait, false)
-      |> case do
-        false ->
-          nil
+    wait_new = Keyword.get(opts, :wait_new, false)
+    wait_any = Keyword.get(opts, :wait_any, false)
 
-        0 ->
-          nil
+    # Check for mutually exclusive options
+    if wait_new != false and wait_any != false do
+      raise ArgumentError, "Options :wait_any and :wait_new are mutually exclusive"
+    end
 
-        true ->
-          default_timeout_ms
+    timeout_ms_or_infinity = determine_timeout(wait_new, wait_any)
 
-        :infinity ->
-          :infinity
-
-        ms when is_integer(ms) and ms > 0 ->
-          ms
-      end
-
-    Executions.get_value(execution, node_name, timeout_ms)
+    Executions.get_value(execution, node_name, timeout_ms_or_infinity, wait_new: wait_new != false)
   end
 
   @doc """
@@ -663,6 +659,23 @@ defmodule Journey do
 
   def unarchive(execution) when is_struct(execution, Journey.Execution), do: Journey.unarchive(execution.id)
 
+  @default_timeout_ms 15_000
+
+  defp determine_timeout(false, false), do: nil
+  defp determine_timeout(wait_new, false), do: timeout_value(wait_new)
+  defp determine_timeout(false, wait_any), do: timeout_value(wait_any)
+
+  defp determine_timeout(wait_new, wait_any) do
+    raise ArgumentError,
+          "Invalid timeout options: wait_new: #{inspect(wait_new)}, wait_any: #{inspect(wait_any)}. " <>
+            "Valid values: false, 0, true (in which case the default is #{@default_timeout_ms}), :infinity, or positive integer (milliseconds). " <>
+            "Options :wait_any and :wait_new are mutually exclusive."
+  end
+
+  defp timeout_value(v) when is_integer(v) or v == :infinity, do: v
+  defp timeout_value(true), do: @default_timeout_ms
+
+  # default case for invalid combinations
   defp check_options(supplied_option_names_kwl, known_option_names_list) do
     supplied_option_names = MapSet.new(Keyword.keys(supplied_option_names_kwl))
     known_option_names = MapSet.new(known_option_names_list)
