@@ -12,6 +12,47 @@ defmodule Journey.Insights do
 
   @doc """
   Returns current system health for monitoring/alerting
+
+  ## Response Structure
+
+  - `status` - `:healthy` or `:unhealthy`
+  - `database_connected` - Boolean indicating DB connectivity
+  - `graphs` - List of graph statistics, one per graph name/version
+
+  ## Example output:
+
+  ```elixir
+  %{
+    status: :healthy,
+    graphs: [
+      %{
+        stats: %{
+          computations: %{
+            by_state: %{
+              abandoned: 239,
+              cancelled: 0,
+              success: 21106,
+              failed: 0,
+              not_set: 59294,
+              computing: 0
+            },
+            most_recently_created: "2025-07-30T00:07:37Z",
+            most_recently_updated: "2025-07-30T00:07:41Z"
+          },
+          executions: %{
+            active: 4597,
+            most_recently_created: "2025-07-30T00:07:37Z",
+            most_recently_updated: "2025-07-30T00:07:41Z",
+            archived: 2103
+          }
+        },
+        graph_name: "Credit Card Application flow graph",
+        graph_version: "v1.0.0"
+      }
+    ],
+    database_connected: true
+  }
+  ```
   """
   def status() do
     graphs_data = fetch_graphs_data()
