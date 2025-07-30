@@ -267,22 +267,20 @@ defmodule Journey.Executions do
     Logger.debug("#{prefix}: waiting for revision > #{starting_revision}")
 
     # Query for current value in the database
-    from(v in Execution.Value,
+    current_value = from(v in Execution.Value,
       where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
     )
     |> Journey.Repo.one()
-    |> case do
-      nil ->
-        Logger.debug("#{prefix}: value not found.")
-        {:error, :no_such_value}
 
-      %{set_time: _set_time, node_value: node_value, ex_revision: new_revision} when new_revision > starting_revision ->
-        # Found a newer revision with a value set
-        Logger.debug("#{prefix}: found newer revision #{new_revision}")
-        {:ok, node_value}
+    cond do
+      # Found a newer revision with a value set
+      current_value != nil and current_value.ex_revision > starting_revision ->
+        Logger.debug("#{prefix}: found newer revision #{current_value.ex_revision}")
+        {:ok, current_value.node_value}
 
-      %{ex_revision: current_revision} ->
-        # Revision hasn't advanced or value not set, keep waiting
+      # Either no value exists yet OR revision hasn't advanced - keep waiting
+      true ->
+        current_revision = if current_value, do: current_value.ex_revision, else: "none"
         if monotonic_time_deadline == :infinity or
              (monotonic_time_deadline != nil and monotonic_time_deadline > System.monotonic_time(:millisecond)) do
           Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
@@ -292,7 +290,6 @@ defmodule Journey.Executions do
           Logger.info(
             "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
           )
-
           {:error, :not_set}
         end
     end
