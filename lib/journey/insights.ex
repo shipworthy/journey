@@ -1,0 +1,174 @@
+defmodule Journey.Insights do
+  @moduledoc """
+  Provides system health and monitoring insights for Journey executions.
+  """
+
+  import Ecto.Query
+
+  alias Journey.Execution
+  alias Journey.Execution.Computation
+  alias Journey.Execution.ComputationState
+  alias Journey.Repo
+
+  @doc """
+  Returns current system health for monitoring/alerting
+  """
+  def status() do
+    graphs_data = fetch_graphs_data()
+
+    %{
+      status: :healthy,
+      database_connected: true,
+      graphs: graphs_data
+    }
+  rescue
+    _e in DBConnection.ConnectionError ->
+      %{
+        status: :unhealthy,
+        database_connected: false,
+        graphs: []
+      }
+
+    _e ->
+      %{
+        status: :unhealthy,
+        database_connected: true,
+        graphs: []
+      }
+  end
+
+  defp fetch_graphs_data() do
+    # Get unique graph name/version combinations
+    graph_combinations =
+      from(e in Execution,
+        group_by: [e.graph_name, e.graph_version],
+        select: {e.graph_name, e.graph_version}
+      )
+      |> Repo.all()
+
+    # Fetch stats for each combination
+    Enum.map(graph_combinations, fn {graph_name, graph_version} ->
+      %{
+        graph_name: graph_name,
+        graph_version: graph_version,
+        stats: %{
+          executions: fetch_execution_stats(graph_name, graph_version),
+          computations: fetch_computation_stats(graph_name, graph_version)
+        }
+      }
+    end)
+  end
+
+  defp fetch_execution_stats(graph_name, graph_version) do
+    # Count archived executions
+    archived_count =
+      from(e in Execution,
+        where:
+          e.graph_name == ^graph_name and
+            e.graph_version == ^graph_version and
+            not is_nil(e.archived_at),
+        select: count(e.id)
+      )
+      |> Repo.one()
+
+    # Count active executions
+    active_count =
+      from(e in Execution,
+        where:
+          e.graph_name == ^graph_name and
+            e.graph_version == ^graph_version and
+            is_nil(e.archived_at),
+        select: count(e.id)
+      )
+      |> Repo.one()
+
+    # Get most recently created timestamp
+    most_recently_created =
+      from(e in Execution,
+        where:
+          e.graph_name == ^graph_name and
+            e.graph_version == ^graph_version,
+        select: max(e.inserted_at)
+      )
+      |> Repo.one()
+      |> format_timestamp()
+
+    # Get most recently updated timestamp
+    most_recently_updated =
+      from(e in Execution,
+        where:
+          e.graph_name == ^graph_name and
+            e.graph_version == ^graph_version,
+        select: max(e.updated_at)
+      )
+      |> Repo.one()
+      |> format_timestamp()
+
+    %{
+      archived: archived_count,
+      active: active_count,
+      most_recently_created: most_recently_created,
+      most_recently_updated: most_recently_updated
+    }
+  end
+
+  defp fetch_computation_stats(graph_name, graph_version) do
+    # Get execution IDs for this graph/version
+    execution_ids =
+      from(e in Execution,
+        where:
+          e.graph_name == ^graph_name and
+            e.graph_version == ^graph_version,
+        select: e.id
+      )
+      |> Repo.all()
+
+    # Count computations by state
+    state_counts =
+      ComputationState.values()
+      |> Enum.map(fn state ->
+        count =
+          from(c in Computation,
+            where:
+              c.execution_id in ^execution_ids and
+                c.state == ^state,
+            select: count(c.id)
+          )
+          |> Repo.one()
+
+        {state, count}
+      end)
+      |> Enum.into(%{})
+
+    # Get most recently created computation timestamp
+    most_recently_created =
+      from(c in Computation,
+        where: c.execution_id in ^execution_ids,
+        select: max(c.inserted_at)
+      )
+      |> Repo.one()
+      |> format_timestamp()
+
+    # Get most recently updated computation timestamp
+    most_recently_updated =
+      from(c in Computation,
+        where: c.execution_id in ^execution_ids,
+        select: max(c.updated_at)
+      )
+      |> Repo.one()
+      |> format_timestamp()
+
+    %{
+      by_state: state_counts,
+      most_recently_created: most_recently_created,
+      most_recently_updated: most_recently_updated
+    }
+  end
+
+  defp format_timestamp(nil), do: nil
+
+  defp format_timestamp(timestamp) do
+    timestamp
+    |> DateTime.to_iso8601()
+  end
+end
