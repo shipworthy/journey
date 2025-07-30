@@ -1,39 +1,37 @@
-  Implement wait_for_new_revision option for Journey.get_value
+Implement wait_new option for Journey.get_value
 
-  Please implement a new option wait_for_new_revision: true for the Journey.get_value/3 function to address the race condition described in test/journey/journey_test.exs:237
-  (the TODO comment about waiting for values with revision greater than a particular value).
+Please implement a new option wait_new: true for the Journey.get_value/3 function to address the race condition described in test/journey/journey_test.exs:237
+(the TODO comment about waiting for values with revision greater than a particular value).
 
-  Current problem:
-  When setting a value that triggers dependent computations, there's a race condition where get_value might return stale data. Currently we use Process.sleep(3000) as a
-  workaround in the test.
+Current problem:
+When setting a value that triggers dependent computations, there's a race condition where get_value might return stale data. Currently we use Process.sleep(3000) as a
+workaround in the test.
 
-  Desired behavior:
-  execution_v3 = execution_v1 |> Journey.set_value(:first_name, "Luigi")
-  {:ok, "Hello, Luigi"} = Journey.get_value(execution_v3, :greeting,
-    wait: true,
-    wait_for_new_revision: true)
+Desired behavior:
+execution_v3 = execution_v1 |> Journey.set_value(:first_name, "Luigi")
+{:ok, "Hello, Luigi"} = Journey.get_value(execution_v3, :greeting, wait_new: true)
 
-  The wait_for_new_revision: true option should:
-  1. Check the current revision of the value for the specified node
-  2. Wait until a new value with a higher revision is available
-  3. Return the new value once it's computed
-  4. If no value exists yet, wait for the first value (revision > 0)
-  5. Respect the existing timeout behavior when combined with wait: timeout_ms
-  6. When wait_for_new_revision: true is used without wait: true, it should be ignored (no waiting)
-  7. On timeout, return the same error format as the current wait implementation
+The wait_new option should:
+1. Check the current revision of the value for the specified node
+2. Wait until a new value with a higher revision is available
+3. Return the new value once it's computed
+4. If no value exists yet, wait for the first value (revision > 0)
+5. Support timeout: wait_new: 5000 waits up to 5 seconds for a new revision
+6. wait_new: true uses the default timeout (same as wait: true)
+7. On timeout, return the same error format as the current wait implementation
 
-  Implementation requirements:
-  1. Modify Journey.Executions.get_value to support the new option
-  2. Update the existing test in test/journey/journey_test.exs:225 to use wait_for_new_revision: true instead of Process.sleep(3000)
-  3. Add comprehensive tests for the new functionality including:
-    - Waiting for a new revision when value exists
-    - Waiting for first value when no value exists
-    - Timeout behavior
-    - Multiple concurrent updates
-  4. Ensure backward compatibility - existing code should work unchanged
-  5. Follow all guidelines in CLAUDE.md - especially running make validate before completion
-  6. If reasonable, the implementation should reuse the existing polling mechanism in load_value/4
-  7. Note that value revisions are already stored in value's ex_revision field, e.g.
+Implementation requirements:
+1. Modify Journey.Executions.get_value to support the new option
+2. Update the existing test in test/journey/journey_test.exs:225 to use wait_new: true instead of Process.sleep(3000)
+3. Add comprehensive tests for the new functionality including:
+   - Waiting for a new revision when value exists
+   - Waiting for first value when no value exists
+   - Timeout behavior
+   - Multiple concurrent updates
+4. Ensure backward compatibility - existing code should work unchanged
+5. Follow all guidelines in CLAUDE.md - especially running make validate before completion
+6. If reasonable, the implementation should reuse the existing polling mechanism in load_value/4
+7. Note that value revisions are already stored in value's ex_revision field, e.g.
 ```
   %Journey.Execution.Value{
     __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
@@ -50,4 +48,4 @@
   }
 ```
 
-  Note: This should be a minimal change focused on solving the specific race condition. Keep the implementation simple and idiomatic Elixir.
+Note: This should be a minimal change focused on solving the specific race condition. Keep the implementation simple and idiomatic Elixir.
