@@ -267,32 +267,39 @@ defmodule Journey.Executions do
     Logger.debug("#{prefix}: waiting for revision > #{starting_revision}")
 
     # Query for current value in the database
-    current_value = from(v in Execution.Value,
-      where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
-    )
-    |> Journey.Repo.one()
+    current_value =
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
+      )
+      |> Journey.Repo.one()
 
-    cond do
+    if current_value != nil and current_value.ex_revision > starting_revision do
       # Found a newer revision with a value set
-      current_value != nil and current_value.ex_revision > starting_revision ->
-        Logger.debug("#{prefix}: found newer revision #{current_value.ex_revision}")
-        {:ok, current_value.node_value}
-
+      Logger.debug("#{prefix}: found newer revision #{current_value.ex_revision}")
+      {:ok, current_value.node_value}
+    else
       # Either no value exists yet OR revision hasn't advanced - keep waiting
-      true ->
-        current_revision = if current_value, do: current_value.ex_revision, else: "none"
-        if monotonic_time_deadline == :infinity or
-             (monotonic_time_deadline != nil and monotonic_time_deadline > System.monotonic_time(:millisecond)) do
-          Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
-          backoff_sleep(call_count)
-          load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
-        else
-          Logger.info(
-            "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
-          )
-          {:error, :not_set}
-        end
+      current_revision = if current_value, do: current_value.ex_revision, else: "none"
+
+      if deadline_exceeded?(monotonic_time_deadline) do
+        Logger.info(
+          "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
+        )
+
+        {:error, :not_set}
+      else
+        Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
+        backoff_sleep(call_count)
+        load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
+      end
     end
+  end
+
+  defp deadline_exceeded?(monotonic_time_deadline) when is_nil(monotonic_time_deadline), do: true
+  defp deadline_exceeded?(monotonic_time_deadline) when monotonic_time_deadline == :infinity, do: false
+
+  defp deadline_exceeded?(monotonic_time_deadline) when is_integer(monotonic_time_deadline) do
+    monotonic_time_deadline < System.monotonic_time(:millisecond)
   end
 
   def list(graph_name, sort_by_ex_fields, value_filters, limit, offset, include_archived?)
