@@ -1,6 +1,7 @@
 defmodule Journey.Scheduler.SweepRun do
   @moduledoc false
 
+  # TODO: move all sweep-related code to ../sweeps/
   use Journey.Schema.Base
   import Ecto.Changeset
 
