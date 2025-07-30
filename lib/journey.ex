@@ -524,6 +524,13 @@ defmodule Journey do
     * a positive integer – wait for the supplied number of milliseconds (default: 15_000)
     * `:infinity` – wait indefinitely
     This is useful for self-computing nodes, where the value is computed asynchronously.
+  * `:wait_new` – whether to wait for a new revision of the value. This option can have the following values:
+    * `false` – do not wait for a new revision (default)
+    * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet
+    * a positive integer – wait for the supplied number of milliseconds for a new revision
+    This is useful for avoiding race conditions when a value triggers dependent computations.
+
+  Note: `:wait` and `:wait_new` are mutually exclusive.
 
   Returns
   * `{:ok, value}` – the value is set
@@ -558,32 +565,22 @@ defmodule Journey do
   """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    check_options(opts, [:wait])
+    check_options(opts, [:wait, :wait_new])
 
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
     default_timeout_ms = 15_000
 
-    timeout_ms =
-      opts
-      |> Keyword.get(:wait, false)
-      |> case do
-        false ->
-          nil
+    wait_new = Keyword.get(opts, :wait_new, false)
+    wait = Keyword.get(opts, :wait, false)
 
-        0 ->
-          nil
+    # Check for mutually exclusive options
+    if wait_new != false and wait != false do
+      raise ArgumentError, "Options :wait and :wait_new are mutually exclusive"
+    end
 
-        true ->
-          default_timeout_ms
+    timeout_ms = determine_timeout(wait_new, wait, default_timeout_ms)
 
-        :infinity ->
-          :infinity
-
-        ms when is_integer(ms) and ms > 0 ->
-          ms
-      end
-
-    Executions.get_value(execution, node_name, timeout_ms)
+    Executions.get_value(execution, node_name, timeout_ms, wait_new: wait_new != false)
   end
 
   @doc """
@@ -662,6 +659,26 @@ defmodule Journey do
   end
 
   def unarchive(execution) when is_struct(execution, Journey.Execution), do: Journey.unarchive(execution.id)
+
+  # wait_new cases (wait must be false due to mutual exclusion check)
+  defp determine_timeout(wait_new, false, _default_timeout_ms) when wait_new == false or wait_new == 0, do: nil
+  defp determine_timeout(true, false, default_timeout_ms), do: default_timeout_ms
+  defp determine_timeout(:infinity, false, _default_timeout_ms), do: :infinity
+  defp determine_timeout(wait_new, false, _default_timeout_ms) when is_integer(wait_new) and wait_new > 0, do: wait_new
+
+  # wait cases (wait_new must be false due to mutual exclusion check)
+  defp determine_timeout(false, wait, _default_timeout_ms) when wait == false or wait == 0, do: nil
+  defp determine_timeout(false, true, default_timeout_ms), do: default_timeout_ms
+  defp determine_timeout(false, :infinity, _default_timeout_ms), do: :infinity
+  defp determine_timeout(false, wait, _default_timeout_ms) when is_integer(wait) and wait > 0, do: wait
+
+  # default case for invalid combinations
+  defp determine_timeout(wait_new, wait, _default_timeout_ms) do
+    raise ArgumentError,
+          "Invalid timeout options: wait_new: #{inspect(wait_new)}, wait: #{inspect(wait)}. " <>
+            "Valid values: false, 0, true, :infinity, or positive integer (milliseconds). " <>
+            "Options :wait and :wait_new are mutually exclusive."
+  end
 
   defp check_options(supplied_option_names_kwl, known_option_names_list) do
     supplied_option_names = MapSet.new(Keyword.keys(supplied_option_names_kwl))
