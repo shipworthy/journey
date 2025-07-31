@@ -83,8 +83,7 @@ defmodule Journey.ToolsTest do
       assert execution.revision == 7
 
       Journey.Tools.increment_revision(execution.id, :user_name)
-      Process.sleep(7_000)
-      {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
+      {:ok, _} = Journey.get_value(execution, :reminder, wait_new: true)
       execution = execution |> Journey.load()
       assert execution.revision == 12
 
