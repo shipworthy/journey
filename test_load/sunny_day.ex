@@ -1,19 +1,5 @@
 defmodule LoadTest.SunnyDay do
-  @moduledoc """
-  This is a standalone load test script for Journey execution system.
-
-  This script creates concurrent executions following different trajectories
-  to validate system behavior under load.
-
-  Usage example:
-  ```elixir
-  iex> r = LoadTest.SunnyDay.run(5)
-  iex> r.success
-  true
-  iex> r.metrics.number_of_executions
-  5
-  ```
-  """
+  @moduledoc false
 
   require Logger
 
