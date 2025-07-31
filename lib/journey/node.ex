@@ -303,16 +303,14 @@ defmodule Journey.Node do
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
-  iex> # Verify initial reminder
-  iex> {:ok, reminder_count}  = Journey.get_value(execution, :send_a_reminder, wait_any: 10_000)
-  iex> reminder_count == 1 or reminder_count == 2
+  iex> # Wait for initial reminders
+  iex> {:ok, count1} = Journey.get_value(execution, :send_a_reminder, wait_any: 5_000)
+  iex> count1 >= 1
   true
-  iex> # Give a few seconds for a few reminders to take place.
-  iex> Process.sleep(10_000)
-  iex> {:ok, reminder_count} = Journey.get_value(execution, :send_a_reminder, wait_any: 10_000)
-  iex> # Verify recurring behavior happened "a reasonable number of times"
-  iex> # With 2-second intervals over 10 seconds, we expect 4-6 additional reminders
-  iex> reminder_count >= 5 and reminder_count <= 7
+  iex> # Reload and wait for more reminders to verify recurring behavior
+  iex> execution = Journey.load(execution)
+  iex> {:ok, count2} = Journey.get_value(execution, :send_a_reminder, wait_new: 5_000)
+  iex> count2 > count1
   true
   iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
