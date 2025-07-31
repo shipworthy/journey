@@ -1,0 +1,73 @@
+Please implement a new function Journey.Insights.flow_analytics/3 that provides business-focused analytics for understanding customer behavior through Journey graphs.
+
+Function Signature
+
+def flow_analytics(graph_name, graph_version, opts \\ [])
+
+Parameters & Options
+
+- graph_name - String, the graph name to analyze
+- graph_version - String, the graph version to analyze
+- opts - Keyword list with options:
+  - :include_executions - :all | :archived | :active (default: :active)
+  - :flow_ends_here_after - Duration after which we consider a flow "ended" if no activity (default: 1 day)
+
+Expected Return Structure
+
+%{
+  # Graph metadata
+  graph_name: graph_name,
+  graph_version: graph_version,
+  analyzed_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+
+  # Execution-level analytics
+  executions: %{
+    count: 2847,
+    duration_median_seconds_to_last_update: 1234,
+    duration_avg_seconds_to_last_update: 1456
+  },
+
+  # Per-node customer journey metrics
+  node_stats: %{
+    nodes: [
+      %{
+        node_name: :full_name,
+        node_type: :input,  # or :compute, :mutate, etc.
+        reached_count: 2840,      # executions that set this value
+        reached_percentage: 99.7, # vs total executions in scope
+        average_time_to_reach: 12, # seconds from execution start
+        flow_ends_here_count: 23,  # executions where this was last activity before flow_ends_here_after
+        flow_ends_here_percentage_of_all: 0.8,      # vs all executions
+        flow_ends_here_percentage_of_reached: 0.81  # vs executions that reached this node
+      }
+      # ... more nodes
+    ]
+  }
+}
+
+Implementation Notes
+
+1. Focus on business metrics, not technical details - This should answer "where do customers drop off?" not "which computations failed?"
+2. Use existing Journey patterns - Follow the query and data structure patterns from Journey.Insights.status/0 and similar functions
+3. Handle the flow ending logic - An execution's flow "ends" at a node if that node was the last one to be updated and flow_ends_here_after time has passed since then
+4. Include all node types - Input, compute, mutate, schedule nodes - any node that can have a value set
+5. Filter executions properly - Respect the :include_executions option (active vs archived vs all)
+6. Calculate percentages correctly - reached_percentage is vs total executions in scope, flow_ends_here_percentage_of_* uses the appropriate denominator
+7. Don't implement step-to-step conversions - We're leaving that to the application layer since Journey doesn't know the intended customer flow sequence
+
+Database Queries Needed
+
+You'll likely need to query:
+- Journey.Execution table for execution counts and timing
+- Journey.Execution.Value table for node reach data and timing
+- Join these appropriately and use the existing Journey query patterns
+
+Testing
+
+Please add basic tests covering:
+- Different :include_executions options
+- Percentage calculations
+- Flow ending logic
+- Multiple graph versions
+
+This function should help product managers understand customer behavior patterns and identify where users drop off in their Journey-powered applications.
