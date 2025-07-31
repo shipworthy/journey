@@ -15,9 +15,9 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
 
-    assert Journey.get_value(execution, :greeting, wait: true) == {:ok, "Hello, Mario"}
+    assert Journey.get_value(execution, :greeting, wait_any: true) == {:ok, "Hello, Mario"}
 
-    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
+    assert Journey.get_value(execution, :reminder, wait_any: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
            |> redact([:time_to_issue_reminder_schedule, :execution_id, :last_updated_at]) ==
@@ -30,7 +30,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
                last_updated_at: 1_234_567_890
              }
 
-    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
+    assert Journey.get_value(execution, :reminder, wait_any: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
            |> redact([:time_to_issue_reminder_schedule, :execution_id, :last_updated_at]) == %{
@@ -42,7 +42,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
              last_updated_at: 1_234_567_890
            }
 
-    assert Journey.get_value(execution, :reminder, wait: 20_000) == {:ok, "Reminder: Hello, Mario"}
+    assert Journey.get_value(execution, :reminder, wait_any: 20_000) == {:ok, "Reminder: Hello, Mario"}
 
     assert Journey.values(execution)
            |> redact([:time_to_issue_reminder_schedule, :execution_id, :last_updated_at]) == %{

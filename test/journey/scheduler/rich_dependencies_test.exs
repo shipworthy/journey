@@ -152,7 +152,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
 
       assert {:ok,
               "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"} ==
-               execution |> Journey.get_value(:one_of_each_group, wait: true)
+               execution |> Journey.get_value(:one_of_each_group, wait_any: true)
 
       execution = execution |> Journey.load()
       assert execution.revision == 4
@@ -169,7 +169,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
 
       assert {:ok,
               "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set, v2\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"} ==
-               execution |> Journey.load() |> Journey.get_value(:one_of_each_group, wait: true)
+               execution |> Journey.load() |> Journey.get_value(:one_of_each_group, wait_any: true)
     end
 
     test "recursive", %{test: test_name} do
@@ -210,14 +210,14 @@ defmodule Journey.Scheduler.RichDependenciesTest do
 
       execution = graph |> Journey.start_execution()
       assert execution != nil
-      assert {:error, :not_set} == execution |> Journey.get_value(:one_of_each_group, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:one_of_each_group, wait_any: 700)
 
       execution = execution |> Journey.set_value(:g1_a, "g1_a set")
       execution = execution |> Journey.set_value(:g1_b, "g1_b set")
-      assert {:error, :not_set} == execution |> Journey.get_value(:one_of_each_group, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:one_of_each_group, wait_any: 700)
 
       execution = execution |> Journey.set_value(:g2_a, "g2_a set")
-      assert {:ok, "name set"} == execution |> Journey.get_value(:one_of_each_group, wait: true)
+      assert {:ok, "name set"} == execution |> Journey.get_value(:one_of_each_group, wait_any: true)
     end
 
     test "two conditions, :or, left", %{test: test_name} do
@@ -248,13 +248,13 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = graph |> Journey.start_execution()
       assert execution != nil
 
-      assert {:error, :not_set} == execution |> Journey.get_value(:got_name, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:got_name, wait_any: 700)
       assert {:error, :not_set} == execution |> Journey.get_value(:first_name)
       assert {:error, :not_set} == execution |> Journey.get_value(:last_name)
 
       execution = execution |> Journey.set_value(:first_name, "Mario")
       assert execution != nil
-      assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait: true)
+      assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait_any: true)
     end
 
     test "two conditions, :or, right", %{test: test_name} do
@@ -285,13 +285,13 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = graph |> Journey.start_execution()
       assert execution != nil
 
-      assert {:error, :not_set} == execution |> Journey.get_value(:got_name, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:got_name, wait_any: 700)
       assert {:error, :not_set} == execution |> Journey.get_value(:first_name)
       assert {:error, :not_set} == execution |> Journey.get_value(:last_name)
 
       execution = execution |> Journey.set_value(:last_name, "Bowser")
       assert execution != nil
-      assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait: true)
+      assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait_any: true)
     end
 
     test "two conditions, :and, left to right", %{test: test_name} do
@@ -323,16 +323,16 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = graph |> Journey.start_execution()
       assert execution != nil
 
-      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait: 700)
-      assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait_any: 700)
 
       execution = execution |> Journey.set_value(:first_name, "Mario")
-      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
 
       execution = execution |> Journey.set_value(:last_name, "Bowser")
       assert execution != nil
-      assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait: true)
-      assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait: true)
+      assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
+      assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait_any: true)
     end
 
     test "two conditions, :and, right to left", %{test: test_name} do
@@ -364,16 +364,16 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = graph |> Journey.start_execution()
       assert execution != nil
 
-      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait: 700)
-      assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait_any: 700)
 
       execution = execution |> Journey.set_value(:last_name, "Bowser")
-      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
 
       execution = execution |> Journey.set_value(:first_name, "Mario")
       assert execution != nil
-      assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait: true)
-      assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait: true)
+      assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
+      assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait_any: true)
     end
 
     test "single condition (value?)" do
@@ -399,13 +399,13 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = graph |> Journey.start_execution()
       assert execution != nil
 
-      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait: 700)
-      assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
+      assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait_any: 700)
 
       execution = execution |> Journey.set_value(:first_name, "Mario")
       assert execution != nil
-      assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait: true)
-      assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait: true)
+      assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
+      assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait_any: true)
     end
 
     #    test "scheduled cleanup as functions" do
@@ -436,7 +436,7 @@ defmodule Journey.Scheduler.RichDependenciesTest do
     #      |> IO.inspect(label: :start_execution)
     #      |> Journey.set_value(:first_name, "Mario")
     #      |> IO.inspect(label: :set_value)
-    #      |> Journey.get_value(:remove_pii, wait: true)
+    #      |> Journey.get_value(:remove_pii, wait_any: true)
     #      |> IO.inspect(label: :value)
     #    end
   end

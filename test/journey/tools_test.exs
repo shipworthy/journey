@@ -36,7 +36,7 @@ defmodule Journey.ToolsTest do
 
       background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
 
-      {:ok, _} = Journey.get_value(execution, :reminder, wait: true)
+      {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
       summary = Journey.Tools.summarize(execution.id)
 
@@ -78,13 +78,12 @@ defmodule Journey.ToolsTest do
 
       background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
 
-      {:ok, _} = Journey.get_value(execution, :reminder, wait: true)
+      {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
       execution = execution |> Journey.load()
       assert execution.revision == 7
 
       Journey.Tools.increment_revision(execution.id, :user_name)
-      Process.sleep(7_000)
-      {:ok, _} = Journey.get_value(execution, :reminder, wait: true)
+      {:ok, _} = Journey.get_value(execution, :reminder, wait_new: true)
       execution = execution |> Journey.load()
       assert execution.revision == 12
 
@@ -125,7 +124,7 @@ defmodule Journey.ToolsTest do
 
       background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
 
-      {:ok, _} = Journey.get_value(execution, :reminder, wait: true)
+      {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
       ocs = Journey.Tools.outstanding_computations(execution.id)
       assert ocs == []
