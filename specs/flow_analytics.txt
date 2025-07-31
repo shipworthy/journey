@@ -48,12 +48,13 @@ Expected Return Structure
 Implementation Notes
 
 1. Focus on business metrics, not technical details - This should answer "where do customers drop off?" not "which computations failed?"
-2. Use existing Journey patterns - Follow the query and data structure patterns from Journey.Insights.status/0 and similar functions
-3. Handle the flow ending logic - An execution's flow "ends" at a node if that node was the last one to be updated and flow_ends_here_after time has passed since then
+2. Use existing Journey patterns - Follow the query and data structure patterns from Journey.Insights.fetch_execution_stats/2 and fetch_computation_stats/2, but focus on the Value table instead of Computation table
+3. Handle the flow ending logic - An execution's flow "ends" at a node if that node was the last one to be updated (highest set_time) and flow_ends_here_after time has passed since then. Use subqueries to find the max(set_time) per execution_id
 4. Include all node types - Input, compute, mutate, schedule nodes - any node that can have a value set
 5. Filter executions properly - Respect the :include_executions option (active vs archived vs all)
 6. Calculate percentages correctly - reached_percentage is vs total executions in scope, flow_ends_here_percentage_of_* uses the appropriate denominator
 7. Don't implement step-to-step conversions - We're leaving that to the application layer since Journey doesn't know the intended customer flow sequence
+8. Query Performance - Use JOINs between Execution and Value tables following existing patterns in Journey.Insights.status/0. Consider query performance for large datasets
 
 Database Queries Needed
 
@@ -62,7 +63,14 @@ You'll likely need to query:
 - Journey.Execution.Value table for node reach data and timing
 - Join these appropriately and use the existing Journey query patterns
 
-Testing
+Implementation & Testing
+
+Follow CLAUDE.md guidelines:
+- Run `make validate` before declaring complete
+- Run `make test-performance` to assess query performance impact  
+- Use `redact/2` helper in tests for masking dynamic values (IDs, timestamps)
+- Update `mix.exs` coverage threshold if coverage increases
+- Write idiomatic Elixir following existing Journey.Insights patterns
 
 Please add basic tests covering:
 - Different :include_executions options
