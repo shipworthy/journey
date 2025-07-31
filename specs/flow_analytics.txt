@@ -55,6 +55,7 @@ Implementation Notes
 6. Calculate percentages correctly - reached_percentage is vs total executions in scope, flow_ends_here_percentage_of_* uses the appropriate denominator
 7. Don't implement step-to-step conversions - We're leaving that to the application layer since Journey doesn't know the intended customer flow sequence
 8. Query Performance - Use JOINs between Execution and Value tables following existing patterns in Journey.Insights.status/0. Consider query performance for large datasets
+9. Database Performance - Check existing indexes during implementation. The queries will heavily use graph_name/graph_version filtering on executions and execution_id joins with values. Consider adding indexes if query performance is poor during testing
 
 Database Queries Needed
 
