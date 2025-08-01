@@ -19,7 +19,7 @@ defmodule Journey.Graph.Validations do
 
   def ensure_known_input_node_name(execution, node_name)
       when is_struct(execution, Journey.Execution) and is_atom(node_name) do
-    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
     all_input_node_names =
       graph.nodes

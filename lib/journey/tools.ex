@@ -15,7 +15,7 @@ defmodule Journey.Tools do
   def computation_state(execution_id, computation_node_name)
       when is_binary(execution_id) and is_atom(computation_node_name) do
     execution = Journey.load(execution_id)
-    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
     gated_by =
       graph
@@ -40,7 +40,7 @@ defmodule Journey.Tools do
   """
   def outstanding_computations(execution_id) when is_binary(execution_id) do
     execution = Journey.load(execution_id)
-    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
     all_candidates_for_computation =
       from(c in Computation,
@@ -119,7 +119,7 @@ defmodule Journey.Tools do
       execution_id
       |> Journey.load(include_archived: true)
 
-    graph = Journey.Graph.Catalog.fetch!(execution.graph_name)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
     if graph == nil do
       raise "Graph '#{execution.graph_name}' not found in catalog."

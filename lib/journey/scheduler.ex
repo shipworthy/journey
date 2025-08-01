@@ -14,7 +14,7 @@ defmodule Journey.Scheduler do
   def advance(execution) do
     prefix = "[#{execution.id}] [#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
-    advance_with_graph(prefix, execution, Journey.Graph.Catalog.fetch!(execution.graph_name))
+    advance_with_graph(prefix, execution, Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version))
   end
 
   defp advance_with_graph(prefix, execution, nil) do
@@ -56,8 +56,7 @@ defmodule Journey.Scheduler do
       Logger.debug("#{prefix}: starting async computation")
 
       graph_node =
-        execution.graph_name
-        |> Journey.Graph.Catalog.fetch!()
+        Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
         |> Journey.Graph.find_node_by_name(computation.node_name)
 
       input_versions_to_capture =
