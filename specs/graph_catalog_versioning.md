@@ -50,16 +50,13 @@ Journey.Graph.Catalog.list(nil, "v1.0.0")
 # Raises: ArgumentError with message "graph_version cannot be specified without graph_name"
 ```
 
-#### Updated `fetch!/2` Function
-Replace the current `fetch!/1` with a new `fetch!/2` that requires both parameters:
+#### Updated `fetch/2` Function
+Replace the current `fetch!/1` with a new `fetch/2` that requires both parameters:
 
 ```elixir
 # New signature - both parameters required
-Journey.Graph.Catalog.fetch!(graph_name, graph_version)
-# Returns specific version or raises KeyError if not found
-
-# Example error when graph not found:
-# ** (KeyError) key {"horoscope workflow", "v1.0.0"} not found in catalog
+Journey.Graph.Catalog.fetch(graph_name, graph_version)
+# Returns specific version or nil if not found
 
 # Old signature should be removed
 # Journey.Graph.Catalog.fetch!(graph_name) # NO LONGER SUPPORTED
@@ -71,14 +68,14 @@ Journey.Graph.Catalog.fetch!(graph_name, graph_version)
 ### 4. Update All Existing Code
 
 All places that call `Journey.Graph.Catalog.fetch!(execution.graph_name)` must be updated to:
-`Journey.Graph.Catalog.fetch!(execution.graph_name, execution.graph_version)`
+`Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)`
 
 These locations include (but may not be limited to):
 - `lib/journey/graph/validations.ex`
 - `lib/journey/scheduler.ex`
 - `lib/journey/scheduler/helpers.ex`
 - `lib/journey/tools.ex`
-- Any other location using `Catalog.fetch!`
+- Any other location using `Catalog.fetch!` or `Catalog.fetch`
 
 ## Implementation Steps
 
@@ -88,10 +85,10 @@ These locations include (but may not be limited to):
    - The register function should still return the graph for chaining
    - If the same `{name, version}` is registered again, silently overwrite the existing entry
 
-2. **Replace `fetch!/1` with `fetch!/2`**
+2. **Replace `fetch!/1` with `fetch/2`**
    - Remove the old `fetch!/1` function
-   - Add new `fetch!/2` that requires both name and version
-   - Raise `KeyError` with descriptive message if graph not found
+   - Add new `fetch/2` that requires both name and version
+   - Return `nil` if graph not found
 
 3. **Implement `list/2` Function**
    - Add argument validation (no version without name)
@@ -101,25 +98,25 @@ These locations include (but may not be limited to):
 
 4. **Update All Callers**
    - Find all `Catalog.fetch!` calls
-   - Update to pass both `execution.graph_name` and `execution.graph_version`
+   - Update to `Catalog.fetch` and pass both `execution.graph_name` and `execution.graph_version`
    - Ensure all callers have access to version information
 
 5. **Add Tests**
    - Test multi-version storage
    - Test `list/2` with all parameter combinations
    - Test error cases (version without name)
-   - Test that `fetch!/2` requires both parameters
+   - Test that `fetch/2` requires both parameters
    - Test that executions use correct graph versions
-   - Remove any tests for single-parameter `fetch!/1`
+   - Remove any tests for single-parameter `fetch!/1` or `fetch!`
 
 ## Testing Scenarios
 
 1. Register multiple versions of the same graph and verify all are stored
 2. List all graphs and verify complete results
 3. List versions of a specific graph
-4. Fetch specific versions with `fetch!/2`
+4. Fetch specific versions with `fetch/2`
 5. Verify error when specifying version without name in `list/2`
-6. Verify `fetch!/2` raises `KeyError` when graph not found
+6. Verify `fetch/2` returns `nil` when graph not found
 7. Create executions with different graph versions and verify they use correct versions during scheduling/computation
 
 ## Success Criteria
@@ -127,6 +124,6 @@ These locations include (but may not be limited to):
 1. Multiple graph versions can coexist in the catalog
 2. Executions always use their specific graph version
 3. `list/2` provides flexible querying of available graphs
-4. `fetch!/2` requires both name and version parameters
+4. `fetch/2` requires both name and version parameters
 5. All tests pass, including `make validate` and `make test-performance`
-6. No single-parameter `fetch!/1` function exists
+6. No single-parameter `fetch!/1` or `fetch!` function exists
