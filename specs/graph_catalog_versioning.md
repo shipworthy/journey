@@ -18,25 +18,29 @@ This specification describes enhancements to support multiple versions per graph
 - The catalog must store multiple versions of the same graph simultaneously
 - Use composite key `{name, version}` instead of just `name`
 - Preserve all registered graph versions
+- Version can be any string value - the format is determined by the application using Journey
 
 ### 2. New API Functions
 
 #### `list/2` Function
-Add a new `list/2` function with the following behavior:
+Add a new `list/2` function with default parameters:
 
 ```elixir
+# Function signature with default parameters
+def list(graph_name \\ nil, graph_version \\ nil)
+
 # List all graphs (all names, all versions)
 Journey.Graph.Catalog.list()
 Journey.Graph.Catalog.list(nil, nil)
 # Returns: [%Journey.Graph{}, %Journey.Graph{}, ...]
 
-# List all versions of a specific graph
+# List all versions of a specific graph (sorted in descending version order)
 Journey.Graph.Catalog.list("horoscope workflow")
 Journey.Graph.Catalog.list("horoscope workflow", nil)
-# Returns: [%Journey.Graph{name: "horoscope workflow", version: "v1.0.0", ...}, 
-#           %Journey.Graph{name: "horoscope workflow", version: "v2.0.0", ...}]
+# Returns: [%Journey.Graph{name: "horoscope workflow", version: "v2.0.0", ...}, 
+#           %Journey.Graph{name: "horoscope workflow", version: "v1.0.0", ...}]
 
-# Get specific graph version
+# Get specific graph version (returns a list for consistency)
 Journey.Graph.Catalog.list("horoscope workflow", "v1.0.0")
 # Returns: [%Journey.Graph{name: "horoscope workflow", version: "v1.0.0", ...}]
 # or [] if not found
@@ -52,7 +56,10 @@ Replace the current `fetch!/1` with a new `fetch!/2` that requires both paramete
 ```elixir
 # New signature - both parameters required
 Journey.Graph.Catalog.fetch!(graph_name, graph_version)
-# Returns specific version or raises if not found
+# Returns specific version or raises KeyError if not found
+
+# Example error when graph not found:
+# ** (KeyError) key {"horoscope workflow", "v1.0.0"} not found in catalog
 
 # Old signature should be removed
 # Journey.Graph.Catalog.fetch!(graph_name) # NO LONGER SUPPORTED
@@ -79,16 +86,18 @@ These locations include (but may not be limited to):
    - Modify the Agent's initial state in `start_link/1`
    - Update `register/1` to use `{name, version}` as key
    - The register function should still return the graph for chaining
+   - If the same `{name, version}` is registered again, silently overwrite the existing entry
 
 2. **Replace `fetch!/1` with `fetch!/2`**
    - Remove the old `fetch!/1` function
    - Add new `fetch!/2` that requires both name and version
-   - Raise appropriate error if graph not found
+   - Raise `KeyError` with descriptive message if graph not found
 
 3. **Implement `list/2` Function**
    - Add argument validation (no version without name)
    - Filter results based on provided parameters
    - Return results as a list, even for single items
+   - Sort results by version in descending order when listing multiple versions of the same graph
 
 4. **Update All Callers**
    - Find all `Catalog.fetch!` calls
@@ -110,7 +119,7 @@ These locations include (but may not be limited to):
 3. List versions of a specific graph
 4. Fetch specific versions with `fetch!/2`
 5. Verify error when specifying version without name in `list/2`
-6. Verify `fetch!/2` raises when graph not found
+6. Verify `fetch!/2` raises `KeyError` when graph not found
 7. Create executions with different graph versions and verify they use correct versions during scheduling/computation
 
 ## Success Criteria
