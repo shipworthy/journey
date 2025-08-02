@@ -344,16 +344,25 @@ defmodule Journey.Executions do
       # Either no value exists yet OR revision hasn't advanced - keep waiting
       current_revision = if current_value, do: current_value.ex_revision, else: "none"
 
-      if deadline_exceeded?(monotonic_time_deadline) do
-        Logger.info(
-          "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
-        )
+      # Check if computation has permanently failed
+      case check_computation_status(execution, node_name) do
+        :permanently_failed ->
+          Logger.warning("#{prefix}: computation permanently failed after max retries.")
+          {:error, :computation_failed}
 
-        {:error, :not_set}
-      else
-        Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
-        backoff_sleep(call_count)
-        load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
+        _ ->
+          # Continue with existing timeout/wait logic
+          if deadline_exceeded?(monotonic_time_deadline) do
+            Logger.info(
+              "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
+            )
+
+            {:error, :not_set}
+          else
+            Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
+            backoff_sleep(call_count)
+            load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
+          end
       end
     end
   end
