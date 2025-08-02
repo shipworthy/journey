@@ -161,15 +161,15 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       execution = execution |> Journey.load()
       assert execution.revision == 6
 
-      # TODO: come up with better semantics -- maybe wait for the value whose revision is greater than what was returned by set_value?
-      Process.sleep(1000)
-
-      execution = execution |> Journey.load()
-      assert execution.revision <= 7
+      # Fetch and verify the recomputed value when it is available.
+      recomputed_value = execution |> Journey.get_value(:one_of_each_group, wait_new: true)
 
       assert {:ok,
               "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set, v2\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"} ==
-               execution |> Journey.load() |> Journey.get_value(:one_of_each_group, wait_any: true)
+               recomputed_value
+
+      execution = execution |> Journey.load()
+      assert execution.revision == 7
     end
 
     test "recursive", %{test: test_name} do
