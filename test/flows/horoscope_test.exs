@@ -80,7 +80,7 @@ defmodule Flows.HoroscopeTest do
       assert Journey.get_value(execution, :library_of_congress_record) == {:error, :not_set}
       assert Journey.get_value(execution, :birth_day) == {:ok, 26}
 
-      assert Journey.get_value(execution, :astrological_sign, wait_any: 5_000) == {:ok, "Taurus"}
+      assert Journey.get_value(execution, :astrological_sign, wait_any: true) == {:ok, "Taurus"}
       assert Journey.get_value(execution, :horoscope, wait_any: true) == {:ok, "🍪s await, Taurus Mario!"}
 
       assert Journey.get_value(execution, :library_of_congress_record, wait_any: :infinity) ==

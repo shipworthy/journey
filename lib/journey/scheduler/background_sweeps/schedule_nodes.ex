@@ -54,7 +54,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
         Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
       end
 
-      kicked_count
+      {kicked_count, sweep_run.id}
     rescue
       error ->
         Logger.error("#{prefix}: error during sweep: #{inspect(error)}")

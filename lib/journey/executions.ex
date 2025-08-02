@@ -230,6 +230,56 @@ defmodule Journey.Executions do
     end)
   end
 
+  defp check_computation_status(execution, node_name) do
+    node_name_string = Atom.to_string(node_name)
+    graph_node = Journey.Scheduler.Helpers.graph_node_from_execution_id(execution.id, node_name)
+
+    if graph_node.type == :input do
+      :not_compute_node
+    else
+      check_compute_node_status(execution, node_name_string, graph_node)
+    end
+  end
+
+  defp check_compute_node_status(execution, node_name_string, graph_node) do
+    active_computation = find_active_computation(execution.id, node_name_string)
+
+    if active_computation do
+      :has_active_computation
+    else
+      check_if_permanently_failed(execution.id, node_name_string, graph_node.max_retries)
+    end
+  end
+
+  defp find_active_computation(execution_id, node_name_string) do
+    from(c in Execution.Computation,
+      where:
+        c.execution_id == ^execution_id and
+          c.node_name == ^node_name_string and
+          c.state in [:computing, :not_set],
+      limit: 1
+    )
+    |> Journey.Repo.one()
+  end
+
+  defp check_if_permanently_failed(execution_id, node_name_string, max_retries) do
+    total_failed_attempts =
+      from(c in Execution.Computation,
+        where:
+          c.execution_id == ^execution_id and
+            c.node_name == ^node_name_string and
+            c.state == :failed,
+        select: count(c.id)
+      )
+      |> Journey.Repo.one()
+
+    if total_failed_attempts >= max_retries do
+      :permanently_failed
+    else
+      :may_retry_soon
+    end
+  end
+
   defp load_value(execution, node_name, monotonic_time_deadline, call_count) do
     prefix = "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}]"
 
@@ -240,21 +290,38 @@ defmodule Journey.Executions do
     |> case do
       nil ->
         # TODO: if no node, and we need to wait, keep waiting.
-        Logger.debug("#{prefix}: value not found.")
+        Logger.warning("#{prefix}: value not found.")
         {:error, :no_such_value}
 
       %{set_time: nil} ->
-        if monotonic_time_deadline == :infinity or
-             (monotonic_time_deadline != nil and monotonic_time_deadline > System.monotonic_time(:millisecond)) do
-          Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
-          backoff_sleep(call_count)
-          load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
-        else
-          {:error, :not_set}
-        end
+        handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix)
 
       %{node_value: node_value} ->
+        Logger.info("#{prefix}: have value, returning.")
         {:ok, node_value}
+    end
+  end
+
+  defp handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix) do
+    case check_computation_status(execution, node_name) do
+      :permanently_failed ->
+        Logger.info("#{prefix}: computation permanently failed after max retries.")
+        {:error, :computation_failed}
+
+      # :not_compute_node, :has_active_computation, :may_retry_soon
+      _ ->
+        handle_load_value_wait_or_timeout(execution, node_name, monotonic_time_deadline, call_count, prefix)
+    end
+  end
+
+  defp handle_load_value_wait_or_timeout(execution, node_name, monotonic_time_deadline, call_count, prefix) do
+    if deadline_exceeded?(monotonic_time_deadline) do
+      Logger.info("#{prefix}: timeout exceeded or not specified.")
+      {:error, :not_set}
+    else
+      Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
+      backoff_sleep(call_count)
+      load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
     end
   end
 
@@ -269,32 +336,82 @@ defmodule Journey.Executions do
     Logger.debug("#{prefix}: waiting for revision > #{starting_revision}")
 
     # Query for current value in the database
-    current_value =
-      from(v in Execution.Value,
-        where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
-      )
-      |> Journey.Repo.one()
+    current_value = load_current_value(execution.id, node_name)
 
     if current_value != nil and current_value.ex_revision > starting_revision do
       # Found a newer revision with a value set
       Logger.debug("#{prefix}: found newer revision #{current_value.ex_revision}")
       {:ok, current_value.node_value}
     else
-      # Either no value exists yet OR revision hasn't advanced - keep waiting
-      current_revision = if current_value, do: current_value.ex_revision, else: "none"
-
-      if deadline_exceeded?(monotonic_time_deadline) do
-        Logger.info(
-          "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
-        )
-
-        {:error, :not_set}
-      else
-        Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
-        backoff_sleep(call_count)
-        load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
-      end
+      handle_wait_new_no_value(
+        execution,
+        node_name,
+        starting_revision,
+        current_value,
+        monotonic_time_deadline,
+        call_count,
+        prefix
+      )
     end
+  end
+
+  defp handle_wait_new_no_value(
+         execution,
+         node_name,
+         starting_revision,
+         current_value,
+         monotonic_time_deadline,
+         call_count,
+         prefix
+       ) do
+    current_revision = if current_value, do: current_value.ex_revision, else: "none"
+
+    # Check if computation has permanently failed
+    case check_computation_status(execution, node_name) do
+      :permanently_failed ->
+        Logger.warning("#{prefix}: computation permanently failed after max retries.")
+        {:error, :computation_failed}
+
+      _ ->
+        handle_wait_new_continue(
+          execution,
+          node_name,
+          starting_revision,
+          current_revision,
+          monotonic_time_deadline,
+          call_count,
+          prefix
+        )
+    end
+  end
+
+  defp handle_wait_new_continue(
+         execution,
+         node_name,
+         starting_revision,
+         current_revision,
+         monotonic_time_deadline,
+         call_count,
+         prefix
+       ) do
+    if deadline_exceeded?(monotonic_time_deadline) do
+      Logger.info(
+        "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
+      )
+
+      {:error, :not_set}
+    else
+      Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
+      backoff_sleep(call_count)
+      load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
+    end
+  end
+
+  defp load_current_value(execution_id, node_name) do
+    from(v in Execution.Value,
+      where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
+    )
+    |> Journey.Repo.one()
   end
 
   defp deadline_exceeded?(monotonic_time_deadline) when is_nil(monotonic_time_deadline), do: true
