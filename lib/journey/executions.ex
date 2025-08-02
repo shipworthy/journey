@@ -297,7 +297,7 @@ defmodule Journey.Executions do
         handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix)
 
       %{node_value: node_value} ->
-        Logger.warning("#{prefix}: have value, returning.")
+        Logger.info("#{prefix}: have value, returning.")
         {:ok, node_value}
     end
   end
@@ -305,7 +305,7 @@ defmodule Journey.Executions do
   defp handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix) do
     case check_computation_status(execution, node_name) do
       :permanently_failed ->
-        Logger.warning("#{prefix}: computation permanently failed after max retries.")
+        Logger.info("#{prefix}: computation permanently failed after max retries.")
         {:error, :computation_failed}
 
       # :not_compute_node, :has_active_computation, :may_retry_soon
@@ -316,7 +316,7 @@ defmodule Journey.Executions do
 
   defp handle_load_value_wait_or_timeout(execution, node_name, monotonic_time_deadline, call_count, prefix) do
     if deadline_exceeded?(monotonic_time_deadline) do
-      Logger.warning("#{prefix}: timeout exceeded or not specified.")
+      Logger.info("#{prefix}: timeout exceeded or not specified.")
       {:error, :not_set}
     else
       Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
