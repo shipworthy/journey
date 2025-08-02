@@ -219,6 +219,9 @@ defmodule Journey.Insights do
   @doc """
   Provides business-focused analytics for understanding customer behavior through Journey graphs.
 
+  Uses optimized database queries that scale efficiently to millions of executions by leveraging 
+  PostgreSQL's aggregation capabilities.
+
   ## Parameters
 
   - `graph_name` - String, the graph name to analyze
@@ -230,6 +233,13 @@ defmodule Journey.Insights do
   ## Return Structure
 
   Returns a map with graph metadata, execution-level analytics, and per-node customer journey metrics.
+
+  ## Performance
+
+  Uses exactly 3 optimized PostgreSQL queries:
+  1. Execution-level analytics with median/average duration calculation
+  2. Node-level basic statistics (reached count, average time to reach)
+  3. Flow ending counts (which nodes were the last activity in each execution)
 
   ## Examples
 
@@ -264,16 +274,19 @@ defmodule Journey.Insights do
     flow_ends_here_after = Keyword.get(opts, :flow_ends_here_after, 86_400)
 
     try do
-      # Get execution data
-      executions_data = fetch_executions_for_analytics(graph_name, graph_version, include_executions)
-      execution_count = length(executions_data)
+      # Query 1: Get execution-level analytics (count, median, average duration)
+      execution_analytics = fetch_execution_analytics_optimized(graph_name, graph_version, include_executions)
+      execution_count = execution_analytics.count
 
-      # Calculate execution-level analytics
-      execution_analytics = calculate_execution_analytics(executions_data)
-
-      # Get node statistics
+      # Query 2 & 3: Get all node analytics including flow ending logic
       node_stats =
-        fetch_node_analytics(graph_name, graph_version, include_executions, flow_ends_here_after, execution_count)
+        fetch_node_analytics_optimized(
+          graph_name,
+          graph_version,
+          include_executions,
+          flow_ends_here_after,
+          execution_count
+        )
 
       %{
         graph_name: graph_name,
@@ -297,16 +310,29 @@ defmodule Journey.Insights do
     end
   end
 
-  defp fetch_executions_for_analytics(graph_name, graph_version, include_executions) do
+  defp build_execution_filter_query(graph_name, graph_version, include_executions) do
     base_query =
       from(e in Execution,
         where: e.graph_name == ^graph_name and e.graph_version == ^graph_version,
-        select: %{
-          id: e.id,
-          inserted_at: e.inserted_at,
-          updated_at: e.updated_at,
-          archived_at: e.archived_at
-        }
+        select: %{id: e.id, inserted_at: e.inserted_at}
+      )
+
+    case include_executions do
+      :active -> from(e in base_query, where: is_nil(e.archived_at))
+      :archived -> from(e in base_query, where: not is_nil(e.archived_at))
+      :all -> base_query
+    end
+  end
+
+  defp round_decimal(nil), do: 0
+  defp round_decimal(decimal) when is_struct(decimal, Decimal), do: Decimal.to_integer(Decimal.round(decimal))
+  defp round_decimal(number) when is_number(number), do: round(number)
+
+  defp fetch_execution_analytics_optimized(graph_name, graph_version, include_executions) do
+    # Single query to get execution count, median, and average duration
+    base_query =
+      from(e in Execution,
+        where: e.graph_name == ^graph_name and e.graph_version == ^graph_version
       )
 
     query =
@@ -316,63 +342,48 @@ defmodule Journey.Insights do
         :all -> base_query
       end
 
-    Repo.all(query)
-  end
+    result =
+      from(e in query,
+        select: %{
+          count: count(e.id),
+          duration_median_seconds:
+            fragment("PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (? - ?))", e.updated_at, e.inserted_at),
+          duration_avg_seconds: avg(e.updated_at - e.inserted_at)
+        }
+      )
+      |> Repo.one()
 
-  defp calculate_execution_analytics(executions_data) do
-    count = length(executions_data)
-
-    if count == 0 do
+    if result.count == 0 do
       %{
         count: 0,
         duration_median_seconds_to_last_update: 0,
         duration_avg_seconds_to_last_update: 0
       }
     else
-      durations =
-        Enum.map(executions_data, fn exec ->
-          exec.updated_at - exec.inserted_at
-        end)
-
-      sorted_durations = Enum.sort(durations)
-      median = calculate_median(sorted_durations)
-      average = Enum.sum(durations) / count
-
       %{
-        count: count,
-        duration_median_seconds_to_last_update: round(median),
-        duration_avg_seconds_to_last_update: round(average)
+        count: result.count,
+        duration_median_seconds_to_last_update: round_decimal(result.duration_median_seconds || 0),
+        duration_avg_seconds_to_last_update: round_decimal(result.duration_avg_seconds || 0)
       }
     end
   end
 
-  defp calculate_median(sorted_list) do
-    len = length(sorted_list)
+  defp fetch_node_analytics_optimized(
+         graph_name,
+         graph_version,
+         include_executions,
+         flow_ends_here_after,
+         total_executions
+       ) do
+    current_time = System.system_time(:second)
+    flow_cutoff_time = current_time - flow_ends_here_after
 
-    if len == 0 do
-      0
-    else
-      mid = div(len, 2)
+    base_execution_filter = build_execution_filter_query(graph_name, graph_version, include_executions)
 
-      if rem(len, 2) == 1 do
-        Enum.at(sorted_list, mid)
-      else
-        (Enum.at(sorted_list, mid - 1) + Enum.at(sorted_list, mid)) / 2
-      end
-    end
-  end
-
-  defp fetch_node_analytics(graph_name, graph_version, include_executions, flow_ends_here_after, total_executions) do
-    # Get all unique nodes for this graph/version combination
-    base_execution_query = build_execution_filter_query(graph_name, graph_version, include_executions)
-
-    # This was used for debugging - removing unused variable
-
-    # Get node statistics with reach counts and timing data
-    # Only count nodes where a value was actually set (set_time is not null)
-    node_query =
+    # Get basic node statistics
+    node_stats =
       from(v in Value,
-        join: e in subquery(base_execution_query),
+        join: e in subquery(base_execution_filter),
         on: v.execution_id == e.id,
         where: not is_nil(v.set_time),
         group_by: [v.node_name, v.node_type],
@@ -380,46 +391,46 @@ defmodule Journey.Insights do
           node_name: v.node_name,
           node_type: v.node_type,
           reached_count: count(v.execution_id, :distinct),
-          avg_time_to_reach: avg(v.set_time - e.inserted_at),
-          min_set_time: min(v.set_time),
-          max_set_time: max(v.set_time)
+          avg_time_to_reach: avg(v.set_time - e.inserted_at)
         }
       )
+      |> Repo.all()
 
-    node_data = Repo.all(node_query)
+    # Get flow ending counts in a separate simple query
+    flow_ending_counts =
+      from(v in Value,
+        join: e in subquery(base_execution_filter),
+        on: v.execution_id == e.id,
+        join:
+          last_activity in subquery(
+            from(v2 in Value,
+              join: e2 in subquery(base_execution_filter),
+              on: v2.execution_id == e2.id,
+              where: not is_nil(v2.set_time),
+              group_by: v2.execution_id,
+              select: %{execution_id: v2.execution_id, max_set_time: max(v2.set_time)}
+            )
+          ),
+        on: v.execution_id == last_activity.execution_id,
+        where:
+          not is_nil(v.set_time) and
+            v.set_time == last_activity.max_set_time and
+            last_activity.max_set_time < ^flow_cutoff_time,
+        group_by: v.node_name,
+        select: %{
+          node_name: v.node_name,
+          flow_ends_here_count: count(v.execution_id, :distinct)
+        }
+      )
+      |> Repo.all()
+      |> Enum.into(%{}, fn %{node_name: name, flow_ends_here_count: count} -> {name, count} end)
 
-    # Calculate flow ending statistics for each node
-    current_time = System.system_time(:second)
-    flow_cutoff_time = current_time - flow_ends_here_after
+    # Combine results and calculate percentages (small dataset, done in memory)
+    Enum.map(node_stats, fn node ->
+      flow_ends_here_count = Map.get(flow_ending_counts, node.node_name, 0)
 
-    Enum.map(node_data, fn node ->
-      # Count executions where this node was the last activity and flow ended
-      flow_ends_query =
-        from(v in Value,
-          join: e in subquery(base_execution_query),
-          on: v.execution_id == e.id,
-          join:
-            last_v in subquery(
-              from(v2 in Value,
-                join: e2 in subquery(base_execution_query),
-                on: v2.execution_id == e2.id,
-                where: not is_nil(v2.set_time),
-                group_by: v2.execution_id,
-                select: %{execution_id: v2.execution_id, max_set_time: max(v2.set_time)}
-              )
-            ),
-          on: v.execution_id == last_v.execution_id,
-          where:
-            v.node_name == ^node.node_name and
-              not is_nil(v.set_time) and
-              v.set_time == last_v.max_set_time and
-              last_v.max_set_time < ^flow_cutoff_time,
-          select: count(v.execution_id, :distinct)
-        )
-
-      flow_ends_here_count = Repo.one(flow_ends_query) || 0
-
-      reached_percentage = if total_executions > 0, do: node.reached_count / total_executions * 100, else: 0.0
+      reached_percentage =
+        if total_executions > 0, do: node.reached_count / total_executions * 100, else: 0.0
 
       flow_ends_here_percentage_of_all =
         if total_executions > 0, do: flow_ends_here_count / total_executions * 100, else: 0.0
@@ -439,22 +450,4 @@ defmodule Journey.Insights do
       }
     end)
   end
-
-  defp build_execution_filter_query(graph_name, graph_version, include_executions) do
-    base_query =
-      from(e in Execution,
-        where: e.graph_name == ^graph_name and e.graph_version == ^graph_version,
-        select: %{id: e.id, inserted_at: e.inserted_at}
-      )
-
-    case include_executions do
-      :active -> from(e in base_query, where: is_nil(e.archived_at))
-      :archived -> from(e in base_query, where: not is_nil(e.archived_at))
-      :all -> base_query
-    end
-  end
-
-  defp round_decimal(nil), do: 0
-  defp round_decimal(decimal) when is_struct(decimal, Decimal), do: Decimal.to_integer(Decimal.round(decimal))
-  defp round_decimal(number) when is_number(number), do: round(number)
 end
