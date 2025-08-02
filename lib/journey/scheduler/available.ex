@@ -23,7 +23,7 @@ defmodule Journey.Scheduler.Available do
     prefix = "[#{execution.id}] [#{mf()}]"
     Logger.debug("#{prefix}: grabbing available computation")
 
-    {:ok, computations_to_perform} =
+    computations_to_perform =
       Journey.Repo.transaction(fn repo ->
         all_candidates_for_computation =
           from(c in Computation,
@@ -68,6 +68,7 @@ defmodule Journey.Scheduler.Available do
           }
         end)
       end)
+      |> handle_transaction_result(prefix)
 
     selected_computation_names =
       computations_to_perform
@@ -108,5 +109,47 @@ defmodule Journey.Scheduler.Available do
       deadline: System.system_time(:second) + graph_node.abandon_after_seconds
     })
     |> repo.update!()
+  end
+
+  defp handle_transaction_result({:ok, computations}, _prefix), do: computations
+
+  defp handle_transaction_result({:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}} = error}, prefix) do
+    Logger.error(
+      "#{prefix}: Database deadlock detected in grab_available_computations. " <>
+        "Details: #{inspect(error.postgres)}"
+    )
+
+    []
+  end
+
+  defp handle_transaction_result({:error, %Postgrex.Error{} = error}, prefix) do
+    Logger.error(
+      "#{prefix}: Database error in grab_available_computations. " <>
+        "Error code: #{inspect(error.postgres[:code])}, " <>
+        "Message: #{inspect(error.postgres[:message])}, " <>
+        "Full error: #{inspect(error)}"
+    )
+
+    []
+  end
+
+  defp handle_transaction_result({:error, %DBConnection.ConnectionError{} = error}, prefix) do
+    Logger.error(
+      "#{prefix}: Database connection error in grab_available_computations. " <>
+        "Message: #{inspect(error.message)}, " <>
+        "Full error: #{inspect(error)}"
+    )
+
+    []
+  end
+
+  defp handle_transaction_result({:error, error}, prefix) do
+    Logger.error(
+      "#{prefix}: Unexpected error in grab_available_computations transaction. " <>
+        "Error type: #{inspect(error.__struct__)}, " <>
+        "Full error: #{inspect(error)}"
+    )
+
+    []
   end
 end
