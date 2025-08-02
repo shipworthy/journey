@@ -1,0 +1,139 @@
+Please implement a new optimized function Journey.Insights.flow_analytics_optimized/3 that provides the same functionality as Journey.Insights.flow_analytics/3 but with dramatically improved database performance.
+
+## Background & Problem
+
+The current flow_analytics/3 function has severe performance problems with large datasets:
+- Uses N+1 query pattern (2 + N queries where N = number of nodes)
+- Each "flow ending" query is extremely complex with multiple JOINs and subqueries
+- With millions of executions, queries can take minutes/hours and risk database crashes
+
+Key insight: While graphs may have millions of executions, they have a small, fixed number of distinct node names (typically ~20). This makes database aggregation highly efficient.
+
+## Function Signature
+
+```elixir
+def flow_analytics_optimized(graph_name, graph_version, opts \\ [])
+```
+
+Parameters and options identical to flow_analytics/3:
+- graph_name - String, the graph name to analyze
+- graph_version - String, the graph version to analyze  
+- opts - Keyword list with options:
+  - :include_executions - :all | :archived | :active (default: :active)
+  - :flow_ends_here_after - Duration in seconds after which we consider a flow "ended" if no activity (default: 86400 seconds / 1 day)
+
+## Expected Return Structure
+
+Must return exactly the same structure as flow_analytics/3:
+
+```elixir
+%{
+  graph_name: graph_name,
+  graph_version: graph_version,
+  analyzed_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+  executions: %{
+    count: 2847,
+    duration_median_seconds_to_last_update: 1234,
+    duration_avg_seconds_to_last_update: 1456
+  },
+  node_stats: %{
+    nodes: [
+      %{
+        node_name: :full_name,  # atom
+        node_type: :input,      # or :compute, :mutate, etc.
+        reached_count: 2840,
+        reached_percentage: 99.7,
+        average_time_to_reach: 12,
+        flow_ends_here_count: 23,
+        flow_ends_here_percentage_of_all: 0.8,
+        flow_ends_here_percentage_of_reached: 0.81
+      }
+      # ... more nodes
+    ]
+  }
+}
+```
+
+## Performance Requirements
+
+The optimized implementation must:
+- Use the same number of database queries regardless of the number of executions or graphs (no N+1 pattern)
+- Use the same number of database queries regardless of the number of nodes in the graph.
+  - however, if this requirement results in an overly complicated or expensive query, N+1 query is acceptable, with respect to the # of nodes in the graph (we expect the # of nodes to be reasonably containes, under 100 in the initial release).
+- Process millions of executions efficiently
+- Return only small aggregated result sets (~100 records max)
+- Execute in seconds, not minutes/hours
+- Handle concurrent calls without database overload
+
+## Implementation Strategy
+
+### Query 1: Execution-Level Analytics
+Single query to get execution count, average duration, and median duration for the specified graph/version with proper :include_executions filtering.
+
+Use PostgreSQL's PERCENTILE_CONT(0.5) for median calculation.
+
+### Query 2: Node Analytics with Flow Ending Logic
+Single complex query that:
+1. Filters executions by graph_name, graph_version, and include_executions option
+2. Joins with values table where set_time IS NOT NULL
+3. Uses window functions (ROW_NUMBER() OVER PARTITION BY execution_id ORDER BY set_time DESC) to identify the last activity per execution
+4. Groups by node_name and node_type to aggregate:
+   - reached_count: COUNT(DISTINCT execution_id) 
+   - average_time_to_reach: AVG(set_time - inserted_at)
+   - flow_ends_here_count: COUNT(DISTINCT execution_id) where this node was the last activity AND set_time < flow_cutoff_time
+
+### Post-Processing
+Calculate percentages in Elixir on the small result set:
+- reached_percentage = (reached_count / total_executions) * 100
+- flow_ends_here_percentage_of_all = (flow_ends_here_count / total_executions) * 100  
+- flow_ends_here_percentage_of_reached = (flow_ends_here_count / reached_count) * 100
+
+## Key Implementation Details
+
+### Database Query Approach
+- Use CTEs (Common Table Expressions) or subqueries to break down complex logic
+- Leverage window functions instead of correlated subqueries
+- Use conditional aggregation (CASE WHEN) within GROUP BY clauses
+- Ensure all heavy computation happens in the database, not in application memory
+
+### Flow Ending Logic
+The "flow ending" detection must match the current implementation:
+- Find the last activity per execution (highest set_time)
+- Check if that last activity was older than flow_ends_here_after seconds ago
+- Count executions where each specific node was that final activity
+
+### Error Handling
+Include the same DBConnection.ConnectionError rescue pattern as the original function.
+
+### Data Type Conversions
+- Convert node_name from string to atom in results
+- Use round_decimal/1 helper for time calculations  
+- Apply proper Float.round for percentages
+
+## Testing Requirements
+
+The optimized function should:
+- Pass all existing flow_analytics/3 tests when substituted
+- Return identical results to the original function
+- Handle all :include_executions options correctly
+- Process empty graphs gracefully
+- Work with multiple graph versions
+
+## Quality Standards
+
+Follow all CLAUDE.md guidelines:
+- Run `make validate` before declaring complete
+- Run `make test-performance` to verify performance improvements
+- Use idiomatic Elixir and existing Journey query patterns
+- Include proper error handling and edge case coverage
+- Write focused, minimal tests demonstrating the optimization works
+
+## Success Criteria
+
+- Identical functionality to flow_analytics/3
+- 2 database queries total (measured, not estimated)
+- Handles millions of executions efficiently  
+- Dramatic performance improvement in benchmarks
+- Production-ready for large-scale usage
+
+This implementation will transform an unusable function into a production-ready analytics capability for understanding customer behavior in Journey graphs.

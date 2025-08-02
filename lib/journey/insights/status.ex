@@ -1,4 +1,4 @@
-defmodule Journey.Insights do
+defmodule Journey.Insights.Status do
   @moduledoc """
   Provides system health and monitoring insights for Journey executions.
   """
