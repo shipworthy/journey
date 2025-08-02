@@ -230,6 +230,56 @@ defmodule Journey.Executions do
     end)
   end
 
+  defp check_computation_status(execution, node_name) do
+    node_name_string = Atom.to_string(node_name)
+    graph_node = Journey.Scheduler.Helpers.graph_node_from_execution_id(execution.id, node_name)
+
+    if graph_node.type == :input do
+      :not_compute_node
+    else
+      check_compute_node_status(execution, node_name_string, graph_node)
+    end
+  end
+
+  defp check_compute_node_status(execution, node_name_string, graph_node) do
+    active_computation = find_active_computation(execution.id, node_name_string)
+
+    if active_computation do
+      :has_active_computation
+    else
+      check_if_permanently_failed(execution.id, node_name_string, graph_node.max_retries)
+    end
+  end
+
+  defp find_active_computation(execution_id, node_name_string) do
+    from(c in Execution.Computation,
+      where:
+        c.execution_id == ^execution_id and
+          c.node_name == ^node_name_string and
+          c.state in [:computing, :not_set],
+      limit: 1
+    )
+    |> Journey.Repo.one()
+  end
+
+  defp check_if_permanently_failed(execution_id, node_name_string, max_retries) do
+    total_failed_attempts =
+      from(c in Execution.Computation,
+        where:
+          c.execution_id == ^execution_id and
+            c.node_name == ^node_name_string and
+            c.state == :failed,
+        select: count(c.id)
+      )
+      |> Journey.Repo.one()
+
+    if total_failed_attempts >= max_retries do
+      :permanently_failed
+    else
+      :may_retry_soon
+    end
+  end
+
   defp load_value(execution, node_name, monotonic_time_deadline, call_count) do
     prefix = "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}]"
 
@@ -240,20 +290,31 @@ defmodule Journey.Executions do
     |> case do
       nil ->
         # TODO: if no node, and we need to wait, keep waiting.
-        Logger.debug("#{prefix}: value not found.")
+        Logger.warning("#{prefix}: value not found.")
         {:error, :no_such_value}
 
       %{set_time: nil} ->
-        if monotonic_time_deadline == :infinity or
-             (monotonic_time_deadline != nil and monotonic_time_deadline > System.monotonic_time(:millisecond)) do
-          Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
-          backoff_sleep(call_count)
-          load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
-        else
-          {:error, :not_set}
+        case check_computation_status(execution, node_name) do
+          :permanently_failed ->
+            Logger.warning("#{prefix}: computation permanently failed after max retries.")
+            {:error, :computation_failed}
+
+          # :not_compute_node, :has_active_computation, :may_retry_soon
+          _ ->
+            # Continue with existing timeout/wait logic
+            if monotonic_time_deadline == :infinity or
+                 (monotonic_time_deadline != nil and monotonic_time_deadline > System.monotonic_time(:millisecond)) do
+              Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
+              backoff_sleep(call_count)
+              load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
+            else
+              Logger.warning("#{prefix}: timeout exceeded or not specified.")
+              {:error, :not_set}
+            end
         end
 
       %{node_value: node_value} ->
+        Logger.warning("#{prefix}: have value, returning.")
         {:ok, node_value}
     end
   end
