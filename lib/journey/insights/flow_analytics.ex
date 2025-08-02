@@ -276,10 +276,12 @@ defmodule Journey.Insights.FlowAnalytics do
       |> Enum.into(%{}, fn %{node_name: name, flow_ends_here_count: count} -> {name, count} end)
 
     # Combine results and calculate percentages (small dataset, done in memory)
-    Enum.map(node_stats, fn node ->
+    node_stats
+    |> Enum.map(fn node ->
       flow_ends_here_count = Map.get(flow_ending_counts, node.node_name, 0)
 
       build_node_analytics(node, flow_ends_here_count, total_executions)
     end)
+    |> Enum.sort_by(fn node -> {-node.reached_count, node.node_name} end)
   end
 end
