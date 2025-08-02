@@ -294,28 +294,34 @@ defmodule Journey.Executions do
         {:error, :no_such_value}
 
       %{set_time: nil} ->
-        case check_computation_status(execution, node_name) do
-          :permanently_failed ->
-            Logger.warning("#{prefix}: computation permanently failed after max retries.")
-            {:error, :computation_failed}
-
-          # :not_compute_node, :has_active_computation, :may_retry_soon
-          _ ->
-            # Continue with existing timeout/wait logic
-            if monotonic_time_deadline == :infinity or
-                 (monotonic_time_deadline != nil and monotonic_time_deadline > System.monotonic_time(:millisecond)) do
-              Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
-              backoff_sleep(call_count)
-              load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
-            else
-              Logger.warning("#{prefix}: timeout exceeded or not specified.")
-              {:error, :not_set}
-            end
-        end
+        handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix)
 
       %{node_value: node_value} ->
         Logger.warning("#{prefix}: have value, returning.")
         {:ok, node_value}
+    end
+  end
+
+  defp handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix) do
+    case check_computation_status(execution, node_name) do
+      :permanently_failed ->
+        Logger.warning("#{prefix}: computation permanently failed after max retries.")
+        {:error, :computation_failed}
+
+      # :not_compute_node, :has_active_computation, :may_retry_soon
+      _ ->
+        handle_load_value_wait_or_timeout(execution, node_name, monotonic_time_deadline, call_count, prefix)
+    end
+  end
+
+  defp handle_load_value_wait_or_timeout(execution, node_name, monotonic_time_deadline, call_count, prefix) do
+    if deadline_exceeded?(monotonic_time_deadline) do
+      Logger.warning("#{prefix}: timeout exceeded or not specified.")
+      {:error, :not_set}
+    else
+      Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
+      backoff_sleep(call_count)
+      load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
     end
   end
 
@@ -330,41 +336,82 @@ defmodule Journey.Executions do
     Logger.debug("#{prefix}: waiting for revision > #{starting_revision}")
 
     # Query for current value in the database
-    current_value =
-      from(v in Execution.Value,
-        where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
-      )
-      |> Journey.Repo.one()
+    current_value = load_current_value(execution.id, node_name)
 
     if current_value != nil and current_value.ex_revision > starting_revision do
       # Found a newer revision with a value set
       Logger.debug("#{prefix}: found newer revision #{current_value.ex_revision}")
       {:ok, current_value.node_value}
     else
-      # Either no value exists yet OR revision hasn't advanced - keep waiting
-      current_revision = if current_value, do: current_value.ex_revision, else: "none"
-
-      # Check if computation has permanently failed
-      case check_computation_status(execution, node_name) do
-        :permanently_failed ->
-          Logger.warning("#{prefix}: computation permanently failed after max retries.")
-          {:error, :computation_failed}
-
-        _ ->
-          # Continue with existing timeout/wait logic
-          if deadline_exceeded?(monotonic_time_deadline) do
-            Logger.info(
-              "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
-            )
-
-            {:error, :not_set}
-          else
-            Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
-            backoff_sleep(call_count)
-            load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
-          end
-      end
+      handle_wait_new_no_value(
+        execution,
+        node_name,
+        starting_revision,
+        current_value,
+        monotonic_time_deadline,
+        call_count,
+        prefix
+      )
     end
+  end
+
+  defp handle_wait_new_no_value(
+         execution,
+         node_name,
+         starting_revision,
+         current_value,
+         monotonic_time_deadline,
+         call_count,
+         prefix
+       ) do
+    current_revision = if current_value, do: current_value.ex_revision, else: "none"
+
+    # Check if computation has permanently failed
+    case check_computation_status(execution, node_name) do
+      :permanently_failed ->
+        Logger.warning("#{prefix}: computation permanently failed after max retries.")
+        {:error, :computation_failed}
+
+      _ ->
+        handle_wait_new_continue(
+          execution,
+          node_name,
+          starting_revision,
+          current_revision,
+          monotonic_time_deadline,
+          call_count,
+          prefix
+        )
+    end
+  end
+
+  defp handle_wait_new_continue(
+         execution,
+         node_name,
+         starting_revision,
+         current_revision,
+         monotonic_time_deadline,
+         call_count,
+         prefix
+       ) do
+    if deadline_exceeded?(monotonic_time_deadline) do
+      Logger.info(
+        "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
+      )
+
+      {:error, :not_set}
+    else
+      Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
+      backoff_sleep(call_count)
+      load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
+    end
+  end
+
+  defp load_current_value(execution_id, node_name) do
+    from(v in Execution.Value,
+      where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
+    )
+    |> Journey.Repo.one()
   end
 
   defp deadline_exceeded?(monotonic_time_deadline) when is_nil(monotonic_time_deadline), do: true
