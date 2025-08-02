@@ -96,6 +96,13 @@ defmodule Journey.Insights.FlowAnalytics do
     }
   """
   def flow_analytics(graph_name, graph_version, opts \\ []) do
+    opts_schema = [
+      include_executions: [is: {:in, [:active, :archived, :all]}],
+      flow_ends_here_after: [is: :integer]
+    ]
+
+    KeywordValidator.validate!(opts, opts_schema)
+
     include_executions = Keyword.get(opts, :include_executions, :active)
     flow_ends_here_after = Keyword.get(opts, :flow_ends_here_after, 86_400)
 

@@ -57,6 +57,7 @@ defmodule Journey.MixProject do
       {:ecto, "~> 3.12.5"},
       {:ecto_sql, "~> 3.12.1"},
       {:ex_doc, "~> 0.38.2", only: :dev, runtime: false},
+      {:keyword_validator, "~> 2.1.0"},
       {:mix_test_watch, "~> 1.3", only: [:dev, :test], runtime: false},
       {:nanoid, "~> 2.1.0"},
       {:number, "~> 1.0.5"},
