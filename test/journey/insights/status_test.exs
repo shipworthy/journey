@@ -6,7 +6,7 @@ defmodule Journey.InsightsTest do
   import Journey.Node.UpstreamDependencies
   import Journey.Helpers.Random, only: [random_string: 0]
 
-  alias Journey.Insights
+  alias Journey.Insights.Status
 
   setup do
     {:ok, test_id: random_string()}
@@ -15,7 +15,7 @@ defmodule Journey.InsightsTest do
   describe "status/0" do
     test "returns healthy status with expected structure", %{test_id: _test_id} do
       # Test basic structure - don't assume empty database
-      result = Insights.status()
+      result = Status.status()
 
       assert %{
                status: status,
@@ -48,7 +48,7 @@ defmodule Journey.InsightsTest do
       {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
       {:ok, _} = Journey.get_value(exec2, :greeting, wait_any: true)
 
-      result = Insights.status()
+      result = Status.status()
 
       assert result.status == :healthy
       assert result.database_connected == true
@@ -100,7 +100,7 @@ defmodule Journey.InsightsTest do
       {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
       {:ok, _} = Journey.get_value(exec2, :final_result, wait_any: true)
 
-      result = Insights.status()
+      result = Status.status()
 
       assert result.status == :healthy
       assert result.database_connected == true
@@ -149,7 +149,7 @@ defmodule Journey.InsightsTest do
       # Wait a bit for computations to process
       Process.sleep(100)
 
-      result = Insights.status()
+      result = Status.status()
 
       assert result.status == :healthy
 
@@ -180,7 +180,7 @@ defmodule Journey.InsightsTest do
       Journey.set_value(exec, :name, "TestUser")
       {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
 
-      result = Insights.status()
+      result = Status.status()
 
       if length(result.graphs) > 0 do
         graph_stats = hd(result.graphs)
