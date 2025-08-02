@@ -253,7 +253,12 @@ defmodule Journey do
   def load(nil, _), do: nil
 
   def load(execution_id, opts) when is_binary(execution_id) do
-    check_options(opts, [:preload, :include_archived])
+    opts_schema = [
+      preload: [is: :boolean],
+      include_archived: [is: :boolean]
+    ]
+
+    KeywordValidator.validate!(opts, opts_schema)
 
     Journey.Executions.load(
       execution_id,
@@ -407,7 +412,11 @@ defmodule Journey do
 
   """
   def values_all(execution, opts \\ []) when is_struct(execution, Execution) do
-    check_options(opts, [:reload])
+    opts_schema = [
+      reload: [is: :boolean]
+    ]
+
+    KeywordValidator.validate!(opts, opts_schema)
 
     reload? = Keyword.get(opts, :reload, true)
 
@@ -444,7 +453,11 @@ defmodule Journey do
 
   """
   def values(execution, opts \\ []) when is_struct(execution, Execution) and is_list(opts) do
-    check_options(opts, [:reload])
+    opts_schema = [
+      reload: [is: :boolean]
+    ]
+
+    KeywordValidator.validate!(opts, opts_schema)
 
     reload? = Keyword.get(opts, :reload, true)
 
@@ -675,7 +688,7 @@ defmodule Journey do
   defp timeout_value(v) when is_integer(v) or v == :infinity, do: v
   defp timeout_value(true), do: @default_timeout_ms
 
-  # default case for invalid combinations
+  # Validates that only known option keys are provided
   defp check_options(supplied_option_names_kwl, known_option_names_list) do
     supplied_option_names = MapSet.new(Keyword.keys(supplied_option_names_kwl))
     known_option_names = MapSet.new(known_option_names_list)
