@@ -29,7 +29,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       # remain in :not_set even after being kicked
 
       # Run sweep
-      kicked_count = ScheduleNodes.sweep(nil)
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
 
       # Should have kicked at least one execution (the new one)
       # Background sweeps may create additional executions that get processed
@@ -61,7 +61,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       # Record current sweep count
       initial_sweep_count = Journey.Repo.aggregate(SweepRun, :count, :id)
 
-      kicked_count = ScheduleNodes.sweep(nil)
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
 
       # Should have kicked at least our two executions
       assert kicked_count >= 2
@@ -79,7 +79,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       insert_incomplete_sweep_run(:schedule_nodes, System.os_time(:second) - 30)
 
       # Should process at least our execution (uses 1 hour fallback)
-      kicked_count = ScheduleNodes.sweep(nil)
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
       assert kicked_count >= 1
     end
 
@@ -88,7 +88,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       _exec2 = create_execution_with_schedule()
 
       # Sweep specific execution only
-      kicked_count = ScheduleNodes.sweep(exec1.id)
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(exec1.id)
 
       # Should only process exec1
       assert kicked_count == 1
@@ -101,22 +101,14 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       start_time = System.os_time(:second)
 
       _exec = create_execution_with_schedule()
-      ScheduleNodes.sweep(nil)
+      {_kicked_count, sweep_run_id} = ScheduleNodes.sweep(nil)
 
       end_time = System.os_time(:second)
 
-      # Get the newly created sweep run
-      new_sweep_runs =
-        Journey.Repo.all(
-          from sr in SweepRun,
-            where: sr.sweep_type == :schedule_nodes,
-            order_by: [desc: sr.started_at],
-            limit: 1
-        )
+      # Get the specific sweep run created by this test
+      sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
 
-      assert length(new_sweep_runs) == 1
-      sweep_run = hd(new_sweep_runs)
-
+      assert sweep_run.sweep_type == :schedule_nodes
       assert sweep_run.started_at >= start_time
       # Allow 1 second tolerance for timing precision
       assert sweep_run.completed_at <= end_time + 1
@@ -136,7 +128,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       initial_sweep_count = Journey.Repo.aggregate(SweepRun, :count, :id)
 
       # Normal sweep should complete
-      ScheduleNodes.sweep(nil)
+      {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
 
       # Get the newly created sweep run
       new_sweep_runs =
@@ -245,7 +237,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
       _new_execs = for _ <- 1..5, do: create_execution_with_schedule()
 
       # Measure sweep time
-      {time_micros, kicked_count} = :timer.tc(fn -> ScheduleNodes.sweep(nil) end)
+      {time_micros, {kicked_count, _sweep_run_id}} = :timer.tc(fn -> ScheduleNodes.sweep(nil) end)
 
       # Should have processed some executions (background sweeps may affect exact count)
       # The key test is that incremental processing is working and time is reasonable
