@@ -48,6 +48,24 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert 2 == count_computations(execution.id, :astrological_sign, :failed)
       assert 0 == count_computations(execution.id, :astrological_sign, :computing)
     end
+
+    @tag :capture_log
+    test "retries on failures without wait options" do
+      execution =
+        create_graph(:failure)
+        |> Journey.start_execution()
+        |> Journey.set_value(:birth_day, 26)
+        |> Journey.set_value(:birth_month, "April")
+
+      # Wait for retries to exhaust
+      Process.sleep(10_000)
+
+      # Should return :computation_failed immediately when called without wait options
+      {:error, :computation_failed} = Journey.get_value(execution, :astrological_sign)
+
+      assert 2 == count_computations(execution.id, :astrological_sign, :failed)
+      assert 0 == count_computations(execution.id, :astrological_sign, :computing)
+    end
   end
 
   describe "find_and_maybe_reschedule |" do
