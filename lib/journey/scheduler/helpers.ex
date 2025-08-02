@@ -9,10 +9,11 @@ defmodule Journey.Scheduler.Helpers do
   import Journey.Helpers.Log
 
   def graph_from_execution_id(execution_id) do
-    execution_id
-    |> Journey.Executions.load(false, true)
-    |> Map.get(:graph_name)
-    |> Journey.Graph.Catalog.fetch!()
+    execution =
+      execution_id
+      |> Journey.Executions.load(false, true)
+
+    Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
   end
 
   def graph_node_from_execution_id(execution_id, node_name) do

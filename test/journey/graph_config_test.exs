@@ -7,7 +7,7 @@ defmodule Journey.Graph.ConfigTest do
     assert Application.get_env(:journey, :graphs, []) |> Enum.count() == 2
 
     # Given the configuration, we should be able to fetch the graphs.
-    assert nil != Journey.Graph.Catalog.fetch!("test graph 1 Elixir.Journey.Test.Support")
-    assert nil != Journey.Graph.Catalog.fetch!("test graph 2 Elixir.Journey.Test.Support")
+    assert nil != Journey.Graph.Catalog.fetch("test graph 1 Elixir.Journey.Test.Support", "1.0.0")
+    assert nil != Journey.Graph.Catalog.fetch("test graph 2 Elixir.Journey.Test.Support", "1.0.0")
   end
 end
