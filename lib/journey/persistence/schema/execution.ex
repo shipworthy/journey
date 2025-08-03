@@ -15,7 +15,6 @@ defmodule Journey.Persistence.Schema.Execution do
       preload_order: [desc: :ex_revision_at_completion]
     )
 
-    # has_many(:computations, Journey.Schema.Computation, preload_order: [asc: :ex_revision])
     field(:revision, :integer, default: 0)
     timestamps()
   end
