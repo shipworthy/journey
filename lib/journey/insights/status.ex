@@ -79,133 +79,137 @@ defmodule Journey.Insights.Status do
   end
 
   defp fetch_graphs_data() do
-    # Get unique graph name/version combinations
-    graph_combinations =
-      from(e in Execution,
-        group_by: [e.graph_name, e.graph_version],
-        select: {e.graph_name, e.graph_version}
-      )
-      |> Repo.all()
+    execution_stats = fetch_all_execution_stats()
+    computation_stats = fetch_all_computation_stats()
 
-    # Fetch stats for each combination
-    Enum.map(graph_combinations, fn {graph_name, graph_version} ->
+    # Get all unique graph combinations from execution stats
+    execution_stats
+    |> Enum.map(fn {graph_name, graph_version, stats} ->
+      comp_stats =
+        Map.get(computation_stats, {graph_name, graph_version}, %{
+          by_state: %{},
+          most_recently_created: nil,
+          most_recently_updated: nil
+        })
+
       %{
         graph_name: graph_name,
         graph_version: graph_version,
         stats: %{
-          executions: fetch_execution_stats(graph_name, graph_version),
-          computations: fetch_computation_stats(graph_name, graph_version)
+          executions: stats,
+          computations: comp_stats
         }
       }
     end)
   end
 
-  defp fetch_execution_stats(graph_name, graph_version) do
-    # Count archived executions
-    archived_count =
-      from(e in Execution,
-        where:
-          e.graph_name == ^graph_name and
-            e.graph_version == ^graph_version and
-            not is_nil(e.archived_at),
-        select: count(e.id)
-      )
-      |> Repo.one()
-
-    # Count active executions
-    active_count =
-      from(e in Execution,
-        where:
-          e.graph_name == ^graph_name and
-            e.graph_version == ^graph_version and
-            is_nil(e.archived_at),
-        select: count(e.id)
-      )
-      |> Repo.one()
-
-    # Get most recently created timestamp
-    most_recently_created =
-      from(e in Execution,
-        where:
-          e.graph_name == ^graph_name and
-            e.graph_version == ^graph_version,
-        select: max(e.inserted_at)
-      )
-      |> Repo.one()
-      |> format_timestamp()
-
-    # Get most recently updated timestamp
-    most_recently_updated =
-      from(e in Execution,
-        where:
-          e.graph_name == ^graph_name and
-            e.graph_version == ^graph_version,
-        select: max(e.updated_at)
-      )
-      |> Repo.one()
-      |> format_timestamp()
-
-    %{
-      archived: archived_count,
-      active: active_count,
-      most_recently_created: most_recently_created,
-      most_recently_updated: most_recently_updated
-    }
+  defp fetch_all_execution_stats() do
+    from(e in Execution,
+      group_by: [e.graph_name, e.graph_version],
+      select: {
+        e.graph_name,
+        e.graph_version,
+        %{
+          archived: sum(fragment("CASE WHEN ? IS NOT NULL THEN 1 ELSE 0 END", e.archived_at)),
+          active: sum(fragment("CASE WHEN ? IS NULL THEN 1 ELSE 0 END", e.archived_at)),
+          most_recently_created: max(e.inserted_at),
+          most_recently_updated: max(e.updated_at)
+        }
+      }
+    )
+    |> Repo.all()
+    |> Enum.map(fn {graph_name, graph_version, stats} ->
+      {graph_name, graph_version,
+       %{
+         archived: stats.archived || 0,
+         active: stats.active || 0,
+         most_recently_created: format_timestamp(stats.most_recently_created),
+         most_recently_updated: format_timestamp(stats.most_recently_updated)
+       }}
+    end)
   end
 
-  defp fetch_computation_stats(graph_name, graph_version) do
-    # Use a single JOIN query to get computation stats
-    # This avoids loading all execution IDs into memory
-    state_counts =
-      ComputationState.values()
-      |> Enum.map(fn state ->
-        count =
-          from(c in Computation,
-            join: e in Execution,
-            on: c.execution_id == e.id,
-            where:
-              e.graph_name == ^graph_name and
-                e.graph_version == ^graph_version and
-                c.state == ^state,
-            select: count(c.id)
-          )
-          |> Repo.one()
+  defp fetch_all_computation_stats() do
+    # Single query to get all computation stats grouped by graph
+    computation_data =
+      from(c in Computation,
+        join: e in Execution,
+        on: c.execution_id == e.id,
+        group_by: [e.graph_name, e.graph_version, c.state],
+        select: {
+          e.graph_name,
+          e.graph_version,
+          c.state,
+          count(c.id)
+        }
+      )
+      |> Repo.all()
 
-        {state, count}
+    # Single query to get timestamps for all graphs
+    timestamp_data =
+      from(c in Computation,
+        join: e in Execution,
+        on: c.execution_id == e.id,
+        group_by: [e.graph_name, e.graph_version],
+        select: {
+          e.graph_name,
+          e.graph_version,
+          max(c.inserted_at),
+          max(c.updated_at)
+        }
+      )
+      |> Repo.all()
+
+    # Group computation counts by graph
+    state_counts_by_graph =
+      computation_data
+      |> Enum.group_by(fn {graph_name, graph_version, _state, _count} ->
+        {graph_name, graph_version}
+      end)
+      |> Enum.map(fn {{graph_name, graph_version}, state_data} ->
+        # Initialize all states to 0
+        by_state =
+          ComputationState.values()
+          |> Enum.map(&{&1, 0})
+          |> Enum.into(%{})
+
+        # Update with actual counts
+        by_state =
+          state_data
+          |> Enum.reduce(by_state, fn {_graph_name, _graph_version, state, count}, acc ->
+            Map.put(acc, state, count)
+          end)
+
+        {{graph_name, graph_version}, by_state}
       end)
       |> Enum.into(%{})
 
-    # Get most recently created computation timestamp
-    most_recently_created =
-      from(c in Computation,
-        join: e in Execution,
-        on: c.execution_id == e.id,
-        where:
-          e.graph_name == ^graph_name and
-            e.graph_version == ^graph_version,
-        select: max(c.inserted_at)
-      )
-      |> Repo.one()
-      |> format_timestamp()
+    # Group timestamps by graph
+    timestamps_by_graph =
+      timestamp_data
+      |> Enum.map(fn {graph_name, graph_version, created, updated} ->
+        {{graph_name, graph_version}, {created, updated}}
+      end)
+      |> Enum.into(%{})
 
-    # Get most recently updated computation timestamp
-    most_recently_updated =
-      from(c in Computation,
-        join: e in Execution,
-        on: c.execution_id == e.id,
-        where:
-          e.graph_name == ^graph_name and
-            e.graph_version == ^graph_version,
-        select: max(c.updated_at)
-      )
-      |> Repo.one()
-      |> format_timestamp()
+    # Combine the data
+    all_graphs =
+      (Map.keys(state_counts_by_graph) ++ Map.keys(timestamps_by_graph))
+      |> Enum.uniq()
 
-    %{
-      by_state: state_counts,
-      most_recently_created: most_recently_created,
-      most_recently_updated: most_recently_updated
-    }
+    all_graphs
+    |> Enum.map(fn {_graph_name, _graph_version} = key ->
+      by_state = Map.get(state_counts_by_graph, key, %{})
+      {created, updated} = Map.get(timestamps_by_graph, key, {nil, nil})
+
+      {key,
+       %{
+         by_state: by_state,
+         most_recently_created: format_timestamp(created),
+         most_recently_updated: format_timestamp(updated)
+       }}
+    end)
+    |> Enum.into(%{})
   end
 
   defp format_timestamp(nil), do: nil
