@@ -281,130 +281,169 @@ defmodule Journey.Executions do
   end
 
   defp load_value(execution, node_name, monotonic_time_deadline, call_count) do
-    prefix = "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}]"
-
-    from(v in Execution.Value,
-      where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
-    )
-    |> Journey.Repo.one()
-    |> case do
-      nil ->
-        # TODO: if no node, and we need to wait, keep waiting.
-        Logger.warning("#{prefix}: value not found.")
-        {:error, :no_such_value}
-
-      %{set_time: nil} ->
-        handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix)
-
-      %{node_value: node_value} ->
-        Logger.info("#{prefix}: have value, returning.")
-        {:ok, node_value}
-    end
+    load_value_internal(execution, node_name, monotonic_time_deadline, call_count, nil)
   end
 
-  defp handle_load_value_not_set(execution, node_name, monotonic_time_deadline, call_count, prefix) do
-    case check_computation_status(execution, node_name) do
-      :permanently_failed ->
-        Logger.info("#{prefix}: computation permanently failed after max retries.")
-        {:error, :computation_failed}
+  defp load_value_internal(execution, node_name, monotonic_time_deadline, call_count, wait_for_revision) do
+    wait_new = wait_for_revision != nil
 
-      # :not_compute_node, :has_active_computation, :may_retry_soon
-      _ ->
-        handle_load_value_wait_or_timeout(execution, node_name, monotonic_time_deadline, call_count, prefix)
+    prefix =
+      "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}]" <>
+        if(wait_new, do: " wait_new", else: "")
+
+    if wait_new do
+      Logger.debug("#{prefix}: waiting for revision > #{wait_for_revision}")
     end
-  end
 
-  defp handle_load_value_wait_or_timeout(execution, node_name, monotonic_time_deadline, call_count, prefix) do
-    if deadline_exceeded?(monotonic_time_deadline) do
-      Logger.info("#{prefix}: timeout exceeded or not specified.")
-      {:error, :not_set}
-    else
-      Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
-      backoff_sleep(call_count)
-      load_value(execution, node_name, monotonic_time_deadline, call_count + 1)
-    end
-  end
-
-  defp load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count)
-       when monotonic_time_deadline == :infinity or is_integer(monotonic_time_deadline) do
-    prefix = "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}] wait_new"
-
-    # Get the starting revision from the execution parameter
-    starting_value = find_value_by_name(execution, node_name)
-    starting_revision = if starting_value, do: starting_value.ex_revision, else: 0
-
-    Logger.debug("#{prefix}: waiting for revision > #{starting_revision}")
-
-    # Query for current value in the database
     current_value = load_current_value(execution.id, node_name)
 
-    if current_value != nil and current_value.ex_revision > starting_revision do
-      # Found a newer revision with a value set
-      Logger.debug("#{prefix}: found newer revision #{current_value.ex_revision}")
-      {:ok, current_value.node_value}
+    # Handle the different cases
+    process_loaded_value(
+      current_value,
+      execution,
+      node_name,
+      monotonic_time_deadline,
+      call_count,
+      wait_for_revision,
+      prefix
+    )
+  end
+
+  defp process_loaded_value(
+         value_node,
+         execution,
+         node_name,
+         monotonic_time_deadline,
+         call_count,
+         wait_for_revision,
+         prefix
+       )
+       when is_nil(value_node) do
+    if monotonic_time_deadline == nil do
+      Logger.warning("#{prefix}: value not found.")
+      {:error, :not_set}
     else
-      handle_wait_new_no_value(
+      # Wait for the Value node to be created or updated
+      handle_value_not_ready(
         execution,
         node_name,
-        starting_revision,
-        current_value,
         monotonic_time_deadline,
         call_count,
+        wait_for_revision,
+        nil,
         prefix
       )
     end
   end
 
-  defp handle_wait_new_no_value(
+  defp process_loaded_value(
+         %{set_time: set_time, ex_revision: revision, node_value: value} = value_node,
          execution,
          node_name,
-         starting_revision,
-         current_value,
          monotonic_time_deadline,
          call_count,
+         wait_for_revision,
          prefix
        ) do
-    current_revision = if current_value, do: current_value.ex_revision, else: "none"
+    cond do
+      # For wait_new: check if we have a newer revision
+      wait_for_revision != nil and set_time != nil and revision > wait_for_revision ->
+        Logger.debug("#{prefix}: found newer revision #{revision}")
+        {:ok, value}
 
-    # Check if computation has permanently failed
-    case check_computation_status(execution, node_name) do
-      :permanently_failed ->
-        Logger.warning("#{prefix}: computation permanently failed after max retries.")
-        {:error, :computation_failed}
+      # For regular load_value: return if value is set
+      wait_for_revision == nil and set_time != nil ->
+        Logger.info("#{prefix}: have value, returning.")
+        {:ok, value}
 
-      _ ->
-        handle_wait_new_continue(
+      # Value not set (or not new enough for wait_new)
+      true ->
+        handle_value_not_ready(
           execution,
           node_name,
-          starting_revision,
-          current_revision,
           monotonic_time_deadline,
           call_count,
+          wait_for_revision,
+          value_node,
           prefix
         )
     end
   end
 
-  defp handle_wait_new_continue(
+  defp handle_value_not_ready(
          execution,
          node_name,
-         starting_revision,
-         current_revision,
          monotonic_time_deadline,
          call_count,
+         wait_for_revision,
+         current_value,
+         prefix
+       ) do
+    case check_computation_status(execution, node_name) do
+      :permanently_failed ->
+        Logger.info("#{prefix}: computation permanently failed after max retries.")
+        {:error, :computation_failed}
+
+      _ ->
+        handle_wait_or_timeout(
+          execution,
+          node_name,
+          monotonic_time_deadline,
+          call_count,
+          wait_for_revision,
+          current_value,
+          prefix
+        )
+    end
+  end
+
+  defp handle_wait_or_timeout(
+         execution,
+         node_name,
+         monotonic_time_deadline,
+         call_count,
+         wait_for_revision,
+         current_value,
          prefix
        ) do
     if deadline_exceeded?(monotonic_time_deadline) do
-      Logger.info(
-        "#{prefix}: timeout reached waiting for revision > #{starting_revision} (current: #{current_revision})"
-      )
-
+      log_timeout(prefix, wait_for_revision, current_value)
       {:error, :not_set}
     else
-      Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
+      log_waiting(prefix, wait_for_revision, current_value, call_count)
       backoff_sleep(call_count)
-      load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count + 1)
+      load_value_internal(execution, node_name, monotonic_time_deadline, call_count + 1, wait_for_revision)
     end
+  end
+
+  defp log_timeout(prefix, wait_for_revision, current_value) do
+    if wait_for_revision do
+      current_revision = if current_value, do: current_value.ex_revision, else: "none"
+
+      Logger.info(
+        "#{prefix}: timeout reached waiting for revision > #{wait_for_revision} (current: #{current_revision})"
+      )
+    else
+      Logger.info("#{prefix}: timeout exceeded or not specified.")
+    end
+  end
+
+  defp log_waiting(prefix, wait_for_revision, current_value, call_count) do
+    if wait_for_revision do
+      current_revision = if current_value, do: current_value.ex_revision, else: "none"
+      Logger.debug("#{prefix}: revision still #{current_revision}, waiting, call count: #{call_count}")
+    else
+      Logger.debug("#{prefix}: value not set, waiting, call count: #{call_count}")
+    end
+  end
+
+  defp load_value_wait_new(execution, node_name, monotonic_time_deadline, call_count)
+       when monotonic_time_deadline == :infinity or is_integer(monotonic_time_deadline) do
+    # Get the starting revision from the execution parameter
+    starting_value = find_value_by_name(execution, node_name)
+    starting_revision = if starting_value, do: starting_value.ex_revision, else: 0
+
+    load_value_internal(execution, node_name, monotonic_time_deadline, call_count, starting_revision)
   end
 
   defp load_current_value(execution_id, node_name) do
