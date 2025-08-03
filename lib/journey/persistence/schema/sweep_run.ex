@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.SweepRun do
+defmodule Journey.Persistence.Schema.SweepRun do
   @moduledoc false
 
   # TODO: move all sweep-related code to ../sweeps/

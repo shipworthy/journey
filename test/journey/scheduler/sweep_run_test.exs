@@ -1,7 +1,7 @@
 defmodule Journey.Scheduler.SweepRunTest do
   use ExUnit.Case, async: true
 
-  alias Journey.Scheduler.SweepRun
+  alias Journey.Persistence.Schema.SweepRun
 
   describe "changeset/2" do
     test "valid changeset with required fields" do

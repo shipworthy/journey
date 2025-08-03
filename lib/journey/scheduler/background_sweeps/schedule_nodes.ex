@@ -6,7 +6,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
 
   import Journey.Helpers.Log
   alias Journey.Persistence.Schema.Execution.Computation
-  alias Journey.Scheduler.SweepRun
+  alias Journey.Persistence.Schema.SweepRun
 
   @doc false
   def sweep(execution_id) when is_nil(execution_id) or is_binary(execution_id) do
