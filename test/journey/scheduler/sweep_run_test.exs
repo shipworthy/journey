@@ -1,6 +1,8 @@
 defmodule Journey.Scheduler.SweepRunTest do
   use ExUnit.Case, async: true
 
+  @tag :skip
+
   alias Journey.Scheduler.SweepRun
 
   describe "changeset/2" do

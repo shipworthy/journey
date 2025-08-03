@@ -1,8 +1,15 @@
 defmodule Journey.Node.ArchiveTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import Journey.Node
 
   import Journey.Helpers.Random, only: [random_string: 0]
+
+  setup do
+    # Use start_owner! for better handling of spawned processes
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Journey.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    :ok
+  end
 
   describe "archive() |" do
     test "basic validation" do

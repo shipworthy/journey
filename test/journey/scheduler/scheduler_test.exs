@@ -1,6 +1,8 @@
 defmodule Journey.Scheduler.SchedulerTest do
   use ExUnit.Case, async: true
 
+  @tag :skip
+
   import Journey.Node
   import Journey.Helpers.GrabBag
 

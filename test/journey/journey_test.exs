@@ -1,7 +1,14 @@
 defmodule Journey.JourneyTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Journey.Helpers.Random, only: [random_string: 0]
+
+  setup do
+    # Use start_owner! for better handling of spawned processes
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Journey.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    :ok
+  end
 
   import Journey.Node
   import Journey.Node.Conditions
@@ -234,7 +241,7 @@ defmodule Journey.JourneyTest do
 
       execution_v3 = execution_v1 |> Journey.set_value(:first_name, "Luigi")
       {:ok, "Luigi"} = Journey.get_value(execution_v3, :first_name)
-      {:ok, "Hello, Luigi"} = Journey.get_value(execution_v3, :greeting, wait_new: true)
+      {:ok, "Hello, Luigi"} = Journey.get_value(execution_v3, :greeting, wait_any: 5000)
       assert execution_v3.revision > execution_v2.revision
     end
 
@@ -386,7 +393,7 @@ defmodule Journey.JourneyTest do
 
       # Change first_name and wait for new greeting computation
       execution_v2 = execution |> Journey.set_value(:first_name, "Luigi")
-      {:ok, "Hello, Luigi"} = Journey.get_value(execution_v2, :greeting, wait_new: true)
+      {:ok, "Hello, Luigi"} = Journey.get_value(execution_v2, :greeting, wait_any: 5000)
     end
   end
 

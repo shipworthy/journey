@@ -50,9 +50,16 @@ defmodule Flows.Test.HoroscopeGraph do
 end
 
 defmodule Flows.HoroscopeTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Journey.Node
+
+  setup do
+    # Use start_owner! for better handling of spawned processes
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Journey.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    :ok
+  end
 
   describe "flow" do
     test "sunny day" do

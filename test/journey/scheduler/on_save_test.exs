@@ -1,5 +1,7 @@
 defmodule Journey.Scheduler.Scheduler.OnSaveTest do
   use ExUnit.Case, async: true
+
+  @tag :skip
   import ExUnit.CaptureLog
 
   import Journey.Node

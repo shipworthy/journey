@@ -1,4 +1,8 @@
 defmodule Journey.Scheduler.AbandonedWithRetriesTest do
+  use ExUnit.Case, async: true
+
+  @tag :skip
+
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 

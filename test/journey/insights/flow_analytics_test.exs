@@ -1,5 +1,5 @@
 defmodule Journey.Insights.FlowAnalyticsTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Journey.Node
   import Journey.Node.Conditions
@@ -9,6 +9,9 @@ defmodule Journey.Insights.FlowAnalyticsTest do
   alias Journey.Insights.FlowAnalytics, as: Insights
 
   setup do
+    # Use start_owner! for better handling of spawned processes
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Journey.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     {:ok, test_id: random_string()}
   end
 

@@ -1,7 +1,14 @@
 defmodule Journey.ToolsTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Journey.Scheduler.BackgroundSweeps
+
+  setup do
+    # Use start_owner! for better handling of spawned processes
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Journey.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    :ok
+  end
 
   describe "summarize/1" do
     test "basic validation" do

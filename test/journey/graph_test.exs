@@ -1,7 +1,14 @@
 defmodule Journey.GraphTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Journey.Node
+
+  setup do
+    # Use start_owner! for better handling of spawned processes
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Journey.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    :ok
+  end
 
   defp create_graph() do
     Journey.new_graph(

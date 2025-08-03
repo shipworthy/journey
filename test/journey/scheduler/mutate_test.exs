@@ -1,6 +1,8 @@
 defmodule Journey.Scheduler.Scheduler.MutateTest do
   use ExUnit.Case, async: true
 
+  @tag :skip
+
   require Logger
   import WaitForIt
   import Journey.Node

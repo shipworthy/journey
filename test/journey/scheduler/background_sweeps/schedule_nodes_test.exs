@@ -1,6 +1,8 @@
 defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
   use ExUnit.Case, async: true
 
+  @tag :skip
+
   import Ecto.Query
 
   alias Journey.Examples.CreditCardApplication

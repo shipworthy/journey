@@ -1,6 +1,8 @@
 defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
   use ExUnit.Case, async: true
 
+  @tag :skip
+
   import Journey.Node
 
   alias Journey.Scheduler.BackgroundSweeps

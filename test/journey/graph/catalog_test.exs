@@ -6,6 +6,9 @@ defmodule Journey.Graph.CatalogTest do
   setup do
     # Clear the catalog state between tests
     Agent.update(Catalog, fn _state -> %{} end)
+    # Use start_owner! for better handling of spawned processes
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Journey.Repo, shared: true)
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     :ok
   end
 
