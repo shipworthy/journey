@@ -36,7 +36,7 @@ defmodule Journey.Scheduler.Available do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        all_value_nodes = Journey.Schema.Execution.Values.load_from_db(execution.id, repo)
+        all_value_nodes = Journey.Persistence.Values.load_from_db(execution.id, repo)
 
         all_candidates_for_computation
         |> Enum.map(fn computation_candidate ->

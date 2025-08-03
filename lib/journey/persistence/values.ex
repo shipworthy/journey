@@ -1,4 +1,4 @@
-defmodule Journey.Schema.Execution.Values do
+defmodule Journey.Persistence.Values do
   @moduledoc false
 
   import Ecto.Query

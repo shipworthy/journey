@@ -22,7 +22,7 @@ defmodule Journey.Tools do
       |> Graph.find_node_by_name(computation_node_name)
       |> Map.get(:gated_by)
 
-    all_value_nodes = Journey.Schema.Execution.Values.load_from_db(execution.id, Journey.Repo)
+    all_value_nodes = Journey.Persistence.Values.load_from_db(execution.id, Journey.Repo)
 
     computation_prerequisites =
       UpstreamDependencies.Computations.evaluate_computation_for_readiness(all_value_nodes, gated_by)
