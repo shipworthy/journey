@@ -160,9 +160,9 @@ defmodule Journey do
 
   """
 
-  alias Journey.Persistence.Schema.Execution
   alias Journey.Executions
   alias Journey.Graph
+  alias Journey.Persistence.Schema.Execution
 
   @doc """
   Creates a new graph with the given name, version, and nodes.

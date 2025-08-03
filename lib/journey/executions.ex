@@ -45,7 +45,7 @@ defmodule Journey.Executions do
         # Create computations for computable nodes.
         _computations =
           nodes
-          |> Enum.filter(fn %{type: type} -> type in Journey.Persistence.Schema.Execution.ComputationType.values() end)
+          |> Enum.filter(fn %{type: type} -> type in Execution.ComputationType.values() end)
           |> Enum.map(fn computation ->
             %Execution.Computation{
               execution: execution,

@@ -4,8 +4,8 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesTest do
   import Ecto.Query
 
   alias Journey.Examples.CreditCardApplication
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
   alias Journey.Persistence.Schema.SweepRun
+  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
 
   describe "sweep/1 optimization" do
     test "only processes executions updated since last sweep" do

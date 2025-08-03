@@ -7,10 +7,10 @@ defmodule Journey.Tools do
 
   import Ecto.Query
 
-  alias Journey.Persistence.Schema.Execution.Computation
-  alias Journey.Persistence.Schema.Execution.Value
   alias Journey.Graph
   alias Journey.Node.UpstreamDependencies
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Value
 
   def computation_state(execution_id, computation_node_name)
       when is_binary(execution_id) and is_atom(computation_node_name) do

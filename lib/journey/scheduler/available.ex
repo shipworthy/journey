@@ -3,11 +3,11 @@ defmodule Journey.Scheduler.Available do
 
   import Ecto.Query
 
+  alias Journey.Graph
+  alias Journey.Node.UpstreamDependencies
   alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
-  alias Journey.Graph
-  alias Journey.Node.UpstreamDependencies
 
   require Logger
   import Journey.Helpers.Log
