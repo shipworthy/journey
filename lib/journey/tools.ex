@@ -146,7 +146,6 @@ defmodule Journey.Tools do
 
     now = System.system_time(:second)
 
-    # TODO: put :abandoned computations into a separate section.
     """
     Execution summary:
     - ID: '#{execution_id}'
@@ -196,13 +195,25 @@ defmodule Journey.Tools do
     "&#{fi[:name]}/#{fi[:arity]}"
   end
 
-  def list_computations(graph, values, computations_completed, computations_outstanding) do
+  defp list_computations(graph, values, computations_completed, computations_outstanding) do
+    {abandoned, completed_non_abandoned} =
+      Enum.split_with(computations_completed, fn comp -> comp.state == :abandoned end)
+
     """
       \n
     Computations:
     - Completed:
     """ <>
-      Enum.map_join(computations_completed, "\n", &completed_computation/1) <>
+      Enum.map_join(completed_non_abandoned, "\n", &completed_computation/1) <>
+      if Enum.empty?(abandoned) do
+        ""
+      else
+        """
+        \n
+        - Abandoned:
+        """ <>
+          Enum.map_join(abandoned, "\n", &completed_computation/1)
+      end <>
       """
       \n
       - Outstanding:
