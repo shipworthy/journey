@@ -144,8 +144,6 @@ defmodule Journey.Scheduler.Completions do
       })
       |> repo.update!()
 
-      # TODO: if the computation was triggered by a schedule_recurring computation, create a new schedule_recurring computation for a future event.
-
       Logger.debug("#{prefix}: done. marking as completed.")
     else
       Logger.warning(
