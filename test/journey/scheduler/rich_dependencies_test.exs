@@ -158,7 +158,6 @@ defmodule Journey.Scheduler.RichDependenciesTest do
       assert execution.revision == 4
 
       execution = execution |> Journey.set_value(:g1_a, "g1_a set, v2")
-      execution = execution |> Journey.load()
       assert execution.revision == 6
 
       # Fetch and verify the recomputed value when it is available.
