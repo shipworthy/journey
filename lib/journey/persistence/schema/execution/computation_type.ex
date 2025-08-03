@@ -1,4 +1,4 @@
-defmodule Journey.Execution.ComputationType do
+defmodule Journey.Persistence.Schema.Execution.ComputationType do
   @moduledoc false
 
   @type t :: :unknown | :compute | :mutate | :schedule_once | :schedule_recurring | :archive

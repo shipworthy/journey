@@ -3,8 +3,8 @@ defmodule Journey.Scheduler.Retry do
 
   import Ecto.Query
 
-  alias Journey.Execution
-  alias Journey.Execution.Computation
+  alias Journey.Persistence.Schema.Execution
+  alias Journey.Persistence.Schema.Execution.Computation
 
   require Logger
   import Journey.Helpers.Log

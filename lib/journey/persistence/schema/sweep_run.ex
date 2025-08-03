@@ -1,8 +1,8 @@
-defmodule Journey.Scheduler.SweepRun do
+defmodule Journey.Persistence.Schema.SweepRun do
   @moduledoc false
 
   # TODO: move all sweep-related code to ../sweeps/
-  use Journey.Schema.Base
+  use Journey.Persistence.Schema.Base
   import Ecto.Changeset
 
   @primary_key {:id, :string, autogenerate: {Journey.Helpers.Random, :object_id, ["SWEEP"]}}

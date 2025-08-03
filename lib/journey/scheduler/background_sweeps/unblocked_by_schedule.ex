@@ -5,8 +5,8 @@ defmodule Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule do
   import Ecto.Query
 
   import Journey.Helpers.Log
-  alias Journey.Execution
-  alias Journey.Execution.Value
+  alias Journey.Persistence.Schema.Execution
+  alias Journey.Persistence.Schema.Execution.Value
 
   defp q_execution_ids_to_advance(execution_id, sweeper_period) do
     # Find all executions that have schedule_* computations that have "recently" come due.

@@ -105,9 +105,11 @@ defmodule LoadTest.PerformanceBenchmark do
   # Basic database statistics without complex telemetry
   defp get_basic_db_stats() do
     # Get basic statistics from database
-    executions_count = from(e in Journey.Execution, select: count(e.id)) |> Journey.Repo.one()
-    values_count = from(v in Journey.Execution.Value, select: count(v.id)) |> Journey.Repo.one()
-    computations_count = from(c in Journey.Execution.Computation, select: count(c.id)) |> Journey.Repo.one()
+    executions_count = from(e in Journey.Persistence.Schema.Execution, select: count(e.id)) |> Journey.Repo.one()
+    values_count = from(v in Journey.Persistence.Schema.Execution.Value, select: count(v.id)) |> Journey.Repo.one()
+
+    computations_count =
+      from(c in Journey.Persistence.Schema.Execution.Computation, select: count(c.id)) |> Journey.Repo.one()
 
     %{
       total_executions: executions_count,
@@ -305,7 +307,7 @@ defmodule LoadTest.PerformanceBenchmark do
           cutoff_time = now - 30
 
           # Query for recent value changes
-          from(v in Journey.Execution.Value,
+          from(v in Journey.Persistence.Schema.Execution.Value,
             where: v.set_time >= ^cutoff_time,
             select: count(v.id)
           )
@@ -344,7 +346,7 @@ defmodule LoadTest.PerformanceBenchmark do
     active_counts =
       1..5
       |> Enum.map(fn _ ->
-        from(e in Journey.Execution,
+        from(e in Journey.Persistence.Schema.Execution,
           where: is_nil(e.archived_at),
           select: count(e.id)
         )
@@ -382,7 +384,7 @@ defmodule LoadTest.PerformanceBenchmark do
 
     # Query scheduled computations (should use partial index)
     scheduled_count =
-      from(c in Journey.Execution.Computation,
+      from(c in Journey.Persistence.Schema.Execution.Computation,
         where: not is_nil(c.scheduled_time),
         select: count(c.id)
       )

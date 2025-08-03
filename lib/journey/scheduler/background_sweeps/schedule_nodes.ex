@@ -5,8 +5,8 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
   import Ecto.Query
 
   import Journey.Helpers.Log
-  alias Journey.Execution.Computation
-  alias Journey.Scheduler.SweepRun
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.SweepRun
 
   @doc false
   def sweep(execution_id) when is_nil(execution_id) or is_binary(execution_id) do
@@ -27,7 +27,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
 
       kicked_count =
         from(c in q_computations(execution_id),
-          join: e in Journey.Execution,
+          join: e in Journey.Persistence.Schema.Execution,
           on: c.execution_id == e.id,
           where:
             c.computation_type in [^:schedule_once, ^:schedule_recurring] and

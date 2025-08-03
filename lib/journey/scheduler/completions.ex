@@ -3,8 +3,8 @@ defmodule Journey.Scheduler.Completions do
 
   import Ecto.Query
 
-  alias Journey.Execution.Computation
-  alias Journey.Execution.Value
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Value
 
   require Logger
   import Journey.Helpers.Log

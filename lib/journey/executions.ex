@@ -1,6 +1,6 @@
 defmodule Journey.Executions do
   @moduledoc false
-  alias Journey.Execution
+  alias Journey.Persistence.Schema.Execution
   import Ecto.Query
 
   require Logger
@@ -45,7 +45,7 @@ defmodule Journey.Executions do
         # Create computations for computable nodes.
         _computations =
           nodes
-          |> Enum.filter(fn %{type: type} -> type in Journey.Execution.ComputationType.values() end)
+          |> Enum.filter(fn %{type: type} -> type in Execution.ComputationType.values() end)
           |> Enum.map(fn computation ->
             %Execution.Computation{
               execution: execution,
@@ -633,7 +633,8 @@ defmodule Journey.Executions do
 
   def computation_db_to_atoms(nil), do: nil
 
-  def computation_db_to_atoms(computation) when is_struct(computation, Journey.Execution.Computation) do
+  def computation_db_to_atoms(computation)
+      when is_struct(computation, Journey.Persistence.Schema.Execution.Computation) do
     computation
     |> Map.update!(:node_name, fn n -> String.to_atom(n) end)
     |> Map.update!(:computed_with, &convert_all_keys_to_atoms/1)

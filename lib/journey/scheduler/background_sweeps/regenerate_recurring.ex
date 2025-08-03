@@ -5,9 +5,9 @@ defmodule Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring do
   import Ecto.Query
 
   import Journey.Helpers.Log
-  alias Journey.Execution
-  alias Journey.Execution.Computation
-  alias Journey.Execution.Value
+  alias Journey.Persistence.Schema.Execution
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Value
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   @doc false

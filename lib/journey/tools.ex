@@ -7,10 +7,10 @@ defmodule Journey.Tools do
 
   import Ecto.Query
 
-  alias Journey.Execution.Computation
-  alias Journey.Execution.Value
   alias Journey.Graph
   alias Journey.Node.UpstreamDependencies
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Value
 
   def computation_state(execution_id, computation_node_name)
       when is_binary(execution_id) and is_atom(computation_node_name) do
@@ -22,7 +22,7 @@ defmodule Journey.Tools do
       |> Graph.find_node_by_name(computation_node_name)
       |> Map.get(:gated_by)
 
-    all_value_nodes = Journey.Execution.Values.load_from_db(execution.id, Journey.Repo)
+    all_value_nodes = Journey.Persistence.Values.load_from_db(execution.id, Journey.Repo)
 
     computation_prerequisites =
       UpstreamDependencies.Computations.evaluate_computation_for_readiness(all_value_nodes, gated_by)

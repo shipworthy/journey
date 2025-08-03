@@ -1,4 +1,4 @@
-defmodule Journey.Schema.Base do
+defmodule Journey.Persistence.Schema.Base do
   @moduledoc false
   defmacro __using__(_) do
     quote do

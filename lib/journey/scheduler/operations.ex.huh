@@ -3,9 +3,9 @@ defmodule Journey.Scheduler.Operations do
 
   import Ecto.Query
 
-  alias Journey.Execution
-  alias Journey.Execution.Computation
-  alias Journey.Execution.Value
+  alias Journey.Persistence.Schema.Execution
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Value
   alias Journey.Graph
 
   require Logger
