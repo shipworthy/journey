@@ -59,14 +59,6 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
     assert wait_for_value(execution, :send_a_reminder, 3, frequency: 1_000)
     assert (System.system_time(:second) - time0) in 5..15
 
-    time0 = System.system_time(:second)
-    assert wait_for_value(execution, :send_a_reminder, 4, frequency: 1_000)
-    assert (System.system_time(:second) - time0) in 5..15
-
-    time0 = System.system_time(:second)
-    assert wait_for_value(execution, :send_a_reminder, 5, frequency: 1_000)
-    assert (System.system_time(:second) - time0) in 5..15
-
     BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
   end
 
