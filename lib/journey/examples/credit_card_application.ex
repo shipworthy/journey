@@ -37,7 +37,7 @@ defmodule Journey.Examples.CreditCardApplication do
       last_updated_at: 1234567890
     }
   iex> # We haven't heard from the customer, so we'll send a reminder in a few days (seconds;).
-  iex> execution |> Journey.get_value(:send_preapproval_reminder, wait_any: 20_000)
+  iex> execution |> Journey.get_value(:send_preapproval_reminder, wait_any: true)
   {:ok, true}
   iex>
   iex> # Reminded, the customer requests an actual credit card.
@@ -70,7 +70,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> execution = execution |> Journey.set_value(:credit_card_mailed, true)
   iex> execution |> Journey.get_value(:credit_card_mailed_notification, wait_any: true)
   {:ok, true}
-  iex> {:ok, _} = execution |> Journey.get_value(:archive, wait_any: 20_000)
+  iex> {:ok, _} = execution |> Journey.get_value(:archive, wait_any: true)
   iex> # This is only needed in tests.
   iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
