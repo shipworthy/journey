@@ -8,7 +8,7 @@ defmodule Journey.Graph.Step do
           gated_by: list,
           f_compute: function,
           f_on_save: function | nil,
-          type: Journey.Execution.ComputationType.t(),
+          type: Journey.Schema.Execution.ComputationType.t(),
           mutates: atom | nil,
           max_retries: pos_integer(),
           abandon_after_seconds: pos_integer()

@@ -1,6 +1,6 @@
 defmodule Journey.ExperimentsScripts do
   import Journey
-  alias Journey.Execution
+  alias Journey.Schema.Execution
   alias Journey.Graph
   alias Journey.Helpers.Random
 

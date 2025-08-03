@@ -1,8 +1,8 @@
-defmodule Journey.Execution.Values do
+defmodule Journey.Schema.Execution.Values do
   @moduledoc false
 
   import Ecto.Query
-  alias Journey.Execution.Value
+  alias Journey.Schema.Execution.Value
 
   def load_from_db(execution_id, repo) do
     from(v in Value, where: v.execution_id == ^execution_id)

@@ -6,8 +6,8 @@ defmodule Journey.Insights.FlowAnalytics do
   require Logger
   import Ecto.Query
 
-  alias Journey.Execution
-  alias Journey.Execution.Value
+  alias Journey.Schema.Execution
+  alias Journey.Schema.Execution.Value
   alias Journey.Repo
 
   @doc """

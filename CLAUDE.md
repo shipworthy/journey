@@ -69,7 +69,7 @@ Journey.get_value/3      # Retrieve node values
 ### Module Organization
 - `Journey` - Main API
 - `Journey.Graph` - Graph definition/validation
-- `Journey.Execution` - State management (Ecto schema)
+- `Journey.Schema.Execution` - State management (Ecto schema)
 - `Journey.Scheduler` - Background processing
 - `Journey.Executions` - Persistence layer
 

@@ -5,7 +5,7 @@ defmodule Journey.Scheduler.Helpers do
 
   require Logger
 
-  alias Journey.Execution
+  alias Journey.Schema.Execution
   import Journey.Helpers.Log
 
   def graph_from_execution_id(execution_id) do

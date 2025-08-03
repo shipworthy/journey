@@ -3,9 +3,9 @@ defmodule Journey.Scheduler.Available do
 
   import Ecto.Query
 
-  alias Journey.Execution
-  alias Journey.Execution.Computation
-  alias Journey.Execution.Value
+  alias Journey.Schema.Execution
+  alias Journey.Schema.Execution.Computation
+  alias Journey.Schema.Execution.Value
   alias Journey.Graph
   alias Journey.Node.UpstreamDependencies
 
@@ -36,7 +36,7 @@ defmodule Journey.Scheduler.Available do
           |> repo.all()
           |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-        all_value_nodes = Journey.Execution.Values.load_from_db(execution.id, repo)
+        all_value_nodes = Journey.Schema.Execution.Values.load_from_db(execution.id, repo)
 
         all_candidates_for_computation
         |> Enum.map(fn computation_candidate ->
