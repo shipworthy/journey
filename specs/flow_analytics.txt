@@ -66,8 +66,8 @@ Implementation Notes
 Database Queries Needed
 
 You'll likely need to query:
-- Journey.Schema.Execution table for execution counts and timing
-- Journey.Schema.Execution.Value table for node reach data and timing
+- Journey.Persistence.Schema.Execution table for execution counts and timing
+- Journey.Persistence.Schema.Execution.Value table for node reach data and timing
 - Join these appropriately and use the existing Journey query patterns
 
 Implementation & Testing

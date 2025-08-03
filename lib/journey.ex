@@ -160,7 +160,7 @@ defmodule Journey do
 
   """
 
-  alias Journey.Schema.Execution
+  alias Journey.Persistence.Schema.Execution
   alias Journey.Executions
   alias Journey.Graph
 
@@ -218,7 +218,7 @@ defmodule Journey do
   Archived executions are not loaded by default, but can be included by setting the `include_archived: true` option.
 
   ## Parameters:
-  - `execution_id` – the ID of the execution to load, or a `%Journey.Schema.Execution{}` struct.
+  - `execution_id` – the ID of the execution to load, or a `%Journey.Persistence.Schema.Execution{}` struct.
 
   ## Options:
   - `opts` – a keyword list of options. Supported options:
@@ -226,7 +226,7 @@ defmodule Journey do
     - `:include_archived` – whether to include archived executions. Defaults to `false`. If set to `true`, archived executions will be loaded even if they are not visible in the list of executions.
 
   ## Returns:
-  - A `%Journey.Schema.Execution{}` struct representing the loaded execution, or `nil` if the execution does not exist or is archived and not included.
+  - A `%Journey.Persistence.Schema.Execution{}` struct representing the loaded execution, or `nil` if the execution does not exist or is archived and not included.
   - If the execution is loaded successfully, it will have a `revision` field indicating the version of the execution.
   - If the execution is not found, it will return `nil`.
   - If the execution is archived and `include_archived: false` (or if `include_archived: ` is missing), it will return `nil`.
@@ -285,7 +285,7 @@ defmodule Journey do
   - `:include_archived` – whether to include archived executions. Defaults to `false`.
 
   ## Returns:
-  - A list of `%Journey.Schema.Execution{}` structs representing the executions that match the given criteria.
+  - A list of `%Journey.Persistence.Schema.Execution{}` structs representing the executions that match the given criteria.
 
   ## Examples:
 
@@ -342,7 +342,7 @@ defmodule Journey do
   - `graph`: The graph for which to start an execution. Must be a `%Journey.Graph{}` struct.
 
   ## Returns:
-  - A new `%Journey.Schema.Execution{}` struct representing the started execution.
+  - A new `%Journey.Persistence.Schema.Execution{}` struct representing the started execution.
 
   ## Examples:
 
@@ -634,7 +634,8 @@ defmodule Journey do
     Journey.Executions.archive_execution(execution_id)
   end
 
-  def archive(execution) when is_struct(execution, Journey.Schema.Execution), do: Journey.archive(execution.id)
+  def archive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
+    do: Journey.archive(execution.id)
 
   @doc """
   Un-archives the supplied execution, if it is archived.
@@ -670,7 +671,8 @@ defmodule Journey do
     Journey.Executions.unarchive_execution(execution_id)
   end
 
-  def unarchive(execution) when is_struct(execution, Journey.Schema.Execution), do: Journey.unarchive(execution.id)
+  def unarchive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
+    do: Journey.unarchive(execution.id)
 
   @default_timeout_ms 15_000
 

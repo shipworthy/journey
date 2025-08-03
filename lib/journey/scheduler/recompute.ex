@@ -4,9 +4,9 @@ defmodule Journey.Scheduler.Recompute do
   import Ecto.Query
   require Logger
 
-  alias Journey.Schema.Execution
-  alias Journey.Schema.Execution.Computation
-  alias Journey.Schema.Execution.Value
+  alias Journey.Persistence.Schema.Execution
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Value
   alias Journey.Graph
 
   import Journey.Helpers.Log

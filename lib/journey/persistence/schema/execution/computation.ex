@@ -1,14 +1,14 @@
-defmodule Journey.Schema.Execution.Computation do
+defmodule Journey.Persistence.Schema.Execution.Computation do
   @moduledoc false
 
   use Journey.Schema.Base
-  alias Journey.Schema.Execution.ComputationState
-  alias Journey.Schema.Execution.ComputationType
+  alias Journey.Persistence.Schema.Execution.ComputationState
+  alias Journey.Persistence.Schema.Execution.ComputationType
 
   @primary_key {:id, :string, autogenerate: {Journey.Helpers.Random, :object_id, ["CMP"]}}
 
   schema "computations" do
-    belongs_to(:execution, Journey.Schema.Execution)
+    belongs_to(:execution, Journey.Persistence.Schema.Execution)
     field(:node_name, :string)
     field(:computation_type, Ecto.Enum, values: ComputationType.values())
     field(:state, Ecto.Enum, values: ComputationState.values())

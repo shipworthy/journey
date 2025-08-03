@@ -33,7 +33,7 @@ Implementation requirements:
 6. If reasonable, the implementation should reuse the existing polling mechanism in load_value/4
 7. Note that value revisions are already stored in value's ex_revision field, e.g.
 ```
-  %Journey.Schema.Execution.Value{
+  %Journey.Persistence.Schema.Execution.Value{
     __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
     id: "VALDRRX6GA7JTLJL6HEEDV9",
     execution_id: "EXEC5ZX34R6HJBX62YT9YVHR",

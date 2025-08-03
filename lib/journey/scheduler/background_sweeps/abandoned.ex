@@ -3,7 +3,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
 
   require Logger
   import Ecto.Query
-  alias Journey.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Computation
 
   import Journey.Helpers.Log
 
@@ -24,7 +24,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
       Journey.Repo.transaction(fn repo ->
         abandoned_computations =
           from(c in from_computations(execution_id),
-            join: e in Journey.Schema.Execution,
+            join: e in Journey.Persistence.Schema.Execution,
             on: c.execution_id == e.id,
             where:
               c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second and

@@ -3,9 +3,9 @@ defmodule Journey.Scheduler.Available do
 
   import Ecto.Query
 
-  alias Journey.Schema.Execution
-  alias Journey.Schema.Execution.Computation
-  alias Journey.Schema.Execution.Value
+  alias Journey.Persistence.Schema.Execution
+  alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.Value
   alias Journey.Graph
   alias Journey.Node.UpstreamDependencies
 

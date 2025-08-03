@@ -1,4 +1,4 @@
-defmodule Journey.Schema.Execution.ComputationState do
+defmodule Journey.Persistence.Schema.Execution.ComputationState do
   @moduledoc false
 
   @type t :: :not_set | :computing | :set | :failed | :cancelled

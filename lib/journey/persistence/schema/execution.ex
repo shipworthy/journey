@@ -1,4 +1,4 @@
-defmodule Journey.Schema.Execution do
+defmodule Journey.Persistence.Schema.Execution do
   @moduledoc false
 
   use Journey.Schema.Base
@@ -9,8 +9,12 @@ defmodule Journey.Schema.Execution do
     field(:graph_name, :string)
     field(:graph_version, :string)
     field(:archived_at, :integer, default: nil)
-    has_many(:values, Journey.Schema.Execution.Value, preload_order: [desc: :ex_revision])
-    has_many(:computations, Journey.Schema.Execution.Computation, preload_order: [desc: :ex_revision_at_completion])
+    has_many(:values, Journey.Persistence.Schema.Execution.Value, preload_order: [desc: :ex_revision])
+
+    has_many(:computations, Journey.Persistence.Schema.Execution.Computation,
+      preload_order: [desc: :ex_revision_at_completion]
+    )
+
     # has_many(:computations, Journey.Schema.Computation, preload_order: [asc: :ex_revision])
     field(:revision, :integer, default: 0)
     timestamps()
