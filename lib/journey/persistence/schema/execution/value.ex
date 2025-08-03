@@ -16,7 +16,7 @@ end
 defmodule Journey.Persistence.Schema.Execution.Value do
   @moduledoc false
 
-  use Journey.Schema.Base
+  use Journey.Persistence.Schema.Base
 
   alias Journey.Persistence.Schema.Execution.ComputationType
 

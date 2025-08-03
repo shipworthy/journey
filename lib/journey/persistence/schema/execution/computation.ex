@@ -1,7 +1,7 @@
 defmodule Journey.Persistence.Schema.Execution.Computation do
   @moduledoc false
 
-  use Journey.Schema.Base
+  use Journey.Persistence.Schema.Base
   alias Journey.Persistence.Schema.Execution.ComputationState
   alias Journey.Persistence.Schema.Execution.ComputationType
 

@@ -1,7 +1,7 @@
 defmodule Journey.Persistence.Schema.Execution do
   @moduledoc false
 
-  use Journey.Schema.Base
+  use Journey.Persistence.Schema.Base
 
   @primary_key {:id, :string, autogenerate: {Journey.Helpers.Random, :object_id, ["EXEC"]}}
 
