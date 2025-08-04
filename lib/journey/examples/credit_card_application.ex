@@ -11,7 +11,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> execution = Journey.start_execution(graph)
   iex>
   iex> # This is only needed in a test, to perform background processing that happens automatically outside of tests.
-  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex>
   iex> execution = execution |> Journey.set_value(:full_name, "Mario")
   iex> execution = execution |> Journey.set_value(:birth_date, "10/11/1981")
@@ -57,7 +57,7 @@ defmodule Journey.Examples.CreditCardApplication do
   {:ok, true}
   iex> {:ok, _} = execution |> Journey.get_value(:archive, wait_any: 30_000)
   iex> # This is only needed in tests.
-  iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```
 

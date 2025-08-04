@@ -87,7 +87,7 @@ docker exec -it new_journey-postgres-db psql -U postgres journey_test
 **Testing Patterns**:
 - ExUnit with doctests in module documentation
 - Use `redact/2` helper for masking dynamic values (IDs, timestamps)
-- Background sweeps: `Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test/1`
+- Background sweeps: `Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test/1`
 - Performance tests in `test_load/performance_benchmark.exs`
 
 ## Code Quality

@@ -5,7 +5,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesOptimizationTest do
 
   alias Journey.Examples.CreditCardApplication
   alias Journey.Persistence.Schema.SweepRun
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
+  alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
 
   describe "sweep/1 optimization" do
     test "only processes executions updated since last sweep" do

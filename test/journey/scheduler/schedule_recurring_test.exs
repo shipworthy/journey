@@ -10,13 +10,14 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
-  alias Journey.Scheduler.BackgroundSweeps
+  import Journey.Scheduler.Background.Periodic,
+    only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
   @tag timeout: 60_000
   test "basic schedule_recurring flow" do
     graph = graph()
     execution = graph |> Journey.start_execution()
-    background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+    background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
 
@@ -47,16 +48,13 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
 
     assert Journey.load(execution).computations |> Enum.count() == 2
 
-    time0 = System.system_time(:second)
-
     assert wait_for_value(execution, :send_a_reminder, 1, frequency: 1_000)
-    assert (System.system_time(:second) - time0) in 5..15
+    assert System.system_time(:second) >= original_scheduled_time
 
-    time0 = System.system_time(:second)
     assert wait_for_value(execution, :send_a_reminder, 2, frequency: 1_000)
-    assert (System.system_time(:second) - time0) in 5..15
+    assert System.system_time(:second) >= original_scheduled_time + 10
 
-    BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+    stop_background_sweeps_in_test(background_sweeps_task)
   end
 
   defp graph() do

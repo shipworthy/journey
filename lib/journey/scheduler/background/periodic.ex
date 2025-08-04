@@ -1,14 +1,14 @@
-defmodule Journey.Scheduler.BackgroundSweeps do
+defmodule Journey.Scheduler.Background.Periodic do
   @moduledoc false
 
   require Logger
 
   import Journey.Helpers.Log
 
-  alias Journey.Scheduler.BackgroundSweeps.Abandoned
-  alias Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
-  alias Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule
+  alias Journey.Scheduler.Background.Sweeps.Abandoned
+  alias Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring
+  alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
+  alias Journey.Scheduler.Background.Sweeps.UnblockedBySchedule
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
 
@@ -63,7 +63,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   defp sweep_forever(eid) do
     :timer.sleep(500)
-    Journey.Scheduler.BackgroundSweeps.run_sweeps(eid)
+    Journey.Scheduler.Background.Periodic.run_sweeps(eid)
     sweep_forever(eid)
   end
 end

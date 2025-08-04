@@ -129,19 +129,19 @@ defmodule LoadTest.PerformanceBenchmark do
 
         IO.puts("[#{i}] running abandoned sweeps")
         abandoned_sweep_start = System.monotonic_time(:millisecond)
-        Journey.Scheduler.BackgroundSweeps.Abandoned.sweep(nil)
+        Journey.Scheduler.Background.Sweeps.Abandoned.sweep(nil)
         abandoned_sweep_duration = System.monotonic_time(:millisecond) - abandoned_sweep_start
         IO.puts("[#{i}] abandoned sweeps completed after #{abandoned_sweep_duration}ms")
 
         IO.puts("[#{i}] running ScheduleNodes sweeps")
         background_sweep_start = System.monotonic_time(:millisecond)
-        {_kicked_count, _sweep_run_id} = Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil)
+        {_kicked_count, _sweep_run_id} = Journey.Scheduler.Background.Sweeps.ScheduleNodes.sweep(nil)
         background_sweep_duration = System.monotonic_time(:millisecond) - background_sweep_start
         IO.puts("[#{i}] ScheduleNodes sweeps completed after #{background_sweep_duration}ms")
 
         IO.puts("[#{i}] running unblocked sweeps")
         unblocked_sweep_start = System.monotonic_time(:millisecond)
-        Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
+        Journey.Scheduler.Background.Sweeps.UnblockedBySchedule.sweep(nil, 5)
         unblocked_sweep_duration = System.monotonic_time(:millisecond) - unblocked_sweep_start
         IO.puts("[#{i}] unblocked sweeps completed after #{unblocked_sweep_duration}ms")
 
@@ -225,8 +225,8 @@ defmodule LoadTest.PerformanceBenchmark do
       |> Enum.map(fn _ ->
         Task.async(fn ->
           [
-            elem(Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil), 0),
-            Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
+            elem(Journey.Scheduler.Background.Sweeps.ScheduleNodes.sweep(nil), 0),
+            Journey.Scheduler.Background.Sweeps.UnblockedBySchedule.sweep(nil, 5)
           ]
         end)
       end)
