@@ -11,7 +11,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
     find_and_maybe_reschedule(execution_id)
     |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
     |> Enum.uniq()
-    |> Enum.map(fn swept_execution_id -> Journey.Scheduler.BackgroundSweeps.Kick.kick(swept_execution_id) end)
+    |> Enum.map(fn swept_execution_id -> Journey.kick(swept_execution_id) end)
   end
 
   def find_and_maybe_reschedule(execution_id) do

@@ -678,6 +678,12 @@ defmodule Journey do
   def unarchive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
     do: Journey.unarchive(execution.id)
 
+  def kick(execution_id) when is_binary(execution_id) do
+    execution_id
+    |> Journey.load()
+    |> Journey.Scheduler.advance()
+  end
+
   @default_timeout_ms 30_000
 
   defp determine_timeout(false, false), do: nil
