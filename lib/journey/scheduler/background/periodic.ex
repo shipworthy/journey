@@ -8,7 +8,7 @@ defmodule Journey.Scheduler.Background.Periodic do
   alias Journey.Scheduler.Background.Sweeps.Abandoned
   alias Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring
   alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
-  alias Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule
+  alias Journey.Scheduler.Background.Sweeps.UnblockedBySchedule
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
 
