@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodes do
+defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
   @moduledoc false
 
   require Logger

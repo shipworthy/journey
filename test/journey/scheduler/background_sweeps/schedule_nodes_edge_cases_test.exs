@@ -2,7 +2,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesEdgeCasesTest do
   use ExUnit.Case, async: true
 
   alias Journey.Persistence.Schema.SweepRun
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
+  alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
 
   describe "edge cases and error scenarios" do
     test "handles sweep operation gracefully" do

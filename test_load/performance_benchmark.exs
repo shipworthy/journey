@@ -135,7 +135,7 @@ defmodule LoadTest.PerformanceBenchmark do
 
         IO.puts("[#{i}] running ScheduleNodes sweeps")
         background_sweep_start = System.monotonic_time(:millisecond)
-        {_kicked_count, _sweep_run_id} = Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil)
+        {_kicked_count, _sweep_run_id} = Journey.Scheduler.Background.Sweeps.ScheduleNodes.sweep(nil)
         background_sweep_duration = System.monotonic_time(:millisecond) - background_sweep_start
         IO.puts("[#{i}] ScheduleNodes sweeps completed after #{background_sweep_duration}ms")
 
@@ -225,7 +225,7 @@ defmodule LoadTest.PerformanceBenchmark do
       |> Enum.map(fn _ ->
         Task.async(fn ->
           [
-            elem(Journey.Scheduler.BackgroundSweeps.ScheduleNodes.sweep(nil), 0),
+            elem(Journey.Scheduler.Background.Sweeps.ScheduleNodes.sweep(nil), 0),
             Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
           ]
         end)

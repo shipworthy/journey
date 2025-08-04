@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring do
+defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
   @moduledoc false
 
   require Logger

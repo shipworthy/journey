@@ -2,7 +2,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesCoreTest do
   use ExUnit.Case, async: true
 
   alias Journey.Persistence.Schema.SweepRun
-  alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
+  alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
 
   describe "get_last_sweep_cutoff/1" do
     test "returns last completed sweep's started_at timestamp minus 60 seconds" do
