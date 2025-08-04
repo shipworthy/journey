@@ -6,9 +6,14 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
   import Journey.Node.UpstreamDependencies
   import Journey.Helpers.Random, only: [random_string: 0]
 
+  import Journey.Scheduler.BackgroundSweeps,
+    only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
+
   alias Journey.Insights.FlowAnalytics, as: Insights
 
   setup do
+    background_sweep_id = start_background_sweeps_in_test(nil)
+    on_exit(fn -> stop_background_sweeps_in_test(background_sweep_id) end)
     {:ok, test_id: random_string()}
   end
 
