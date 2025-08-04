@@ -1,0 +1,144 @@
+defmodule Journey.JourneyListExecutionsTest do
+  use ExUnit.Case, async: true
+
+  import Journey.Helpers.Random, only: [random_string: 0]
+
+  import Journey.Node
+  import Journey.Node.Conditions
+  import Journey.Node.UpstreamDependencies
+
+  describe "list_executions" do
+    test "sunny day, limit / offset" do
+      graph = basic_graph(random_string())
+      for i <- 1..100, do: Journey.start_execution(graph) |> Journey.set_value(:first_name, i)
+
+      listed_executions = Journey.list_executions(graph_name: graph.name, limit: 20)
+      assert Enum.count(listed_executions) == 20
+
+      listed_executions = Journey.list_executions(graph_name: graph.name, limit: 11, offset: 30)
+      assert Enum.count(listed_executions) == 11
+
+      listed_executions = Journey.list_executions(graph_name: graph.name, limit: 20, offset: 90)
+      assert Enum.count(listed_executions) == 10
+    end
+
+    test "sunny day, filer by value" do
+      graph = basic_graph(random_string())
+      for i <- 1..100, do: Journey.start_execution(graph) |> Journey.set_value(:first_name, i)
+
+      listed_executions = Journey.list_executions(graph_name: graph.name)
+      assert Enum.count(listed_executions) == 100
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :lt, 20}])
+      assert Enum.count(some_executions) == 19
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :lte, 20}])
+      assert Enum.count(some_executions) == 20
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 50}])
+      assert Enum.count(some_executions) == 1
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :neq, 50}])
+      assert Enum.count(some_executions) == 99
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :gt, 60}])
+      assert Enum.count(some_executions) == 40
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :gte, 60}])
+      assert Enum.count(some_executions) == 41
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :in, [20, 22]}])
+      assert Enum.count(some_executions) == 2
+
+      neq = fn node_value, val -> node_value != val end
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, neq, 1}])
+      assert Enum.count(some_executions) == 99
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_not_nil}])
+      assert Enum.count(some_executions) == 100
+
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_nil}])
+      assert some_executions == []
+
+      is_one = fn node_value -> node_value == 1 end
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, is_one}])
+      assert Enum.count(some_executions) == 1
+    end
+
+    test "sunny day, by graph name" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+
+      Process.sleep(1_000)
+      listed_executions = Journey.list_executions(graph_name: execution.graph_name)
+
+      for le <- listed_executions do
+        # Making sure that values and computations are loaded.
+        assert Enum.count(le.values) == 4
+        assert Enum.count(le.computations) == 1, "#{inspect(le.computations)}"
+      end
+
+      assert execution.id in (listed_executions |> Enum.map(& &1.id))
+    end
+
+    test "sunny day, sort by inserted_at (which is updated after a set_value)" do
+      test_id = random_string()
+
+      execution_ids =
+        Enum.map(1..3, fn _ ->
+          basic_graph(test_id)
+          |> Journey.start_execution()
+          |> Map.get(:id)
+          |> tap(fn _ -> Process.sleep(1_000) end)
+        end)
+
+      # Updating the first execution should put it at the back.
+      [first_id | remaining_ids] = execution_ids
+
+      updated_execution =
+        first_id
+        |> Journey.load()
+        |> Journey.set_value(:first_name, "Mario")
+
+      expected_order = remaining_ids ++ [first_id]
+      {:ok, "Hello, Mario"} = Journey.get_value(updated_execution, :greeting, wait_any: true)
+
+      listed_execution_ids =
+        Journey.list_executions(graph_name: basic_graph(test_id).name, order_by_execution_fields: [:updated_at])
+        |> Enum.map(& &1.id)
+        |> Enum.filter(fn id -> id in execution_ids end)
+
+      assert expected_order == listed_execution_ids
+    end
+
+    test "no executions" do
+      assert Journey.list_executions(graph_name: "no_such_graph") == []
+    end
+
+    test "unexpected option" do
+      assert_raise ArgumentError,
+                   "Unknown options: [:graph]. Known options: [:graph_name, :include_archived, :limit, :offset, :order_by_execution_fields, :value_filters].",
+                   fn ->
+                     Journey.list_executions(graph: "no_such_graph")
+                   end
+    end
+  end
+
+  defp basic_graph(test_id) do
+    Journey.new_graph(
+      "basic graph, greetings #{__MODULE__} #{test_id}",
+      "1.0.0",
+      [
+        input(:first_name),
+        compute(
+          :greeting,
+          unblocked_when({:first_name, &provided?/1}),
+          fn %{first_name: first_name} ->
+            {:ok, "Hello, #{first_name}"}
+          end
+        )
+      ]
+    )
+  end
+end
