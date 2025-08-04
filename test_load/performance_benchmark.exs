@@ -129,7 +129,7 @@ defmodule LoadTest.PerformanceBenchmark do
 
         IO.puts("[#{i}] running abandoned sweeps")
         abandoned_sweep_start = System.monotonic_time(:millisecond)
-        Journey.Scheduler.BackgroundSweeps.Abandoned.sweep(nil)
+        Journey.Scheduler.Background.Sweeps.Abandoned.sweep(nil)
         abandoned_sweep_duration = System.monotonic_time(:millisecond) - abandoned_sweep_start
         IO.puts("[#{i}] abandoned sweeps completed after #{abandoned_sweep_duration}ms")
 

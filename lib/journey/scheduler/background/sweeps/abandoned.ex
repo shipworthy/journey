@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.BackgroundSweeps.Abandoned do
+defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
   @moduledoc false
 
   require Logger

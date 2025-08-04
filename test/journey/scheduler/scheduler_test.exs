@@ -9,7 +9,7 @@ defmodule Journey.Scheduler.SchedulerTest do
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
-  alias Journey.Scheduler.BackgroundSweeps.Abandoned
+  alias Journey.Scheduler.Background.Sweeps.Abandoned
 
   describe "advance |" do
     test "no executable steps" do

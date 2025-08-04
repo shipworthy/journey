@@ -5,7 +5,7 @@ defmodule Journey.Scheduler.Background.Periodic do
 
   import Journey.Helpers.Log
 
-  alias Journey.Scheduler.BackgroundSweeps.Abandoned
+  alias Journey.Scheduler.Background.Sweeps.Abandoned
   alias Journey.Scheduler.BackgroundSweeps.RegenerateScheduleRecurring
   alias Journey.Scheduler.BackgroundSweeps.ScheduleNodes
   alias Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule
