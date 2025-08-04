@@ -1,0 +1,45 @@
+Split the test file test/journey/scheduler/scheduler_test.exs into two smaller test modules for better parallel execution.
+
+Current state:
+- The file has 215 lines with 8 test cases
+- It has 2 describe blocks: "advance |" and "find_and_maybe_reschedule |"
+- Contains 6 Process.sleep calls making these very long-running tests
+- Tests cover retry logic, failure handling, and abandoned computation detection
+
+Required changes:
+1. Create two new test files:
+   - test/journey/scheduler/scheduler_advance_test.exs
+     * Move all tests from the "advance |" describe block
+     * Tests include: "sunny day, retry", "sunny day, failure", "sunny day, backpressure"
+     * These tests handle retry logic and failure scenarios
+     * Include the graph_factory/1 helper function
+   
+   - test/journey/scheduler/scheduler_abandoned_test.exs
+     * Move all tests from the "find_and_maybe_reschedule |" describe block
+     * Tests include: "sunny day, abandoned", "sunny day, just missed the abandoned check"
+     * Focus on abandoned computation detection and rescheduling
+     * Include necessary helper functions
+
+2. Update the original scheduler_test.exs file:
+   - Replace with a simple placeholder module similar to journey_test.exs
+   - Add a @moduledoc explaining the split into:
+     - Journey.Scheduler.SchedulerAdvanceTest (retry and failure logic)
+     - Journey.Scheduler.SchedulerAbandonedTest (abandoned computation handling)
+
+3. Ensure each new module:
+   - Has `use ExUnit.Case, async: true`
+   - Imports all necessary modules (Journey.Node, Journey.Node.Conditions, etc.)
+   - Includes required imports like Journey.Helpers.Random
+   - Contains the graph_factory helper function where needed
+
+4. Special considerations:
+   - The @tag :skip on "TODO: run this in a sql sandbox" test should be preserved
+   - Long Process.sleep calls should remain to test timing-sensitive behavior
+   - Both modules will benefit from parallel execution due to the sleep calls
+
+5. Run `mix format` and `make validate` to ensure:
+   - All tests pass (except the skipped one)
+   - Proper formatting
+   - No warnings
+
+The goal is to separate retry/failure logic tests from abandoned computation tests, allowing these long-running tests to execute in parallel.

@@ -1,0 +1,50 @@
+Split the test file test/journey/graph/catalog_test.exs into four smaller test modules for better parallel execution.
+
+Current state:
+- The file has 168 lines with 17 test cases (highest test count)
+- It has 4 describe blocks: "all/0", "get/1", "name/1", and "put/1"
+- Tests cover the graph catalog functionality for storing and retrieving graphs
+
+Required changes:
+1. Create four new test files:
+   - test/journey/graph/catalog_all_test.exs
+     * Move all tests from the "all/0" describe block
+     * Tests listing all graphs in the catalog
+     * Include necessary setup for adding test graphs
+   
+   - test/journey/graph/catalog_get_test.exs
+     * Move all tests from the "get/1" describe block
+     * Tests retrieving specific graphs by name
+     * Include error cases like "no such graph"
+   
+   - test/journey/graph/catalog_name_test.exs
+     * Move all tests from the "name/1" describe block
+     * Tests graph name validation and normalization
+     * Include the name validation helper functions
+   
+   - test/journey/graph/catalog_put_test.exs
+     * Move all tests from the "put/1" describe block
+     * Tests adding graphs to the catalog
+     * Include validation for graph names and versions
+
+2. Update the original catalog_test.exs file:
+   - Replace with a simple placeholder module similar to journey_test.exs
+   - Add a @moduledoc listing the four new test modules
+
+3. Ensure each new module:
+   - Has `use ExUnit.Case, async: true`
+   - Imports necessary modules (Journey.Graph.Catalog, Journey.Node, etc.)
+   - Contains any shared helper functions needed
+   - Uses Journey.Helpers.Random for test data generation where applicable
+
+4. Shared setup:
+   - Each module may need its own test graphs
+   - Consider if any shared test data setup is needed
+   - Ensure graph names are unique to avoid conflicts in parallel execution
+
+5. Run `mix format` and `make validate` to ensure:
+   - All 17 tests still pass
+   - Proper formatting
+   - No conflicts between parallel test runs
+
+The goal is to split by functionality (all/get/name/put operations), allowing the 17 tests to run in 4 parallel groups instead of sequentially.
