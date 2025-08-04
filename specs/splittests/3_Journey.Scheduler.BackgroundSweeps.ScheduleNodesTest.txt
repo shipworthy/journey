@@ -1,0 +1,43 @@
+Split the test file test/journey/scheduler/background_sweeps/schedule_nodes_test.exs into three smaller test modules for better parallel execution.
+
+Current state:
+- The file has 280 lines with 12 test cases
+- It has 3 describe blocks testing different aspects
+- Contains 4 Process.sleep calls indicating long-running tests
+- Tests cover sweep optimization, core functionality, and edge cases
+
+Required changes:
+1. Create three new test files:
+   - test/journey/scheduler/background_sweeps/schedule_nodes_optimization_test.exs
+     * Move tests from the first describe block about sweep optimization
+     * Include tests like "only runs if needed (unoptimized)"
+     * Contains Process.sleep calls that make these tests long-running
+   
+   - test/journey/scheduler/background_sweeps/schedule_nodes_core_test.exs
+     * Move tests for basic schedule_once and schedule_recurring functionality
+     * Include the main sunny day test cases
+     * Keep helper functions like graph_factory/2
+   
+   - test/journey/scheduler/background_sweeps/schedule_nodes_edge_cases_test.exs
+     * Move edge case tests and error scenarios
+     * Include tests for invalid schedules, error handling
+     * Keep validation-focused tests
+
+2. Update the original schedule_nodes_test.exs file:
+   - Replace with a simple placeholder module similar to journey_test.exs
+   - Add a @moduledoc explaining the split into three modules
+
+3. Ensure each new module:
+   - Has `use ExUnit.Case, async: true`
+   - Imports Journey.Scheduler.BackgroundSweeps and other necessary modules
+   - Contains required helper functions (graph_factory, etc.)
+   - Properly starts background sweeps in setup where needed
+
+4. Special attention to:
+   - Tests with Process.sleep should remain functional
+   - Background sweep initialization in setup blocks
+   - Shared helper functions should be duplicated where needed
+
+5. Run `mix format` and `make validate` to ensure all tests pass
+
+The goal is to separate long-running optimization tests from core functionality and edge cases, significantly improving parallel execution time.

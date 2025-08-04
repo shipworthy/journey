@@ -1,0 +1,37 @@
+Split the test file test/journey/insights/flow_analytics_test.exs into two smaller test modules for better parallel execution.
+
+Current state:
+- The file has 389 lines with 12 test cases
+- It has two distinct describe blocks: "flow_analytics/3" and "flow_analytics/3 validation"
+- Tests cover both core functionality and validation scenarios
+
+Required changes:
+1. Create two new test files:
+   - test/journey/insights/flow_analytics_core_test.exs
+     * Move all tests from the "flow_analytics/3" describe block
+     * Tests include: "returns structure", "returns execution_name", "correctly reports percentages", etc.
+     * Include all helper functions like basic_graph/1, graph_factory/2
+   
+   - test/journey/insights/flow_analytics_validation_test.exs
+     * Move all tests from the "flow_analytics/3 validation" describe block  
+     * Tests include: "raises on invalid argument", "no graph_name", "no node_name", etc.
+     * Include minimal helper functions needed for validation tests
+
+2. Update the original flow_analytics_test.exs file:
+   - Replace with a simple placeholder module similar to journey_test.exs
+   - Add a @moduledoc explaining that tests have been split into:
+     - Journey.Insights.FlowAnalyticsCoreTest
+     - Journey.Insights.FlowAnalyticsValidationTest
+
+3. Ensure each new module:
+   - Has `use ExUnit.Case, async: true`
+   - Imports all necessary modules (Journey.Node, Journey.Node.Conditions, Journey.Node.UpstreamDependencies)
+   - Contains appropriate helper functions
+   - Uses consistent module naming
+
+4. Run `mix format` on all files and then `make validate` to ensure:
+   - All tests pass
+   - Code is properly formatted
+   - No warnings or errors
+
+The goal is to separate core functionality tests from validation tests, allowing them to run in parallel and making the test suite more organized.

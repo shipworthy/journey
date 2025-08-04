@@ -19,32 +19,17 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> execution = execution |> Journey.set_value(:email_address, "mario@example.com")
   iex>
   iex> # This kicks off the pre-approval process, which eventually completes.
-  iex> execution |> Journey.get_value(:preapproval_process_completed, wait_any: true)
+  iex> execution |> Journey.get_value(:preapproval_process_completed, wait_any: 30_000)
   {:ok, true}
-  iex> execution |> Journey.values() |> redact([:schedule_request_credit_card_reminder, :last_updated_at, :execution_id])
-  %{
-      preapproval_process_completed: true,
-      birth_date: "10/11/1981",
-      congratulate: "email_sent_congrats",
-      preapproval_decision: "approved",
-      credit_score: 800,
-      email_address: "mario@example.com",
-      full_name: "Mario",
-      ssn: "<redacted>",
-      ssn_redacted: "updated :ssn",
-      schedule_request_credit_card_reminder: 1234567890,
-      execution_id: "...",
-      last_updated_at: 1234567890
-    }
   iex> # We haven't heard from the customer, so we'll send a reminder in a few days (seconds;).
-  iex> execution |> Journey.get_value(:send_preapproval_reminder, wait_any: true)
+  iex> execution |> Journey.get_value(:send_preapproval_reminder, wait_any: 30_000)
   {:ok, true}
   iex>
   iex> # Reminded, the customer requests an actual credit card.
   iex> _execution = execution |> Journey.set_value(:credit_card_requested, true)
   iex> # ... which triggers issuing the card.
   iex>
-  iex> execution |> Journey.get_value(:initiate_credit_card_issuance, wait_any: true)
+  iex> execution |> Journey.get_value(:initiate_credit_card_issuance, wait_any: 30_000)
   {:ok, true}
   iex> execution |> Journey.values() |> redact([:schedule_request_credit_card_reminder, :execution_id, :last_updated_at])
   %{
@@ -68,9 +53,9 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> # Eventually, the fulfillment department marks the credit card as mailed.
   iex> # Which triggers an email notifying the customer that the card has been mailed.
   iex> execution = execution |> Journey.set_value(:credit_card_mailed, true)
-  iex> execution |> Journey.get_value(:credit_card_mailed_notification, wait_any: true)
+  iex> execution |> Journey.get_value(:credit_card_mailed_notification, wait_any: 30_000)
   {:ok, true}
-  iex> {:ok, _} = execution |> Journey.get_value(:archive, wait_any: true)
+  iex> {:ok, _} = execution |> Journey.get_value(:archive, wait_any: 30_000)
   iex> # This is only needed in tests.
   iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 

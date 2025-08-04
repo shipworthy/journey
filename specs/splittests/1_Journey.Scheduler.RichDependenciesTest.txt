@@ -1,0 +1,37 @@
+Split the test file test/journey/scheduler/rich_dependencies_test.exs into multiple smaller test modules for better parallel execution.
+
+Current state:
+- The file has 442 lines with 8 test cases testing various dependency conditions
+- It contains complex tests for :and, :or, and nested conditions
+- There's substantial commented-out code (~70 lines) that should be removed
+
+Required changes:
+1. Create three new test files:
+   - test/journey/scheduler/rich_dependencies_basic_test.exs
+     * Move tests for simple single conditions (e.g., "sunny day, single condition", ":provided? condition")
+     * Include the basic_graph helper function
+   
+   - test/journey/scheduler/rich_dependencies_complex_test.exs  
+     * Move tests for compound conditions (e.g., ":and condition", ":or condition", nested conditions)
+     * Include necessary helper functions
+   
+   - test/journey/scheduler/rich_dependencies_mutate_test.exs
+     * Move the "sunny day, mutations" test
+     * Include the mutate-specific helper functions
+
+2. Update the original rich_dependencies_test.exs file:
+   - Replace with a simple placeholder module similar to journey_test.exs
+   - Add a @moduledoc explaining the split
+
+3. Ensure each new module:
+   - Has `use ExUnit.Case, async: true`
+   - Imports all necessary modules (Journey.Node, Journey.Node.Conditions, etc.)
+   - Contains its own copy of shared helper functions
+   - Maintains the same test functionality
+
+4. Clean up:
+   - Remove all commented-out code
+   - Ensure proper formatting with `mix format`
+   - Run `make validate` to ensure all tests pass
+
+The goal is to enable better parallel test execution while maintaining all existing test coverage.
