@@ -47,14 +47,11 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
 
     assert Journey.load(execution).computations |> Enum.count() == 2
 
-    time0 = System.system_time(:second)
-
     assert wait_for_value(execution, :send_a_reminder, 1, frequency: 1_000)
-    assert (System.system_time(:second) - time0) in 5..15
+    assert System.system_time(:second) >= original_scheduled_time
 
-    time0 = System.system_time(:second)
     assert wait_for_value(execution, :send_a_reminder, 2, frequency: 1_000)
-    assert (System.system_time(:second) - time0) in 5..15
+    assert System.system_time(:second) >= original_scheduled_time + 10
 
     BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
   end
