@@ -226,7 +226,7 @@ defmodule LoadTest.PerformanceBenchmark do
         Task.async(fn ->
           [
             elem(Journey.Scheduler.Background.Sweeps.ScheduleNodes.sweep(nil), 0),
-            Journey.Scheduler.BackgroundSweeps.UnblockedBySchedule.sweep(nil, 5)
+            Journey.Scheduler.Background.Sweeps.UnblockedBySchedule.sweep(nil, 5)
           ]
         end)
       end)
