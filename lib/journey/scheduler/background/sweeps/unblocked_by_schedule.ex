@@ -8,11 +8,13 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
   alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.Execution.Value
 
-  defp q_execution_ids_to_advance(execution_id, sweeper_period) do
+  defp q_execution_ids_to_advance(execution_id, sweeper_period_seconds) do
     # Find all executions that have schedule_* computations that have "recently" come due.
 
     now = System.system_time(:second)
-    cutoff_time = now - max(sweeper_period * 5, 60)
+    time_window_seconds = 5 * sweeper_period_seconds
+
+    cutoff_time = now - time_window_seconds
 
     from(e in q_executions(execution_id),
       join: c in assoc(e, :computations),
@@ -37,10 +39,8 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
   @doc false
   def sweep(execution_id, sweeper_period)
       when (is_nil(execution_id) or is_binary(execution_id)) and is_number(sweeper_period) do
-    # Find and compute all un-computed computations that are downstream of computed schedule_once computations, that are due within the scheduled time window
-
     prefix = "[#{mf()}] [#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting #{execution_id}")
+    Logger.info("#{prefix}: starting #{execution_id}")
 
     q = q_execution_ids_to_advance(execution_id, sweeper_period)
 
@@ -62,7 +62,7 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
       end
 
     if kicked_count == 0 do
-      Logger.debug("#{prefix}: no recently due pulse value(s) found")
+      Logger.info("#{prefix}: no recently due pulse value(s) found")
     else
       Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
     end
@@ -73,6 +73,6 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
   end
 
   defp q_executions(execution_id) do
-    from(e in q_executions(nil), where: e.id == ^execution_id)
+    from(e in q_executions(nil), where: is_nil(e.archived_at) and e.id == ^execution_id)
   end
 end
