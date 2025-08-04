@@ -141,7 +141,7 @@ defmodule LoadTest.PerformanceBenchmark do
 
         IO.puts("[#{i}] running unblocked sweeps")
         unblocked_sweep_start = System.monotonic_time(:millisecond)
-        Journey.Scheduler.Background.Sweeps.ScheduleNodes.sweep(nil, 5)
+        Journey.Scheduler.Background.Sweeps.UnblockedBySchedule.sweep(nil, 5)
         unblocked_sweep_duration = System.monotonic_time(:millisecond) - unblocked_sweep_start
         IO.puts("[#{i}] unblocked sweeps completed after #{unblocked_sweep_duration}ms")
 
