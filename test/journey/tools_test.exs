@@ -1,7 +1,8 @@
 defmodule Journey.ToolsTest do
   use ExUnit.Case, async: true
 
-  alias Journey.Scheduler.BackgroundSweeps
+  import Journey.Scheduler.Background.Periodic,
+    only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
   describe "summarize/1" do
     test "basic validation" do
@@ -34,7 +35,7 @@ defmodule Journey.ToolsTest do
         Journey.start_execution(graph)
         |> Journey.set_value(:user_name, "John Doe")
 
-      background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
@@ -47,7 +48,7 @@ defmodule Journey.ToolsTest do
              - Archived at: not archived
              """
 
-      BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+      stop_background_sweeps_in_test(background_sweeps_task)
     end
   end
 
@@ -76,7 +77,7 @@ defmodule Journey.ToolsTest do
         Journey.start_execution(graph)
         |> Journey.set_value(:user_name, "John Doe")
 
-      background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
       execution = execution |> Journey.load()
@@ -87,7 +88,7 @@ defmodule Journey.ToolsTest do
       execution = execution |> Journey.load()
       assert execution.revision == 12
 
-      BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+      stop_background_sweeps_in_test(background_sweeps_task)
     end
   end
 
@@ -122,14 +123,14 @@ defmodule Journey.ToolsTest do
         execution
         |> Journey.set_value(:user_name, "John Doe")
 
-      background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
       ocs = Journey.Tools.outstanding_computations(execution.id)
       assert ocs == []
 
-      BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+      stop_background_sweeps_in_test(background_sweeps_task)
     end
   end
 end

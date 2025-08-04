@@ -239,10 +239,10 @@ defmodule Journey.Node do
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
-  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex> execution |> Journey.get_value(:nap_time, wait_any: true)
   {:ok, "It's time to take a nap, Mario!"}
-  iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```
 
@@ -302,7 +302,7 @@ defmodule Journey.Node do
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
-  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex> # Wait for initial reminders
   iex> {:ok, count1} = Journey.get_value(execution, :send_a_reminder, wait_any: true)
   iex> count1 >= 1
@@ -312,7 +312,7 @@ defmodule Journey.Node do
   iex> {:ok, count2} = Journey.get_value(execution, :send_a_reminder, wait_new: 5_000)
   iex> count2 > count1
   true
-  iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```
 

@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.BackgroundSweeps do
+defmodule Journey.Scheduler.Background.Periodic do
   @moduledoc false
 
   require Logger
@@ -63,7 +63,7 @@ defmodule Journey.Scheduler.BackgroundSweeps do
 
   defp sweep_forever(eid) do
     :timer.sleep(500)
-    Journey.Scheduler.BackgroundSweeps.run_sweeps(eid)
+    Journey.Scheduler.Background.Periodic.run_sweeps(eid)
     sweep_forever(eid)
   end
 end

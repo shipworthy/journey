@@ -29,7 +29,7 @@ Required changes:
 
 3. Ensure each new module:
    - Has `use ExUnit.Case, async: true`
-   - Imports Journey.Scheduler.BackgroundSweeps and other necessary modules
+   - Imports Journey.Scheduler.Background.Periodic and other necessary modules
    - Contains required helper functions (graph_factory, etc.)
    - Properly starts background sweeps in setup where needed
 

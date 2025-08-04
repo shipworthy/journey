@@ -3,7 +3,8 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
 
   import Journey.Node
 
-  alias Journey.Scheduler.BackgroundSweeps
+  import Journey.Scheduler.Background.Periodic,
+    only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
   test "basic pulse" do
     graph = simple_graph()
@@ -11,7 +12,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
 
     start_time = System.system_time(:second)
 
-    background_sweeps_task = BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+    background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
     execution = execution |> Journey.set_value(:user_name, "Mario")
 
@@ -58,7 +59,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
 
     assert end_time - start_time >= 10
 
-    BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+    stop_background_sweeps_in_test(background_sweeps_task)
 
     # TODO: add a recompute (modify user_name) and watch the change propagate (think through use cases).
   end

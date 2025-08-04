@@ -239,7 +239,7 @@ defmodule Journey do
   iex> execution.revision
   0
   iex> # This is only needed in a test, to perform background processing that happens automatically outside of tests.
-  iex> background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex> execution |> Journey.set_value(:birth_day, 26) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
   iex> # Wait for the computations to complete, and reload the execution, which will now have a new revision.
   iex> Journey.get_value(execution, :library_of_congress_record, wait_any: true)
@@ -248,7 +248,7 @@ defmodule Journey do
   iex> execution.revision
   9
   iex> # This is only needed in tests.
-  iex> Journey.Scheduler.BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
+  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
   ```
 
   """
