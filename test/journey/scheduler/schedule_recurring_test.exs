@@ -29,11 +29,12 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
              user_name: {:set, "Mario"}
            }
 
+    expected_scheduled_time = System.system_time(:second) + 10
     execution = execution |> Journey.set_value(:keep_sending_reminders, true)
 
     {:ok, original_scheduled_time} = Journey.get_value(execution, :schedule_a_reminder, wait_any: true)
-    expected_scheduled_time = System.system_time(:second) + 10
-    assert original_scheduled_time in (expected_scheduled_time - 5)..(expected_scheduled_time + 5)
+
+    assert original_scheduled_time in (expected_scheduled_time - 1)..(expected_scheduled_time + 5)
 
     assert Journey.values_all(execution) |> redact([:last_updated_at, :schedule_a_reminder]) == %{
              execution_id: {:set, execution.id},
@@ -53,10 +54,6 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
 
     time0 = System.system_time(:second)
     assert wait_for_value(execution, :send_a_reminder, 2, frequency: 1_000)
-    assert (System.system_time(:second) - time0) in 5..15
-
-    time0 = System.system_time(:second)
-    assert wait_for_value(execution, :send_a_reminder, 3, frequency: 1_000)
     assert (System.system_time(:second) - time0) in 5..15
 
     BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)

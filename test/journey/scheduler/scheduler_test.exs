@@ -5,6 +5,7 @@ defmodule Journey.Scheduler.SchedulerTest do
   import Journey.Helpers.GrabBag
 
   alias Journey.Scheduler
+  alias Journey.Scheduler.BackgroundSweeps
   alias Journey.Scheduler.BackgroundSweeps.Abandoned
 
   describe "advance |" do
@@ -57,11 +58,16 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set_value(:birth_day, 26)
         |> Journey.set_value(:birth_month, "April")
 
-      # Wait for retries to exhaust
-      Process.sleep(10_000)
+      # Start background sweeps to enable computations
+      background_sweeps_task = Journey.Scheduler.BackgroundSweeps.start_background_sweeps_in_test(execution.id)
+
+      # Wait for retries to exhaust by using wait_any first
+      {:error, :computation_failed} = Journey.get_value(execution, :astrological_sign, wait_any: true)
 
       # Should return :computation_failed immediately when called without wait options
       {:error, :computation_failed} = Journey.get_value(execution, :astrological_sign)
+
+      BackgroundSweeps.stop_background_sweeps_in_test(background_sweeps_task)
 
       assert 2 == count_computations(execution.id, :astrological_sign, :failed)
       assert 0 == count_computations(execution.id, :astrological_sign, :computing)

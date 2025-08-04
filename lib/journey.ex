@@ -678,7 +678,7 @@ defmodule Journey do
   def unarchive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
     do: Journey.unarchive(execution.id)
 
-  @default_timeout_ms 15_000
+  @default_timeout_ms 30_000
 
   defp determine_timeout(false, false), do: nil
   defp determine_timeout(wait_new, false), do: timeout_value(wait_new)
