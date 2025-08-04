@@ -8,10 +8,17 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
   import Journey.Helpers.Log
 
   def sweep(execution_id) do
-    find_and_maybe_reschedule(execution_id)
-    |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
-    |> Enum.uniq()
-    |> Enum.map(fn swept_execution_id -> Journey.kick(swept_execution_id) end)
+    prefix = "[#{mf()}]"
+    Logger.info("#{prefix}: starting")
+
+    r =
+      find_and_maybe_reschedule(execution_id)
+      |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
+      |> Enum.uniq()
+      |> Enum.map(fn swept_execution_id -> Journey.kick(swept_execution_id) end)
+
+    Logger.info("#{prefix}: done")
+    r
   end
 
   def find_and_maybe_reschedule(execution_id) do

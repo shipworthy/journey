@@ -12,7 +12,9 @@ defmodule Journey.Scheduler.Background.Periodic do
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
 
-  @sweeper_period :timer.seconds(5)
+  @sweeper_period_seconds 5 * 60
+
+  def sweeper_period_seconds, do: @sweeper_period_seconds
 
   def child_spec(_arg) do
     Periodic.child_spec(
@@ -20,17 +22,15 @@ defmodule Journey.Scheduler.Background.Periodic do
       mode: @mode,
       initial_delay: :timer.seconds(:rand.uniform(20) + 5),
       run: &run/0,
-      every: @sweeper_period,
+      every: :timer.seconds(sweeper_period_seconds()),
       delay_mode: :shifted
     )
   end
 
   def run() do
-    # TODO: replace this with the logic that executes on the same period,
-    # regardless of # of replicas.
     Process.flag(:trap_exit, true)
     prefix = "#{mf()}[#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting")
+    Logger.info("#{prefix}: starting, sweeper_period: #{sweeper_period_seconds()} s")
 
     try do
       run_sweeps(nil)
@@ -39,7 +39,7 @@ defmodule Journey.Scheduler.Background.Periodic do
         Logger.error("#{prefix}: #{inspect(exception)}")
     end
 
-    Logger.debug("#{prefix}: done")
+    Logger.info("#{prefix}: done")
   end
 
   def run_sweeps(execution_id) do
@@ -47,7 +47,7 @@ defmodule Journey.Scheduler.Background.Periodic do
     Logger.debug("#{prefix}: starting sweeps for execution_id: #{inspect(execution_id)}")
     Abandoned.sweep(execution_id)
     {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(execution_id)
-    UnblockedBySchedule.sweep(execution_id, @sweeper_period)
+    UnblockedBySchedule.sweep(execution_id, sweeper_period_seconds())
     RegenerateScheduleRecurring.sweep(execution_id)
     Logger.debug("#{prefix}: done")
   end

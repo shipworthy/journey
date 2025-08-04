@@ -14,7 +14,7 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
     # Optimized to only process executions updated since last sweep.
 
     prefix = "[#{mf()}] [#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting #{execution_id}")
+    Logger.info("#{prefix}: starting #{execution_id}")
 
     sweep_start = System.os_time(:second)
 
@@ -49,7 +49,7 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
       record_sweep_completion(sweep_run, kicked_count)
 
       if kicked_count == 0 do
-        Logger.debug("#{prefix}: no recently due pulse value(s) found")
+        Logger.info("#{prefix}: no recently due pulse value(s) found")
       else
         Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
       end

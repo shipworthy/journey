@@ -16,7 +16,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
     # that have computed their scheduled time and whose scheduled time has passed.
 
     prefix = "[#{mf()}] [#{inspect(self())}]"
-    Logger.debug("#{prefix}: starting #{execution_id}")
+    Logger.info("#{prefix}: starting #{execution_id}")
 
     now = System.system_time(:second)
 
@@ -53,7 +53,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
       |> Enum.count()
 
     if regenerated_count == 0 do
-      Logger.debug("#{prefix}: no schedule_recurring nodes need regeneration")
+      Logger.info("#{prefix}: no schedule_recurring nodes need regeneration")
     else
       Logger.info("#{prefix}: regenerated #{regenerated_count} schedule_recurring computation(s)")
     end
