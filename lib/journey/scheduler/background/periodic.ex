@@ -29,7 +29,7 @@ defmodule Journey.Scheduler.Background.Periodic do
 
   def run() do
     Process.flag(:trap_exit, true)
-    prefix = "#{mf()}[#{inspect(self())}]"
+    prefix = "[#{mf()}] [#{inspect(self())}]"
     Logger.info("#{prefix}: starting, sweeper_period: #{sweeper_period_seconds()} s")
 
     try do
