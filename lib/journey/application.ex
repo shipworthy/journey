@@ -8,6 +8,10 @@ defmodule Journey.Application do
 
   @impl true
   def start(_type, _args) do
+    if log_level = Application.get_env(:journey, :log_level) do
+      Logger.put_application_level(:journey, log_level)
+    end
+
     children = [
       # Starts a worker by calling: Journey.Worker.start_link(arg)
       # {Journey.Worker, arg}
