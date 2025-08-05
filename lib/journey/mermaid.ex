@@ -61,7 +61,6 @@ defmodule JourneyMermaidConverter do
     function_name = extract_function_name(f_compute)
 
     cond do
-      # TODO: turn mutate into its own node type.
       mutates != nil ->
         "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]"
 

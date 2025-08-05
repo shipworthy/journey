@@ -60,8 +60,6 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
     assert end_time - start_time >= 10
 
     stop_background_sweeps_in_test(background_sweeps_task)
-
-    # TODO: add a recompute (modify user_name) and watch the change propagate (think through use cases).
   end
 
   defp simple_graph() do

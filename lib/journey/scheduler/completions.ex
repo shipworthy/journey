@@ -38,7 +38,6 @@ defmodule Journey.Scheduler.Completions do
             Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
 
           # Mark the computation as "failed".
-          # TODO: we might need to store inputs_to_capture in the computation, instead of the value.
           now_seconds = System.system_time(:second)
 
           computation

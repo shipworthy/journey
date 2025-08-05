@@ -89,13 +89,6 @@ defmodule Journey.Scheduler do
       invoke_f_on_save(prefix, graph_node.f_on_save, execution.id, r)
 
       advance(execution)
-
-      # TODO: kill the computation after a deadline (since we are likely to start other instances
-      # of the computation), e.g. some version of
-      # t = Task.async(fn -> node.f_compute.(params) end)
-      # Task.await(t, abandoned_after)
-      # pros: no lingering tasks. cons: abrupt termination, extra logic.
-      # TODO: limit the number of concurrent computations, to avoid overloading the system.
     end)
 
     execution

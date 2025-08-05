@@ -1,4 +1,3 @@
-# TODO: rename Computations to something more meaningful (e.g RuntimeEvaluation)
 defmodule Journey.Node.UpstreamDependencies.Computations do
   @moduledoc false
 
@@ -22,8 +21,6 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
     [upstream_node_name]
   end
 
-  # def upstream_nodes_and_functions()
-
   def unblocked?(all_executions_values, gated_by) when is_list(all_executions_values) do
     r = evaluate_computation_for_readiness(all_executions_values, gated_by)
     r.ready?
@@ -35,7 +32,6 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
 
   def upstream_nodes_and_functions({:not, {node_name, f_condition}})
       when is_atom(node_name) and is_function(f_condition, 1) do
-    # TODO: find a better way to communicate the ! (not) operator
     [{node_name, f_condition}]
   end
 
