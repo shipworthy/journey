@@ -30,7 +30,6 @@ defmodule Journey.Scheduler.Recompute do
         all_computations =
           from(c in Computation,
             where: c.id in subquery(latest_computation_ids),
-            # TODO: here and elsewhere, experiment with a regular "SELECT FOR UPDATE", no "SKIP LOCKED".
             lock: "FOR UPDATE"
           )
           |> repo.all()

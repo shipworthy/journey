@@ -1,7 +1,6 @@
 defmodule Journey.Persistence.Schema.SweepRun do
   @moduledoc false
 
-  # TODO: move all sweep-related code to ../sweeps/
   use Journey.Persistence.Schema.Base
   import Ecto.Changeset
 

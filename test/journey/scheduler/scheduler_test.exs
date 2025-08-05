@@ -138,7 +138,6 @@ defmodule Journey.Scheduler.SchedulerTest do
       assert Enum.find(current_computations, fn %{id: id} -> id == abandoned_computation.id end).state == :abandoned
     end
 
-    # TODO: run this in a sql sandbox
     @tag :skip
     test "system-wide" do
       execution =
