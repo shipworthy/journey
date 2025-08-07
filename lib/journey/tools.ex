@@ -8,7 +8,6 @@ defmodule Journey.Tools do
   import Ecto.Query
 
   alias Journey.Graph
-  alias Journey.Node.UpstreamDependencies
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
@@ -17,22 +16,14 @@ defmodule Journey.Tools do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
-    gated_by =
-      graph
-      |> Graph.find_node_by_name(computation_node_name)
-      |> Map.get(:gated_by)
+    computation_node = Enum.find(execution.computations, fn c -> c.node_name == computation_node_name end)
 
-    all_value_nodes = Journey.Persistence.Values.load_from_db(execution.id, Journey.Repo)
-
-    computation_prerequisites =
-      UpstreamDependencies.Computations.evaluate_computation_for_readiness(all_value_nodes, gated_by)
-
-    Journey.Scheduler.Introspection.readiness_state(
-      computation_prerequisites.ready?,
-      computation_prerequisites.conditions_met,
-      computation_prerequisites.conditions_not_met,
-      computation_node_name
-    )
+    outstanding_computation(graph, execution.values, %{
+      node_name: computation_node.node_name,
+      state: computation_node.state,
+      computation_type: computation_node.computation_type
+    })
+    |> String.trim()
   end
 
   @doc """
@@ -246,7 +237,12 @@ defmodule Journey.Tools do
       end
   end
 
-  defp outstanding_computation(graph, values, %{node_name: node_name, state: state, computation_type: computation_type}) do
+  defp outstanding_computation(
+         graph,
+         values,
+         %{node_name: node_name, state: state, computation_type: computation_type},
+         with_header? \\ false
+       ) do
     readiness =
       Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
         values,
@@ -255,7 +251,7 @@ defmodule Journey.Tools do
         |> Map.get(:gated_by)
       )
 
-    "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n" <>
+    if(with_header?, do: "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n", else: "") <>
       Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
         "       ✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
       end) <>
