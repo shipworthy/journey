@@ -25,6 +25,7 @@ defmodule Journey.Tools do
       state: computation_node.state,
       computation_type: computation_node.computation_type
     })
+    |> String.trim()
   end
 
   @doc """
