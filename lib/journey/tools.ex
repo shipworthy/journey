@@ -18,8 +18,6 @@ defmodule Journey.Tools do
 
     computation_node = Enum.find(execution.computations, fn c -> c.node_name == computation_node_name end)
 
-    # Journey.Executions.find_computations_by_node_name(execution, computation_node_name)
-
     outstanding_computation(graph, execution.values, %{
       node_name: computation_node.node_name,
       state: computation_node.state,
