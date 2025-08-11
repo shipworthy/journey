@@ -107,6 +107,80 @@ defmodule Journey.Executions do
     |> Enum.into(%{})
   end
 
+  def unset_value(execution, node_name) do
+    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
+    Logger.debug("#{prefix}: unsetting value")
+
+    result =
+      Journey.Repo.transaction(fn repo ->
+        do_unset_value_in_transaction(execution, node_name, repo, prefix)
+      end)
+
+    handle_unset_value_result(result, execution, prefix)
+  end
+
+  defp do_unset_value_in_transaction(execution, node_name, repo, prefix) do
+    current_value_node =
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
+      )
+      |> repo.one!()
+
+    if current_value_node.set_time == nil do
+      Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
+      repo.rollback({:no_change, execution})
+    else
+      new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
+      perform_unset_updates(execution, node_name, new_revision, repo, prefix)
+      Journey.load(execution.id)
+    end
+  end
+
+  defp perform_unset_updates(execution, node_name, new_revision, repo, prefix) do
+    now_seconds = System.system_time(:second)
+
+    update_params = [
+      ex_revision: new_revision,
+      node_value: nil,
+      updated_at: now_seconds,
+      set_time: nil
+    ]
+
+    {update_count, _} =
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
+      )
+      |> repo.update_all(set: update_params)
+
+    if update_count == 1 do
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution.id and v.node_name == "last_updated_at"
+      )
+      |> repo.update_all(set: update_params)
+
+      Logger.debug("#{prefix}: value unset")
+    else
+      Logger.error("#{prefix}: value not unset, aborting transaction")
+      repo.rollback(execution)
+    end
+  end
+
+  defp handle_unset_value_result(result, execution, prefix) do
+    case result do
+      {:ok, updated_execution} ->
+        Logger.info("#{prefix}: value unset successfully")
+        Journey.Scheduler.advance(updated_execution)
+
+      {:error, {:no_change, original_execution}} ->
+        Logger.debug("#{prefix}: value already unset")
+        original_execution
+
+      {:error, _} ->
+        Logger.error("#{prefix}: value not unset, transaction rolled back")
+        Journey.load(execution)
+    end
+  end
+
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
@@ -644,7 +718,51 @@ defmodule Journey.Executions do
     execution.computations |> Enum.filter(fn c -> c.node_name == node_name end)
   end
 
-  # def convert_key_to_atom(map, key) do
-  #   Map.update!(map, key, &String.to_atom/1)
-  # end
+  def history(execution_id) do
+    history_of_computations =
+      execution_id
+      |> Journey.load()
+      |> Map.get(:computations)
+      |> Enum.filter(fn %{state: s} -> s == :success end)
+      |> Enum.sort_by(fn %{ex_revision_at_start: ex_revision_at_end} -> ex_revision_at_end end)
+      |> Enum.map(fn cn ->
+        %{
+          computation_or_value: :computation,
+          node_name: cn.node_name,
+          node_type: cn.computation_type,
+          ex_revision_at_completion: cn.ex_revision_at_completion,
+          ex_revision_at_start: cn.ex_revision_at_start
+        }
+      end)
+
+    history_of_values =
+      execution_id
+      |> Journey.load()
+      |> Map.get(:values)
+      |> Enum.filter(fn %{set_time: st} -> st != nil end)
+      |> Enum.sort_by(fn %{ex_revision: r} -> r end, :asc)
+      |> Enum.map(fn vn ->
+        %{
+          computation_or_value: :value,
+          node_name: vn.node_name,
+          node_type: vn.node_type,
+          ex_revision_at_completion: vn.ex_revision,
+          ex_revision_at_start: vn.ex_revision,
+          value: vn.node_value
+        }
+      end)
+
+    history = history_of_computations ++ history_of_values
+
+    history
+    |> Enum.sort_by(
+      fn %{ex_revision_at_completion: ex_revision_at_completion, computation_or_value: computation_or_value} ->
+        {ex_revision_at_completion, computation_or_value}
+      end,
+      :asc
+    )
+    |> Enum.map(fn h ->
+      %{h | ex_revision_at_start: nil}
+    end)
+  end
 end

@@ -531,6 +531,12 @@ defmodule Journey do
     Journey.Executions.set_value(execution, node_name, value)
   end
 
+  def unset_value(execution, node_name)
+      when is_struct(execution, Execution) and is_atom(node_name) do
+    Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
+    Journey.Executions.unset_value(execution, node_name)
+  end
+
   @doc """
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
