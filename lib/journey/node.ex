@@ -309,7 +309,7 @@ defmodule Journey.Node do
   true
   iex> # Reload and wait for more reminders to verify recurring behavior
   iex> execution = Journey.load(execution)
-  iex> {:ok, count2} = Journey.get_value(execution, :send_a_reminder, wait_new: 5_000)
+  iex> {:ok, count2} = Journey.get_value(execution, :send_a_reminder, wait_new: true)
   iex> count2 > count1
   true
   iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
