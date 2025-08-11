@@ -17,7 +17,7 @@ defmodule Journey.Test.Support do
         schedule_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
-          fn _ -> {:ok, System.system_time(:second) + 1} end
+          fn _ -> {:ok, System.system_time(:second) + 3} end
         ),
         compute(
           :reminder,

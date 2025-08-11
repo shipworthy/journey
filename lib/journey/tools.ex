@@ -11,7 +11,7 @@ defmodule Journey.Tools do
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
-  def computation_state(execution_id, computation_node_name)
+  def what_am_i_waiting_for(execution_id, computation_node_name)
       when is_binary(execution_id) and is_atom(computation_node_name) do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
