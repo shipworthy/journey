@@ -10,24 +10,32 @@ defmodule Journey.Test.Support do
         compute(
           :greeting,
           [:user_name],
-          fn %{user_name: user_name} ->
-            {:ok, "Hello, #{user_name}"}
-          end
+          &f_prepend_with_hello/1
         ),
         schedule_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
-          fn _ -> {:ok, System.system_time(:second) + 3} end
+          &f_in_3_seconds/1
         ),
         compute(
           :reminder,
           [:greeting, :time_to_issue_reminder_schedule],
-          fn %{greeting: greeting} ->
-            {:ok, "Reminder: #{greeting}"}
-          end
+          &f_compose_reminder/1
         )
       ]
     )
+  end
+
+  defp f_compose_reminder(%{greeting: greeting}) do
+    {:ok, "Reminder: #{greeting}"}
+  end
+
+  defp f_in_3_seconds(_) do
+    {:ok, System.system_time(:second) + 3}
+  end
+
+  defp f_prepend_with_hello(%{user_name: user_name}) do
+    {:ok, "Hello, #{user_name}"}
   end
 
   def create_test_graph2() do
