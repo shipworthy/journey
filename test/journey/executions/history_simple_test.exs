@@ -1,4 +1,4 @@
-defmodule Journey.Executions.HistoryTest do
+defmodule Journey.Executions.HistorySimpleTest do
   use ExUnit.Case, async: true
 
   import Journey.Helpers.Random, only: [random_string: 0]
@@ -164,8 +164,8 @@ defmodule Journey.Executions.HistoryTest do
       # Now set it to fail to create a failed computation
       execution = Journey.set_value(execution, :will_fail, true)
 
-      # Wait for the computation to attempt and fail
-      Process.sleep(200)
+      # Wait for the computation to re-run and fail permanently (after max_retries: 1)
+      {:error, :computation_failed} = Journey.get_value(execution, :maybe_fails, wait_new: true)
 
       history = Journey.Executions.history(execution.id)
 
