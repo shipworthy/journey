@@ -23,7 +23,6 @@ defmodule Journey.Tools do
       state: computation_node.state,
       computation_type: computation_node.computation_type
     })
-    |> String.trim()
   end
 
   @doc """
@@ -209,7 +208,7 @@ defmodule Journey.Tools do
       \n
       - Outstanding:
       """ <>
-      Enum.map_join(computations_outstanding, "\n", fn oc -> outstanding_computation(graph, values, oc) end)
+      Enum.map_join(computations_outstanding, "\n", fn oc -> outstanding_computation(graph, values, oc, true) end)
   end
 
   defp completed_computation(%{
@@ -251,12 +250,14 @@ defmodule Journey.Tools do
         |> Map.get(:gated_by)
       )
 
+    indent = if(with_header?, do: "       ", else: "")
+
     if(with_header?, do: "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n", else: "") <>
       Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
-        "       ✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
+        "#{indent}✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
       end) <>
       Enum.map_join(readiness.conditions_not_met, "\n", fn %{upstream_node: v, f_condition: f} ->
-        "       🛑 #{inspect(v.node_name)} | #{f_name(f)}"
+        "#{indent}🛑 #{inspect(v.node_name)} | #{f_name(f)}"
       end)
   end
 end
