@@ -189,4 +189,43 @@ defmodule Journey.GraphTest do
       end
     end
   end
+
+  describe "ensure_known_input_node_name with graph struct" do
+    test "returns :ok for valid input node" do
+      graph = create_graph()
+
+      assert Journey.Graph.Validations.ensure_known_input_node_name(graph, :first_name) == :ok
+      assert Journey.Graph.Validations.ensure_known_input_node_name(graph, :birth_day) == :ok
+      assert Journey.Graph.Validations.ensure_known_input_node_name(graph, :birth_month) == :ok
+      # Also test the auto-added input nodes
+      assert Journey.Graph.Validations.ensure_known_input_node_name(graph, :execution_id) == :ok
+      assert Journey.Graph.Validations.ensure_known_input_node_name(graph, :last_updated_at) == :ok
+    end
+
+    test "raises error for non-input nodes" do
+      graph = create_graph()
+
+      assert_raise RuntimeError,
+                   "':astrological_sign' is not a valid input node in graph 'horoscope workflow, success Elixir.Journey.GraphTest'.'1.0.3'. Valid input node names: [:birth_day, :birth_month, :execution_id, :first_name, :last_updated_at].",
+                   fn ->
+                     Journey.Graph.Validations.ensure_known_input_node_name(graph, :astrological_sign)
+                   end
+
+      assert_raise RuntimeError,
+                   "':horoscope' is not a valid input node in graph 'horoscope workflow, success Elixir.Journey.GraphTest'.'1.0.3'. Valid input node names: [:birth_day, :birth_month, :execution_id, :first_name, :last_updated_at].",
+                   fn ->
+                     Journey.Graph.Validations.ensure_known_input_node_name(graph, :horoscope)
+                   end
+    end
+
+    test "raises error for unknown nodes" do
+      graph = create_graph()
+
+      assert_raise RuntimeError,
+                   "':unknown_node' is not a valid input node in graph 'horoscope workflow, success Elixir.Journey.GraphTest'.'1.0.3'. Valid input node names: [:birth_day, :birth_month, :execution_id, :first_name, :last_updated_at].",
+                   fn ->
+                     Journey.Graph.Validations.ensure_known_input_node_name(graph, :unknown_node)
+                   end
+    end
+  end
 end
