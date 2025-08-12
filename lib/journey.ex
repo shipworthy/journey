@@ -340,20 +340,47 @@ defmodule Journey do
   end
 
   @doc """
-  Starts a new execution of the given graph.
+  Starts a new execution instance of a computation graph, initializing it to accept input values and perform computations.
 
-  ## Parameters:
-  - `graph`: The graph for which to start an execution. Must be a `%Journey.Graph{}` struct.
+  Creates a persistent execution in the database with a unique ID and begins background processing 
+  for any schedulable nodes. The execution starts with revision 0 and no values set.
 
-  ## Returns:
-  - A new `%Journey.Persistence.Schema.Execution{}` struct representing the started execution.
+  ## Quick Example
 
-  ## Examples:
+  ```elixir
+  execution = Journey.start_execution(graph)
+  execution = Journey.set_value(execution, :name, "Mario")
+  {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
+  ```
+
+  Use `set_value/3` to provide input values and `get_value/3` to retrieve computed results.
+
+  ## Parameters
+  * `graph` - A validated `%Journey.Graph{}` struct created with `new_graph/3`. The graph must 
+    have passed validation during creation and be registered in the graph catalog.
+
+  ## Returns
+  * A new `%Journey.Persistence.Schema.Execution{}` struct with:
+    * `:id` - Unique execution identifier (UUID string)
+    * `:graph_name` and `:graph_version` - From the source graph
+    * `:revision` - Always starts at 0, increments with each state change
+    * `:archived_at` - Initially nil (not archived)
+    * Empty values map - no input or computed values set initially
+
+  ## Key Behaviors
+  * **Database persistence** - Execution state is immediately saved to PostgreSQL
+  * **Unique execution** - Each call creates a completely independent execution instance
+  * **Background processing** - Scheduler automatically begins monitoring for schedulable nodes
+  * **Ready for inputs** - Can immediately accept input values via `set_value/3`
+
+  ## Examples
+
+  Basic execution creation:
 
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - start_execution doctest",
+  ...>       "greeting workflow",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
@@ -366,11 +393,59 @@ defmodule Journey do
   ...>     )
   iex> execution = Journey.start_execution(graph)
   iex> execution.graph_name
-  "horoscope workflow - start_execution doctest"
+  "greeting workflow"
   iex> execution.graph_version
   "v1.0.0"
   iex> execution.revision
   0
+  ```
+
+  Execution properties and immediate workflow:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "calculation workflow",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:x),
+  ...>         input(:y),
+  ...>         compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
+  ...>       ]
+  ...>     )
+  iex> execution = Journey.start_execution(graph)
+  iex> is_binary(execution.id)
+  true
+  iex> execution.archived_at
+  nil
+  iex> user_values = Journey.values(execution, reload: false) |> Map.drop([:execution_id, :last_updated_at])
+  iex> user_values
+  %{}
+  iex> execution = Journey.set_value(execution, :x, 10)
+  iex> execution = Journey.set_value(execution, :y, 20)
+  iex> Journey.get_value(execution, :sum, wait_any: true)
+  {:ok, 30}
+  ```
+
+  Multiple independent executions:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "counter workflow",
+  ...>       "v1.0.0",
+  ...>       [input(:count)]
+  ...>     )
+  iex> execution1 = Journey.start_execution(graph)
+  iex> execution2 = Journey.start_execution(graph)
+  iex> execution1.id != execution2.id
+  true
+  iex> execution1 = Journey.set_value(execution1, :count, 1)
+  iex> execution2 = Journey.set_value(execution2, :count, 2)
+  iex> Journey.get_value(execution1, :count)
+  {:ok, 1}
+  iex> Journey.get_value(execution2, :count)
+  {:ok, 2}
   ```
 
   """
