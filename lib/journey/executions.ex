@@ -176,6 +176,10 @@ defmodule Journey.Executions do
     case result do
       {:ok, updated_execution} ->
         Logger.info("#{prefix}: value unset successfully")
+
+        # Run invalidation cascade BEFORE scheduler
+        updated_execution = Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution)
+
         Journey.Scheduler.advance(updated_execution)
 
       {:error, {:no_change, original_execution}} ->
