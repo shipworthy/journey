@@ -548,20 +548,14 @@ defmodule Journey do
   @doc """
   Sets the value for an input node in an execution and triggers recomputation of dependent nodes.
 
-  This function accepts either:
-  - An execution struct and updates it directly
-  - An execution ID string, which loads the execution internally
-
   When a value is set, Journey automatically recomputes any dependent computed nodes to ensure 
   consistency across the dependency graph. The operation is idempotent - setting the same value 
   twice has no effect.
 
-  ## Key Behaviors
-  * **Cascading recomputation** - Dependent computed nodes are automatically recalculated with new values
-  * **Idempotent operation** - Setting the same value twice doesn't increment revision or trigger recomputation  
-  * **Revision management** - Revision increments only when the value actually changes
-  * **Supported types** - nil, string, number, map, list, boolean, atom
-  * **Scheduler triggering** - Automatically schedules and executes dependent computations
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `node_name` - Atom representing the input node name (must exist in the graph)
+  * `value` - The value to set. Supported types: nil, string, number, map, list, boolean, atom
 
   ## Returns
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value changed)
@@ -569,6 +563,20 @@ defmodule Journey do
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
   * Raises `RuntimeError` if attempting to set a compute node (only input nodes can be set)
+
+  ## Key Behaviors
+  * **Automatic recomputation** - Setting a value triggers recomputation of all dependent nodes
+  * **Idempotent** - Setting the same value twice has no effect (no revision increment)
+  * **Input nodes only** - Only input nodes can be set; compute nodes are read-only
+
+  ## Quick Example
+
+  ```elixir
+  execution = Journey.set_value(execution, :name, "Mario")
+  {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
+  ```
+
+  Use `get_value/3` to retrieve the set value and `unset_value/2` to remove values.
 
   ## Examples
 
@@ -670,23 +678,22 @@ defmodule Journey do
   @doc """
   Removes the value from an input node in an execution and invalidates all dependent computed nodes.
 
-  This function accepts either:
-  - An execution struct and updates it directly  
-  - An execution ID string, which loads the execution internally
-
   When a value is unset, Journey automatically invalidates (unsets) all computed nodes that depend 
   on the unset input, creating a cascading effect through the dependency graph. This ensures data 
   consistency - no computed values remain that were based on the now-removed input.
 
-  The operation increments the execution revision only if the value was previously set. Unsetting 
-  an already unset value is idempotent and does not change the revision.
+  ## Quick Example
 
-  ## Key Behaviors
-  * **Cascading invalidation** - Dependent computed nodes are automatically unset
-  * **Revision management** - Revision increments only when a value is actually removed
-  * **Idempotent** - Multiple unsets of the same value have no additional effect
-  * **Input nodes only** - Only input nodes can be unset; attempting to unset compute nodes raises an error
-  * **Timestamp updates** - The `last_updated_at` node is updated with a new timestamp
+  ```elixir
+  execution = Journey.unset_value(execution, :name)
+  {:error, :not_set} = Journey.get_value(execution, :name)
+  ```
+
+  Use `set_value/3` to set values and `get_value/3` to check if values are set.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `node_name` - Atom representing the input node name (must exist in the graph)
 
   ## Returns
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value was set)
@@ -694,6 +701,11 @@ defmodule Journey do
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
   * Raises `RuntimeError` if attempting to unset a compute node (only input nodes can be unset)
+
+  ## Key Behaviors
+  * **Cascading invalidation** - Dependent computed nodes are automatically unset
+  * **Idempotent** - Multiple unsets of the same value have no additional effect
+  * **Input nodes only** - Only input nodes can be unset; compute nodes cannot be unset
 
   ## Examples
 
@@ -724,7 +736,7 @@ defmodule Journey do
   {:error, :not_set}
   ```
 
-  Demonstrating multi-level cascading (A → B → C chain):
+  Multi-level cascading (A → B → C chain):
 
   ```elixir
   iex> import Journey.Node
@@ -752,64 +764,20 @@ defmodule Journey do
   {:error, :not_set}
   ```
 
-  Idempotent behavior - unsetting an already unset value:
+  Idempotent behavior:
 
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "unset workflow - idempotent example", 
-  ...>       "v1.0.0",
-  ...>       [input(:name)]
-  ...>     )
+  ...>   "unset workflow - idempotent example",
+  ...>   "v1.0.0",
+  ...>   [input(:name)]
+  ...> )
   iex> execution = graph |> Journey.start_execution()
   iex> original_revision = execution.revision
   iex> execution_after_unset = Journey.unset_value(execution, :name)
   iex> execution_after_unset.revision == original_revision
   true
-  iex> Journey.get_value(execution_after_unset, :name)
-  {:error, :not_set}
-  ```
-
-  Using an execution ID:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "unset workflow - execution_id example",
-  ...>       "v1.0.0", 
-  ...>       [input(:name)]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
-  iex> execution = Journey.set_value(execution, :name, "Luigi")
-  iex> Journey.get_value(execution, :name)
-  {:ok, "Luigi"}
-  iex> updated_execution = Journey.unset_value(execution.id, :name)
-  iex> Journey.get_value(updated_execution, :name)
-  {:error, :not_set}
-  ```
-
-  Recomputation after unsetting and resetting:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "unset workflow - recomputation example",
-  ...>       "v1.0.0",
-  ...>       [
-  ...>         input(:name),
-  ...>         compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hi, \#{name}!"} end)
-  ...>       ]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
-  iex> execution = Journey.set_value(execution, :name, "Peach")
-  iex> Journey.get_value(execution, :greeting, wait_any: true)
-  {:ok, "Hi, Peach!"}
-  iex> execution = Journey.unset_value(execution, :name)
-  iex> Journey.get_value(execution, :greeting)
-  {:error, :not_set}
-  iex> execution = Journey.set_value(execution, :name, "Bowser")
-  iex> Journey.get_value(execution, :greeting, wait_any: true)
-  {:ok, "Hi, Bowser!"}
   ```
 
   """
@@ -829,25 +797,49 @@ defmodule Journey do
   @doc """
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
-  ## Options:
+  ## Quick Examples
+
+  ```elixir
+  # Basic usage - get a set value
+  {:ok, value} = Journey.get_value(execution, :name)
+
+  # Wait for a computed value to be available
+  {:ok, result} = Journey.get_value(execution, :computed_field, wait_any: true)
+
+  # Wait for a new version of the value
+  {:ok, new_value} = Journey.get_value(execution, :name, wait_new: true)
+  ```
+
+  Use `set_value/3` to set input values that trigger computations.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `node_name` - Atom representing the node name (must exist in the graph)
+  * `opts` - Keyword list of options (see Options section below)
+
+  ## Returns
+  * `{:ok, value}` – the value is set
+  * `{:error, :not_set}` – the value is not yet set
+  * `{:error, :no_such_value}` – the node does not exist
+
+  ## Errors
+  * Raises `RuntimeError` if the node name does not exist in the execution's graph
+  * Raises `ArgumentError` if both `:wait_any` and `:wait_new` options are provided (mutually exclusive)
+
+  ## Options
   * `:wait_any` – whether or not to wait for the value to be set. This option can have the following values:
     * `false` or `0` – return immediately without waiting (default)
     * `true` – wait until the value is available, or until timeout
     * a positive integer – wait for the supplied number of milliseconds (default: 30_000)
     * `:infinity` – wait indefinitely
     This is useful for self-computing nodes, where the value is computed asynchronously.
-  * `:wait_new` – whether to wait for a new revision of the value. This option can have the following values:
+  * `:wait_new` – whether to wait for a new revision of the value, compared to the version in the supplied execution. This option can have the following values:
     * `false` – do not wait for a new revision (default)
-    * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet
+    * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet, or until timeout
     * a positive integer – wait for the supplied number of milliseconds for a new revision
-    This is useful for avoiding race conditions when a value triggers dependent computations.
+    This is useful for when want a new version of the value, and are waiting for it to get computed.
 
-  Note: `:wait_any` and `:wait_new` are mutually exclusive.
-
-  Returns
-  * `{:ok, value}` – the value is set
-  * `{:error, :not_set}` – the value is not yet set
-  * `{:error, :no_such_value}` – the node does not exist
+  **Note:** `:wait_any` and `:wait_new` are mutually exclusive.
 
   ## Examples
 
