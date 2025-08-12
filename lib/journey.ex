@@ -546,45 +546,87 @@ defmodule Journey do
   end
 
   @doc """
-  Sets the value for an input node in an execution.
+  Sets the value for an input node in an execution and triggers recomputation of dependent nodes.
 
   This function accepts either:
   - An execution struct and updates it directly
   - An execution ID string, which loads the execution internally
 
-  If the newly supplied value unblocks any downstream computations, they will be scheduled for execution (and the computed values will eventually become available).
+  When a value is set, Journey automatically recomputes any dependent computed nodes to ensure 
+  consistency across the dependency graph. The operation is idempotent - setting the same value 
+  twice has no effect.
+
+  ## Key Behaviors
+  * **Cascading recomputation** - Dependent computed nodes are automatically recalculated with new values
+  * **Idempotent operation** - Setting the same value twice doesn't increment revision or trigger recomputation  
+  * **Revision management** - Revision increments only when the value actually changes
+  * **Supported types** - nil, string, number, map, list, boolean, atom
+  * **Scheduler triggering** - Automatically schedules and executes dependent computations
+
+  ## Returns
+  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value changed)
+
+  ## Errors
+  * Raises `RuntimeError` if the node name does not exist in the execution's graph
+  * Raises `RuntimeError` if attempting to set a compute node (only input nodes can be set)
 
   ## Examples
 
-  Using an execution struct:
+  Basic setting with cascading recomputation:
 
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - set_value doctest",
+  ...>       "set workflow - cascading example",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
-  ...>         input(:last_name),
-  ...>         compute(
-  ...>           :greeting,
-  ...>           [:name, :last_name],
-  ...>           fn %{name: name, last_name: last_name} -> {:ok, "Hello, \#{name} \#{last_name}!"} end
-  ...>         )
+  ...>         compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set_value(execution, :name, "Mario")
-  iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
-  %{name: "Mario", execution_id: "...", last_updated_at: 1234567890}
-  iex> execution |> Journey.values_all() |> redact([:execution_id, :last_updated_at])
-  %{name: {:set, "Mario"}, greeting: :not_set, last_name: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
-  iex> execution = Journey.set_value(execution, :last_name, "Bowser")
-  iex> # The downstream computed value now becomes available:
   iex> Journey.get_value(execution, :greeting, wait_any: true)
-  {:ok, "Hello, Mario Bowser!"}
-  iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
-  %{name: "Mario", greeting: "Hello, Mario Bowser!", last_name: "Bowser", execution_id: "...", last_updated_at: 1234567890}
+  {:ok, "Hello, Mario!"}
+  iex> execution = Journey.set_value(execution, :name, "Luigi")
+  iex> Journey.get_value(execution, :greeting, wait_new: true)
+  {:ok, "Hello, Luigi!"}
+  ```
+
+  Idempotent behavior - same value doesn't change revision:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "set workflow - idempotent example",
+  ...>       "v1.0.0",
+  ...>       [input(:name)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, :name, "Mario")
+  iex> first_revision = execution.revision
+  iex> execution = Journey.set_value(execution, :name, "Mario")
+  iex> execution.revision == first_revision
+  true
+  ```
+
+  Different value types:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "set workflow - value types example",
+  ...>       "v1.0.0",
+  ...>       [input(:number), input(:flag), input(:data)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, :number, 42)
+  iex> execution = Journey.set_value(execution, :flag, true)
+  iex> execution = Journey.set_value(execution, :data, %{key: "value"})
+  iex> Journey.get_value(execution, :number)
+  {:ok, 42}
+  iex> Journey.get_value(execution, :flag)
+  {:ok, true}
   ```
 
   Using an execution ID:
@@ -592,7 +634,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "workflow - set_value with execution_id",
+  ...>       "set workflow - execution_id example",
   ...>       "v1.0.0",
   ...>       [input(:name)]
   ...>     )
