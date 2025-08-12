@@ -718,7 +718,13 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
-  ...>         compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
+  ...>         compute(
+  ...>           :greeting,
+  ...>           [:name],
+  ...>           fn %{name: name} ->
+  ...>             {:ok, "Hello, \#{name}!"}
+  ...>           end
+  ...>         )
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
