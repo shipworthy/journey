@@ -17,6 +17,20 @@ defmodule Journey.Graph.Validations do
     end
   end
 
+  def ensure_known_input_node_name(graph, node_name)
+      when is_struct(graph, Journey.Graph) and is_atom(node_name) do
+    all_input_node_names =
+      graph.nodes
+      |> Enum.filter(fn n -> n.type == :input end)
+      |> Enum.map(& &1.name)
+
+    if node_name in all_input_node_names do
+      :ok
+    else
+      raise "'#{inspect(node_name)}' is not a valid input node in graph '#{graph.name}'.'#{graph.version}'. Valid input node names: #{inspect(Enum.sort(all_input_node_names))}."
+    end
+  end
+
   def ensure_known_input_node_name(execution, node_name)
       when is_struct(execution, Journey.Persistence.Schema.Execution) and is_atom(node_name) do
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
