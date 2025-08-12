@@ -132,6 +132,57 @@ defmodule Journey.JourneyUnsetValueTest do
                      Journey.unset_value(execution, :greeting)
                    end
     end
+
+    test "unset_value with execution_id uses hardcoded revision assertion" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set_value(:first_name, "Mario")
+
+      {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
+      execution_after_unset = Journey.unset_value(execution.id, :first_name)
+      assert execution_after_unset.revision == 4
+      assert Journey.get_value(execution_after_unset, :first_name) == {:error, :not_set}
+    end
+
+    test "unset_value keeps last_updated_at set (not unset)" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set_value(:first_name, "Mario")
+
+      {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
+
+      values_before = Journey.values_all(execution)
+      assert {:set, _timestamp} = values_before.last_updated_at
+
+      execution_after_unset = Journey.unset_value(execution, :first_name)
+      values_after = Journey.values_all(execution_after_unset)
+
+      assert {:set, _new_timestamp} = values_after.last_updated_at
+      assert values_after.first_name == :not_set
+      assert {:set, "Hello, Mario"} = values_after.greeting
+    end
+
+    test "unset_value updates last_updated_at timestamp" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set_value(:first_name, "Mario")
+
+      {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
+
+      values_before = Journey.values_all(execution)
+      {:set, initial_timestamp} = values_before.last_updated_at
+
+      Process.sleep(1000)
+
+      execution_after_unset = Journey.unset_value(execution.id, :first_name)
+      values_after = Journey.values_all(execution_after_unset)
+
+      {:set, new_timestamp} = values_after.last_updated_at
+      assert new_timestamp > initial_timestamp
+    end
   end
 
   defp basic_graph(test_id) do

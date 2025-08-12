@@ -520,7 +520,7 @@ defmodule Journey do
   iex> execution = Journey.set_value(execution, :y, 20)
   iex> Journey.get_value(execution, :sum, wait_any: true)
   {:ok, 30}
-  iex> Journey.history(execution) |> Enum.map(fn entry -> 
+  iex> Journey.history(execution) |> Enum.map(fn entry ->
   ...>   case entry.node_name do
   ...>     :execution_id -> %{entry | value: "..."}
   ...>     :last_updated_at -> %{entry | value: 1234567890}
@@ -623,6 +623,13 @@ defmodule Journey do
                 is_boolean(value) or is_atom(value)) do
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution, node_name, value)
+  end
+
+  def unset_value(execution_id, node_name)
+      when is_binary(execution_id) and is_atom(node_name) do
+    execution = Journey.Repo.get!(Execution, execution_id)
+    Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
+    Journey.Executions.unset_value(execution, node_name)
   end
 
   def unset_value(execution, node_name)

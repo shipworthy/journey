@@ -156,7 +156,14 @@ defmodule Journey.Executions do
       from(v in Execution.Value,
         where: v.execution_id == ^execution.id and v.node_name == "last_updated_at"
       )
-      |> repo.update_all(set: update_params)
+      |> repo.update_all(
+        set: [
+          ex_revision: new_revision,
+          node_value: now_seconds,
+          updated_at: now_seconds,
+          set_time: now_seconds
+        ]
+      )
 
       Logger.debug("#{prefix}: value unset")
     else
