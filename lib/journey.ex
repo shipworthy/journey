@@ -165,44 +165,140 @@ defmodule Journey do
   alias Journey.Persistence.Schema.Execution
 
   @doc """
-  Creates a new graph with the given name, version, and nodes.
+  Creates a new computation graph with the given name, version, and node definitions.
 
-  ## Examples:
+  This is the foundational function for defining Journey graphs. It creates a validated 
+  graph structure that can be used to start executions with `start_execution/1`. The graph 
+  defines the data flow, dependencies, and computations for your application workflow.
 
-    ```elixir
-    iex> import Journey.Node
-    iex> import Journey.Node.Conditions
-    iex> import Journey.Node.UpstreamDependencies
-    iex> _graph = Journey.new_graph(
-    ...>       "horoscope workflow",
-    ...>       "v1.0.0",
-    ...>       [
-    ...>         input(:first_name),
-    ...>         input(:birth_day),
-    ...>         input(:birth_month),
-    ...>         compute(
-    ...>           :zodiac_sign,
-    ...>           [:birth_month, :birth_day],
-    ...>           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
-    ...>             {:ok, "Taurus"}
-    ...>           end
-    ...>         ),
-    ...>         compute(
-    ...>           :horoscope,
-    ...>           unblocked_when({
-    ...>             :and,
-    ...>             [
-    ...>               {:first_name, &provided?/1},
-    ...>               {:zodiac_sign, &provided?/1}
-    ...>             ]
-    ...>           }),
-    ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
-    ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
-    ...>           end
-    ...>         )
-    ...>       ]
-    ...>     )
-    ```
+  ## Quick Example
+
+  ```elixir
+  import Journey.Node
+  graph = Journey.new_graph(
+    "user onboarding",
+    "v1.0.0", 
+    [
+      input(:email),
+      compute(:welcome_message, [:email], fn %{email: email} -> 
+        {:ok, "Welcome \#{email}!"} 
+      end)
+    ]
+  )
+  execution = Journey.start_execution(graph)
+  ```
+
+  Use `start_execution/1` to create executions and `set_value/3` to populate input values.
+
+  ## Parameters
+  * `name` - String identifying the graph (e.g., "user registration workflow")
+  * `version` - String version identifier following semantic versioning (e.g., "v1.0.0")  
+  * `nodes` - List of node definitions created with `Journey.Node` functions (`input/1`, `compute/4`, etc.)
+
+  ## Returns
+  * `%Journey.Graph{}` struct representing the validated and registered computation graph
+
+  ## Errors
+  * Raises `RuntimeError` if graph validation fails (e.g., circular dependencies, unknown node references)
+  * Raises `ArgumentError` if parameters have invalid types or empty node list
+
+  ## Key Behaviors
+  * **Validation** - Automatically validates graph structure for cycles, dependency correctness
+  * **Registration** - Registers graph in catalog for execution tracking and reloading
+  * **Immutable** - Graph definition is immutable once created; create new versions for changes
+  * **Node types** - Supports input, compute, mutate, schedule_once, and schedule_recurring nodes
+
+  ## Examples
+
+  Basic workflow with input and computation:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "greeting workflow",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:name),
+  ...>     compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
+  ...>   ]
+  ...> )
+  iex> graph.name
+  "greeting workflow"
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set_value(execution, :name, "Alice")
+  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, "Hello, Alice!"}
+  ```
+
+  Complex workflow with conditional dependencies:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> import Journey.Node.Conditions
+  iex> import Journey.Node.UpstreamDependencies
+  iex> graph = Journey.new_graph(
+  ...>       "horoscope workflow",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:first_name),
+  ...>         input(:birth_day),
+  ...>         input(:birth_month),
+  ...>         compute(
+  ...>           :zodiac_sign,
+  ...>           [:birth_month, :birth_day],
+  ...>           fn %{birth_month: _birth_month, birth_day: _birth_day} ->
+  ...>             {:ok, "Taurus"}
+  ...>           end
+  ...>         ),
+  ...>         compute(
+  ...>           :horoscope,
+  ...>           unblocked_when({
+  ...>             :and,
+  ...>             [
+  ...>               {:first_name, &provided?/1},
+  ...>               {:zodiac_sign, &provided?/1}
+  ...>             ]
+  ...>           }),
+  ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
+  ...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
+  ...>           end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set_value(execution, :birth_day, 15)
+  iex> execution = Journey.set_value(execution, :birth_month, "May")
+  iex> Journey.get_value(execution, :zodiac_sign, wait_any: true)
+  {:ok, "Taurus"}
+  iex> execution = Journey.set_value(execution, :first_name, "Bob")
+  iex> Journey.get_value(execution, :horoscope, wait_any: true)
+  {:ok, "🍪s await, Taurus Bob!"}
+  ```
+
+  Multiple node types in a workflow:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "data processing workflow", 
+  ...>   "v2.1.0",
+  ...>   [
+  ...>     input(:raw_data),
+  ...>     compute(:processed_data, [:raw_data], fn %{raw_data: data} -> 
+  ...>       {:ok, String.upcase(data)} 
+  ...>     end),
+  ...>     mutate(:audit_log, [:processed_data], fn %{processed_data: data} ->
+  ...>       {:ok, "Processed: \#{data}"}
+  ...>     end, mutates: :processed_data)
+  ...>   ]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set_value(execution, :raw_data, "hello world")
+  iex> Journey.get_value(execution, :processed_data, wait_any: true)
+  {:ok, "Processed: HELLO WORLD"}
+  iex> Journey.get_value(execution, :audit_log, wait_any: true)
+  {:ok, "updated :processed_data"}
+  ```
 
   """
   def new_graph(name, version, nodes)
