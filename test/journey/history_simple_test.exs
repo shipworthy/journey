@@ -18,7 +18,7 @@ defmodule Journey.HistorySimpleTest do
       assert length(history) == 2
 
       # All initial values should be at revision 0
-      assert Enum.all?(history, &(&1.ex_revision_at_completion == 0))
+      assert Enum.all?(history, &(&1.revision == 0))
 
       # All should be values (not computations)
       assert Enum.all?(history, &(&1.computation_or_value == :value))
@@ -28,8 +28,8 @@ defmodule Journey.HistorySimpleTest do
       assert :execution_id in node_names
       assert :last_updated_at in node_names
 
-      # All ex_revision_at_start should be nil
-      assert Enum.all?(history, &(&1.ex_revision_at_start == nil))
+      # All entries should have a revision
+      assert Enum.all?(history, &Map.has_key?(&1, :revision))
     end
 
     test "tracks value changes in history" do
@@ -51,8 +51,7 @@ defmodule Journey.HistorySimpleTest do
       assert input_a_entry.computation_or_value == :value
       assert input_a_entry.node_type == :input
       assert input_a_entry.value == "test_value"
-      assert input_a_entry.ex_revision_at_completion > 0
-      assert input_a_entry.ex_revision_at_start == nil
+      assert input_a_entry.revision == 1
     end
 
     test "tracks successful computations in history" do
@@ -72,8 +71,7 @@ defmodule Journey.HistorySimpleTest do
       assert computation_entry != nil
       assert computation_entry.computation_or_value == :computation
       assert computation_entry.node_type == :compute
-      assert computation_entry.ex_revision_at_completion > 0
-      assert computation_entry.ex_revision_at_start == nil
+      assert computation_entry.revision == 3
       # Computation entries don't have a value field
       refute Map.has_key?(computation_entry, :value)
     end
@@ -92,13 +90,47 @@ defmodule Journey.HistorySimpleTest do
 
       history = Journey.history(execution.id)
 
-      # Verify ordering by revision
-      revisions = Enum.map(history, & &1.ex_revision_at_completion)
-      assert revisions == Enum.sort(revisions), "History should be sorted by revision"
+      # Redact dynamic timestamps in last_updated_at entries
+      redacted_history =
+        Enum.map(history, fn entry ->
+          case entry.node_name do
+            :last_updated_at -> %{entry | value: 1_234_567_890}
+            _ -> entry
+          end
+        end)
 
-      # Verify we have multiple revisions
-      unique_revisions = Enum.uniq(revisions)
-      assert length(unique_revisions) > 1, "Should have multiple revisions in history"
+      # Expected history based on actual behavior:
+      # History only shows current state of nodes, not all intermediate states
+      # Only successful computations and final values appear
+      expected_history = [
+        # Revision 0: Initial execution state
+        %{node_name: :execution_id, node_type: :input, computation_or_value: :value, value: execution.id, revision: 0},
+
+        # Revision 3: First successful computation (for "first" input)
+        %{node_name: :computed_a, node_type: :compute, computation_or_value: :computation, revision: 3},
+
+        # Revision 4: Set input_a to "second" (final value)
+        %{node_name: :input_a, node_type: :input, computation_or_value: :value, value: "second", revision: 4},
+
+        # Revision 6: Second computation and its result (for "second" input)
+        %{node_name: :computed_a, node_type: :compute, computation_or_value: :computation, revision: 6},
+        %{
+          node_name: :computed_a,
+          node_type: :compute,
+          computation_or_value: :value,
+          value: "computed: second",
+          revision: 6
+        },
+        %{
+          node_name: :last_updated_at,
+          node_type: :input,
+          computation_or_value: :value,
+          value: 1_234_567_890,
+          revision: 6
+        }
+      ]
+
+      assert redacted_history == expected_history
     end
 
     test "computations appear before values at same revision" do
@@ -115,7 +147,7 @@ defmodule Journey.HistorySimpleTest do
       # Group by revision
       by_revision =
         history
-        |> Enum.group_by(& &1.ex_revision_at_completion)
+        |> Enum.group_by(& &1.revision)
 
       # For any revision that has both computations and values,
       # computations should come first

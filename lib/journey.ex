@@ -499,8 +499,7 @@ defmodule Journey do
   - `:computation_or_value` - either `:computation` or `:value`
   - `:node_name` - the name of the node
   - `:node_type` - the type of the node
-  - `:ex_revision_at_completion` - the execution revision when this operation completed
-  - `:ex_revision_at_start` - always nil (for consistency)
+  - `:revision` - the execution revision when this operation completed
   - `:value` - the actual value (only present for value nodes)
 
   ## Examples
@@ -521,13 +520,20 @@ defmodule Journey do
   iex> execution = Journey.set_value(execution, :y, 20)
   iex> Journey.get_value(execution, :sum, wait_any: true)
   {:ok, 30}
-  iex> history = Journey.history(execution)
-  iex> history |> Enum.filter(&(&1.node_name in [:x, :y, :sum])) |> Enum.map(&Map.take(&1, [:node_name, :node_type, :computation_or_value, :value]))
+  iex> Journey.history(execution) |> Enum.map(fn entry -> 
+  ...>   case entry.node_name do
+  ...>     :execution_id -> %{entry | value: "..."}
+  ...>     :last_updated_at -> %{entry | value: 1234567890}
+  ...>     _ -> entry
+  ...>   end
+  ...> end)
   [
-    %{node_name: :x, node_type: :input, computation_or_value: :value, value: 10},
-    %{node_name: :y, node_type: :input, computation_or_value: :value, value: 20},
-    %{node_name: :sum, node_type: :compute, computation_or_value: :computation},
-    %{node_name: :sum, node_type: :compute, computation_or_value: :value, value: 30}
+    %{node_name: :execution_id, node_type: :input, computation_or_value: :value, value: "...", revision: 0},
+    %{node_name: :x, node_type: :input, computation_or_value: :value, value: 10, revision: 1},
+    %{node_name: :y, node_type: :input, computation_or_value: :value, value: 20, revision: 2},
+    %{node_name: :sum, node_type: :compute, computation_or_value: :computation, revision: 4},
+    %{node_name: :last_updated_at, node_type: :input, computation_or_value: :value, value: 1234567890, revision: 4},
+    %{node_name: :sum, node_type: :compute, computation_or_value: :value, value: 30, revision: 4}
   ]
   ```
   """

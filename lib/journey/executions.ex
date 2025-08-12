@@ -798,14 +798,14 @@ defmodule Journey.Executions do
       |> Journey.load()
       |> Map.get(:computations)
       |> Enum.filter(fn %{state: s} -> s == :success end)
-      |> Enum.sort_by(fn %{ex_revision_at_start: ex_revision_at_end} -> ex_revision_at_end end)
+      |> Enum.sort_by(fn %{ex_revision_at_completion: ex_revision_at_completion} -> ex_revision_at_completion end)
       |> Enum.map(fn cn ->
         %{
           computation_or_value: :computation,
           node_name: cn.node_name,
           node_type: cn.computation_type,
-          ex_revision_at_completion: cn.ex_revision_at_completion,
-          ex_revision_at_start: cn.ex_revision_at_start
+          revision: cn.ex_revision_at_completion,
+          revision_at_start: cn.ex_revision_at_start
         }
       end)
 
@@ -820,9 +820,9 @@ defmodule Journey.Executions do
           computation_or_value: :value,
           node_name: vn.node_name,
           node_type: vn.node_type,
-          ex_revision_at_completion: vn.ex_revision,
-          ex_revision_at_start: vn.ex_revision,
-          value: vn.node_value
+          revision: vn.ex_revision,
+          value: vn.node_value,
+          revision_at_start: vn.ex_revision
         }
       end)
 
@@ -830,13 +830,16 @@ defmodule Journey.Executions do
 
     history
     |> Enum.sort_by(
-      fn %{ex_revision_at_completion: ex_revision_at_completion, computation_or_value: computation_or_value} ->
-        {ex_revision_at_completion, computation_or_value}
+      fn %{
+           revision: revision,
+           revision_at_start: revision_at_start,
+           computation_or_value: computation_or_value,
+           node_name: node_name
+         } ->
+        {revision, revision_at_start, computation_or_value, node_name}
       end,
       :asc
     )
-    |> Enum.map(fn h ->
-      %{h | ex_revision_at_start: nil}
-    end)
+    |> Enum.map(fn h -> Map.delete(h, :revision_at_start) end)
   end
 end
