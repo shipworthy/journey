@@ -625,6 +625,152 @@ defmodule Journey do
     Journey.Executions.set_value(execution, node_name, value)
   end
 
+  @doc """
+  Removes the value from an input node in an execution and invalidates all dependent computed nodes.
+
+  This function accepts either:
+  - An execution struct and updates it directly  
+  - An execution ID string, which loads the execution internally
+
+  When a value is unset, Journey automatically invalidates (unsets) all computed nodes that depend 
+  on the unset input, creating a cascading effect through the dependency graph. This ensures data 
+  consistency - no computed values remain that were based on the now-removed input.
+
+  The operation increments the execution revision only if the value was previously set. Unsetting 
+  an already unset value is idempotent and does not change the revision.
+
+  ## Key Behaviors
+  * **Cascading invalidation** - Dependent computed nodes are automatically unset
+  * **Revision management** - Revision increments only when a value is actually removed
+  * **Idempotent** - Multiple unsets of the same value have no additional effect
+  * **Input nodes only** - Only input nodes can be unset; attempting to unset compute nodes raises an error
+  * **Timestamp updates** - The `last_updated_at` node is updated with a new timestamp
+
+  ## Returns
+  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value was set)
+
+  ## Errors
+  * Raises `RuntimeError` if the node name does not exist in the execution's graph
+  * Raises `RuntimeError` if attempting to unset a compute node (only input nodes can be unset)
+
+  ## Examples
+
+  Basic unsetting with cascading invalidation:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "unset workflow - basic example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:name),
+  ...>         compute(
+  ...>           :greeting,
+  ...>           [:name],
+  ...>           fn %{name: name} -> {:ok, "Hello, \#{name}!"} end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, :name, "Mario")
+  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, "Hello, Mario!"}
+  iex> execution_after_unset = Journey.unset_value(execution, :name)
+  iex> Journey.get_value(execution_after_unset, :name)
+  {:error, :not_set}
+  iex> Journey.get_value(execution_after_unset, :greeting)
+  {:error, :not_set}
+  ```
+
+  Demonstrating multi-level cascading (A → B → C chain):
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "unset workflow - cascade example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:a),
+  ...>         compute(:b, [:a], fn %{a: a} -> {:ok, "B:\#{a}"} end),
+  ...>         compute(:c, [:b], fn %{b: b} -> {:ok, "C:\#{b}"} end)
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, :a, "value")
+  iex> Journey.get_value(execution, :b, wait_any: true)
+  {:ok, "B:value"}
+  iex> Journey.get_value(execution, :c, wait_any: true)
+  {:ok, "C:B:value"}
+  iex> execution_after_unset = Journey.unset_value(execution, :a)
+  iex> Journey.get_value(execution_after_unset, :a)
+  {:error, :not_set}
+  iex> Journey.get_value(execution_after_unset, :b)
+  {:error, :not_set}
+  iex> Journey.get_value(execution_after_unset, :c)
+  {:error, :not_set}
+  ```
+
+  Idempotent behavior - unsetting an already unset value:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "unset workflow - idempotent example", 
+  ...>       "v1.0.0",
+  ...>       [input(:name)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> original_revision = execution.revision
+  iex> execution_after_unset = Journey.unset_value(execution, :name)
+  iex> execution_after_unset.revision == original_revision
+  true
+  iex> Journey.get_value(execution_after_unset, :name)
+  {:error, :not_set}
+  ```
+
+  Using an execution ID:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "unset workflow - execution_id example",
+  ...>       "v1.0.0", 
+  ...>       [input(:name)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, :name, "Luigi")
+  iex> Journey.get_value(execution, :name)
+  {:ok, "Luigi"}
+  iex> updated_execution = Journey.unset_value(execution.id, :name)
+  iex> Journey.get_value(updated_execution, :name)
+  {:error, :not_set}
+  ```
+
+  Recomputation after unsetting and resetting:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "unset workflow - recomputation example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:name),
+  ...>         compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hi, \#{name}!"} end)
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, :name, "Peach")
+  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, "Hi, Peach!"}
+  iex> execution = Journey.unset_value(execution, :name)
+  iex> Journey.get_value(execution, :greeting)
+  {:error, :not_set}
+  iex> execution = Journey.set_value(execution, :name, "Bowser")
+  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, "Hi, Bowser!"}
+  ```
+
+  """
   def unset_value(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
     execution = Journey.Repo.get!(Execution, execution_id)
