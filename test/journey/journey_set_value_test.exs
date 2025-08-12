@@ -111,6 +111,15 @@ defmodule Journey.JourneySetValueTest do
                      Journey.set_value(execution, :greeting, "Hello!")
                    end
     end
+
+    test "set_value with execution_id string" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+
+      updated_execution = Journey.set_value(execution.id, :first_name, "Mario")
+      assert Journey.get_value(updated_execution, :first_name) == {:ok, "Mario"}
+    end
   end
 
   defp basic_graph(test_id) do

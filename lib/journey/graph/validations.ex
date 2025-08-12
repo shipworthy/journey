@@ -8,7 +8,9 @@ defmodule Journey.Graph.Validations do
   end
 
   def ensure_known_node_name(execution, node_name) do
-    all_node_names = execution.values |> Enum.map(& &1.node_name)
+    # Fetch the graph from catalog to get all node names
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+    all_node_names = graph.nodes |> Enum.map(& &1.name)
 
     if node_name in all_node_names do
       :ok
