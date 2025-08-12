@@ -284,20 +284,20 @@ defmodule Journey do
   ...>   "v2.1.0",
   ...>   [
   ...>     input(:raw_data),
-  ...>     compute(:processed_data, [:raw_data], fn %{raw_data: data} -> 
+  ...>     compute(:upper_case, [:raw_data], fn %{raw_data: data} -> 
   ...>       {:ok, String.upcase(data)} 
   ...>     end),
-  ...>     mutate(:audit_log, [:processed_data], fn %{processed_data: data} ->
-  ...>       {:ok, "Processed: \#{data}"}
-  ...>     end, mutates: :processed_data)
+  ...>     compute(:suffix, [:upper_case], fn %{upper_case: data} ->
+  ...>       {:ok, "\#{data} omg yay"}
+  ...>     end)
   ...>   ]
   ...> )
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set_value(execution, :raw_data, "hello world")
-  iex> Journey.get_value(execution, :processed_data, wait_any: true)
-  {:ok, "Processed: HELLO WORLD"}
-  iex> Journey.get_value(execution, :audit_log, wait_any: true)
-  {:ok, "updated :processed_data"}
+  iex> Journey.get_value(execution, :upper_case, wait_any: true)
+  {:ok, "HELLO WORLD"}
+  iex> Journey.get_value(execution, :suffix, wait_any: true)
+  {:ok, "HELLO WORLD omg yay"}
   ```
 
   """
