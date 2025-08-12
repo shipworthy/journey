@@ -486,6 +486,60 @@ defmodule Journey do
   end
 
   @doc """
+  Returns the chronological history of all successful computations and set values for an execution.
+
+  This function provides visibility into the order of operations that occurred during
+  an execution, including both computations that completed successfully and values that were set.
+
+  ## Parameters
+  - `execution` or `execution_id`: The execution struct or ID to get history for
+
+  ## Returns
+  A list of maps sorted by execution revision, where each map contains:
+  - `:computation_or_value` - either `:computation` or `:value`
+  - `:node_name` - the name of the node
+  - `:node_type` - the type of the node
+  - `:ex_revision_at_completion` - the execution revision when this operation completed
+  - `:ex_revision_at_start` - always nil (for consistency)
+  - `:value` - the actual value (only present for value nodes)
+
+  ## Examples
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "workflow with history",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:x),
+  ...>     input(:y),
+  ...>     compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
+  ...>   ]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set_value(execution, :x, 10)
+  iex> execution = Journey.set_value(execution, :y, 20)
+  iex> Journey.get_value(execution, :sum, wait_any: true)
+  {:ok, 30}
+  iex> history = Journey.history(execution)
+  iex> history |> Enum.filter(&(&1.node_name in [:x, :y, :sum])) |> Enum.map(&Map.take(&1, [:node_name, :node_type, :computation_or_value, :value]))
+  [
+    %{node_name: :x, node_type: :input, computation_or_value: :value, value: 10},
+    %{node_name: :y, node_type: :input, computation_or_value: :value, value: 20},
+    %{node_name: :sum, node_type: :compute, computation_or_value: :computation},
+    %{node_name: :sum, node_type: :compute, computation_or_value: :value, value: 30}
+  ]
+  ```
+  """
+  def history(execution_id) when is_binary(execution_id) do
+    Journey.Executions.history(execution_id)
+  end
+
+  def history(execution) when is_struct(execution, Execution) do
+    Journey.Executions.history(execution.id)
+  end
+
+  @doc """
   Sets the value for an input node in an execution.
 
   This function accepts either:

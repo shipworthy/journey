@@ -1,4 +1,4 @@
-defmodule Journey.Executions.HistoryComplexTest do
+defmodule Journey.HistoryComplexTest do
   use ExUnit.Case, async: true
 
   import Journey.Helpers.Random, only: [random_string: 0]
@@ -17,7 +17,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)
       {:ok, _} = Journey.get_value(execution, :parallel_b, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Test invariants that hold regardless of execution order
 
@@ -46,7 +46,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       # Wait for the full chain to complete
       {:ok, _} = Journey.get_value(execution, :downstream, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Verify causal ordering is preserved
       assert_causal_order(history, :trigger, :parallel_a)
@@ -70,7 +70,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, val_a} = Journey.get_value(execution, :parallel_a, wait_any: true)
       assert val_a == "a: mutated: mutate-me"
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Verify mutator appears in history
       mutator_entry =
@@ -108,7 +108,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, _} = Journey.get_value(execution, :parallel_b, wait_any: true)
       {:ok, _} = Journey.get_value(execution, :mutator, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # All revisions must be monotonically increasing
       revisions = Enum.map(history, & &1.ex_revision_at_completion)
@@ -129,7 +129,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, _} = Journey.get_value(execution, :compute_node, wait_any: true)
       {:ok, _} = Journey.get_value(execution, :mutate_node, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Group by node type
       by_type =
@@ -160,7 +160,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, second_a} = Journey.get_value(execution, :parallel_a, wait_new: true)
       assert second_a == "a: second"
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # The trigger value appears once with its latest value and revision
       trigger_values =
@@ -203,7 +203,7 @@ defmodule Journey.Executions.HistoryComplexTest do
         # downstream depends on parallel_a so should also complete
         {:ok, _} = Journey.get_value(execution, :downstream, wait_any: true)
 
-        history = Journey.Executions.history(execution.id)
+        history = Journey.history(execution.id)
 
         # Test all invariants
         assert_history_invariants(history)

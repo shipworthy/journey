@@ -1,4 +1,4 @@
-defmodule Journey.Executions.HistorySimpleTest do
+defmodule Journey.HistorySimpleTest do
   use ExUnit.Case, async: true
 
   import Journey.Helpers.Random, only: [random_string: 0]
@@ -12,7 +12,7 @@ defmodule Journey.Executions.HistorySimpleTest do
         simple_history_graph(random_string())
         |> Journey.start_execution()
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # New execution should have execution_id and last_updated_at set initially
       assert length(history) == 2
@@ -40,7 +40,7 @@ defmodule Journey.Executions.HistorySimpleTest do
       # Set a value
       execution = Journey.set_value(execution, :input_a, "test_value")
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Should have initial 2 + the new value set
       assert length(history) >= 3
@@ -65,7 +65,7 @@ defmodule Journey.Executions.HistorySimpleTest do
       {:ok, computed_value} = Journey.get_value(execution, :computed_a, wait_any: true)
       assert computed_value == "computed: test_input"
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Find the computation entry
       computation_entry = Enum.find(history, &(&1.node_name == :computed_a))
@@ -90,7 +90,7 @@ defmodule Journey.Executions.HistorySimpleTest do
       execution = Journey.set_value(execution, :input_a, "second")
       {:ok, _} = Journey.get_value(execution, :computed_a, wait_new: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Verify ordering by revision
       revisions = Enum.map(history, & &1.ex_revision_at_completion)
@@ -110,7 +110,7 @@ defmodule Journey.Executions.HistorySimpleTest do
       # Wait for computation
       {:ok, _} = Journey.get_value(execution, :computed_a, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Group by revision
       by_revision =
@@ -140,7 +140,7 @@ defmodule Journey.Executions.HistorySimpleTest do
         |> Journey.start_execution()
 
       # The graph has input_b defined but never set
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # input_b should not appear in history since it was never set
       input_b_entry = Enum.find(history, &(&1.node_name == :input_b))
@@ -167,7 +167,7 @@ defmodule Journey.Executions.HistorySimpleTest do
       # Wait for the computation to re-run and fail permanently (after max_retries: 1)
       {:error, :computation_failed} = Journey.get_value(execution, :maybe_fails, wait_new: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Count how many computation entries for maybe_fails
       maybe_fails_computations =
