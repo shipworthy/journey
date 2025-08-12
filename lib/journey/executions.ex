@@ -182,6 +182,70 @@ defmodule Journey.Executions do
   end
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
+  def set_value(execution_id, node_name, value) when is_binary(execution_id) do
+    prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"
+    Logger.debug("#{prefix}: setting value, #{inspect(value)}")
+
+    Journey.Repo.transaction(fn repo ->
+      new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
+
+      current_value_node =
+        from(v in Execution.Value,
+          where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
+        )
+        |> repo.one!()
+
+      updating_to_the_same_value? =
+        current_value_node.set_time != nil and current_value_node.node_value != nil and
+          current_value_node.node_value == value
+
+      if updating_to_the_same_value? do
+        Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
+        # Load execution for rollback response
+        execution = repo.get!(Execution, execution_id)
+        repo.rollback({:no_change, execution})
+      else
+        now_seconds = System.system_time(:second)
+
+        from(v in Execution.Value,
+          where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
+        )
+        |> repo.update_all(
+          set: [
+            ex_revision: new_revision,
+            node_value: value,
+            updated_at: now_seconds,
+            set_time: now_seconds
+          ]
+        )
+        # credo:disable-for-lines:10 Credo.Check.Refactor.Nesting
+        |> case do
+          {1, _} ->
+            # Update the "last_updated_at" value.
+            from(v in Execution.Value,
+              where: v.execution_id == ^execution_id and v.node_name == "last_updated_at"
+            )
+            |> repo.update_all(
+              set: [
+                ex_revision: new_revision,
+                node_value: now_seconds,
+                updated_at: now_seconds,
+                set_time: now_seconds
+              ]
+            )
+
+            Logger.debug("#{prefix}: value updated")
+            repo.get!(Execution, execution_id)
+
+          _ ->
+            raise "Could not find value node to update."
+        end
+      end
+    end)
+    |> handle_set_value_result(execution_id)
+  end
+
+  # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     Logger.debug("#{prefix}: setting value, #{inspect(value)}")
@@ -204,15 +268,6 @@ defmodule Journey.Executions do
         repo.rollback({:no_change, execution})
       else
         now_seconds = System.system_time(:second)
-
-        #         %Execution.Value{
-        #   execution: execution,
-        #   node_name: "last_updated_at",
-        #   node_type: :input,
-        #   ex_revision: execution.revision,
-        #   set_time: now,
-        #   node_value: now
-        # }
 
         from(v in Execution.Value,
           where: v.execution_id == ^execution.id and v.node_name == ^Atom.to_string(node_name)
@@ -260,11 +315,30 @@ defmodule Journey.Executions do
 
       {:error, {:no_change, original_execution}} ->
         Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
-        Journey.load(original_execution)
+        original_execution
 
       {:error, _} ->
         Logger.error("#{prefix}: value not set, transaction rolled back")
         Journey.load(execution)
+    end
+  end
+
+  defp handle_set_value_result(result, execution_id) do
+    prefix = "[#{execution_id}]"
+
+    case result do
+      {:ok, updated_execution} ->
+        Logger.info("#{prefix}: value set successfully")
+        Journey.Scheduler.advance(updated_execution)
+
+      {:error, {:no_change, original_execution}} ->
+        Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
+        original_execution
+
+      {:error, _} ->
+        Logger.error("#{prefix}: value not set, transaction rolled back")
+        {:ok, execution} = Journey.load(execution_id)
+        execution
     end
   end
 

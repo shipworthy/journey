@@ -488,9 +488,15 @@ defmodule Journey do
   @doc """
   Sets the value for an input node in an execution.
 
+  This function accepts either:
+  - An execution struct and updates it directly
+  - An execution ID string, which loads the execution internally
+
   If the newly supplied value unblocks any downstream computations, they will be scheduled for execution (and the computed values will eventually become available).
 
   ## Examples
+
+  Using an execution struct:
 
   ```elixir
   iex> import Journey.Node
@@ -519,10 +525,38 @@ defmodule Journey do
   {:ok, "Hello, Mario Bowser!"}
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "Mario", greeting: "Hello, Mario Bowser!", last_name: "Bowser", execution_id: "...", last_updated_at: 1234567890}
+  ```
 
+  Using an execution ID:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "workflow - set_value with execution_id",
+  ...>       "v1.0.0",
+  ...>       [input(:name)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> updated_execution = Journey.set_value(execution.id, :name, "Luigi")
+  iex> Journey.get_value(updated_execution, :name)
+  {:ok, "Luigi"}
   ```
 
   """
+  def set_value(execution_id, node_name, value)
+      when is_binary(execution_id) and is_atom(node_name) and
+             (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
+                is_boolean(value) or is_atom(value)) do
+    # Load execution without preloading associations
+    execution = Journey.Repo.get!(Execution, execution_id)
+
+    # Validate using the existing execution-based validation (it will fetch the graph from catalog)
+    Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
+
+    # Use the execution_id version
+    Journey.Executions.set_value(execution_id, node_name, value)
+  end
+
   def set_value(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
