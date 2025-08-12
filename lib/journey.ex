@@ -548,20 +548,14 @@ defmodule Journey do
   @doc """
   Sets the value for an input node in an execution and triggers recomputation of dependent nodes.
 
-  This function accepts either:
-  - An execution struct and updates it directly
-  - An execution ID string, which loads the execution internally
-
   When a value is set, Journey automatically recomputes any dependent computed nodes to ensure 
   consistency across the dependency graph. The operation is idempotent - setting the same value 
   twice has no effect.
 
-  ## Key Behaviors
-  * **Cascading recomputation** - Dependent computed nodes are automatically recalculated with new values
-  * **Idempotent operation** - Setting the same value twice doesn't increment revision or trigger recomputation  
-  * **Revision management** - Revision increments only when the value actually changes
-  * **Supported types** - nil, string, number, map, list, boolean, atom
-  * **Scheduler triggering** - Automatically schedules and executes dependent computations
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `node_name` - Atom representing the input node name (must exist in the graph)
+  * `value` - The value to set. Supported types: nil, string, number, map, list, boolean, atom
 
   ## Returns
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value changed)
@@ -569,6 +563,20 @@ defmodule Journey do
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
   * Raises `RuntimeError` if attempting to set a compute node (only input nodes can be set)
+
+  ## Key Behaviors
+  * **Automatic recomputation** - Setting a value triggers recomputation of all dependent nodes
+  * **Idempotent** - Setting the same value twice has no effect (no revision increment)
+  * **Input nodes only** - Only input nodes can be set; compute nodes are read-only
+  * **Revision tracking** - Execution revision increments only when the value actually changes
+  * **Asynchronous execution** - Dependent computations run in background via scheduler
+
+  ## Quick Example
+
+  ```elixir
+  execution = Journey.set_value(execution, :name, "Mario")
+  {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
+  ```
 
   ## Examples
 
