@@ -167,8 +167,8 @@ defmodule Journey do
   @doc """
   Creates a new computation graph with the given name, version, and node definitions.
 
-  This is the foundational function for defining Journey graphs. It creates a validated 
-  graph structure that can be used to start executions with `start_execution/1`. The graph 
+  This is the foundational function for defining Journey graphs. It creates a validated
+  graph structure that can be used to start executions with `start_execution/1`. The graph
   defines the data flow, dependencies, and computations for your application workflow.
 
   ## Quick Example
@@ -177,11 +177,11 @@ defmodule Journey do
   import Journey.Node
   graph = Journey.new_graph(
     "user onboarding",
-    "v1.0.0", 
+    "v1.0.0",
     [
       input(:email),
-      compute(:welcome_message, [:email], fn %{email: email} -> 
-        {:ok, "Welcome \#{email}!"} 
+      compute(:welcome_message, [:email], fn %{email: email} ->
+        {:ok, "Welcome \#{email}!"}
       end)
     ]
   )
@@ -192,7 +192,7 @@ defmodule Journey do
 
   ## Parameters
   * `name` - String identifying the graph (e.g., "user registration workflow")
-  * `version` - String version identifier following semantic versioning (e.g., "v1.0.0")  
+  * `version` - String version identifier following semantic versioning (e.g., "v1.0.0")
   * `nodes` - List of node definitions created with `Journey.Node` functions (`input/1`, `compute/4`, etc.)
 
   ## Returns
@@ -280,12 +280,12 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>   "data processing workflow", 
+  ...>   "data processing workflow",
   ...>   "v2.1.0",
   ...>   [
   ...>     input(:raw_data),
-  ...>     compute(:upper_case, [:raw_data], fn %{raw_data: data} -> 
-  ...>       {:ok, String.upcase(data)} 
+  ...>     compute(:upper_case, [:raw_data], fn %{raw_data: data} ->
+  ...>       {:ok, String.upcase(data)}
   ...>     end),
   ...>     compute(:suffix, [:upper_case], fn %{upper_case: data} ->
   ...>       {:ok, "\#{data} omg yay"}
@@ -309,42 +309,111 @@ defmodule Journey do
   end
 
   @doc """
-  Loads the latest version of the execution with the supplied ID.
+  Reloads the current state of an execution from the database to get the latest changes.
 
-  Archived executions are not loaded by default, but can be included by setting the `include_archived: true` option.
+  Executions can be modified by their background computations, or scheduled events, or other processes setting their values. This function is used to get the latest state of an execution -- as part of normal operations, or when the system starts up, or when the user whose session is being tracked as an execution comes back to the web site and resumes their flow.
 
-  ## Parameters:
-  - `execution_id` – the ID of the execution to load, or a `%Journey.Persistence.Schema.Execution{}` struct.
-
-  ## Options:
-  - `opts` – a keyword list of options. Supported options:
-    - `:preload` – whether to preload the execution's nodes and values. Defaults to `true`.
-    - `:include_archived` – whether to include archived executions. Defaults to `false`. If set to `true`, archived executions will be loaded even if they are not visible in the list of executions.
-
-  ## Returns:
-  - A `%Journey.Persistence.Schema.Execution{}` struct representing the loaded execution, or `nil` if the execution does not exist or is archived and not included.
-  - If the execution is loaded successfully, it will have a `revision` field indicating the version of the execution.
-  - If the execution is not found, it will return `nil`.
-  - If the execution is archived and `include_archived: false` (or if `include_archived: ` is missing), it will return `nil`.
-
-  ## Examples:
+  ## Quick Example
 
   ```elixir
-  iex> graph = Journey.Examples.Horoscope.graph()
+  execution = Journey.set_value(execution, :name, "Mario")
+  execution = Journey.load(execution)  # Get updated state with new revision
+  {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
+  ```
+
+  Use `set_value/3` and `get_value/3` to modify and read execution values.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `opts` - Keyword list of options (see Options section below)
+
+  ## Returns
+  * A `%Journey.Persistence.Schema.Execution{}` struct with current database state, or `nil` if not found
+
+  ## Options
+  * `:preload` - Whether to preload associated nodes and values. Defaults to `true`.
+    Set to `false` for better performance when you only need execution metadata.
+  * `:include_archived` - Whether to include archived executions. Defaults to `false`.
+    Archived executions are normally hidden but can be loaded with this option.
+
+  ## Key Behaviors
+  * **Fresh state** - Always returns the current state from the database, not cached data
+  * **Revision tracking** - Loaded execution will have the latest revision number
+  * **Archived handling** - Archived executions return `nil` unless explicitly included
+  * **Performance option** - Use `preload: false` to skip loading values/computations for speed
+
+  ## Examples
+
+  Basic reloading after value changes:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "load example - basic",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:name),
+  ...>         compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
+  ...>       ]
+  ...>     )
   iex> execution = Journey.start_execution(graph)
   iex> execution.revision
   0
-  iex> # This is only needed in a test, to perform background processing that happens automatically outside of tests.
-  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
-  iex> execution |> Journey.set_value(:birth_day, 26) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-  iex> # Wait for the computations to complete, and reload the execution, which will now have a new revision.
-  iex> Journey.get_value(execution, :library_of_congress_record, wait_any: true)
-  {:ok, "Mario's horoscope was submitted for archival."}
-  iex> execution = execution.id |> Journey.load()
-  iex> execution.revision
-  9
-  iex> # This is only needed in tests.
-  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
+  iex> execution = Journey.set_value(execution, :name, "Alice")
+  iex> execution.revision > 0
+  true
+  iex> {:ok, "Hello, Alice!"} = Journey.get_value(execution, :greeting, wait_any: true)
+  iex> reloaded = Journey.load(execution)
+  iex> reloaded.revision >= execution.revision
+  true
+  ```
+
+  Loading by execution ID:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "load example - by id",
+  ...>       "v1.0.0",
+  ...>       [input(:data)]
+  ...>     )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution_id = execution.id
+  iex> reloaded = Journey.load(execution_id)
+  iex> reloaded.id == execution_id
+  true
+  ```
+
+  Performance optimization with preload option:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "load example - no preload",
+  ...>       "v1.0.0",
+  ...>       [input(:data)]
+  ...>     )
+  iex> execution = Journey.start_execution(graph)
+  iex> fast_load = Journey.load(execution, preload: false)
+  iex> fast_load.id == execution.id
+  true
+  ```
+
+  Handling archived executions:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "load example - archived",
+  ...>       "v1.0.0",
+  ...>       [input(:data)]
+  ...>     )
+  iex> execution = Journey.start_execution(graph)
+  iex> Journey.archive(execution)
+  iex> Journey.load(execution)
+  nil
+  iex> Journey.load(execution, include_archived: true) != nil
+  true
   ```
 
   """
@@ -438,7 +507,7 @@ defmodule Journey do
   @doc """
   Starts a new execution instance of a computation graph, initializing it to accept input values and perform computations.
 
-  Creates a persistent execution in the database with a unique ID and begins background processing 
+  Creates a persistent execution in the database with a unique ID and begins background processing
   for any schedulable nodes. The execution starts with revision 0 and no values set.
 
   ## Quick Example
@@ -452,7 +521,7 @@ defmodule Journey do
   Use `set_value/3` to provide input values and `get_value/3` to retrieve computed results.
 
   ## Parameters
-  * `graph` - A validated `%Journey.Graph{}` struct created with `new_graph/3`. The graph must 
+  * `graph` - A validated `%Journey.Graph{}` struct created with `new_graph/3`. The graph must
     have passed validation during creation and be registered in the graph catalog.
 
   ## Returns
@@ -461,7 +530,7 @@ defmodule Journey do
     * `:graph_name` and `:graph_version` - From the source graph
     * `:revision` - Always starts at 0, increments with each state change
     * `:archived_at` - Initially nil (not archived)
-    * Empty values map - no input or computed values set initially
+    and other fields.
 
   ## Key Behaviors
   * **Database persistence** - Execution state is immediately saved to PostgreSQL
@@ -719,8 +788,8 @@ defmodule Journey do
   @doc """
   Sets the value for an input node in an execution and triggers recomputation of dependent nodes.
 
-  When a value is set, Journey automatically recomputes any dependent computed nodes to ensure 
-  consistency across the dependency graph. The operation is idempotent - setting the same value 
+  When a value is set, Journey automatically recomputes any dependent computed nodes to ensure
+  consistency across the dependency graph. The operation is idempotent - setting the same value
   twice has no effect.
 
   ## Parameters
@@ -849,8 +918,8 @@ defmodule Journey do
   @doc """
   Removes the value from an input node in an execution and invalidates all dependent computed nodes.
 
-  When a value is unset, Journey automatically invalidates (unsets) all computed nodes that depend 
-  on the unset input, creating a cascading effect through the dependency graph. This ensures data 
+  When a value is unset, Journey automatically invalidates (unsets) all computed nodes that depend
+  on the unset input, creating a cascading effect through the dependency graph. This ensures data
   consistency - no computed values remain that were based on the now-removed input.
 
   ## Quick Example
