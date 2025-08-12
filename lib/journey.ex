@@ -770,7 +770,11 @@ defmodule Journey do
 
   ```elixir
   iex> import Journey.Node
-  iex> graph = Journey.new_graph("unset workflow - idempotent example", "v1.0.0", [input(:name)])
+  iex> graph = Journey.new_graph(
+  ...>   "unset workflow - idempotent example",
+  ...>   "v1.0.0",
+  ...>   [input(:name)]
+  ...> )
   iex> execution = graph |> Journey.start_execution()
   iex> original_revision = execution.revision
   iex> execution_after_unset = Journey.unset_value(execution, :name)
