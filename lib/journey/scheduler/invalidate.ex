@@ -1,0 +1,135 @@
+defmodule Journey.Scheduler.Invalidate do
+  @moduledoc false
+
+  import Ecto.Query
+  require Logger
+  import Journey.Helpers.Log
+
+  alias Journey.Graph
+  alias Journey.Node.UpstreamDependencies
+  alias Journey.Persistence.Schema.Execution
+
+  @doc """
+  Iteratively clears all discardable computations - computed values whose dependencies
+  are no longer met. Continues until no more values can be discarded.
+  """
+  def ensure_all_discardable_cleared(execution) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.debug("#{prefix}: starting invalidation check")
+
+    # Fetch graph internally
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+
+    if graph == nil do
+      Logger.error("#{prefix}: graph not found (#{execution.graph_name}, #{execution.graph_version})")
+      execution
+    else
+      do_iterative_clearing(execution, graph, prefix)
+    end
+  end
+
+  defp do_iterative_clearing(execution, graph, prefix) do
+    {:ok, cleared_count} =
+      Journey.Repo.transaction(fn repo ->
+        all_values = Journey.Persistence.Values.load_from_db(execution.id, repo)
+        clear_discardable_computations_in_transaction(execution.id, all_values, graph, repo, prefix)
+      end)
+
+    if cleared_count > 0 do
+      Logger.info("#{prefix}: cleared #{cleared_count} discardable computations, checking for more...")
+      # Recursively clear until nothing left
+      updated_execution = Journey.load(execution.id)
+      do_iterative_clearing(updated_execution, graph, prefix)
+    else
+      Logger.debug("#{prefix}: no discardable computations found, invalidation complete")
+      execution
+    end
+  end
+
+  defp clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix) do
+    # Find set computed values
+    set_computed_values =
+      all_values
+      |> Enum.filter(fn v ->
+        v.set_time != nil and
+          v.node_type in [:compute, :mutate, :schedule_once, :schedule_recurring]
+      end)
+
+    Logger.debug("#{prefix}: checking #{length(set_computed_values)} computed values for discardability")
+
+    # Check each for discardability and clear if needed
+    cleared_count =
+      set_computed_values
+      |> Enum.reduce(0, fn value_node, acc ->
+        process_value_node(value_node, acc, execution_id, all_values, graph, repo, prefix)
+      end)
+
+    cleared_count
+  end
+
+  defp process_value_node(value_node, acc, execution_id, all_values, graph, repo, prefix) do
+    graph_node = Graph.find_node_by_name(graph, value_node.node_name)
+
+    cond do
+      graph_node == nil ->
+        Logger.warning("#{prefix}: graph node not found for #{value_node.node_name}")
+        acc
+
+      should_clear?(all_values, graph_node) ->
+        Logger.info("#{prefix}: clearing discardable computation: #{value_node.node_name}")
+        clear_discardable_computation(execution_id, value_node.node_name, graph_node, repo, prefix)
+        acc + 1
+
+      true ->
+        acc
+    end
+  end
+
+  defp should_clear?(all_values, graph_node) do
+    not UpstreamDependencies.Computations.unblocked?(all_values, graph_node.gated_by)
+  end
+
+  defp clear_discardable_computation(execution_id, node_name, graph_node, repo, prefix) do
+    new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
+    now_seconds = System.system_time(:second)
+
+    # Clear the value
+    {1, _} =
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
+      )
+      |> repo.update_all(
+        set: [
+          node_value: nil,
+          set_time: nil,
+          ex_revision: new_revision,
+          updated_at: now_seconds
+        ]
+      )
+
+    # Create new computation for future execution (following recompute pattern)
+    new_computation =
+      %Execution.Computation{
+        execution_id: execution_id,
+        node_name: Atom.to_string(node_name),
+        computation_type: graph_node.type,
+        state: :not_set
+      }
+      |> repo.insert!()
+
+    Logger.debug("#{prefix}: created new computation #{new_computation.id} for #{node_name}")
+
+    # Update last_updated_at
+    from(v in Execution.Value,
+      where: v.execution_id == ^execution_id and v.node_name == "last_updated_at"
+    )
+    |> repo.update_all(
+      set: [
+        ex_revision: new_revision,
+        node_value: now_seconds,
+        updated_at: now_seconds,
+        set_time: now_seconds
+      ]
+    )
+  end
+end
