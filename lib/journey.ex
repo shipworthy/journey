@@ -831,13 +831,6 @@ defmodule Journey do
   {:ok, new_value} = Journey.get_value(execution, :name, wait_new: true)
   ```
 
-  ## Detailed Examples
-
-  Basic retrieval patterns:
-  * `{:ok, value}` – the value is set
-  * `{:error, :not_set}` – the value is not yet set
-  * `{:error, :no_such_value}` – the node does not exist
-
   ## Examples
 
     ```elixir
