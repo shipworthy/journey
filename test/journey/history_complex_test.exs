@@ -1,4 +1,4 @@
-defmodule Journey.Executions.HistoryComplexTest do
+defmodule Journey.HistoryComplexTest do
   use ExUnit.Case, async: true
 
   import Journey.Helpers.Random, only: [random_string: 0]
@@ -17,7 +17,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)
       {:ok, _} = Journey.get_value(execution, :parallel_b, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Test invariants that hold regardless of execution order
 
@@ -30,10 +30,10 @@ defmodule Journey.Executions.HistoryComplexTest do
 
       # Both must have revision greater than trigger
       trigger_revision = get_node_revision(history, :trigger, :value)
-      assert Enum.all?(parallel_computations, &(&1.ex_revision_at_completion > trigger_revision))
+      assert Enum.all?(parallel_computations, &(&1.revision > trigger_revision))
 
       # They may have same or different revisions (both are valid)
-      revisions = Enum.map(parallel_computations, & &1.ex_revision_at_completion)
+      revisions = Enum.map(parallel_computations, & &1.revision)
       assert Enum.all?(revisions, &(&1 > 0))
     end
 
@@ -46,7 +46,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       # Wait for the full chain to complete
       {:ok, _} = Journey.get_value(execution, :downstream, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Verify causal ordering is preserved
       assert_causal_order(history, :trigger, :parallel_a)
@@ -70,7 +70,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, val_a} = Journey.get_value(execution, :parallel_a, wait_any: true)
       assert val_a == "a: mutated: mutate-me"
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Verify mutator appears in history
       mutator_entry =
@@ -81,17 +81,17 @@ defmodule Journey.Executions.HistoryComplexTest do
       assert mutator_entry.node_type == :mutate
 
       # Verify the mutated trigger value appears after the mutator
-      mutator_rev = mutator_entry.ex_revision_at_completion
+      mutator_rev = mutator_entry.revision
 
       trigger_values =
         history
         |> Enum.filter(&(&1.node_name == :trigger and &1.computation_or_value == :value))
-        |> Enum.sort_by(& &1.ex_revision_at_completion)
+        |> Enum.sort_by(& &1.revision)
 
       # Should have at least 2 trigger values (initial set would need to be added, then mutated)
       if length(trigger_values) > 1 do
         mutated_trigger = List.last(trigger_values)
-        assert mutated_trigger.ex_revision_at_completion >= mutator_rev
+        assert mutated_trigger.revision >= mutator_rev
         assert mutated_trigger.value == "mutated: mutate-me"
       end
     end
@@ -108,10 +108,10 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, _} = Journey.get_value(execution, :parallel_b, wait_any: true)
       {:ok, _} = Journey.get_value(execution, :mutator, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # All revisions must be monotonically increasing
-      revisions = Enum.map(history, & &1.ex_revision_at_completion)
+      revisions = Enum.map(history, & &1.revision)
       assert revisions == Enum.sort(revisions), "History must be sorted by revision"
 
       # No gaps in the sequence (though not all revisions need to appear in history)
@@ -129,7 +129,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, _} = Journey.get_value(execution, :compute_node, wait_any: true)
       {:ok, _} = Journey.get_value(execution, :mutate_node, wait_any: true)
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # Group by node type
       by_type =
@@ -160,7 +160,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       {:ok, second_a} = Journey.get_value(execution, :parallel_a, wait_new: true)
       assert second_a == "a: second"
 
-      history = Journey.Executions.history(execution.id)
+      history = Journey.history(execution.id)
 
       # The trigger value appears once with its latest value and revision
       trigger_values =
@@ -181,7 +181,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       # They should have different revisions
       revisions =
         parallel_a_computations
-        |> Enum.map(& &1.ex_revision_at_completion)
+        |> Enum.map(& &1.revision)
         |> Enum.uniq()
 
       assert length(revisions) >= 2, "Re-computations should have different revisions"
@@ -203,7 +203,7 @@ defmodule Journey.Executions.HistoryComplexTest do
         # downstream depends on parallel_a so should also complete
         {:ok, _} = Journey.get_value(execution, :downstream, wait_any: true)
 
-        history = Journey.Executions.history(execution.id)
+        history = Journey.history(execution.id)
 
         # Test all invariants
         assert_history_invariants(history)
@@ -305,7 +305,7 @@ defmodule Journey.Executions.HistoryComplexTest do
     |> Enum.find(&(&1.node_name == node_name and &1.computation_or_value == type))
     |> case do
       nil -> nil
-      entry -> entry.ex_revision_at_completion
+      entry -> entry.revision
     end
   end
 
@@ -314,17 +314,17 @@ defmodule Journey.Executions.HistoryComplexTest do
     after_entries =
       history
       |> Enum.filter(&(&1.node_name == after_node))
-      |> Enum.sort_by(& &1.ex_revision_at_completion)
+      |> Enum.sort_by(& &1.revision)
 
     # Find the latest occurrence of before_node that could have caused after_node
     before_entries =
       history
       |> Enum.filter(&(&1.node_name == before_node))
-      |> Enum.sort_by(& &1.ex_revision_at_completion)
+      |> Enum.sort_by(& &1.revision)
 
     if length(after_entries) > 0 and length(before_entries) > 0 do
-      after_rev = hd(after_entries).ex_revision_at_completion
-      before_rev = hd(before_entries).ex_revision_at_completion
+      after_rev = hd(after_entries).revision
+      before_rev = hd(before_entries).revision
 
       assert before_rev <= after_rev,
              "#{before_node} (rev #{before_rev}) should complete before or with #{after_node} (rev #{after_rev})"
@@ -332,11 +332,8 @@ defmodule Journey.Executions.HistoryComplexTest do
   end
 
   defp assert_history_invariants(history) do
-    # All entries have ex_revision_at_start as nil
-    assert Enum.all?(history, &(&1.ex_revision_at_start == nil))
-
     # History is sorted by revision
-    revisions = Enum.map(history, & &1.ex_revision_at_completion)
+    revisions = Enum.map(history, & &1.revision)
     assert revisions == Enum.sort(revisions)
 
     # All entries have required fields
@@ -344,7 +341,7 @@ defmodule Journey.Executions.HistoryComplexTest do
       assert Map.has_key?(entry, :computation_or_value)
       assert Map.has_key?(entry, :node_name)
       assert Map.has_key?(entry, :node_type)
-      assert Map.has_key?(entry, :ex_revision_at_completion)
+      assert Map.has_key?(entry, :revision)
 
       # Value entries have value field, computation entries don't
       if entry.computation_or_value == :value do
@@ -358,7 +355,7 @@ defmodule Journey.Executions.HistoryComplexTest do
   defp assert_complex_graph_invariants(history) do
     # At same revision, computations come before values
     history
-    |> Enum.group_by(& &1.ex_revision_at_completion)
+    |> Enum.group_by(& &1.revision)
     |> Enum.each(fn {_rev, entries} ->
       # Check if both types exist at this revision
       types = Enum.map(entries, & &1.computation_or_value)

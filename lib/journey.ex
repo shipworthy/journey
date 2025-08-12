@@ -486,6 +486,66 @@ defmodule Journey do
   end
 
   @doc """
+  Returns the chronological history of all successful computations and set values for an execution.
+
+  This function provides visibility into the order of operations that occurred during
+  an execution, including both computations that completed successfully and values that were set.
+
+  ## Parameters
+  - `execution` or `execution_id`: The execution struct or ID to get history for
+
+  ## Returns
+  A list of maps sorted by execution revision, where each map contains:
+  - `:computation_or_value` - either `:computation` or `:value`
+  - `:node_name` - the name of the node
+  - `:node_type` - the type of the node
+  - `:revision` - the execution revision when this operation completed
+  - `:value` - the actual value (only present for value nodes)
+
+  ## Examples
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "workflow with history",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:x),
+  ...>     input(:y),
+  ...>     compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
+  ...>   ]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set_value(execution, :x, 10)
+  iex> execution = Journey.set_value(execution, :y, 20)
+  iex> Journey.get_value(execution, :sum, wait_any: true)
+  {:ok, 30}
+  iex> Journey.history(execution) |> Enum.map(fn entry -> 
+  ...>   case entry.node_name do
+  ...>     :execution_id -> %{entry | value: "..."}
+  ...>     :last_updated_at -> %{entry | value: 1234567890}
+  ...>     _ -> entry
+  ...>   end
+  ...> end)
+  [
+    %{node_name: :execution_id, node_type: :input, computation_or_value: :value, value: "...", revision: 0},
+    %{node_name: :x, node_type: :input, computation_or_value: :value, value: 10, revision: 1},
+    %{node_name: :y, node_type: :input, computation_or_value: :value, value: 20, revision: 2},
+    %{node_name: :sum, node_type: :compute, computation_or_value: :computation, revision: 4},
+    %{node_name: :last_updated_at, node_type: :input, computation_or_value: :value, value: 1234567890, revision: 4},
+    %{node_name: :sum, node_type: :compute, computation_or_value: :value, value: 30, revision: 4}
+  ]
+  ```
+  """
+  def history(execution_id) when is_binary(execution_id) do
+    Journey.Executions.history(execution_id)
+  end
+
+  def history(execution) when is_struct(execution, Execution) do
+    Journey.Executions.history(execution.id)
+  end
+
+  @doc """
   Sets the value for an input node in an execution.
 
   This function accepts either:
