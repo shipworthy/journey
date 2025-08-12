@@ -568,8 +568,6 @@ defmodule Journey do
   * **Automatic recomputation** - Setting a value triggers recomputation of all dependent nodes
   * **Idempotent** - Setting the same value twice has no effect (no revision increment)
   * **Input nodes only** - Only input nodes can be set; compute nodes are read-only
-  * **Revision tracking** - Execution revision increments only when the value actually changes
-  * **Asynchronous execution** - Dependent computations run in background via scheduler
 
   ## Quick Example
 
@@ -577,6 +575,8 @@ defmodule Journey do
   execution = Journey.set_value(execution, :name, "Mario")
   {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
   ```
+
+  Use `get_value/3` to retrieve the set value and `unset_value/2` to remove values.
 
   ## Examples
 
@@ -682,6 +682,15 @@ defmodule Journey do
   on the unset input, creating a cascading effect through the dependency graph. This ensures data 
   consistency - no computed values remain that were based on the now-removed input.
 
+  ## Quick Example
+
+  ```elixir
+  execution = Journey.unset_value(execution, :name)
+  {:error, :not_set} = Journey.get_value(execution, :name)
+  ```
+
+  Use `set_value/3` to set values and `get_value/3` to check if values are set.
+
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
   * `node_name` - Atom representing the input node name (must exist in the graph)
@@ -697,15 +706,6 @@ defmodule Journey do
   * **Cascading invalidation** - Dependent computed nodes are automatically unset
   * **Idempotent** - Multiple unsets of the same value have no additional effect
   * **Input nodes only** - Only input nodes can be unset; compute nodes cannot be unset
-  * **Revision tracking** - Revision increments only when a value is actually removed
-  * **Timestamp updates** - The `last_updated_at` node is updated with a new timestamp
-
-  ## Quick Example
-
-  ```elixir
-  execution = Journey.unset_value(execution, :name)
-  {:error, :not_set} = Journey.get_value(execution, :name)
-  ```
 
   ## Examples
 
@@ -789,6 +789,21 @@ defmodule Journey do
   @doc """
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
+  ## Quick Examples
+
+  ```elixir
+  # Basic usage - get a set value
+  {:ok, value} = Journey.get_value(execution, :name)
+
+  # Wait for a computed value to be available
+  {:ok, result} = Journey.get_value(execution, :computed_field, wait_any: true)
+
+  # Wait for a new version of the value
+  {:ok, new_value} = Journey.get_value(execution, :name, wait_new: true)
+  ```
+
+  Use `set_value/3` to set input values that trigger computations.
+
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
   * `node_name` - Atom representing the node name (must exist in the graph)
@@ -817,19 +832,6 @@ defmodule Journey do
     This is useful for when want a new version of the value, and are waiting for it to get computed.
 
   **Note:** `:wait_any` and `:wait_new` are mutually exclusive.
-
-  ## Quick Examples
-
-  ```elixir
-  # Basic usage - get a set value
-  {:ok, value} = Journey.get_value(execution, :name)
-
-  # Get a value. Wait for it to be set or computed
-  {:ok, result} = Journey.get_value(execution, :computed_field, wait_any: true)
-
-  # Wait for the version of the value that is newer than what's in the current execution.
-  {:ok, new_value} = Journey.get_value(execution, :name, wait_new: true)
-  ```
 
   ## Examples
 
