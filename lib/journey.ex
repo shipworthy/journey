@@ -721,9 +721,7 @@ defmodule Journey do
   ...>         compute(
   ...>           :greeting,
   ...>           [:name],
-  ...>           fn %{name: name} ->
-  ...>             {:ok, "Hello, \#{name}!"}
-  ...>           end
+  ...>           fn %{name: name} -> {:ok, "Hello, \#{name}!"} end
   ...>         )
   ...>       ]
   ...>     )
