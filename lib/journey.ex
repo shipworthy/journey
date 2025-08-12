@@ -789,22 +789,51 @@ defmodule Journey do
   @doc """
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
-  ## Options:
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `node_name` - Atom representing the node name (must exist in the graph)
+  * `opts` - Keyword list of options (see Options section below)
+
+  ## Returns
+  * `{:ok, value}` – the value is set
+  * `{:error, :not_set}` – the value is not yet set
+  * `{:error, :no_such_value}` – the node does not exist
+
+  ## Errors
+  * Raises `RuntimeError` if the node name does not exist in the execution's graph
+  * Raises `ArgumentError` if both `:wait_any` and `:wait_new` options are provided (mutually exclusive)
+
+  ## Options
   * `:wait_any` – whether or not to wait for the value to be set. This option can have the following values:
     * `false` or `0` – return immediately without waiting (default)
     * `true` – wait until the value is available, or until timeout
     * a positive integer – wait for the supplied number of milliseconds (default: 30_000)
     * `:infinity` – wait indefinitely
     This is useful for self-computing nodes, where the value is computed asynchronously.
-  * `:wait_new` – whether to wait for a new revision of the value. This option can have the following values:
+  * `:wait_new` – whether to wait for a new revision of the value, compared to the version in the supplied execution. This option can have the following values:
     * `false` – do not wait for a new revision (default)
-    * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet
+    * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet, or until timeout
     * a positive integer – wait for the supplied number of milliseconds for a new revision
-    This is useful for avoiding race conditions when a value triggers dependent computations.
+    This is useful for when want a new version of the value, and are waiting for it to get computed.
 
-  Note: `:wait_any` and `:wait_new` are mutually exclusive.
+  **Note:** `:wait_any` and `:wait_new` are mutually exclusive.
 
-  Returns
+  ## Quick Examples
+
+  ```elixir
+  # Basic usage - get a set value
+  {:ok, value} = Journey.get_value(execution, :name)
+
+  # Get a value. Wait for it to be set or computed
+  {:ok, result} = Journey.get_value(execution, :computed_field, wait_any: true)
+
+  # Wait for the version of the value that is newer than what's in the current execution.
+  {:ok, new_value} = Journey.get_value(execution, :name, wait_new: true)
+  ```
+
+  ## Detailed Examples
+
+  Basic retrieval patterns:
   * `{:ok, value}` – the value is set
   * `{:error, :not_set}` – the value is not yet set
   * `{:error, :no_such_value}` – the node does not exist
