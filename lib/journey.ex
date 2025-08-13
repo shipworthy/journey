@@ -82,17 +82,17 @@ defmodule Journey do
 
   * Scheduling: Your graph can include computations that are scheduled to run at a later time, or on a recurring basis. Daily horoscope emails! A reminder email if they haven't visited the web site in a while! A "happy birthday" email!
 
-  * Removing PII. Journey gives you an easy way to erase sensitive data once it is no longer needed. For example, your Credit Card Application graph can include a step to remove the SSN once the credit score has been computed. For an example, please see 
+  * Removing PII. Journey gives you an easy way to erase sensitive data once it is no longer needed. For example, your Credit Card Application graph can include a step to remove the SSN once the credit score has been computed. For an example, please see
   ```
     mutate(:ssn_redacted, [:credit_score], fn _ -> {:ok, "<redacted>"} end, mutates: :ssn)
   ```
-  node in the example credit card application graph, [here](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L210), which mutates the contents of the :ssn node, replacing its value with "<redacted>", when :credit_score completes. 
+  node in the example credit card application graph, [here](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L210), which mutates the contents of the :ssn node, replacing its value with "<redacted>", when :credit_score completes.
 
   * Tooling and visualization: `Journey.Tools` provides a set of tools for introspecting and managing executions, and for visualizing your application's graph.
 
   See the Credit Card Application example in `Journey.Examples.CreditCardApplication` for a more in-depth example of using Journey to build a more complex application. The example provides
   * the [declarative definition of the process, as a Journey graph](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L201), and
-  * the definitions of specific tasks (e.g. [fetch_credit_score](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L77C9-L77C27)) 
+  * the definitions of specific tasks (e.g. [fetch_credit_score](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L77C9-L77C27))
   The combination of the declarative definition of the flow + the imperative definitions of specific tasks create a well structured core of the application.
 
 
@@ -462,7 +462,7 @@ defmodule Journey do
 
   # List executions for a specific graph version
   v1_executions = Journey.list_executions(
-    graph_name: "user_onboarding", 
+    graph_name: "user_onboarding",
     graph_version: "v1.0.0"
   )
 
@@ -940,7 +940,7 @@ defmodule Journey do
 
   ```elixir
   history = Journey.history(execution)
-  # [%{node_name: :x, computation_or_value: :value, revision: 1}, 
+  # [%{node_name: :x, computation_or_value: :value, revision: 1},
   #  %{node_name: :sum, computation_or_value: :computation, revision: 2}, ...]
   ```
 
@@ -1343,8 +1343,8 @@ defmodule Journey do
   @doc """
   Archives an execution, making it invisible and stopping all background processing.
 
-  Archiving permanently (*) freezes an execution by marking it with an archived timestamp. 
-  This removes it from normal visibility and excludes it from all scheduler processing, 
+  Archiving permanently (*) freezes an execution by marking it with an archived timestamp.
+  This removes it from normal visibility and excludes it from all scheduler processing,
   while preserving the data for potential future access.
 
   *) an execution can be unarchived by calling `unarchive/1`
