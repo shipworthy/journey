@@ -613,35 +613,36 @@ defmodule Journey.Executions do
     monotonic_time_deadline < System.monotonic_time(:millisecond)
   end
 
-  def list(graph_name, sort_by_ex_fields, value_filters, limit, offset, include_archived?)
+  def list(graph_name, graph_version, sort_by_ex_fields, value_filters, limit, offset, include_archived?)
       when (is_nil(graph_name) or is_binary(graph_name)) and
+             (is_nil(graph_version) or is_binary(graph_version)) and
              is_list(sort_by_ex_fields) and
              is_list(value_filters) and
              is_number(limit) and
              is_number(offset) and
              is_boolean(include_archived?) do
-    q = from(e in Execution, limit: ^limit, offset: ^offset)
-
-    q =
-      if include_archived? do
-        q
-      else
-        from(e in q, where: is_nil(e.archived_at))
-      end
-
-    q =
-      sort_by_ex_fields
-      |> Enum.reduce(q, fn sort_field, acc ->
-        from(e in acc, order_by: [asc: ^sort_field])
-      end)
-
-    if graph_name == nil do
-      q
-    else
-      from(e in q, where: e.graph_name == ^graph_name)
-    end
+    from(e in Execution, limit: ^limit, offset: ^offset)
+    |> filter_archived(include_archived?)
+    |> apply_sorting(sort_by_ex_fields)
+    |> filter_by_graph_name(graph_name)
+    |> filter_by_graph_version(graph_version)
     |> add_filters(value_filters)
   end
+
+  defp filter_archived(query, true), do: query
+  defp filter_archived(query, false), do: from(e in query, where: is_nil(e.archived_at))
+
+  defp apply_sorting(query, sort_fields) do
+    Enum.reduce(sort_fields, query, fn sort_field, acc ->
+      from(e in acc, order_by: [asc: ^sort_field])
+    end)
+  end
+
+  defp filter_by_graph_name(query, nil), do: query
+  defp filter_by_graph_name(query, graph_name), do: from(e in query, where: e.graph_name == ^graph_name)
+
+  defp filter_by_graph_version(query, nil), do: query
+  defp filter_by_graph_version(query, graph_version), do: from(e in query, where: e.graph_version == ^graph_version)
 
   def archive_execution(execution_id) do
     prefix = "[#{mf()}][#{execution_id}]"

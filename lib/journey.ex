@@ -453,6 +453,12 @@ defmodule Journey do
   # List all executions for a specific graph
   executions = Journey.list_executions(graph_name: "user_onboarding")
 
+  # List executions for a specific graph version
+  v1_executions = Journey.list_executions(
+    graph_name: "user_onboarding", 
+    graph_version: "v1.0.0"
+  )
+
   # Find executions where age > 18
   adults = Journey.list_executions(
     graph_name: "user_registration",
@@ -465,6 +471,7 @@ defmodule Journey do
   ## Parameters
   * `options` - Keyword list of query options (all optional):
     * `:graph_name` - String name of a specific graph to filter by
+    * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
     * `:order_by_execution_fields` - List of fields to sort by (e.g., `[:updated_at]`, `[:inserted_at]`)
     * `:value_filters` - List of node value filters (see Options section for details)
     * `:limit` - Maximum number of results (default: 10,000)
@@ -521,7 +528,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>   "list example - basic - \#{System.unique_integer([:positive])}",
+  ...>   "list example basic - \#{Journey.Helpers.Random.random_string()}",
   ...>   "v1.0.0",
   ...>   [input(:status)]
   ...> )
@@ -530,6 +537,38 @@ defmodule Journey do
   iex> executions = Journey.list_executions(graph_name: graph.name)
   iex> length(executions)
   2
+  ```
+
+  Filtering by graph version:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph_name = "version example #{Journey.Helpers.Random.random_string()}"
+  iex> graph_v1 = Journey.new_graph(
+  ...>   graph_name,
+  ...>   "v1.0.0",
+  ...>   [input(:data)]
+  ...> )
+  iex> graph_v2 = Journey.new_graph(
+  ...>   graph_name,
+  ...>   "v2.0.0",
+  ...>   [input(:data), input(:new_field)]
+  ...> )
+  iex> Journey.start_execution(graph_v1) |> Journey.set_value(:data, "v1 data")
+  iex> Journey.start_execution(graph_v2) |> Journey.set_value(:data, "v2 data")
+  iex> Journey.list_executions(graph_name: graph_v1.name, graph_version: "v1.0.0") |> length()
+  1
+  iex> Journey.list_executions(graph_name: graph_v1.name, graph_version: "v2.0.0") |> length()
+  1
+  iex> Journey.list_executions(graph_name: graph_v1.name) |> length()
+  2
+  ```
+
+  Validation that graph_version requires graph_name:
+
+  ```elixir
+  iex> Journey.list_executions(graph_version: "v1.0.0")
+  ** (ArgumentError) Option :graph_version requires :graph_name to be specified
   ```
 
   Filtering with comparison operators:
@@ -608,17 +647,31 @@ defmodule Journey do
   """
 
   def list_executions(options \\ []) do
-    check_options(options, [:graph_name, :order_by_execution_fields, :value_filters, :limit, :offset, :include_archived])
+    check_options(options, [
+      :graph_name,
+      :graph_version,
+      :order_by_execution_fields,
+      :value_filters,
+      :limit,
+      :offset,
+      :include_archived
+    ])
 
     value_filters = Keyword.get(options, :value_filters, [])
     limit = Keyword.get(options, :limit, 10_000)
     offset = Keyword.get(options, :offset, 0)
 
     graph_name = Keyword.get(options, :graph_name, nil)
+    graph_version = Keyword.get(options, :graph_version, nil)
     order_by_field = Keyword.get(options, :order_by_execution_fields, [:updated_at])
     include_archived = Keyword.get(options, :include_archived, false)
 
-    Journey.Executions.list(graph_name, order_by_field, value_filters, limit, offset, include_archived)
+    # Validate that graph_version requires graph_name
+    if graph_version != nil and graph_name == nil do
+      raise ArgumentError, "Option :graph_version requires :graph_name to be specified"
+    end
+
+    Journey.Executions.list(graph_name, graph_version, order_by_field, value_filters, limit, offset, include_archived)
   end
 
   @doc """
