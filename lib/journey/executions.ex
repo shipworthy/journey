@@ -253,7 +253,20 @@ defmodule Journey.Executions do
         end
       end
     end)
-    |> handle_set_value_result(execution_id)
+    |> case do
+      {:ok, updated_execution} ->
+        Logger.info("#{prefix}: value set successfully")
+        Journey.Scheduler.advance(updated_execution)
+
+      {:error, {:no_change, original_execution}} ->
+        Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
+        original_execution
+
+      {:error, _} ->
+        Logger.error("#{prefix}: value not set, transaction rolled back")
+        {:ok, execution} = Journey.load(execution_id)
+        execution
+    end
   end
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
@@ -331,25 +344,6 @@ defmodule Journey.Executions do
       {:error, _} ->
         Logger.error("#{prefix}: value not set, transaction rolled back")
         Journey.load(execution)
-    end
-  end
-
-  defp handle_set_value_result(result, execution_id) do
-    prefix = "[#{execution_id}]"
-
-    case result do
-      {:ok, updated_execution} ->
-        Logger.info("#{prefix}: value set successfully")
-        Journey.Scheduler.advance(updated_execution)
-
-      {:error, {:no_change, original_execution}} ->
-        Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
-        original_execution
-
-      {:error, _} ->
-        Logger.error("#{prefix}: value not set, transaction rolled back")
-        {:ok, execution} = Journey.load(execution_id)
-        execution
     end
   end
 
