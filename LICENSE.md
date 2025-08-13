@@ -8,7 +8,7 @@ Journey is dual-licensed to support individuals and small teams while ensuring t
 
 ## 0. TL;DR (Informal Summary)
 
-Journey is free to use for individuals and small teams (≤2 engineers and ≤$10k/month in revenue).
+Journey is free to use for your project, if your Entity generates less than $10k/month in total revenue.
 
 For all other uses, please purchase a license: [https://gojourney.dev](https://gojourney.dev).
 
@@ -19,35 +19,28 @@ For all other uses, please purchase a license: [https://gojourney.dev](https://g
 - **"Journey"** refers to the software package named `journey`, including all code, documentation, and related materials.
 - **"Use"** means installing, copying, modifying, or executing Journey.
 - **"Commercial Use"** means any use of Journey in connection with a product, service, or business activity intended for or resulting in commercial advantage or monetary compensation.
-- **"Engineer"** means any individual who performs software development, scripting, DevOps, or related technical work, whether as an employee, contractor, or consultant.
-- **"Entity"** means any company, organization, or group of individuals working together in a coordinated business capacity.
+- **"Entity"** means any company, organization, or group of individuals working together in a coordinated business capacity, including all subsidiaries, parent companies, and affiliates under common control (directly or indirectly owning 50% or more voting interest).
+- **"Project"** means a distinct software application, service, or system that incorporates Journey, whether for internal operations, customer-facing services, or any other business purpose.
 
 ---
 
 ## 2. Grant of License (Permitted Use)
 
-You are granted a royalty-free, non-exclusive, non-transferable license to Use Journey, **provided that** one of the following conditions applies:
+You may use Journey freely if your Entity generates less than $10,000 USD in total monthly revenue.
 
-- You are an individual using Journey for personal, educational, or hobby purposes, **and not generating more than $10,000 USD in monthly revenue** from any product or service that uses Journey, **or**
-- You are part of an Entity that:
-  - Employs or contracts **no more than two (2) engineers**, **and**
-  - Generates **no more than $10,000 USD in monthly revenue** from any product or service that uses Journey
-
-If either condition applies to you, you may use Journey freely under this license.
+For Entities generating at least $10,000 USD in total monthly revenue, each Project using Journey requires a separate commercial license. Please purchase a license: [https://gojourney.dev](https://gojourney.dev)
 
 ---
 
 ## 3. Commercial License Required
 
-You must obtain a commercial license to Use Journey if:
+If your Entity generates at least $10,000 USD in total monthly revenue, you must obtain a separate commercial license for each Project that uses Journey.
 
-- You are part of an Entity that employs or contracts **three (3) or more engineers**, **or**
-- Your Entity generates **more than $10,000 USD in monthly revenue** from any product or service that uses Journey
+This includes internal business applications such as employee tools, operational systems, data processing applications, and administrative systems.
 
 To purchase a commercial license, please visit: [https://gojourney.dev](https://gojourney.dev)
 
-
-If you believe your use of Journey requires a commercial license, you may continue using it for up to **30 days** while you evaluate licensing terms. Continued use beyond this period without a valid license may violate this agreement.
+If you believe your use of Journey requires a commercial license, you may continue using it for up to **30 days** while you evaluate licensing terms, without a license key or with a free "Small Project" license key. Continued use beyond this period without a valid license may violate this agreement.
 
 ---
 
@@ -69,6 +62,15 @@ IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGE
 ## 6. Not Open Source (OSI)
 
 This license does **not** comply with the Open Source Definition as defined by the [Open Source Initiative](https://opensource.org/osd). Journey is **source-available** software.
+
+---
+
+## 7. Governing Law
+
+This license shall be governed by and construed in accordance with the laws of the State of Washington, USA, without regard to conflict of law principles.
+
+Any legal action arising from this license shall be brought exclusively in the state or federal courts located in King County, Washington.
+
 
 ---
 
