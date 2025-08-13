@@ -24,7 +24,7 @@ Please see Makefile for other useful commands and shortcuts.
 
 Before declaring a change "done", ask yourself the following questions:
 - did I run `make validate`, and fix all issues or raised concerns?
-- did I run `make test-perfomance` a few times, and assessed the performance impact of the change?
+- did I run `make test-performance` a few times, and assessed the performance impact of the change?
 - can this functionality be implemented in a simpler fashion, or does this change strike a good balance of simplicity and functionality?
  
 

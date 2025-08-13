@@ -741,34 +741,42 @@ defmodule Journey do
   end
 
   @doc """
-  Returns a map containing all nodes in the execution with their current status.
+  Returns a map of all nodes in an execution with their current status, including unset nodes.
 
-  Unlike `values/2` which only returns nodes with set values, this function returns all nodes
-  including those that haven't been set yet (marked as `:not_set`). Set values are returned
-  as tuples in the format `{:set, value}`.
+  Unlike `values/2` which only returns set nodes, this function shows all nodes including those
+  that haven't been set yet. Unset nodes are marked as `:not_set`, while set nodes are returned
+  as `{:set, value}` tuples. Useful for debugging and introspection.
 
-  ## Options:
-  * `:reload` – whether to reload the execution before fetching the values. Defaults to `true`.
+  ## Quick Example
 
-  ## Examples:
+  ```elixir
+  all_status = Journey.values_all(execution)
+  # %{name: {:set, "Alice"}, age: :not_set, execution_id: {:set, "EXEC..."}, ...}
+  ```
+
+  Use `values/2` to get only set values, or `get_value/3` for individual node values.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `opts` - Keyword list of options (`:reload` - defaults to `true` for fresh database state)
+
+  ## Returns
+  * Map with all nodes showing status: `:not_set` or `{:set, value}`
+  * Includes all nodes defined in the graph, regardless of current state
+
+  ## Examples
+
+  Basic usage showing status progression:
 
   ```elixir
   iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - schedule_recurring doctest",
-  ...>       "v1.0.0",
-  ...>       [
-  ...>         input(:name),
-  ...>         input(:last_name),
-  ...>         input(:district)
-  ...>        ]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> graph = Journey.new_graph("example", "v1.0.0", [input(:name), input(:age)])
+  iex> execution = Journey.start_execution(graph)
   iex> Journey.values_all(execution) |> redact([:execution_id, :last_updated_at])
-  %{name: :not_set, district: :not_set, last_name: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
-  iex> execution = execution |> Journey.set_value(:name, "Mario")
+  %{name: :not_set, age: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
+  iex> execution = Journey.set_value(execution, :name, "Alice")
   iex> Journey.values_all(execution) |> redact([:execution_id, :last_updated_at])
-  %{district: :not_set, last_name: :not_set, name: {:set, "Mario"}, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
+  %{name: {:set, "Alice"}, age: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
   ```
 
   """
@@ -792,24 +800,42 @@ defmodule Journey do
   end
 
   @doc """
-  Returns a map of all nodes in the execution that have been set, with their values.
+  Returns a map of all set node values in an execution, excluding unset nodes.
 
-  ## Options:
-  * `:reload` – whether to reload the execution before fetching the values. Defaults to `true`.
+  This function filters the execution to only include nodes that have been populated with data.
+  Unset nodes are excluded from the result. Always includes `:execution_id` and `:last_updated_at` metadata.
+
+  ## Quick Example
+
+  ```elixir
+  execution = Journey.set_value(execution, :name, "Alice")
+  values = Journey.values(execution)
+  # %{name: "Alice", execution_id: "EXEC...", last_updated_at: 1234567890}
+  ```
+
+  Use `values_all/1` to see all nodes including unset ones, or `get_value/3` for individual values.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `opts` - Keyword list of options (`:reload` - see `values_all/1` for details)
+
+  ## Returns
+  * Map with node names as keys and their current values as values
+  * Only includes nodes that have been set (excludes `:not_set` nodes)
 
   ## Examples
 
+  Basic usage:
+
   ```elixir
   iex> import Journey.Node
-  iex> execution =
-  ...>    Journey.Examples.Horoscope.graph() |>
-  ...>    Journey.start_execution() |>
-  ...>    Journey.set_value(:birth_day, 26)
+  iex> graph = Journey.new_graph("example", "v1.0.0", [input(:name), input(:age)])
+  iex> execution = Journey.start_execution(graph)
   iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
-  %{birth_day: 26, execution_id: "...", last_updated_at: 1234567890}
-  iex> execution = Journey.set_value(execution, :birth_month, "April")
+  %{execution_id: "...", last_updated_at: 1234567890}
+  iex> execution = Journey.set_value(execution, :name, "Alice")
   iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
-  %{birth_day: 26, birth_month: "April", execution_id: "...", last_updated_at: 1234567890}
+  %{name: "Alice", execution_id: "...", last_updated_at: 1234567890}
   ```
 
   """
