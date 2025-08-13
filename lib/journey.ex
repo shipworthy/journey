@@ -871,33 +871,43 @@ defmodule Journey do
   @doc """
   Returns the chronological history of all successful computations and set values for an execution.
 
-  This function provides visibility into the order of operations that occurred during
-  an execution, including both computations that completed successfully and values that were set.
+  This function provides visibility into the order of operations during execution, showing both
+  value sets and successful computations in chronological order. Only successful computations
+  are included; failed computations are filtered out. At the same revision, computations appear
+  before values.
+
+  ## Quick Example
+
+  ```elixir
+  history = Journey.history(execution)
+  # [%{node_name: :x, computation_or_value: :value, revision: 1}, 
+  #  %{node_name: :sum, computation_or_value: :computation, revision: 2}, ...]
+  ```
+
+  Use `values/2` to see only current values, or `set_value/3` and `get_value/3` for individual operations.
 
   ## Parameters
-  - `execution` or `execution_id`: The execution struct or ID to get history for
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
 
   ## Returns
-  A list of maps sorted by execution revision, where each map contains:
-  - `:computation_or_value` - either `:computation` or `:value`
-  - `:node_name` - the name of the node
-  - `:node_type` - the type of the node
-  - `:revision` - the execution revision when this operation completed
-  - `:value` - the actual value (only present for value nodes)
+  * List of maps sorted by revision, where each map contains:
+    * `:computation_or_value` - either `:computation` or `:value`
+    * `:node_name` - the name of the node
+    * `:node_type` - the type of the node (`:input`, `:compute`, `:mutate`, etc.)
+    * `:revision` - the execution revision when this operation completed
+    * `:value` - the actual value (only present for `:value` entries)
 
   ## Examples
 
+  Basic usage showing value sets and computation:
+
   ```elixir
   iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>   "workflow with history",
-  ...>   "v1.0.0",
-  ...>   [
-  ...>     input(:x),
-  ...>     input(:y),
-  ...>     compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
-  ...>   ]
-  ...> )
+  iex> graph = Journey.new_graph("history example", "v1.0.0", [
+  ...>   input(:x),
+  ...>   input(:y),
+  ...>   compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
+  ...> ])
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set_value(execution, :x, 10)
   iex> execution = Journey.set_value(execution, :y, 20)
@@ -919,6 +929,7 @@ defmodule Journey do
     %{node_name: :sum, node_type: :compute, computation_or_value: :value, value: 30, revision: 4}
   ]
   ```
+
   """
   def history(execution_id) when is_binary(execution_id) do
     Journey.Executions.history(execution_id)
