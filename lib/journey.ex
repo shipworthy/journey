@@ -1281,39 +1281,67 @@ defmodule Journey do
   end
 
   @doc """
-  Archives the supplied execution.
+  Archives an execution, making it invisible and stopping all background processing.
 
-  TODO: "A node defined as an "archive()" node..."
+  Archiving permanently (*) freezes an execution by marking it with an archived timestamp. 
+  This removes it from normal visibility and excludes it from all scheduler processing, 
+  while preserving the data for potential future access.
 
-  TODO: include an example of defining an archive node in a graph -- inline, or by linking it to the credit card application example.
+  *) an execution can be unarchived by calling `unarchive/1`
 
-  Once an execution is archived, it is no longer visible in the list of executions, and cannot be loaded unless explicitly requested with the `include_archived: true` option. The background processing of the execution will stop.
+  ## Quick Example
 
-  ## Parameters:
-  - `execution` or `execution_id`: The execution to archive, or the ID of the execution to archive.
+  ```elixir
+  archived_at = Journey.archive(execution)
+  Journey.load(execution)  # Returns nil (hidden)
+  Journey.load(execution, include_archived: true)  # Can still access
+  ```
 
-  Returns
-  * the time (unix epoch in seconds) of the execution's archived_at timestamp.
+  Use `unarchive/1` to reverse archiving and `list_executions/1` with `:include_archived` to find archived executions.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+
+  ## Returns
+  * Integer timestamp (Unix epoch seconds) when the execution was archived
+
+  ## Key Behaviors
+  * **Scheduler exclusion** - Archived executions are excluded from all background sweeps and processing
+  * **Hidden by default** - Not returned by `list_executions/1` or `load/2` unless explicitly included
+  * **Idempotent** - Archiving an already archived execution returns the existing timestamp
+  * **Reversible** - Use `unarchive/1` to restore normal visibility and processing
 
   ## Examples
 
-    ```elixir
-    iex> execution =
-    ...>    Journey.Examples.Horoscope.graph() |>
-    ...>    Journey.start_execution() |>
-    ...>    Journey.set_value(:birth_day, 26)
-    iex> execution.archived_at
-    nil
-    iex> archived_at = Journey.archive(execution)
-    iex> archived_at == nil
-    false
-    iex> # Archived executions are invisible.
-    iex> Journey.load(execution)
-    nil
-    iex> # Archiving an archived execution has no effect.
-    iex> archived_at == Journey.archive(execution)
-    true
-    ```
+  Basic archiving workflow:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph("archive example", "v1.0.0", [input(:data)])
+  iex> execution = Journey.start_execution(graph)
+  iex> execution.archived_at
+  nil
+  iex> archived_at = Journey.archive(execution)
+  iex> is_integer(archived_at)
+  true
+  iex> Journey.load(execution)
+  nil
+  iex> Journey.load(execution, include_archived: true) != nil
+  true
+  ```
+
+  Idempotent behavior:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph("archive idempotent", "v1.0.0", [input(:data)])
+  iex> execution = Journey.start_execution(graph)
+  iex> first_archive = Journey.archive(execution)
+  iex> second_archive = Journey.archive(execution)
+  iex> first_archive == second_archive
+  true
+  ```
+
   """
   def archive(execution_id) when is_binary(execution_id) do
     Journey.Executions.archive_execution(execution_id)
@@ -1359,6 +1387,7 @@ defmodule Journey do
   def unarchive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
     do: Journey.unarchive(execution.id)
 
+  @doc false
   def kick(execution_id) when is_binary(execution_id) do
     execution_id
     |> Journey.load()
