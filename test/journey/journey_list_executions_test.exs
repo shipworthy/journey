@@ -118,10 +118,37 @@ defmodule Journey.JourneyListExecutionsTest do
 
     test "unexpected option" do
       assert_raise ArgumentError,
-                   "Unknown options: [:graph]. Known options: [:graph_name, :include_archived, :limit, :offset, :order_by_execution_fields, :value_filters].",
+                   "Unknown options: [:graph]. Known options: [:graph_name, :graph_version, :include_archived, :limit, :offset, :order_by_execution_fields, :value_filters].",
                    fn ->
                      Journey.list_executions(graph: "no_such_graph")
                    end
+    end
+
+    test "filter by graph_version" do
+      graph_name = "version_filter_test_#{random_string()}"
+      graph_v1 = Journey.new_graph(graph_name, "v1.0.0", [input(:value)])
+      graph_v2 = Journey.new_graph(graph_name, "v2.0.0", [input(:value)])
+
+      Journey.start_execution(graph_v1) |> Journey.set_value(:value, "v1_1")
+      Journey.start_execution(graph_v1) |> Journey.set_value(:value, "v1_2")
+      Journey.start_execution(graph_v2) |> Journey.set_value(:value, "v2_1")
+
+      # Test filtering by version with graph_name
+      v1_executions = Journey.list_executions(graph_name: graph_name, graph_version: "v1.0.0")
+      assert length(v1_executions) == 2
+
+      v2_executions = Journey.list_executions(graph_name: graph_name, graph_version: "v2.0.0")
+      assert length(v2_executions) == 1
+
+      # Test without version filter
+      all_executions = Journey.list_executions(graph_name: graph_name)
+      assert length(all_executions) == 3
+    end
+
+    test "graph_version requires graph_name" do
+      assert_raise ArgumentError, "Option :graph_version requires :graph_name to be specified", fn ->
+        Journey.list_executions(graph_version: "v1.0.0")
+      end
     end
   end
 
