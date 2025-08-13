@@ -1387,6 +1387,7 @@ defmodule Journey do
   def unarchive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
     do: Journey.unarchive(execution.id)
 
+  @doc false
   def kick(execution_id) when is_binary(execution_id) do
     execution_id
     |> Journey.load()
