@@ -441,22 +441,98 @@ defmodule Journey do
   end
 
   @doc """
-  Lists existing executions.
+  Queries and retrieves multiple executions from the database with flexible filtering, sorting, and pagination.
 
-  Archived executions are not included by default, but can be included by setting the `include_archived: true` option.
+  This function enables searching across all executions in your system, with powerful filtering
+  capabilities based on graph names, node values, and execution metadata. It's essential for
+  monitoring workflows, building dashboards, and analyzing execution patterns.
 
-  ## Options:
-  - `:graph_name` – the name of the graph for which to list executions.
-  - `:order_by_execution_fields` – a list of fields by which to order the executions. Defaults to `[:updated_at]`.
-  - `:value_filters` – a list of filters to apply to the execution values. Each filter is a tuple in the format `{node_name, operator, value}` or `{node_name, function, value}`. Supported operators are `:eq`, `:gt`, `:gte`, `:lt`, `:lte`. The function can be any function that takes two arguments and returns a boolean.
-  - `:limit` – the maximum number of executions to return. Defaults to `10_000`.
-  - `:offset` – the offset from which to start returning executions. Defaults to `0`.
-  - `:include_archived` – whether to include archived executions. Defaults to `false`.
+  ## Quick Example
 
-  ## Returns:
-  - A list of `%Journey.Persistence.Schema.Execution{}` structs representing the executions that match the given criteria.
+  ```elixir
+  # List all executions for a specific graph
+  executions = Journey.list_executions(graph_name: "user_onboarding")
 
-  ## Examples:
+  # Find executions where age > 18
+  adults = Journey.list_executions(
+    graph_name: "user_registration",
+    value_filters: [{:age, :gt, 18}]
+  )
+  ```
+
+  Use with `start_execution/1` to create executions and `load/2` to get individual execution details.
+
+  ## Parameters
+  * `options` - Keyword list of query options (all optional):
+    * `:graph_name` - String name of a specific graph to filter by
+    * `:order_by_execution_fields` - List of fields to sort by (e.g., `[:updated_at]`, `[:inserted_at]`)
+    * `:value_filters` - List of node value filters (see Options section for details)
+    * `:limit` - Maximum number of results (default: 10,000)
+    * `:offset` - Number of results to skip for pagination (default: 0)
+    * `:include_archived` - Whether to include archived executions (default: false)
+
+  ## Returns
+  * List of `%Journey.Persistence.Schema.Execution{}` structs with preloaded values and computations
+  * Empty list `[]` if no executions match the criteria
+
+  ## Options
+
+  ### `:value_filters`
+  Filter executions by node values. Each filter is a tuple with one of these formats:
+  * `{node_name, operator, value}` - Compare node value with a specific value
+  * `{node_name, function}` - Apply custom function to node value
+
+  Supported operators:
+  * `:eq` - Equal to
+  * `:neq` - Not equal to
+  * `:lt` - Less than
+  * `:lte` - Less than or equal
+  * `:gt` - Greater than
+  * `:gte` - Greater than or equal
+  * `:in` - Value in list
+  * `:not_in` - Value not in list
+  * `:is_nil` - Value is nil
+  * `:is_not_nil` - Value is not nil
+
+  Custom functions can have signatures:
+  * `fn(node_value, comparison_value) -> boolean` for binary comparisons
+  * `fn(node_value) -> boolean` for unary checks
+
+  ### `:order_by_execution_fields`
+  List of execution fields to sort by. Common fields:
+  * `:inserted_at` - When execution was created
+  * `:updated_at` - Last modification time
+  * `:revision` - Current revision number
+  * `:graph_name` - Name of the graph
+  * `:graph_version` - Version of the graph
+
+  ## Key Behaviors
+  * **Two-phase filtering** - Database filters (graph_name, archived, sorting) are applied first,
+    then in-memory filtering for node values
+  * **Performance consideration** - Value filters are applied in memory after database query,
+    so use `:limit` wisely with large datasets
+  * **Archive handling** - Archived executions are excluded by default for performance
+  * **Stable ordering** - Results are consistently ordered by specified fields
+
+  ## Examples
+
+  Basic listing by graph name:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "list example - basic - \#{System.unique_integer([:positive])}",
+  ...>   "v1.0.0",
+  ...>   [input(:status)]
+  ...> )
+  iex> Journey.start_execution(graph) |> Journey.set_value(:status, "active")
+  iex> Journey.start_execution(graph) |> Journey.set_value(:status, "pending")
+  iex> executions = Journey.list_executions(graph_name: graph.name)
+  iex> length(executions)
+  2
+  ```
+
+  Filtering with comparison operators:
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
@@ -466,6 +542,8 @@ defmodule Journey do
   20
   iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 1}]) |> Enum.count()
   1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :neq, 1}]) |> Enum.count()
+  19
   iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gt, 7}]) |> Enum.count()
   13
   iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gte, 7}]) |> Enum.count()
@@ -474,18 +552,57 @@ defmodule Journey do
   6
   iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 7}]) |> Enum.count()
   7
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 10}]) |> Enum.count()
-  1
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :in, [5, 10, 15]}]) |> Enum.count()
+  3
+  ```
+
+  Using custom filter functions:
+
+  ```elixir
+  iex> graph = Journey.Examples.Horoscope.graph()
+  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
+  iex> # Binary comparison function
   iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a, b -> a == b end, 10}]) |> Enum.count()
   1
+  iex> # Unary check function
   iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a -> a in [9, 12] end}]) |> Enum.count()
   2
+  iex> # Check for even days
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn day -> rem(day, 2) == 0 end}]) |> Enum.count()
+  10
+  ```
+
+  Pagination and limits:
+
+  ```elixir
+  iex> graph = Journey.Examples.Horoscope.graph()
+  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
   iex> Journey.list_executions(graph_name: graph.name, limit: 3) |> Enum.count()
   3
   iex> Journey.list_executions(graph_name: graph.name, limit: 10, offset: 15) |> Enum.count()
   5
-  iex> Journey.list_executions(graph_name: graph.name, include_archived: true) |> Enum.count()
-  20
+  iex> page1 = Journey.list_executions(graph_name: graph.name, limit: 5, offset: 0)
+  iex> page2 = Journey.list_executions(graph_name: graph.name, limit: 5, offset: 5)
+  iex> length(page1) == 5 and length(page2) == 5
+  true
+  ```
+
+  Including archived executions:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "list example - archived - \#{System.unique_integer([:positive])}",
+  ...>   "v1.0.0",
+  ...>   [input(:status)]
+  ...> )
+  iex> e1 = Journey.start_execution(graph)
+  iex> _e2 = Journey.start_execution(graph)
+  iex> Journey.archive(e1)
+  iex> Journey.list_executions(graph_name: graph.name) |> length()
+  1
+  iex> Journey.list_executions(graph_name: graph.name, include_archived: true) |> length()
+  2
   ```
 
   """
