@@ -741,34 +741,75 @@ defmodule Journey do
   end
 
   @doc """
-  Returns a map containing all nodes in the execution with their current status.
+  Returns a map of all nodes in an execution with their current status, including unset nodes.
 
   Unlike `values/2` which only returns nodes with set values, this function returns all nodes
-  including those that haven't been set yet (marked as `:not_set`). Set values are returned
-  as tuples in the format `{:set, value}`.
+  in the execution graph including those that haven't been set yet. Unset nodes are marked as
+  `:not_set`, while set nodes are returned as `{:set, value}` tuples. This function is useful
+  for debugging, introspection, and understanding the complete state of an execution.
 
-  ## Options:
-  * `:reload` – whether to reload the execution before fetching the values. Defaults to `true`.
+  ## Quick Example
 
-  ## Examples:
+  ```elixir
+  all_status = Journey.values_all(execution)
+  # %{name: {:set, "Alice"}, age: :not_set, execution_id: {:set, "EXEC..."}, ...}
+  ```
+
+  Use `values/2` to get only set values, or `get_value/3` for individual node values.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `opts` - Keyword list of options (see Options section below)
+
+  ## Returns
+  * Map with node names as keys and status values:
+    * `:not_set` for nodes that haven't been populated
+    * `{:set, value}` for nodes that have been set or computed
+  * Always includes `:execution_id` and `:last_updated_at` metadata as `{:set, value}` tuples
+  * Includes all nodes defined in the graph, regardless of their current state
+
+  ## Options
+  * `:reload` - Whether to reload execution from database before fetching values. Defaults to `true`.
+    Set to `false` for better performance when you know the execution is current.
+
+  ## Examples
+
+  Basic usage showing unset and set node status:
 
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "horoscope workflow - schedule_recurring doctest",
-  ...>       "v1.0.0",
-  ...>       [
-  ...>         input(:name),
-  ...>         input(:last_name),
-  ...>         input(:district)
-  ...>        ]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  ...>   "status example",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:name),
+  ...>     input(:age),
+  ...>     compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
+  ...>   ]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
   iex> Journey.values_all(execution) |> redact([:execution_id, :last_updated_at])
-  %{name: :not_set, district: :not_set, last_name: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
-  iex> execution = execution |> Journey.set_value(:name, "Mario")
+  %{name: :not_set, age: :not_set, greeting: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
+  iex> execution = Journey.set_value(execution, :name, "Alice")
+  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, "Hello, Alice!"}
   iex> Journey.values_all(execution) |> redact([:execution_id, :last_updated_at])
-  %{district: :not_set, last_name: :not_set, name: {:set, "Mario"}, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
+  %{name: {:set, "Alice"}, age: :not_set, greeting: {:set, "Hello, Alice!"}, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
+  ```
+
+  Performance optimization with reload option:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "performance example",
+  ...>   "v1.0.0",
+  ...>   [input(:data)]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> status = Journey.values_all(execution, reload: false)
+  iex> Map.get(status, :data)
+  :not_set
   ```
 
   """
@@ -792,24 +833,74 @@ defmodule Journey do
   end
 
   @doc """
-  Returns a map of all nodes in the execution that have been set, with their values.
+  Returns a map of all set node values in an execution, excluding unset nodes.
 
-  ## Options:
-  * `:reload` – whether to reload the execution before fetching the values. Defaults to `true`.
+  This function filters the execution to only include nodes that have been populated with data
+  (either through `set_value/3` calls or successful computations). Unset nodes are excluded
+  from the result. The returned map always includes execution metadata like `:execution_id`
+  and `:last_updated_at`.
+
+  ## Quick Example
+
+  ```elixir
+  execution = Journey.set_value(execution, :name, "Alice")
+  values = Journey.values(execution)
+  # %{name: "Alice", execution_id: "EXEC...", last_updated_at: 1234567890}
+  ```
+
+  Use `values_all/1` to see all nodes including unset ones, or `get_value/3` for individual values.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `opts` - Keyword list of options (see Options section below)
+
+  ## Returns
+  * Map with node names as keys and their current values as values
+  * Always includes `:execution_id` and `:last_updated_at` metadata fields
+  * Only includes nodes that have been set (excludes `:not_set` nodes)
+
+  ## Options
+  * `:reload` - Whether to reload execution from database before fetching values. Defaults to `true`.
+    Set to `false` for better performance when you know the execution is current.
 
   ## Examples
 
+  Basic usage showing input and computed values:
+
   ```elixir
   iex> import Journey.Node
-  iex> execution =
-  ...>    Journey.Examples.Horoscope.graph() |>
-  ...>    Journey.start_execution() |>
-  ...>    Journey.set_value(:birth_day, 26)
+  iex> graph = Journey.new_graph(
+  ...>   "values example",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:name),
+  ...>     compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
+  ...>   ]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> Journey.values(execution) |> Map.drop([:execution_id, :last_updated_at])
+  %{}
+  iex> execution = Journey.set_value(execution, :name, "Alice")
+  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, "Hello, Alice!"}
   iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
-  %{birth_day: 26, execution_id: "...", last_updated_at: 1234567890}
-  iex> execution = Journey.set_value(execution, :birth_month, "April")
-  iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
-  %{birth_day: 26, birth_month: "April", execution_id: "...", last_updated_at: 1234567890}
+  %{name: "Alice", greeting: "Hello, Alice!", execution_id: "...", last_updated_at: 1234567890}
+  ```
+
+  Performance optimization with reload option:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "performance example",
+  ...>   "v1.0.0",
+  ...>   [input(:data)]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set_value(execution, :data, "test")
+  iex> values = Journey.values(execution, reload: false)
+  iex> Map.has_key?(values, :data)
+  true
   ```
 
   """
