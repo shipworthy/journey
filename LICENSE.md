@@ -2,13 +2,13 @@
 
 Copyright (c) 2021-2025 Mark Markaryan
 
-Journey is dual-licensed to support individuals and small teams while ensuring that commercial use contributes to its ongoing development.
+Journey is dual-licensed to support individuals and small or non-commercial teams while ensuring that commercial use contributes to its ongoing development.
 
 ---
 
 ## 0. TL;DR (Informal Summary)
 
-Journey is free to use for individuals and small teams (≤2 engineers and ≤$10k/month in revenue).
+Journey is free for projects generating under $10k/month in revenue.
 
 For all other uses, please purchase a license: [https://gojourney.dev](https://gojourney.dev).
 
@@ -26,14 +26,14 @@ For all other uses, please purchase a license: [https://gojourney.dev](https://g
 
 ## 2. Grant of License (Permitted Use)
 
+
 You are granted a royalty-free, non-exclusive, non-transferable license to Use Journey, **provided that** one of the following conditions applies:
 
-- You are an individual using Journey for personal, educational, or hobby purposes, **and not generating more than $10,000 USD in monthly revenue** from any product or service that uses Journey, **or**
-- You are part of an Entity that:
-  - Employs or contracts **no more than two (2) engineers**, **and**
-  - Generates **no more than $10,000 USD in monthly revenue** from any product or service that uses Journey
+- You are an individual using Journey for personal, educational, or hobby purposes, **and not generating $10,000 USD or more in monthly revenue** from any product or service that uses Journey, **or**
+- You are part of an Entity that generates **$10,000 USD or more  in monthly revenue** from any product or service that uses Journey
 
 If either condition applies to you, you may use Journey freely under this license.
+
 
 ---
 
