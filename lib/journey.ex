@@ -7,6 +7,41 @@ defmodule Journey do
 
   It lets you define your application as a self-computing graph and run it without having to worry about the nitty-gritty of persistence, dependencies, scalability, or reliability.
 
+  Here is a basic example of using Journey. The example's graph defines values, the computation, and dependencies. Once `:x` and `:y` are provided or updated, `:sum` gets computed.
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "demo graph",
+  ...>   "v1",
+  ...>   [
+  ...>     input(:x),
+  ...>     input(:y),
+  ...>     # the `:sum` computation requires :x and :y.
+  ...>     compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
+  ...>   ]
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set_value(execution, :x, 12)
+  iex> execution = Journey.set_value(execution, :y, 2)
+  iex> Journey.get_value(execution, :sum, wait_any: true)
+  {:ok, 14}
+  iex> execution = Journey.set_value(execution, :y, 7)
+  iex> Journey.get_value(execution, :sum, wait_new: true)
+  {:ok, 19}
+
+  ```
+
+  A few things to note about this example:
+  * every input value (:x, :y), or computation result (:sum) is persisted,
+  * the :sum computation happens reliably (with a retry policy),
+  * the :sum computation is as horizontally distributed as your app,
+  * the :sum computation is proactive: it will be computed when x and y become available,
+  * the executions of this flow can take as long as needed (milliseconds? months?), and will live through system restarts, crashes, redeployments, page reloads, etc.
+
+  You can see a livebook with this example in [basic.livemd](basic.html)
+
+  ## A (slightly) richer example: computing horoscopes
+
   Consider a simple Horoscope application that computes a customer's zodiac sign and horoscope based on their birthday. The application will ask the customer to `input` their name and birthday, and it then auto-`compute`s their zodiac sign and horoscope.
 
   This application can be thought of as a graph of nodes, where each node represents a piece of customer-provided data or the result of a computation. Add functions for computing the zodiac sign and horoscope, and capture the sequencing of the computations, and you have a graph that captures the flow of data and computations in your application. When a customer visits your application, you can start the execution of the graph, to accept and store customer-provided inputs (name, birthday), and to compute the zodiac sign and horoscope based on these inputs.
@@ -15,7 +50,9 @@ defmodule Journey do
 
   ## Step-by-Step
 
-  Below is an example of defining a Journey graph for this Horoscope application.
+  Below is a step-by-step example of defining a Journey graph for this Horoscope application.
+
+  (These are code snippets, if you want a complete fragment you can paste into `iex` or livebook, scroll down to the "Putting together" code block.)
 
   This graph captures customer `input`s, and defines `compute`ations (together with their functions and prerequisites):
 
