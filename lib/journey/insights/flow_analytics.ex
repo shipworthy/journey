@@ -147,6 +147,9 @@ defmodule Journey.Insights.FlowAnalytics do
     end
   end
 
+  def to_text(_flow_analytics) do
+  end
+
   defp build_execution_filter_query(graph_name, graph_version, include_executions) do
     base_query =
       from(e in Execution,

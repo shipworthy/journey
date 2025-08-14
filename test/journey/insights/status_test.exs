@@ -216,6 +216,221 @@ defmodule Journey.InsightsTest do
     end
   end
 
+  describe "to_text/1" do
+    test "formats healthy status with active graphs", %{test_id: test_id} do
+      # Create test data
+      graph = simple_test_graph(test_id)
+      exec = Journey.start_execution(graph)
+      Journey.set_value(exec, :name, "Test")
+      {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
+
+      status_data = Status.status()
+      text_output = Status.to_text(status_data)
+
+      # Check header
+      assert text_output =~ "System Status: HEALTHY"
+      assert text_output =~ "Database: Connected"
+      assert text_output =~ "=" |> String.duplicate(80)
+
+      # Check for active graphs section if there are any
+      active_graphs =
+        Enum.filter(status_data.graphs, fn g ->
+          (g[:stats][:executions][:active] || 0) > 0
+        end)
+
+      if length(active_graphs) > 0 do
+        assert text_output =~ "ACTIVE GRAPHS"
+        assert text_output =~ "-" |> String.duplicate(80)
+      end
+    end
+
+    test "formats status with no graphs", %{test_id: _test_id} do
+      status_data = %{
+        status: :healthy,
+        database_connected: true,
+        graphs: []
+      }
+
+      expected_output = """
+      System Status: HEALTHY
+      Database: Connected
+      ================================================================================
+
+      No graphs found in system.
+      """
+
+      assert Status.to_text(status_data) == expected_output
+    end
+
+    test "formats unhealthy status with database disconnected", %{test_id: _test_id} do
+      status_data = %{
+        status: :unhealthy,
+        database_connected: false,
+        graphs: []
+      }
+
+      expected_output = """
+      System Status: UNHEALTHY
+      Database: DISCONNECTED
+      ================================================================================
+
+      No graphs found in system.
+      """
+
+      assert Status.to_text(status_data) == expected_output
+    end
+
+    test "formats graph with computation states", %{test_id: test_id} do
+      status_data = %{
+        status: :healthy,
+        database_connected: true,
+        graphs: [
+          %{
+            graph_name: "Test Graph #{test_id}",
+            graph_version: "v1.0.0",
+            stats: %{
+              executions: %{
+                active: 1234,
+                archived: 567,
+                most_recently_created: "2025-08-14T11:00:00Z",
+                most_recently_updated: "2025-08-14T12:00:00Z"
+              },
+              computations: %{
+                by_state: %{
+                  success: 5000,
+                  failed: 10,
+                  computing: 5,
+                  not_set: 2000,
+                  abandoned: 50,
+                  cancelled: 0
+                },
+                most_recently_created: "2025-08-14T12:00:00Z",
+                most_recently_updated: "2025-08-14T12:00:00Z"
+              }
+            }
+          }
+        ]
+      }
+
+      expected_output = """
+      System Status: HEALTHY
+      Database: Connected
+      ================================================================================
+
+      ACTIVE GRAPHS (1 total)
+      --------------------------------------------------------------------------------
+
+      Test Graph #{test_id} (v1.0.0)
+        Executions: 1.2k active | 567 archived
+        First activity: 2025-08-14T11:00:00Z
+        Last activity: 2025-08-14T12:00:00Z
+        Computations:
+          ✓ success: 5.0k
+          ✗ failed: 10
+          ⏳ computing: 5
+          ◯ not_set: 2.0k
+          ⚠ abandoned: 50
+      """
+
+      assert Status.to_text(status_data) == expected_output
+    end
+
+    test "formats large numbers correctly", %{test_id: test_id} do
+      status_data = %{
+        status: :healthy,
+        database_connected: true,
+        graphs: [
+          %{
+            graph_name: "Large Graph #{test_id}",
+            graph_version: "v1.0.0",
+            stats: %{
+              executions: %{
+                active: 1_500_000,
+                archived: 2_500_000,
+                most_recently_created: "2025-08-14T10:00:00Z",
+                most_recently_updated: "2025-08-14T12:00:00Z"
+              },
+              computations: %{
+                by_state: %{
+                  success: 10_000_000,
+                  failed: 0,
+                  computing: 0,
+                  not_set: 0,
+                  abandoned: 0,
+                  cancelled: 0
+                },
+                most_recently_created: nil,
+                most_recently_updated: nil
+              }
+            }
+          }
+        ]
+      }
+
+      expected_output = """
+      System Status: HEALTHY
+      Database: Connected
+      ================================================================================
+
+      ACTIVE GRAPHS (1 total)
+      --------------------------------------------------------------------------------
+
+      Large Graph #{test_id} (v1.0.0)
+        Executions: 1.5M active | 2.5M archived
+        First activity: 2025-08-14T10:00:00Z
+        Last activity: 2025-08-14T12:00:00Z
+        Computations:
+          ✓ success: 10.0M
+      """
+
+      assert Status.to_text(status_data) == expected_output
+    end
+
+    test "sorts graphs by active execution count", %{test_id: test_id} do
+      status_data = %{
+        status: :healthy,
+        database_connected: true,
+        graphs: [
+          %{
+            graph_name: "Small Graph #{test_id}",
+            graph_version: "v1.0.0",
+            stats: %{
+              executions: %{active: 10, archived: 0, most_recently_created: nil, most_recently_updated: nil},
+              computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil}
+            }
+          },
+          %{
+            graph_name: "Large Graph #{test_id}",
+            graph_version: "v1.0.0",
+            stats: %{
+              executions: %{active: 1000, archived: 0, most_recently_created: nil, most_recently_updated: nil},
+              computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil}
+            }
+          },
+          %{
+            graph_name: "Medium Graph #{test_id}",
+            graph_version: "v1.0.0",
+            stats: %{
+              executions: %{active: 100, archived: 0, most_recently_created: nil, most_recently_updated: nil},
+              computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil}
+            }
+          }
+        ]
+      }
+
+      text_output = Status.to_text(status_data)
+
+      # Find positions of graph names in the output
+      large_pos = :binary.match(text_output, "Large Graph") |> elem(0)
+      medium_pos = :binary.match(text_output, "Medium Graph") |> elem(0)
+      small_pos = :binary.match(text_output, "Small Graph") |> elem(0)
+
+      # Verify ordering (largest first)
+      assert large_pos < medium_pos
+      assert medium_pos < small_pos
+    end
+  end
+
   # Helper functions for creating test graphs
 
   defp simple_test_graph(test_id) do

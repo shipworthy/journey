@@ -218,4 +218,153 @@ defmodule Journey.Insights.Status do
     DateTime.from_unix!(timestamp)
     |> DateTime.to_iso8601()
   end
+
+  @doc """
+  Formats status data as human-readable text output.
+
+  ## Example:
+
+      iex> status_data = Journey.Insights.Status.status()
+      iex> Journey.Insights.Status.to_text(status_data) |> IO.puts()
+      System Status: HEALTHY
+      Database: Connected
+      ================================================================================
+
+      ACTIVE GRAPHS (3 total)
+      --------------------------------------------------------------------------------
+
+      Credit Card Application flow graph (v1.0.0)
+        Executions: 12,652 active | 5,107 archived
+        First activity: 2025-07-28 19:50:40Z
+        Last activity: 2025-08-14 05:31:05Z
+        Computations:
+          ✓ success: 61,390
+          ✗ failed: 0
+          ⏳ computing: 33
+          ◯ not_set: 151,685
+          ⚠ abandoned: 1,023
+
+      flow_analytics_perf_test (1.0.0)
+        Executions: 900 active | 100 archived
+        First activity: 2025-08-01 22:05:06Z
+        Last activity: 2025-08-01 22:05:09Z
+        Computations:
+          ✓ success: 1,696
+          ⏳ computing: 54
+          ◯ not_set: 2,250
+
+      g1 (v1)
+        Executions: 25 active | 0 archived
+        First activity: 2025-08-14 17:23:16Z
+        Last activity: 2025-08-14 17:29:36Z
+        Computations:
+          ✓ success: 38
+          ✗ failed: 7
+          ◯ not_set: 4
+          ⚠ abandoned: 2
+  """
+  def to_text(status_data) do
+    health_status = status_data[:status] |> to_string() |> String.upcase()
+    db_status = if status_data[:database_connected], do: "Connected", else: "DISCONNECTED"
+
+    graphs = status_data[:graphs] || []
+
+    header = """
+    System Status: #{health_status}
+    Database: #{db_status}
+    #{"=" |> String.duplicate(80)}
+    """
+
+    if Enum.empty?(graphs) do
+      header <> "\nNo graphs found in system.\n"
+    else
+      active_graphs =
+        Enum.filter(graphs, fn g ->
+          (g[:stats][:executions][:active] || 0) > 0
+        end)
+
+      graph_count = length(active_graphs)
+
+      graphs_text =
+        if graph_count > 0 do
+          """
+
+          ACTIVE GRAPHS (#{graph_count} total)
+          #{"-" |> String.duplicate(80)}
+          """ <>
+            format_graphs_text(active_graphs)
+        else
+          "\nNo active graphs in system.\n"
+        end
+
+      header <> graphs_text
+    end
+  end
+
+  defp format_graphs_text(graphs) do
+    graphs
+    |> Enum.sort_by(fn g ->
+      {-(g[:stats][:executions][:active] || 0), g[:graph_name]}
+    end)
+    |> Enum.map_join("\n", &format_single_graph/1)
+  end
+
+  defp format_single_graph(graph) do
+    exec_stats = graph[:stats][:executions]
+    comp_stats = graph[:stats][:computations]
+
+    active = exec_stats[:active] || 0
+    archived = exec_stats[:archived] || 0
+    first_activity = exec_stats[:most_recently_created] || "never"
+    last_activity = exec_stats[:most_recently_updated] || "never"
+
+    computation_lines = format_computation_states(comp_stats[:by_state] || %{})
+
+    """
+
+    #{graph[:graph_name]} (#{graph[:graph_version]})
+      Executions: #{format_number(active)} active | #{format_number(archived)} archived
+      First activity: #{first_activity}
+      Last activity: #{last_activity}
+    """ <>
+      if computation_lines != "" do
+        "  Computations:\n" <> computation_lines
+      else
+        ""
+      end
+  end
+
+  defp format_computation_states(by_state) when by_state == %{}, do: ""
+
+  defp format_computation_states(by_state) do
+    order = [:success, :failed, :computing, :not_set, :abandoned, :cancelled]
+
+    symbols = %{
+      success: "✓",
+      failed: "✗",
+      computing: "⏳",
+      not_set: "◯",
+      abandoned: "⚠",
+      cancelled: "✗"
+    }
+
+    order
+    |> Enum.filter(fn state -> Map.get(by_state, state, 0) > 0 end)
+    |> Enum.map_join("\n", fn state ->
+      count = Map.get(by_state, state, 0)
+      symbol = Map.get(symbols, state, "•")
+      "    #{symbol} #{state}: #{format_number(count)}"
+    end)
+    |> then(fn lines -> if lines != "", do: lines <> "\n", else: "" end)
+  end
+
+  defp format_number(num) when num >= 1_000_000 do
+    "#{Float.round(num / 1_000_000, 1)}M"
+  end
+
+  defp format_number(num) when num >= 1_000 do
+    "#{Float.round(num / 1_000, 1)}k"
+  end
+
+  defp format_number(num), do: "#{num}"
 end

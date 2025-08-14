@@ -17,6 +17,7 @@ Journey is an Elixir library for building persistent, scalable computation graph
 - `make test` - Full test suite with coverage
 - `mix test path/to/test.exs` - Single test file
 - `make test-performance` - Performance benchmarks 
+- `elixir -e "IO.puts(\"Hello from the command line\")"`
 
 Please see Makefile for other useful commands and shortcuts.
 
