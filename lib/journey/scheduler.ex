@@ -69,8 +69,9 @@ defmodule Journey.Scheduler do
           graph_node.f_compute.(computation_params)
         rescue
           e ->
-            Logger.error("#{prefix}: f_compute raised an exception, #{inspect(e)}")
-            {:error, "Exception. #{inspect(e)}"}
+            exception_as_string = Exception.format(:error, e, __STACKTRACE__)
+            Logger.error("#{prefix}: f_compute raised an exception, #{Exception.format(:error, e, __STACKTRACE__)}")
+            {:error, "Exception. #{exception_as_string}"}
         end
 
       r
@@ -82,6 +83,17 @@ defmodule Journey.Scheduler do
         {:error, error_details} ->
           Logger.warning("#{prefix}: async computation completed with an error")
           Completions.record_error(computation, error_details)
+          jitter_ms = :rand.uniform(10_000)
+          Process.sleep(jitter_ms)
+
+        unexpected_value ->
+          result_truncated = "#{inspect(unexpected_value)}" |> String.trim() |> String.slice(0, 1000)
+
+          Logger.error(
+            "#{prefix}: #{computation.node_name}'s f_compute function was expected to return `{:ok, _}` or {:error, _} tuples, but it returned an unexpected value: '#{result_truncated}'"
+          )
+
+          Completions.record_error(computation, "Unexpected value: '#{result_truncated}'")
           jitter_ms = :rand.uniform(10_000)
           Process.sleep(jitter_ms)
       end

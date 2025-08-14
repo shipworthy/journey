@@ -42,7 +42,7 @@ defmodule Journey.Scheduler.Completions do
 
           computation
           |> Ecto.Changeset.change(%{
-            error_details: "#{inspect(error_details)}",
+            error_details: "#{inspect(error_details)}" |> String.trim() |> String.slice(0, 1000),
             completion_time: now_seconds,
             updated_at: now_seconds,
             state: :failed,
