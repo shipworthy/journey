@@ -365,6 +365,31 @@ Journey.get_value(reloaded_execution, :sum, wait_new: true)
 
 This basic computation happened with peristence, resiliency, and scalability.
 
+## Search through computation records
+
+"find me all the records where the sum is greater than 20, and whose x is less than 20!"
+
+```elixir
+Journey.list_executions(
+  graph_name: graph.name,
+  graph_version: graph.version,
+  order_by_execution_fields: [:inserted_at],
+  value_filters: [{:sum, :gt, 20}, {:x, :lt, 20}]
+)
+|> Enum.map(fn e ->
+  Journey.values(e)
+end)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %{y: 9, x: 2, last_updated_at: 1755145434, execution_id: "EXECTYHV1RM721EHH3V89A42"},
+  %{y: 9, x: 2, last_updated_at: 1755145483, execution_id: "EXECY4RE369XYJJ0VJX48ZH7"}
+]
+```
+
 ## Flow Analytics: executions stats
 
 ```elixir
@@ -834,4 +859,4 @@ This all happened without application data getting shipped to a third party, or 
 
 See Journey documentation for examples of more complex applications (e.g. a Horoscope app, or a Credit Card Application flow, which includes Mutations, and one-time and recurring Scheduled events).
 
-<!-- livebook:{"offset":23646,"stamp":{"token":"XCP.M01Tw1RbHz7uAsGorU2jB6p52t5mKO39v5hEVRCCLGjx_2oZ_8aspuipQaNoAQ087D_1ILElaiuUmmOQo4IscKXer_KmiyN9y6Cke0HtAu7gNmEnBSQVd35q","version":2}} -->
+<!-- livebook:{"offset":24238,"stamp":{"token":"XCP.tyeaWKp4UqJH-S4yW3OHCHSW4NQKyddd4ZRqBRYI68hzqLwOmuwF4lnKudI6jmFS_JfILnQmw7YwmVdN9u4u5opWapV_8X3MJ_EM9XUer3_X12IeDDtMcc64","version":2}} -->
