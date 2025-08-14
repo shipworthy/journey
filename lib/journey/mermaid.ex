@@ -2,17 +2,19 @@ defmodule JourneyMermaidConverter do
   @moduledoc false
 
   def compose_mermaid(graph, opts \\ []) when is_struct(graph, Journey.Graph) do
-    show_legend = Keyword.get(opts, :legend, true)
+    show_legend = Keyword.get(opts, :legend, false)
+    show_timestamp = Keyword.get(opts, :timestamp, false)
     nodes = graph.nodes
 
     legend_section = if show_legend, do: [build_legend(), ""], else: []
+    timestamp_section = if show_timestamp, do: generated_at(), else: []
 
     # Build the mermaid definition
     [
       "graph TD",
       graph_section(nodes, graph.name, graph.version),
       legend_section,
-      generated_at(),
+      timestamp_section,
       build_styling_with_nodes(nodes, show_legend)
     ]
     |> List.flatten()

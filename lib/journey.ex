@@ -638,7 +638,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>   "list example - archived - \#{System.unique_integer([:positive])}",
+  ...>   "list example - archived - \#{Journey.Helpers.Random.random_string()}",
   ...>   "v1.0.0",
   ...>   [input(:status)]
   ...> )
