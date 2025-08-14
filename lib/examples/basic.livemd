@@ -367,7 +367,7 @@ This basic computation happened with peristence, resiliency, and scalability.
 
 ## Search through computation records
 
-"find me all the records where the sum is greater than 20, and whose x is less then 20!"
+"find me all the records where the sum is greater than 20, and whose x is less than 20!"
 
 ```elixir
 Journey.list_executions(
