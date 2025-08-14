@@ -173,8 +173,46 @@ defmodule Journey.Tools do
       list_computations(graph, execution.values, computations_completed, computations_outstanding)
   end
 
-  def generate_mermaid_graph(graph) do
-    JourneyMermaidConverter.compose_mermaid(graph)
+  @doc """
+  Generates a Mermaid diagram representation of a Journey graph.
+
+  Converts a graph into Mermaid syntax for visualization. By default returns only 
+  the flow diagram without legend or timestamp.
+
+  ## Quick Example
+
+  ```elixir
+  # Just the flow
+  mermaid = Journey.Tools.generate_mermaid_graph(graph)
+
+  # Include legend and timestamp
+  mermaid = Journey.Tools.generate_mermaid_graph(graph,
+    include_legend: true,
+    include_timestamp: true
+  )
+  ```
+
+  ## Options
+  * `:include_legend` - Include node type legend (default: `false`)
+  * `:include_timestamp` - Include generation timestamp (default: `false`)
+  """
+  def generate_mermaid_graph(graph, opts \\ []) do
+    opts_schema = [
+      include_legend: [is: :boolean],
+      include_timestamp: [is: :boolean]
+    ]
+
+    KeywordValidator.validate!(opts, opts_schema)
+
+    mermaid_opts =
+      opts
+      |> Keyword.take([:include_legend, :include_timestamp])
+      |> Enum.map(fn
+        {:include_legend, value} -> {:legend, value}
+        {:include_timestamp, value} -> {:timestamp, value}
+      end)
+
+    JourneyMermaidConverter.compose_mermaid(graph, mermaid_opts)
   end
 
   defp f_name(fun) when is_function(fun) do
