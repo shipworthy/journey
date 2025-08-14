@@ -54,7 +54,7 @@ Our application is very simple, given two numbers, it computes the sum. ; )
 ## "Business logic": `f_add(x, y)`
 
 ```elixir
-# The function for adding two two numbers. Duh. ; )
+# The function for adding two numbers. Duh. ; )
 f_add = fn %{x: x, y: y} -> {:ok, x + y} end
 ```
 
@@ -144,7 +144,7 @@ graph TD
     end
 
     %% Caption
-    caption[/"Generated at 2025-08-14 05:06:45Z UTC"/]
+    caption[/"Generated at 2025-08-14 06:02:15Z UTC"/]
 
     %% Styling
     classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
@@ -177,7 +177,7 @@ execution_id = execution.id
 <!-- livebook:{"output":true} -->
 
 ```
-"EXECXR51LH8R8DVZH6G0358Y"
+"EXEC5BTAB8AD741VYRH3H3Z7"
 ```
 
 ```elixir
@@ -192,8 +192,8 @@ Journey.values_all(execution)
   sum: :not_set,
   y: :not_set,
   x: :not_set,
-  execution_id: {:set, "EXECXR51LH8R8DVZH6G0358Y"},
-  last_updated_at: {:set, 1755148005}
+  execution_id: {:set, "EXEC5BTAB8AD741VYRH3H3Z7"},
+  last_updated_at: {:set, 1755151335}
 }
 ```
 
@@ -209,7 +209,7 @@ execution = Journey.set_value(execution, :x, 12); :ok
 :ok
 ```
 
-Btw, if the world crashed (or got redeployed), no worries. As long as we took a note of the ID of the execution, we can load the exectution as soon as things are back up, and proceed as if nothing happened.
+Btw, if the world crashed (or got redeployed), no worries. As long as we took a note of the ID of the execution, we can load the execution as soon as things are back up, and proceed as if nothing happened.
 
 ```elixir
 reloaded_execution = Journey.load(execution_id)
@@ -220,82 +220,82 @@ reloaded_execution = Journey.load(execution_id)
 ```
 %Journey.Persistence.Schema.Execution{
   __meta__: #Ecto.Schema.Metadata<:loaded, "executions">,
-  id: "EXECXR51LH8R8DVZH6G0358Y",
+  id: "EXEC5BTAB8AD741VYRH3H3Z7",
   graph_name: "g1",
   graph_version: "v1",
   archived_at: nil,
   values: [
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VAL4JZMAX4DAZ2GE1TBXJB3",
-      execution_id: "EXECXR51LH8R8DVZH6G0358Y",
+      id: "VAL0YB6TE0AJ8RYVR7BL30M",
+      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :last_updated_at,
       node_type: :input,
-      node_value: 1755148005,
-      set_time: 1755148005,
+      node_value: 1755151335,
+      set_time: 1755151335,
       ex_revision: 1,
-      inserted_at: 1755148005,
-      updated_at: 1755148005
+      inserted_at: 1755151335,
+      updated_at: 1755151335
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALL2Z5XGJA1E8Z7V1L6M3B",
-      execution_id: "EXECXR51LH8R8DVZH6G0358Y",
+      id: "VAL3ZABJY9TVZGR3MHMRZXH",
+      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :x,
       node_type: :input,
       node_value: 12,
-      set_time: 1755148005,
+      set_time: 1755151335,
       ex_revision: 1,
-      inserted_at: 1755148005,
-      updated_at: 1755148005
+      inserted_at: 1755151335,
+      updated_at: 1755151335
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VAL5EZLE222BJG7LZ863EJH",
-      execution_id: "EXECXR51LH8R8DVZH6G0358Y",
+      id: "VAL55R386VR13G832MDX0H2",
+      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :execution_id,
       node_type: :input,
-      node_value: "EXECXR51LH8R8DVZH6G0358Y",
-      set_time: 1755148005,
+      node_value: "EXEC5BTAB8AD741VYRH3H3Z7",
+      set_time: 1755151335,
       ex_revision: 0,
-      inserted_at: 1755148005,
-      updated_at: 1755148005
+      inserted_at: 1755151335,
+      updated_at: 1755151335
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALD96YLTM4G2DT6GR0E1JX",
-      execution_id: "EXECXR51LH8R8DVZH6G0358Y",
+      id: "VALXXXA5B9G5TH7B89VVBG2",
+      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :y,
       node_type: :input,
       node_value: nil,
       set_time: nil,
       ex_revision: 0,
-      inserted_at: 1755148005,
-      updated_at: 1755148005
+      inserted_at: 1755151335,
+      updated_at: 1755151335
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALBM76BA4AXZJ65B2LR4XZ",
-      execution_id: "EXECXR51LH8R8DVZH6G0358Y",
+      id: "VALGX6EA433GE2412L4V3T8",
+      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :sum,
       node_type: :compute,
       node_value: nil,
       set_time: nil,
       ex_revision: 0,
-      inserted_at: 1755148005,
-      updated_at: 1755148005
+      inserted_at: 1755151335,
+      updated_at: 1755151335
     }
   ],
   computations: [
     %Journey.Persistence.Schema.Execution.Computation{
       __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-      id: "CMPMLL1TAD5R498LZLH6M4D",
-      execution_id: "EXECXR51LH8R8DVZH6G0358Y",
+      id: "CMPH1VAVGH0YMMM9AHXV971",
+      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :sum,
       computation_type: :compute,
@@ -308,13 +308,13 @@ reloaded_execution = Journey.load(execution_id)
       deadline: nil,
       error_details: nil,
       computed_with: nil,
-      inserted_at: 1755148005,
-      updated_at: 1755148005
+      inserted_at: 1755151335,
+      updated_at: 1755151335
     }
   ],
   revision: 1,
-  inserted_at: 1755148005,
-  updated_at: 1755148005
+  inserted_at: 1755151335,
+  updated_at: 1755151335
 }
 ```
 
@@ -339,8 +339,8 @@ Journey.values_all(reloaded_execution)
   sum: :not_set,
   y: {:set, 2},
   x: {:set, 12},
-  execution_id: {:set, "EXECXR51LH8R8DVZH6G0358Y"},
-  last_updated_at: {:set, 1755148005}
+  execution_id: {:set, "EXEC5BTAB8AD741VYRH3H3Z7"},
+  last_updated_at: {:set, 1755151335}
 }
 ```
 
@@ -790,10 +790,10 @@ Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version)
 %{
   graph_name: "g1",
   graph_version: "v1",
-  analyzed_at: "2025-08-14T05:06:46.998888Z",
+  analyzed_at: "2025-08-14T06:02:17.333367Z",
   executions: %{
-    count: 19,
-    duration_avg_seconds_to_last_update: 644,
+    count: 20,
+    duration_avg_seconds_to_last_update: 612,
     duration_median_seconds_to_last_update: 1
   },
   node_stats: %{
@@ -801,32 +801,32 @@ Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version)
       %{
         node_type: :input,
         node_name: :x,
-        reached_count: 15,
-        average_time_to_reach: 67,
+        reached_count: 16,
+        average_time_to_reach: 63,
         flow_ends_here_count: 0,
         flow_ends_here_percentage_of_all: 0.0,
         flow_ends_here_percentage_of_reached: 0.0,
-        reached_percentage: 78.9
+        reached_percentage: 80.0
       },
       %{
         node_type: :input,
         node_name: :y,
-        reached_count: 15,
-        average_time_to_reach: 776,
+        reached_count: 16,
+        average_time_to_reach: 727,
         flow_ends_here_count: 0,
         flow_ends_here_percentage_of_all: 0.0,
         flow_ends_here_percentage_of_reached: 0.0,
-        reached_percentage: 78.9
+        reached_percentage: 80.0
       },
       %{
         node_type: :compute,
         node_name: :sum,
-        reached_count: 13,
-        average_time_to_reach: 103,
+        reached_count: 14,
+        average_time_to_reach: 96,
         flow_ends_here_count: 0,
         flow_ends_here_percentage_of_all: 0.0,
         flow_ends_here_percentage_of_reached: 0.0,
-        reached_percentage: 68.4
+        reached_percentage: 70.0
       }
     ]
   }
@@ -851,4 +851,4 @@ This all happened without application data getting shipped to a third party, or 
 
 See Journey documentation for examples of more complex applications (e.g. a Horoscope app, or a Credit Card Application flow, which includes Mutations, and one-time and recurring Scheduled events).
 
-<!-- livebook:{"offset":24214,"stamp":{"token":"XCP.hNH-9uS7kj4K2vhXmr4c36e8VEpEvhWyRk575GfN0EhB_sl-LcZQny6YeSbzOiL_M-1zae5VtV3Y_Z2Lab4tP-BPfPqYhgY_QgApsdy2_rxOwQdibYODPZEk","version":2}} -->
+<!-- livebook:{"offset":24208,"stamp":{"token":"XCP.nXKkCCn8xAua_NE4riP7cnN925qsNkO9EXG78PRgbaJeVW-PlJiOWv-7DItWEKrSnQLKwE4ouEpbCZG_mqNGeodlyK_JjiyRiPStEX8T-eOhVlYyWH7ZkMYo","version":2}} -->
