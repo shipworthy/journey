@@ -135,28 +135,11 @@ graph TD
         y -->  sum
     end
 
-    %% Legend
-    subgraph Legend["📖 Legend"]
-        LegendInput["Input Node<br/>User-provided data"]
-        LegendCompute["Compute Node<br/>Self-computing value"]
-        LegendSchedule["Schedule Node<br/>Scheduled trigger"]
-        LegendMutate["Mutate Node<br/>Mutates the value of another node"]
-    end
-
-    %% Caption
-    caption[/"Generated at 2025-08-14 06:02:15Z UTC"/]
-
     %% Styling
     classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
     classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000
     classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000
     classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000
-
-    %% Apply styles to legend nodes
-    class LegendInput inputNode
-    class LegendCompute computeNode
-    class LegendSchedule scheduleNode
-    class LegendMutate mutateNode
 
     %% Apply styles to actual nodes
     class y,x,last_updated_at,execution_id inputNode
@@ -177,7 +160,7 @@ execution_id = execution.id
 <!-- livebook:{"output":true} -->
 
 ```
-"EXEC5BTAB8AD741VYRH3H3Z7"
+"EXECZ5J17YRXL83G0Y9HVBEH"
 ```
 
 ```elixir
@@ -192,8 +175,8 @@ Journey.values_all(execution)
   sum: :not_set,
   y: :not_set,
   x: :not_set,
-  execution_id: {:set, "EXEC5BTAB8AD741VYRH3H3Z7"},
-  last_updated_at: {:set, 1755151335}
+  last_updated_at: {:set, 1755151863},
+  execution_id: {:set, "EXECZ5J17YRXL83G0Y9HVBEH"}
 }
 ```
 
@@ -220,82 +203,82 @@ reloaded_execution = Journey.load(execution_id)
 ```
 %Journey.Persistence.Schema.Execution{
   __meta__: #Ecto.Schema.Metadata<:loaded, "executions">,
-  id: "EXEC5BTAB8AD741VYRH3H3Z7",
+  id: "EXECZ5J17YRXL83G0Y9HVBEH",
   graph_name: "g1",
   graph_version: "v1",
   archived_at: nil,
   values: [
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VAL0YB6TE0AJ8RYVR7BL30M",
-      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
+      id: "VALBMDGBLBGBG6T403Z37YJ",
+      execution_id: "EXECZ5J17YRXL83G0Y9HVBEH",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :last_updated_at,
       node_type: :input,
-      node_value: 1755151335,
-      set_time: 1755151335,
+      node_value: 1755151863,
+      set_time: 1755151863,
       ex_revision: 1,
-      inserted_at: 1755151335,
-      updated_at: 1755151335
+      inserted_at: 1755151863,
+      updated_at: 1755151863
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VAL3ZABJY9TVZGR3MHMRZXH",
-      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
+      id: "VALD4A75R8E7XJ92RHVMJVE",
+      execution_id: "EXECZ5J17YRXL83G0Y9HVBEH",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :x,
       node_type: :input,
       node_value: 12,
-      set_time: 1755151335,
+      set_time: 1755151863,
       ex_revision: 1,
-      inserted_at: 1755151335,
-      updated_at: 1755151335
+      inserted_at: 1755151863,
+      updated_at: 1755151863
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VAL55R386VR13G832MDX0H2",
-      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
+      id: "VALE18VJVA3GX0VB454LJ63",
+      execution_id: "EXECZ5J17YRXL83G0Y9HVBEH",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :execution_id,
       node_type: :input,
-      node_value: "EXEC5BTAB8AD741VYRH3H3Z7",
-      set_time: 1755151335,
+      node_value: "EXECZ5J17YRXL83G0Y9HVBEH",
+      set_time: 1755151863,
       ex_revision: 0,
-      inserted_at: 1755151335,
-      updated_at: 1755151335
+      inserted_at: 1755151863,
+      updated_at: 1755151863
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALXXXA5B9G5TH7B89VVBG2",
-      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
+      id: "VALJATV0Y26YY8TAE4L5RRH",
+      execution_id: "EXECZ5J17YRXL83G0Y9HVBEH",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :y,
       node_type: :input,
       node_value: nil,
       set_time: nil,
       ex_revision: 0,
-      inserted_at: 1755151335,
-      updated_at: 1755151335
+      inserted_at: 1755151863,
+      updated_at: 1755151863
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALGX6EA433GE2412L4V3T8",
-      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
+      id: "VALH3YV7MBZMY6Y1HG7GVHV",
+      execution_id: "EXECZ5J17YRXL83G0Y9HVBEH",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :sum,
       node_type: :compute,
       node_value: nil,
       set_time: nil,
       ex_revision: 0,
-      inserted_at: 1755151335,
-      updated_at: 1755151335
+      inserted_at: 1755151863,
+      updated_at: 1755151863
     }
   ],
   computations: [
     %Journey.Persistence.Schema.Execution.Computation{
       __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-      id: "CMPH1VAVGH0YMMM9AHXV971",
-      execution_id: "EXEC5BTAB8AD741VYRH3H3Z7",
+      id: "CMPB8LZ37J6972AYH6Z0ZVM",
+      execution_id: "EXECZ5J17YRXL83G0Y9HVBEH",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :sum,
       computation_type: :compute,
@@ -308,13 +291,13 @@ reloaded_execution = Journey.load(execution_id)
       deadline: nil,
       error_details: nil,
       computed_with: nil,
-      inserted_at: 1755151335,
-      updated_at: 1755151335
+      inserted_at: 1755151863,
+      updated_at: 1755151863
     }
   ],
   revision: 1,
-  inserted_at: 1755151335,
-  updated_at: 1755151335
+  inserted_at: 1755151863,
+  updated_at: 1755151863
 }
 ```
 
@@ -339,8 +322,8 @@ Journey.values_all(reloaded_execution)
   sum: :not_set,
   y: {:set, 2},
   x: {:set, 12},
-  execution_id: {:set, "EXEC5BTAB8AD741VYRH3H3Z7"},
-  last_updated_at: {:set, 1755151335}
+  last_updated_at: {:set, 1755151863},
+  execution_id: {:set, "EXECZ5J17YRXL83G0Y9HVBEH"}
 }
 ```
 
@@ -397,9 +380,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 4, failed: 0, not_set: 2, computing: 0},
           most_recently_created: "2025-08-12T18:43:19Z",
-          most_recently_updated: "2025-08-12T18:43:19Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 4, failed: 0, not_set: 2, computing: 0}
+          most_recently_updated: "2025-08-12T18:43:19Z"
         },
         executions: %{
           active: 3,
@@ -414,9 +397,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 4, failed: 0, not_set: 0, computing: 0},
           most_recently_created: "2025-08-12T17:16:04Z",
-          most_recently_updated: "2025-08-12T17:16:04Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 4, failed: 0, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-12T17:16:04Z"
         },
         executions: %{
           active: 3,
@@ -431,9 +414,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 1, not_set: 1, computing: 0},
           most_recently_created: "2025-08-04T17:15:37Z",
-          most_recently_updated: "2025-08-04T17:15:37Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 1, not_set: 1, computing: 0}
+          most_recently_updated: "2025-08-04T17:15:37Z"
         },
         executions: %{
           active: 1,
@@ -448,9 +431,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:11:24Z",
-          most_recently_updated: "2025-08-04T17:11:31Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:11:31Z"
         },
         executions: %{
           active: 1,
@@ -465,9 +448,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 0, not_set: 1, computing: 0},
           most_recently_created: "2025-08-04T17:09:51Z",
-          most_recently_updated: "2025-08-04T17:09:51Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 0, not_set: 1, computing: 0}
+          most_recently_updated: "2025-08-04T17:09:51Z"
         },
         executions: %{
           active: 1,
@@ -482,9 +465,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 1, failed: 0, not_set: 0, computing: 0},
           most_recently_created: "2025-08-12T14:34:43Z",
-          most_recently_updated: "2025-08-12T14:34:51Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 1, failed: 0, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-12T14:34:51Z"
         },
         executions: %{
           active: 1,
@@ -499,9 +482,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:10:26Z",
-          most_recently_updated: "2025-08-04T17:10:27Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:10:27Z"
         },
         executions: %{
           active: 1,
@@ -516,9 +499,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:14:51Z",
-          most_recently_updated: "2025-08-04T17:15:00Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:15:00Z"
         },
         executions: %{
           active: 1,
@@ -533,9 +516,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 4, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:27:48Z",
-          most_recently_updated: "2025-08-04T17:27:55Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 4, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:27:55Z"
         },
         executions: %{
           active: 2,
@@ -550,9 +533,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:15:03Z",
-          most_recently_updated: "2025-08-04T17:15:12Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:15:12Z"
         },
         executions: %{
           active: 1,
@@ -567,9 +550,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:13:59Z",
-          most_recently_updated: "2025-08-04T17:14:05Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:14:05Z"
         },
         executions: %{
           active: 1,
@@ -583,7 +566,7 @@ Journey.Insights.Status.status()
     },
     %{
       stats: %{
-        computations: %{most_recently_created: nil, most_recently_updated: nil, by_state: %{}},
+        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
         executions: %{
           active: 1,
           archived: 0,
@@ -597,9 +580,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:15:25Z",
-          most_recently_updated: "2025-08-04T17:15:34Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:15:34Z"
         },
         executions: %{
           active: 1,
@@ -614,22 +597,22 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
-          most_recently_created: "2025-08-13T17:05:56Z",
-          most_recently_updated: "2025-08-13T17:05:58Z",
           by_state: %{
-            abandoned: 1012,
+            abandoned: 1023,
             cancelled: 0,
-            success: 61229,
+            success: 61390,
             failed: 0,
-            not_set: 150358,
+            not_set: 151685,
             computing: 33
-          }
+          },
+          most_recently_created: "2025-08-14T05:31:04Z",
+          most_recently_updated: "2025-08-14T05:31:05Z"
         },
         executions: %{
-          active: 12540,
-          archived: 5095,
-          most_recently_created: "2025-08-13T16:50:32Z",
-          most_recently_updated: "2025-08-13T17:05:58Z"
+          active: 12652,
+          archived: 5107,
+          most_recently_created: "2025-08-14T05:29:39Z",
+          most_recently_updated: "2025-08-14T05:31:05Z"
         }
       },
       graph_name: "Credit Card Application flow graph",
@@ -637,7 +620,7 @@ Journey.Insights.Status.status()
     },
     %{
       stats: %{
-        computations: %{most_recently_created: nil, most_recently_updated: nil, by_state: %{}},
+        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
         executions: %{
           active: 2,
           archived: 0,
@@ -651,9 +634,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:15:15Z",
-          most_recently_updated: "2025-08-04T17:15:24Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:15:24Z"
         },
         executions: %{
           active: 1,
@@ -668,8 +651,6 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
-          most_recently_created: "2025-08-01T22:05:06Z",
-          most_recently_updated: "2025-08-01T22:05:09Z",
           by_state: %{
             abandoned: 0,
             cancelled: 0,
@@ -677,7 +658,9 @@ Journey.Insights.Status.status()
             failed: 0,
             not_set: 2250,
             computing: 54
-          }
+          },
+          most_recently_created: "2025-08-01T22:05:06Z",
+          most_recently_updated: "2025-08-01T22:05:09Z"
         },
         executions: %{
           active: 900,
@@ -692,9 +675,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:11:13Z",
-          most_recently_updated: "2025-08-04T17:11:14Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:11:14Z"
         },
         executions: %{
           active: 1,
@@ -709,15 +692,15 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
-          most_recently_created: "2025-08-14T05:06:45Z",
-          most_recently_updated: "2025-08-14T05:06:45Z",
-          by_state: %{abandoned: 2, cancelled: 0, success: 26, failed: 7, not_set: 4, computing: 0}
+          by_state: %{abandoned: 2, cancelled: 0, success: 32, failed: 7, not_set: 4, computing: 0},
+          most_recently_created: "2025-08-14T06:11:03Z",
+          most_recently_updated: "2025-08-14T06:11:03Z"
         },
         executions: %{
-          active: 19,
+          active: 22,
           archived: 0,
-          most_recently_created: "2025-08-14T05:06:45Z",
-          most_recently_updated: "2025-08-14T05:06:45Z"
+          most_recently_created: "2025-08-14T06:11:03Z",
+          most_recently_updated: "2025-08-14T06:11:03Z"
         }
       },
       graph_name: "g1",
@@ -726,9 +709,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0},
           most_recently_created: "2025-08-04T17:14:40Z",
-          most_recently_updated: "2025-08-04T17:14:50Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 2, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-04T17:14:50Z"
         },
         executions: %{
           active: 1,
@@ -743,9 +726,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 1, failed: 0, not_set: 0, computing: 0},
           most_recently_created: "2025-08-11T06:04:56Z",
-          most_recently_updated: "2025-08-11T06:04:56Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 1, failed: 0, not_set: 0, computing: 0}
+          most_recently_updated: "2025-08-11T06:04:56Z"
         },
         executions: %{
           active: 1,
@@ -760,9 +743,9 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
+          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 0, not_set: 3, computing: 0},
           most_recently_created: "2025-07-30T04:45:26Z",
-          most_recently_updated: "2025-07-30T04:45:26Z",
-          by_state: %{abandoned: 0, cancelled: 0, success: 0, failed: 0, not_set: 3, computing: 0}
+          most_recently_updated: "2025-07-30T04:45:26Z"
         },
         executions: %{
           active: 1,
@@ -790,45 +773,45 @@ Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version)
 %{
   graph_name: "g1",
   graph_version: "v1",
-  analyzed_at: "2025-08-14T06:02:17.333367Z",
-  executions: %{
-    count: 20,
-    duration_avg_seconds_to_last_update: 612,
-    duration_median_seconds_to_last_update: 1
-  },
   node_stats: %{
     nodes: [
       %{
         node_type: :input,
         node_name: :x,
-        reached_count: 16,
-        average_time_to_reach: 63,
         flow_ends_here_count: 0,
+        reached_count: 18,
+        reached_percentage: 81.8,
+        average_time_to_reach: 56,
         flow_ends_here_percentage_of_all: 0.0,
-        flow_ends_here_percentage_of_reached: 0.0,
-        reached_percentage: 80.0
+        flow_ends_here_percentage_of_reached: 0.0
       },
       %{
         node_type: :input,
         node_name: :y,
-        reached_count: 16,
-        average_time_to_reach: 727,
         flow_ends_here_count: 0,
+        reached_count: 18,
+        reached_percentage: 81.8,
+        average_time_to_reach: 646,
         flow_ends_here_percentage_of_all: 0.0,
-        flow_ends_here_percentage_of_reached: 0.0,
-        reached_percentage: 80.0
+        flow_ends_here_percentage_of_reached: 0.0
       },
       %{
         node_type: :compute,
         node_name: :sum,
-        reached_count: 14,
-        average_time_to_reach: 96,
         flow_ends_here_count: 0,
+        reached_count: 16,
+        reached_percentage: 72.7,
+        average_time_to_reach: 84,
         flow_ends_here_percentage_of_all: 0.0,
-        flow_ends_here_percentage_of_reached: 0.0,
-        reached_percentage: 70.0
+        flow_ends_here_percentage_of_reached: 0.0
       }
     ]
+  },
+  analyzed_at: "2025-08-14T06:11:04.181883Z",
+  executions: %{
+    count: 22,
+    duration_median_seconds_to_last_update: 1,
+    duration_avg_seconds_to_last_update: 556
   }
 }
 ```
@@ -851,4 +834,4 @@ This all happened without application data getting shipped to a third party, or 
 
 See Journey documentation for examples of more complex applications (e.g. a Horoscope app, or a Credit Card Application flow, which includes Mutations, and one-time and recurring Scheduled events).
 
-<!-- livebook:{"offset":24208,"stamp":{"token":"XCP.nXKkCCn8xAua_NE4riP7cnN925qsNkO9EXG78PRgbaJeVW-PlJiOWv-7DItWEKrSnQLKwE4ouEpbCZG_mqNGeodlyK_JjiyRiPStEX8T-eOhVlYyWH7ZkMYo","version":2}} -->
+<!-- livebook:{"offset":23646,"stamp":{"token":"XCP.M01Tw1RbHz7uAsGorU2jB6p52t5mKO39v5hEVRCCLGjx_2oZ_8aspuipQaNoAQ087D_1ILElaiuUmmOQo4IscKXer_KmiyN9y6Cke0HtAu7gNmEnBSQVd35q","version":2}} -->
