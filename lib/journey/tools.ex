@@ -11,6 +11,47 @@ defmodule Journey.Tools do
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
+  @doc """
+  Shows the status of upstream dependencies for a computation node.
+
+  Lists each dependency with a checkmark (✅) if satisfied or a stop sign (🛑) if not.
+  Useful for debugging to see which dependencies are met and which are still blocking.
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to analyze
+  - `computation_node_name` - The atom name of the computation node to check
+
+  ## Returns
+  A string showing the readiness status with checkmarks for met conditions and
+  stop signs for unmet conditions.
+
+  ## Example
+
+      iex> import Journey.Node
+      iex> graph = Journey.new_graph("what_am_i_waiting_for test graph Elixir.Journey.Tools", "v1.0.0", [
+      ...>   input(:name),
+      ...>   input(:title),
+      ...>   compute(:greeting, [:name, :title], fn %{name: name, title: title} ->
+      ...>     {:ok, "Hello, \#{title} \#{name}!"}
+      ...>   end)
+      ...> ])
+      iex> {:ok, execution} = Journey.start_execution(graph)
+      iex> Journey.Tools.what_am_i_waiting_for(execution.id, :greeting) |> IO.puts()
+      🛑 :name | &is_set/1
+      🛑 :title | &is_set/1
+      :ok
+      iex> {:ok, execution} = Journey.set_value(execution, :name, "Alice")
+      iex> Journey.Tools.what_am_i_waiting_for(execution.id, :greeting) |> IO.puts()
+      ✅ :name | &is_set/1 | rev 1
+      🛑 :title | &is_set/1
+      :ok
+      iex> {:ok, execution} = Journey.set_value(execution, :title, "Dr.")
+      iex> {:ok, _greeting_value} = Journey.get_value(execution, :greeting, wait_new: true)
+      iex> Journey.Tools.what_am_i_waiting_for(execution.id, :greeting) |> IO.puts()
+      ✅ :name | &is_set/1 | rev 1
+      ✅ :title | &is_set/1 | rev 2
+      :ok
+  """
   def what_am_i_waiting_for(execution_id, computation_node_name)
       when is_binary(execution_id) and is_atom(computation_node_name) do
     execution = Journey.load(execution_id)
@@ -25,9 +66,7 @@ defmodule Journey.Tools do
     })
   end
 
-  @doc """
-  Returns details on a computations.
-  """
+  @doc false
   def outstanding_computations(execution_id) when is_binary(execution_id) do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
@@ -62,6 +101,7 @@ defmodule Journey.Tools do
     end)
   end
 
+  @doc false
   def increment_revision(execution_id, value_node_name) when is_binary(execution_id) and is_atom(value_node_name) do
     value_node_name_str = Atom.to_string(value_node_name)
 
@@ -91,6 +131,7 @@ defmodule Journey.Tools do
     |> Map.drop([:__meta__, :__struct__, :execution_id, :execution])
   end
 
+  @doc false
   def set_computed_node_value(execution_id, computation_node_name, value)
       when is_binary(execution_id) and is_atom(computation_node_name) do
     execution_id
@@ -98,12 +139,47 @@ defmodule Journey.Tools do
     |> Journey.Executions.set_value(computation_node_name, value)
   end
 
+  @doc false
+
   def advance(execution_id) when is_binary(execution_id) do
     execution_id
     |> Journey.load()
     |> Journey.Scheduler.advance()
   end
 
+  @doc """
+  Generates a detailed text summary of an execution's current state.
+
+  Returns a formatted string containing:
+  - Execution metadata (ID, graph, timestamps, duration, revision)
+  - Values status with set/unset nodes and their values
+  - Computations breakdown showing completed and outstanding tasks
+  - Dependency analysis for blocked computations
+
+  ## Example
+
+      iex> Journey.Tools.summarize("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
+      Execution summary:
+      - ID: 'EXEC07B2H0H7J1LTAE0VJDAL'
+      - Graph: 'g1' | 'v1'
+      - Archived at: not archived
+      - Created at: 2025-08-14 17:23:16Z UTC | 49348 seconds ago
+      - Last updated at: 2025-08-14 17:23:30Z UTC | 49334 seconds ago
+      - Duration: 14 seconds
+      - Revision: 7
+      - # of Values: 5 (set) / 5 (total)
+      - # of Computations: 2
+      ...
+      :ok
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to summarize
+
+  ## Returns
+  A formatted string with the complete execution state summary.
+
+  Useful for debugging blocked executions and understanding computation dependencies.
+  """
   def summarize(execution_id) when is_binary(execution_id) do
     execution =
       execution_id
@@ -176,7 +252,7 @@ defmodule Journey.Tools do
   @doc """
   Generates a Mermaid diagram representation of a Journey graph.
 
-  Converts a graph into Mermaid syntax for visualization. By default returns only 
+  Converts a graph into Mermaid syntax for visualization. By default returns only
   the flow diagram without legend or timestamp.
 
   ## Quick Example
