@@ -66,6 +66,10 @@ defmodule Journey.Node.Conditions do
   iex> execution = Journey.set_value(execution, :it_will_rain_tomorrow, true)
   iex> Journey.get_value(execution, :umbrella, wait_any: true)
   {:ok, "need to pack my umbrella"}
+  iex> execution = Journey.set_value(execution, :it_will_rain_tomorrow, false)
+  iex> Journey.get_value(execution, :umbrella)
+  {:error, :not_set}
+
   ```
   """
   def true?(value_node), do: value_node.set_time != nil and value_node.node_value == true
@@ -96,6 +100,10 @@ defmodule Journey.Node.Conditions do
   iex> execution = Journey.set_value(execution, :it_will_rain_tomorrow, false)
   iex> Journey.get_value(execution, :todays_preparation, wait_any: true)
   {:ok, "prepare my bike"}
+  iex> execution = Journey.set_value(execution, :it_will_rain_tomorrow, true)
+  iex> Journey.get_value(execution, :todays_preparation)
+  {:error, :not_set}
+
   ```
   """
   def false?(value_node), do: value_node.set_time != nil and value_node.node_value == false
