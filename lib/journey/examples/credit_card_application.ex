@@ -45,7 +45,6 @@ defmodule Journey.Examples.CreditCardApplication do
       full_name: "Mario",
       ssn: "<redacted>",
       ssn_redacted: "updated :ssn",
-      send_preapproval_reminder: true,
       credit_card_requested: true,
       initiate_credit_card_issuance: true,
       schedule_request_credit_card_reminder: 1234567890,
