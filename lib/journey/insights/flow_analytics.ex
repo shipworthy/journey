@@ -253,7 +253,14 @@ defmodule Journey.Insights.FlowAnalytics do
     flow_ends_pct_all = node[:flow_ends_here_percentage_of_all] || 0
     flow_ends_pct_reached = node[:flow_ends_here_percentage_of_reached] || 0
 
-    "Node Name: '#{node_name}'\nType: #{node_type}\nReached by: #{format_number(reached_count)} executions (#{format_percentage(reached_percentage)})\nAverage time to reach: #{format_duration(avg_time)}\nFlow ends here: #{format_number(flow_ends_count)} executions (#{format_percentage(flow_ends_pct_all)} of all, #{format_percentage(flow_ends_pct_reached)} of reached)"
+    """
+    Node Name: '#{node_name}'
+    Type: #{node_type}
+    Reached by: #{format_number(reached_count)} executions (#{format_percentage(reached_percentage)})
+    Average time to reach: #{format_duration(avg_time)}
+    Flow ends here: #{format_number(flow_ends_count)} executions (#{format_percentage(flow_ends_pct_all)} of all, #{format_percentage(flow_ends_pct_reached)} of reached)
+    """
+    |> String.trim()
   end
 
   defp format_number(num) when num >= 1_000_000 do
