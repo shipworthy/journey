@@ -154,46 +154,37 @@ defmodule Journey.Insights.FlowAnalytics do
 
       iex> flow_data = Journey.Insights.FlowAnalytics.flow_analytics("Credit Card Application flow graph", "v1.0.0")
       iex> Journey.Insights.FlowAnalytics.to_text(flow_data) |> IO.puts()
-      FLOW ANALYTICS
-      ================================================================================
-
       Graph: 'Credit Card Application flow graph'
       Version: 'v1.0.0'
       Analyzed at: 2025-08-02T04:08:28Z
 
-      EXECUTION SUMMARY
+      EXECUTION STATS:
       ----------
       Total executions: 8,294
       Average duration: 48 seconds
       Median duration: 0 seconds
 
-      NODE ANALYTICS (4 nodes):
+      NODE STATS (4 nodes):
       ----------
-      Name: 'birth_date'
+      Node Name: 'birth_date'
       Type: input
       Reached by: 3,884 executions (46.8%)
       Average time to reach: 1 second
       Flow ends here: 1,953 executions (23.5% of all, 50.3% of reached)
 
-      ---------
-
-      Name: 'email_address'
+      Node Name: 'email_address'
       Type: input
       Reached by: 2,066 executions (24.9%)
       Average time to reach: 0 seconds
       Flow ends here: 213 executions (2.6% of all, 10.3% of reached)
 
-      ---------
-
-      Name: 'full_name'
+      Node Name: 'full_name'
       Type: input
       Reached by: 5,736 executions (69.2%)
       Average time to reach: 0 seconds
       Flow ends here: 3,716 executions (44.8% of all, 64.8% of reached)
 
-      ---------
-
-      Name: 'credit_score'
+      Node Name: 'credit_score'
       Type: compute
       Reached by: 1,844 executions (22.2%)
       Average time to reach: 1 second
@@ -209,9 +200,6 @@ defmodule Journey.Insights.FlowAnalytics do
     nodes = node_stats[:nodes] || []
 
     header = """
-    FLOW ANALYTICS
-    ================================================================================
-
     Graph: '#{graph_name}'
     Version: '#{graph_version}'
     Analyzed at: #{analyzed_at}
@@ -230,7 +218,7 @@ defmodule Journey.Insights.FlowAnalytics do
 
     """
 
-    EXECUTION SUMMARY
+    EXECUTION STATS:
     ----------
     Total executions: #{format_number(count)}
     Average duration: #{format_duration(avg_duration)}
@@ -238,18 +226,18 @@ defmodule Journey.Insights.FlowAnalytics do
     """
   end
 
-  defp format_node_analytics(nodes) when nodes == [], do: "\nNODE ANALYTICS: No nodes found.\n"
+  defp format_node_analytics(nodes) when nodes == [], do: "\nNODE STATS: No nodes found.\n"
 
   defp format_node_analytics(nodes) do
     node_count = length(nodes)
 
     nodes_text =
       nodes
-      |> Enum.map_join("\n\n---------\n\n", &format_single_node/1)
+      |> Enum.map_join("\n\n", &format_single_node/1)
 
     """
 
-    NODE ANALYTICS (#{node_count} nodes):
+    NODE STATS (#{node_count} nodes):
     ----------
     #{nodes_text}
     """
@@ -265,7 +253,7 @@ defmodule Journey.Insights.FlowAnalytics do
     flow_ends_pct_all = node[:flow_ends_here_percentage_of_all] || 0
     flow_ends_pct_reached = node[:flow_ends_here_percentage_of_reached] || 0
 
-    "Name: '#{node_name}'\nType: #{node_type}\nReached by: #{format_number(reached_count)} executions (#{format_percentage(reached_percentage)})\nAverage time to reach: #{format_duration(avg_time)}\nFlow ends here: #{format_number(flow_ends_count)} executions (#{format_percentage(flow_ends_pct_all)} of all, #{format_percentage(flow_ends_pct_reached)} of reached)"
+    "Node Name: '#{node_name}'\nType: #{node_type}\nReached by: #{format_number(reached_count)} executions (#{format_percentage(reached_percentage)})\nAverage time to reach: #{format_duration(avg_time)}\nFlow ends here: #{format_number(flow_ends_count)} executions (#{format_percentage(flow_ends_pct_all)} of all, #{format_percentage(flow_ends_pct_reached)} of reached)"
   end
 
   defp format_number(num) when num >= 1_000_000 do

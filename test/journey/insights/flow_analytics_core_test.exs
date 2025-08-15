@@ -326,30 +326,25 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       }
 
       expected_output = """
-      FLOW ANALYTICS
-      ================================================================================
-
       Graph: 'Test Graph'
       Version: 'v1.0.0'
       Analyzed at: 2025-08-15T12:00:00Z
 
-      EXECUTION SUMMARY
+      EXECUTION STATS:
       ----------
       Total executions: 1.2k
       Average duration: 45 seconds
       Median duration: 0 seconds
 
-      NODE ANALYTICS (2 nodes):
+      NODE STATS (2 nodes):
       ----------
-      Name: 'birth_date'
+      Node Name: 'birth_date'
       Type: input
       Reached by: 800 executions (64.8%)
       Average time to reach: 1 second
       Flow ends here: 400 executions (32.4% of all, 50.0% of reached)
 
-      ---------
-
-      Name: 'credit_score'
+      Node Name: 'credit_score'
       Type: compute
       Reached by: 500 executions (40.5%)
       Average time to reach: 2 seconds
@@ -375,20 +370,17 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       }
 
       expected_output = """
-      FLOW ANALYTICS
-      ================================================================================
-
       Graph: 'Empty Graph'
       Version: 'v1.0.0'
       Analyzed at: 2025-08-15T12:00:00Z
 
-      EXECUTION SUMMARY
+      EXECUTION STATS:
       ----------
       Total executions: 0
       Average duration: 0 seconds
       Median duration: 0 seconds
 
-      NODE ANALYTICS: No nodes found.
+      NODE STATS: No nodes found.
       """
 
       assert Insights.to_text(flow_analytics_data) == expected_output
@@ -443,7 +435,7 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       assert text_output =~ "Version: 'Unknown'"
       assert text_output =~ "Analyzed at: Unknown"
       assert text_output =~ "Total executions: 0"
-      assert text_output =~ "NODE ANALYTICS: No nodes found."
+      assert text_output =~ "NODE STATS: No nodes found."
     end
 
     test "formats duration correctly", %{test_id: _test_id} do
