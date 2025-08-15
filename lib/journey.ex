@@ -1,5 +1,6 @@
 defmodule Journey do
   @moduledoc """
+  This module provides functions for building and executing computation graphs, with persistence, reliability, and scalability.
 
   ## TL;DR
 
@@ -7,7 +8,7 @@ defmodule Journey do
 
   It lets you define your application as a self-computing graph and run it without having to worry about the nitty-gritty of persistence, dependencies, scalability, or reliability.
 
-  Here is a basic example of using Journey. The example's graph defines values, the computation, and dependencies. Once `:x` and `:y` are provided or updated, `:sum` gets computed.
+  Here is a basic example of using Journey. The example's graph defines values, the computation, and dependencies. Once `:x` and `:y` are provided or updated, `:sum` gets computed or recomputed.
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
@@ -39,6 +40,34 @@ defmodule Journey do
   * the executions of this flow can take as long as needed (milliseconds? months?), and will live through system restarts, crashes, redeployments, page reloads, etc.
 
   You can see a livebook with this example in [basic.livemd](basic.html)
+
+
+  ## So What Exactly Does Journey Provide?
+
+  Despite the simplicity of use, here are a few things provided by Journey that are worth noting:
+
+  * Persistence: Executions are persisted, so if the customer leaves the web site, or if the system crashes, their execution can be reloaded and continued from where it left off.
+
+  * Scaling: Since Journey runs as part of your application, it scales with your application. Your graph's computations (`:sum`'s function in the example above, or `&compute_zodiac_sign/1` and `&compute_horoscope/1` in the example above) run on the same nodes where the replicas of your application are running. No additional infrastructure or cloud services are needed.
+
+  * Reliability: Journey uses database-based supervision of computation tasks: The `compute` functions are subject to customizable retry policy, so if `:sum`'s function above or `&compute_horoscope/1` below fails because of a temporary glitch (e.g. the LLM service it uses for drafting horoscopes is currently overloaded), it will be retried.
+
+  * Code Structure: The flow of your application is captured in the Journey graph, and the business logic is captured in the compute functions (`:sum`'s function above, or `&compute_zodiac_sign/1` and `&compute_horoscope/1` below). This clean separation supports you in structuring the functionality of your application in a clear, easy to understand and maintain way.
+
+  * Conditional flow: Journey allows you to define conditions for when a node is to be unblocked. So if your graph includes a "credit_approval_decision" node, the decision can inform which part of the graph is to be executed next (sending a "congrats!" email and starting the credit card issuance process, or sending a "sad trombone" email).
+
+  * Graph Visualization: Journey provides tools for visualizing your application's graph, so you can easily see the flow of data and computations in your application, and to share and discuss it with your team.
+
+  * Scheduling: Your graph can include computations that are scheduled to run at a later time, or on a recurring basis. Daily horoscope emails! A reminder email if they haven't visited the web site in a while! A "happy birthday" email!
+
+  * Removing PII. Journey gives you an easy way to erase sensitive data once it is no longer needed. For example, your Credit Card Application graph can include a step to remove the SSN once the credit score has been computed. For an example, please see
+  ```
+    mutate(:ssn_redacted, [:credit_score], fn _ -> {:ok, "<redacted>"} end, mutates: :ssn)
+  ```
+  node in the example credit card application graph, [here](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L210), which mutates the contents of the :ssn node, replacing its value with "<redacted>", when :credit_score completes.
+
+  * Tooling and visualization: `Journey.Tools` provides a set of tools for introspecting and managing executions, and for visualizing your application's graph.
+
 
   ## A (slightly) richer example: computing horoscopes
 
@@ -100,37 +129,6 @@ defmodule Journey do
   ```
 
   And that's it!
-
-  ## What Exactly Does Journey Provide?
-
-  Despite this simplicity of use, here are a few things provided by Journey that are worth noting:
-
-  * Persistence: Executions are persisted, so if the customer leaves the web site, or if the system crashes, their execution can be reloaded and continued from where it left off.
-
-  * Scaling: Since Journey runs as part of your application, it scales with your application. Your graph's computations (`&compute_zodiac_sign/1` and `&compute_horoscope/1` in the example above) run on the same nodes where the replicas of your application are running. No additional infrastructure or cloud services are needed.
-
-  * Reliability: Journey uses database-based supervision of computation tasks: The `compute` functions are subject to customizable retry policy, so if `&compute_horoscope/1` fails because of a temporary glitch (e.g. the LLM service it uses for drafting horoscopes is currently overloaded), it will be retried.
-
-  * Code Structure: The flow of your application is captured in the Journey graph, and the business logic is captured in the compute functions (`&compute_zodiac_sign/1` and `&compute_horoscope/1`). This clean separation supports you in structuring the functionality of your application in a clear, easy to understand and maintain way.
-
-  * Conditional flow: Journey allows you to define conditions for when a node is to be unblocked. So if your graph includes a "credit_approval_decision" node, the decision can inform which part of the graph is to be executed next (sending a "congrats!" email and starting the credit card issuance process, or sending a "sad trombone" email).
-
-  * Graph Visualization: Journey provides tools for visualizing your application's graph, so you can easily see the flow of data and computations in your application, and to share and discuss it with your team.
-
-  * Scheduling: Your graph can include computations that are scheduled to run at a later time, or on a recurring basis. Daily horoscope emails! A reminder email if they haven't visited the web site in a while! A "happy birthday" email!
-
-  * Removing PII. Journey gives you an easy way to erase sensitive data once it is no longer needed. For example, your Credit Card Application graph can include a step to remove the SSN once the credit score has been computed. For an example, please see
-  ```
-    mutate(:ssn_redacted, [:credit_score], fn _ -> {:ok, "<redacted>"} end, mutates: :ssn)
-  ```
-  node in the example credit card application graph, [here](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L210), which mutates the contents of the :ssn node, replacing its value with "<redacted>", when :credit_score completes.
-
-  * Tooling and visualization: `Journey.Tools` provides a set of tools for introspecting and managing executions, and for visualizing your application's graph.
-
-  See the Credit Card Application example in `Journey.Examples.CreditCardApplication` for a more in-depth example of using Journey to build a more complex application. The example provides
-  * the [declarative definition of the process, as a Journey graph](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L201), and
-  * the definitions of specific tasks (e.g. [fetch_credit_score](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L77C9-L77C27))
-  The combination of the declarative definition of the flow + the imperative definitions of specific tasks create a well structured core of the application.
 
 
   ## Example
@@ -201,6 +199,8 @@ defmodule Journey do
   iex> e.id == this_execution.id
   true
   ```
+
+  For a more in-depth example of building a more complex application, see the Credit Card Application example in `Journey.Examples.CreditCardApplication`.
 
   """
 

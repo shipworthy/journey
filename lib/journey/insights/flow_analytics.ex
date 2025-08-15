@@ -1,6 +1,7 @@
 defmodule Journey.Insights.FlowAnalytics do
   @moduledoc """
-  Provides system health and monitoring insights for Journey executions.
+  Provides system-wide aggregate data about the state of the executions of a particular graph.
+  This can be thought of as "analytics" for a particular graph.
   """
 
   require Logger
