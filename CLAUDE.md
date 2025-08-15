@@ -39,7 +39,7 @@ Before declaring a change "done", ask yourself the following questions:
 
 ### Documentation
 
-The documentation this package lives under `./doc`, and can be rebuild with `make build-docs`:
+The generated documentation for this package lives under `./doc`, and can be rebuild with `make build-docs`:
 ```
 $ make build-docs
 mix docs --proglang elixir

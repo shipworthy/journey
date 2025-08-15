@@ -20,7 +20,7 @@ def deps do
 end
 ```
 
-2. Add Journey Postgres DB to your project's configuration.
+2. Journey uses Postgres DB for persistence. Add Journey Postgres DB to your project's configuration.
 
 Alongside your app's Repo configuration, add Journey's. For example, if you want to use Journey in your Phoenix application, you might do something like:
 
