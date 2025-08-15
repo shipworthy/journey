@@ -5,9 +5,12 @@
 	build-test \
 	format \
 	format-check \
+	hex-pm-publish \
+	hex-pm-publish-doc \
+	hex-pm-revert \
 	hex-pm-publish-doc-private \
 	hex-pm-publish-private \
-	hex-pm-revert \
+	hex-pm-revert-private \
 	lint \
 	test \
 	test-load \
@@ -69,6 +72,18 @@ format-check:
 	mix format --check-formatted
 
 
+hex-pm-publish:
+	mix hex.publish
+
+
+hex-pm-publish-doc:
+	mix hex.publish docs
+
+
+hex-pm-revert:
+	mix hex.publish --revert $(PUBLISHED_VERSION)
+
+
 hex-pm-publish-private:
 	mix hex.publish --organization shipworthy
 
@@ -77,7 +92,7 @@ hex-pm-publish-doc-private:
 	mix hex.publish docs --organization shipworthy
 
 
-hex-pm-revert:
+hex-pm-revert-private:
 	mix hex.publish --organization shipworthy --revert $(PUBLISHED_VERSION)
 
 
