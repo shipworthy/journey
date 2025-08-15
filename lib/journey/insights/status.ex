@@ -230,38 +230,51 @@ defmodule Journey.Insights.Status do
       Database: Connected
       ================================================================================
 
-      ACTIVE GRAPHS (3 total)
-      --------------------------------------------------------------------------------
+      GRAPHS (3 total):
+      ----------
 
-      Credit Card Application flow graph (v1.0.0)
-        Executions: 12,652 active | 5,107 archived
-        First activity: 2025-07-28 19:50:40Z
-        Last activity: 2025-08-14 05:31:05Z
-        Computations:
-          ✓ success: 61,390
-          ✗ failed: 0
-          ⏳ computing: 33
-          ◯ not_set: 151,685
-          ⚠ abandoned: 1,023
+      Name: 'Credit Card Application flow graph'
+      Version: 'v1.0.0'
+      Executions:
+      - active: 12.7k
+      - archived: 5.1k
+      First activity: 2025-07-28T19:50:40Z
+      Last activity: 2025-08-14T05:31:05Z
+      Computations:
+      ✓ success: 61.4k
+      ✗ failed: 0
+      ⏳ computing: 33
+      ◯ not_set: 151.7k
+      ⚠ abandoned: 1.0k
 
-      flow_analytics_perf_test (1.0.0)
-        Executions: 900 active | 100 archived
-        First activity: 2025-08-01 22:05:06Z
-        Last activity: 2025-08-01 22:05:09Z
-        Computations:
-          ✓ success: 1,696
-          ⏳ computing: 54
-          ◯ not_set: 2,250
+      ---------
 
-      g1 (v1)
-        Executions: 25 active | 0 archived
-        First activity: 2025-08-14 17:23:16Z
-        Last activity: 2025-08-14 17:29:36Z
-        Computations:
-          ✓ success: 38
-          ✗ failed: 7
-          ◯ not_set: 4
-          ⚠ abandoned: 2
+      Name: 'flow_analytics_perf_test'
+      Version: '1.0.0'
+      Executions:
+      - active: 900
+      - archived: 100
+      First activity: 2025-08-01T22:05:06Z
+      Last activity: 2025-08-01T22:05:09Z
+      Computations:
+      ✓ success: 1.7k
+      ⏳ computing: 54
+      ◯ not_set: 2.3k
+
+      ---------
+
+      Name: 'g1'
+      Version: 'v1'
+      Executions:
+      - active: 25
+      - archived: 0
+      First activity: 2025-08-14T17:23:16Z
+      Last activity: 2025-08-14T17:29:36Z
+      Computations:
+      ✓ success: 38
+      ✗ failed: 7
+      ◯ not_set: 4
+      ⚠ abandoned: 2
   """
   def to_text(status_data) do
     health_status = status_data[:status] |> to_string() |> String.upcase()
@@ -289,8 +302,8 @@ defmodule Journey.Insights.Status do
         if graph_count > 0 do
           """
 
-          ACTIVE GRAPHS (#{graph_count} total)
-          #{"-" |> String.duplicate(80)}
+          GRAPHS (#{graph_count} total):
+          #{"-" |> String.duplicate(10)}
           """ <>
             format_graphs_text(active_graphs)
         else
@@ -306,7 +319,14 @@ defmodule Journey.Insights.Status do
     |> Enum.sort_by(fn g ->
       {-(g[:stats][:executions][:active] || 0), g[:graph_name]}
     end)
-    |> Enum.map_join("\n", &format_single_graph/1)
+    |> Enum.map_join(
+      """
+
+      ---------
+
+      """,
+      &format_single_graph/1
+    )
   end
 
   defp format_single_graph(graph) do
@@ -321,14 +341,16 @@ defmodule Journey.Insights.Status do
     computation_lines = format_computation_states(comp_stats[:by_state] || %{})
 
     """
-
-    #{graph[:graph_name]} (#{graph[:graph_version]})
-      Executions: #{format_number(active)} active | #{format_number(archived)} archived
-      First activity: #{first_activity}
-      Last activity: #{last_activity}
+    Name: '#{graph[:graph_name]}'
+    Version: '#{graph[:graph_version]}'
+    Executions:
+    - active: #{format_number(active)}
+    - archived: #{format_number(archived)}
+    First activity: #{first_activity}
+    Last activity: #{last_activity}
     """ <>
       if computation_lines != "" do
-        "  Computations:\n" <> computation_lines
+        "Computations:\n" <> computation_lines
       else
         ""
       end
@@ -353,7 +375,7 @@ defmodule Journey.Insights.Status do
     |> Enum.map_join("\n", fn state ->
       count = Map.get(by_state, state, 0)
       symbol = Map.get(symbols, state, "•")
-      "    #{symbol} #{state}: #{format_number(count)}"
+      "#{symbol} #{state}: #{format_number(count)}"
     end)
     |> then(fn lines -> if lines != "", do: lines <> "\n", else: "" end)
   end

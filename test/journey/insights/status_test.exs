@@ -239,8 +239,8 @@ defmodule Journey.InsightsTest do
         end)
 
       if length(active_graphs) > 0 do
-        assert text_output =~ "ACTIVE GRAPHS"
-        assert text_output =~ "-" |> String.duplicate(80)
+        assert text_output =~ "GRAPHS"
+        assert text_output =~ "----------"
       end
     end
 
@@ -317,19 +317,21 @@ defmodule Journey.InsightsTest do
       Database: Connected
       ================================================================================
 
-      ACTIVE GRAPHS (1 total)
-      --------------------------------------------------------------------------------
-
-      Test Graph #{test_id} (v1.0.0)
-        Executions: 1.2k active | 567 archived
-        First activity: 2025-08-14T11:00:00Z
-        Last activity: 2025-08-14T12:00:00Z
-        Computations:
-          ✓ success: 5.0k
-          ✗ failed: 10
-          ⏳ computing: 5
-          ◯ not_set: 2.0k
-          ⚠ abandoned: 50
+      GRAPHS (1 total):
+      ----------
+      Name: 'Test Graph #{test_id}'
+      Version: 'v1.0.0'
+      Executions:
+      - active: 1.2k
+      - archived: 567
+      First activity: 2025-08-14T11:00:00Z
+      Last activity: 2025-08-14T12:00:00Z
+      Computations:
+      ✓ success: 5.0k
+      ✗ failed: 10
+      ⏳ computing: 5
+      ◯ not_set: 2.0k
+      ⚠ abandoned: 50
       """
 
       assert Status.to_text(status_data) == expected_output
@@ -372,15 +374,17 @@ defmodule Journey.InsightsTest do
       Database: Connected
       ================================================================================
 
-      ACTIVE GRAPHS (1 total)
-      --------------------------------------------------------------------------------
-
-      Large Graph #{test_id} (v1.0.0)
-        Executions: 1.5M active | 2.5M archived
-        First activity: 2025-08-14T10:00:00Z
-        Last activity: 2025-08-14T12:00:00Z
-        Computations:
-          ✓ success: 10.0M
+      GRAPHS (1 total):
+      ----------
+      Name: 'Large Graph #{test_id}'
+      Version: 'v1.0.0'
+      Executions:
+      - active: 1.5M
+      - archived: 2.5M
+      First activity: 2025-08-14T10:00:00Z
+      Last activity: 2025-08-14T12:00:00Z
+      Computations:
+      ✓ success: 10.0M
       """
 
       assert Status.to_text(status_data) == expected_output
