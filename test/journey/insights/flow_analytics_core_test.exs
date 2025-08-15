@@ -288,6 +288,198 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
     end
   end
 
+  describe "to_text/1" do
+    test "formats flow analytics with nodes correctly", %{test_id: _test_id} do
+      flow_analytics_data = %{
+        graph_name: "Test Graph",
+        graph_version: "v1.0.0",
+        analyzed_at: "2025-08-15T12:00:00Z",
+        executions: %{
+          count: 1234,
+          duration_avg_seconds_to_last_update: 45,
+          duration_median_seconds_to_last_update: 0
+        },
+        node_stats: %{
+          nodes: [
+            %{
+              node_name: :birth_date,
+              node_type: :input,
+              reached_count: 800,
+              reached_percentage: 64.8,
+              average_time_to_reach: 1,
+              flow_ends_here_count: 400,
+              flow_ends_here_percentage_of_all: 32.4,
+              flow_ends_here_percentage_of_reached: 50.0
+            },
+            %{
+              node_name: :credit_score,
+              node_type: :compute,
+              reached_count: 500,
+              reached_percentage: 40.5,
+              average_time_to_reach: 2,
+              flow_ends_here_count: 0,
+              flow_ends_here_percentage_of_all: 0.0,
+              flow_ends_here_percentage_of_reached: 0.0
+            }
+          ]
+        }
+      }
+
+      expected_output = """
+      FLOW ANALYTICS
+      ================================================================================
+
+      Graph: 'Test Graph'
+      Version: 'v1.0.0'
+      Analyzed at: 2025-08-15T12:00:00Z
+
+      EXECUTION SUMMARY
+      ----------
+      Total executions: 1.2k
+      Average duration: 45 seconds
+      Median duration: 0 seconds
+
+      NODE ANALYTICS (2 nodes):
+      ----------
+      Name: 'birth_date'
+      Type: input
+      Reached by: 800 executions (64.8%)
+      Average time to reach: 1 second
+      Flow ends here: 400 executions (32.4% of all, 50.0% of reached)
+
+      ---------
+
+      Name: 'credit_score'
+      Type: compute
+      Reached by: 500 executions (40.5%)
+      Average time to reach: 2 seconds
+      Flow ends here: 0 executions (0.0% of all, 0.0% of reached)
+      """
+
+      assert Insights.to_text(flow_analytics_data) == expected_output
+    end
+
+    test "formats flow analytics with no nodes", %{test_id: _test_id} do
+      flow_analytics_data = %{
+        graph_name: "Empty Graph",
+        graph_version: "v1.0.0",
+        analyzed_at: "2025-08-15T12:00:00Z",
+        executions: %{
+          count: 0,
+          duration_avg_seconds_to_last_update: 0,
+          duration_median_seconds_to_last_update: 0
+        },
+        node_stats: %{
+          nodes: []
+        }
+      }
+
+      expected_output = """
+      FLOW ANALYTICS
+      ================================================================================
+
+      Graph: 'Empty Graph'
+      Version: 'v1.0.0'
+      Analyzed at: 2025-08-15T12:00:00Z
+
+      EXECUTION SUMMARY
+      ----------
+      Total executions: 0
+      Average duration: 0 seconds
+      Median duration: 0 seconds
+
+      NODE ANALYTICS: No nodes found.
+      """
+
+      assert Insights.to_text(flow_analytics_data) == expected_output
+    end
+
+    test "formats large numbers correctly", %{test_id: _test_id} do
+      flow_analytics_data = %{
+        graph_name: "Large Scale Graph",
+        graph_version: "v2.0.0",
+        analyzed_at: "2025-08-15T12:00:00Z",
+        executions: %{
+          count: 1_500_000,
+          duration_avg_seconds_to_last_update: 120,
+          duration_median_seconds_to_last_update: 60
+        },
+        node_stats: %{
+          nodes: [
+            %{
+              node_name: :registration,
+              node_type: :input,
+              reached_count: 1_200_000,
+              reached_percentage: 80.0,
+              average_time_to_reach: 0,
+              flow_ends_here_count: 300_000,
+              flow_ends_here_percentage_of_all: 20.0,
+              flow_ends_here_percentage_of_reached: 25.0
+            }
+          ]
+        }
+      }
+
+      text_output = Insights.to_text(flow_analytics_data)
+
+      # Check large number formatting
+      assert text_output =~ "Total executions: 1.5M"
+      assert text_output =~ "Average duration: 120 seconds"
+      assert text_output =~ "Median duration: 60 seconds"
+      assert text_output =~ "Reached by: 1.2M executions (80.0%)"
+      assert text_output =~ "Flow ends here: 300.0k executions (20.0% of all, 25.0% of reached)"
+    end
+
+    test "handles missing or nil data gracefully", %{test_id: _test_id} do
+      flow_analytics_data = %{
+        graph_name: nil,
+        executions: nil,
+        node_stats: nil
+      }
+
+      text_output = Insights.to_text(flow_analytics_data)
+
+      assert text_output =~ "Graph: 'Unknown'"
+      assert text_output =~ "Version: 'Unknown'"
+      assert text_output =~ "Analyzed at: Unknown"
+      assert text_output =~ "Total executions: 0"
+      assert text_output =~ "NODE ANALYTICS: No nodes found."
+    end
+
+    test "formats duration correctly", %{test_id: _test_id} do
+      flow_analytics_data = %{
+        graph_name: "Duration Test",
+        graph_version: "v1.0.0",
+        analyzed_at: "2025-08-15T12:00:00Z",
+        executions: %{
+          count: 100,
+          duration_avg_seconds_to_last_update: 1,
+          duration_median_seconds_to_last_update: 3600
+        },
+        node_stats: %{
+          nodes: [
+            %{
+              node_name: :test_node,
+              node_type: :input,
+              reached_count: 100,
+              reached_percentage: 100.0,
+              average_time_to_reach: 0,
+              flow_ends_here_count: 50,
+              flow_ends_here_percentage_of_all: 50.0,
+              flow_ends_here_percentage_of_reached: 50.0
+            }
+          ]
+        }
+      }
+
+      text_output = Insights.to_text(flow_analytics_data)
+
+      assert text_output =~ "Average duration: 1 second"
+      assert text_output =~ "Median duration: 3600 seconds"
+      assert text_output =~ "Average time to reach: 0 seconds"
+    end
+  end
+
   # Helper functions
   defp simple_test_graph(test_id) do
     Journey.new_graph(

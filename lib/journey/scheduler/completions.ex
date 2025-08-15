@@ -68,7 +68,12 @@ defmodule Journey.Scheduler.Completions do
 
     graph_node = Journey.Scheduler.Helpers.graph_node_from_execution_id(computation.execution_id, computation.node_name)
 
-    Logger.debug("#{prefix}: marking as completed. transaction starting.")
+    if graph_node == nil do
+      Logger.error("#{prefix}: the registred graph for this computation does not have the corresponding node")
+      raise "#{prefix}: the registred graph for this computation does not have the corresponding node"
+    end
+
+    Logger.debug("#{prefix}: marking as completed.")
 
     current_computation =
       from(c in Computation, where: c.id == ^computation.id)
