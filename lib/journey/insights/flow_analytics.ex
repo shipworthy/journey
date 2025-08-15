@@ -147,6 +147,149 @@ defmodule Journey.Insights.FlowAnalytics do
     end
   end
 
+  @doc """
+  Formats flow analytics data as human-readable text output.
+
+  ## Example:
+
+      iex> flow_data = Journey.Insights.FlowAnalytics.flow_analytics("Credit Card Application flow graph", "v1.0.0")
+      iex> Journey.Insights.FlowAnalytics.to_text(flow_data) |> IO.puts()
+      Graph: 'Credit Card Application flow graph'
+      Version: 'v1.0.0'
+      Analyzed at: 2025-08-02T04:08:28Z
+
+      EXECUTION STATS:
+      ----------
+      Total executions: 8,294
+      Average duration: 48 seconds
+      Median duration: 0 seconds
+
+      NODE STATS (4 nodes):
+      ----------
+      Node Name: 'birth_date'
+      Type: input
+      Reached by: 3,884 executions (46.8%)
+      Average time to reach: 1 second
+      Flow ends here: 1,953 executions (23.5% of all, 50.3% of reached)
+
+      Node Name: 'email_address'
+      Type: input
+      Reached by: 2,066 executions (24.9%)
+      Average time to reach: 0 seconds
+      Flow ends here: 213 executions (2.6% of all, 10.3% of reached)
+
+      Node Name: 'full_name'
+      Type: input
+      Reached by: 5,736 executions (69.2%)
+      Average time to reach: 0 seconds
+      Flow ends here: 3,716 executions (44.8% of all, 64.8% of reached)
+
+      Node Name: 'credit_score'
+      Type: compute
+      Reached by: 1,844 executions (22.2%)
+      Average time to reach: 1 second
+      Flow ends here: 0 executions (0.0% of all, 0.0% of reached)
+  """
+  def to_text(flow_analytics) do
+    graph_name = flow_analytics[:graph_name] || "Unknown"
+    graph_version = flow_analytics[:graph_version] || "Unknown"
+    analyzed_at = flow_analytics[:analyzed_at] || "Unknown"
+
+    executions = flow_analytics[:executions] || %{}
+    node_stats = flow_analytics[:node_stats] || %{}
+    nodes = node_stats[:nodes] || []
+
+    header = """
+    Graph: '#{graph_name}'
+    Version: '#{graph_version}'
+    Analyzed at: #{analyzed_at}
+    """
+
+    execution_summary = format_execution_summary(executions)
+    node_analytics = format_node_analytics(nodes)
+
+    header <> execution_summary <> node_analytics
+  end
+
+  defp format_execution_summary(executions) do
+    count = executions[:count] || 0
+    avg_duration = executions[:duration_avg_seconds_to_last_update] || 0
+    median_duration = executions[:duration_median_seconds_to_last_update] || 0
+
+    """
+
+    EXECUTION STATS:
+    ----------
+    Total executions: #{format_number(count)}
+    Average duration: #{format_duration(avg_duration)}
+    Median duration: #{format_duration(median_duration)}
+    """
+  end
+
+  defp format_node_analytics(nodes) when nodes == [], do: "\nNODE STATS: No nodes found.\n"
+
+  defp format_node_analytics(nodes) do
+    node_count = length(nodes)
+
+    nodes_text =
+      nodes
+      |> Enum.map_join("\n\n", &format_single_node/1)
+
+    """
+
+    NODE STATS (#{node_count} nodes):
+    ----------
+    #{nodes_text}
+    """
+  end
+
+  defp format_single_node(node) do
+    node_name = node[:node_name] || "unknown"
+    node_type = node[:node_type] || "unknown"
+    reached_count = node[:reached_count] || 0
+    reached_percentage = node[:reached_percentage] || 0
+    avg_time = node[:average_time_to_reach] || 0
+    flow_ends_count = node[:flow_ends_here_count] || 0
+    flow_ends_pct_all = node[:flow_ends_here_percentage_of_all] || 0
+    flow_ends_pct_reached = node[:flow_ends_here_percentage_of_reached] || 0
+
+    """
+    Node Name: '#{node_name}'
+    Type: #{node_type}
+    Reached by: #{format_number(reached_count)} executions (#{format_percentage(reached_percentage)})
+    Average time to reach: #{format_duration(avg_time)}
+    Flow ends here: #{format_number(flow_ends_count)} executions (#{format_percentage(flow_ends_pct_all)} of all, #{format_percentage(flow_ends_pct_reached)} of reached)
+    """
+    |> String.trim()
+  end
+
+  defp format_number(num) when num >= 1_000_000 do
+    "#{Float.round(num / 1_000_000, 1)}M"
+  end
+
+  defp format_number(num) when num >= 1_000 do
+    "#{Float.round(num / 1_000, 1)}k"
+  end
+
+  defp format_number(num) when is_integer(num), do: Integer.to_string(num)
+  defp format_number(num) when is_float(num), do: Float.to_string(num)
+  defp format_number(_), do: "0"
+
+  defp format_percentage(pct) when is_float(pct) do
+    "#{Float.round(pct, 1)}%"
+  end
+
+  defp format_percentage(pct) when is_integer(pct) do
+    "#{pct}.0%"
+  end
+
+  defp format_percentage(_), do: "0.0%"
+
+  defp format_duration(0), do: "0 seconds"
+  defp format_duration(1), do: "1 second"
+  defp format_duration(seconds) when is_number(seconds), do: "#{round(seconds)} seconds"
+  defp format_duration(_), do: "0 seconds"
+
   defp build_execution_filter_query(graph_name, graph_version, include_executions) do
     base_query =
       from(e in Execution,
