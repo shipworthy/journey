@@ -2,6 +2,9 @@ defmodule Journey.Examples.CreditCardApplication do
   @moduledoc """
   This module demonstrates building a simple credit card application workflow using the Journey library.
 
+  You might find it interesting to read the actual source code of this example (the definition of the graph, and the "business logic" functions), but here is a doctest illustrating executing a credit card application workflow.
+
+
   ## Examples:
 
   ```elixir
@@ -197,6 +200,13 @@ defmodule Journey.Examples.CreditCardApplication do
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
+  @doc """
+  This function defines the graph for the credit card application workflow.
+
+  The graph is defined as a list of nodes.
+  Input nodes have a name.
+  Computation nodes also have upstream dependencies and a function to compute the node's value, and a few other options.
+  """
   def graph() do
     Journey.new_graph(
       "Credit Card Application flow graph",
@@ -284,6 +294,7 @@ defmodule Journey.Examples.CreditCardApplication do
     result
   end
 
+  @doc false
   def test_run() do
     g = graph()
 
