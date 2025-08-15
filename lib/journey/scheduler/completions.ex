@@ -70,7 +70,8 @@ defmodule Journey.Scheduler.Completions do
 
     if graph_node == nil do
       Logger.error("#{prefix}: the registred graph for this computation does not have the corresponding node")
-      raise "#{prefix}: the registred graph for this computation does not have the corresponding node"
+      Logger.error("#{prefix}: the registered graph for this computation does not have the corresponding node")
+      raise "#{prefix}: the registered graph for this computation does not have the corresponding node"
     end
 
     Logger.debug("#{prefix}: marking as completed.")
