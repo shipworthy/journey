@@ -1046,7 +1046,7 @@ defmodule Journey do
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
   * `node_name` - Atom representing the input node name (must exist in the graph)
-  * `value` - The value to set. Supported types: nil, string, number, map, list, boolean, atom
+  * `value` - The value to set. Supported types: nil, string, number, map, list, boolean. Note that if the map or the list contains atoms, those atoms will be converted to strings.
 
   ## Returns
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value changed)
@@ -1147,7 +1147,7 @@ defmodule Journey do
   def set_value(execution_id, node_name, value)
       when is_binary(execution_id) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
-                is_boolean(value) or is_atom(value)) do
+                is_boolean(value)) do
     # Load execution without preloading associations
     execution = Journey.Repo.get!(Execution, execution_id)
 
@@ -1161,7 +1161,7 @@ defmodule Journey do
   def set_value(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
-                is_boolean(value) or is_atom(value)) do
+                is_boolean(value)) do
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution, node_name, value)
   end
