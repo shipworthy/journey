@@ -120,6 +120,20 @@ defmodule Journey.JourneySetValueTest do
       updated_execution = Journey.set_value(execution.id, :first_name, "Mario")
       assert Journey.get_value(updated_execution, :first_name) == {:ok, "Mario"}
     end
+
+    test "atom values are rejected" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+
+      assert_raise FunctionClauseError, fn ->
+        Journey.set_value(execution, :first_name, :atom_value)
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        Journey.set_value(execution.id, :first_name, :atom_value)
+      end
+    end
   end
 
   defp basic_graph(test_id) do
