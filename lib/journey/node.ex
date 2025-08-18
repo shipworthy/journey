@@ -54,7 +54,7 @@ defmodule Journey.Node do
    - `{:error, reason}`.
   The function is called when the upstream nodes are set, and the value is set to the result of the function.
 
-  Note that return values are JSON-serialized for storage. If the returned `value` or `reqson` contains atoms 
+  Note that return values are JSON-serialized for storage. If the returned `value` or `reason` contains atoms 
   (e.g., `{:ok, :pending}` or `{:ok, %{status: :active}}`), those atoms will be converted to 
   strings when retrieved via `get_value/3`.
 
