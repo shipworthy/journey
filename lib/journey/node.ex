@@ -54,6 +54,10 @@ defmodule Journey.Node do
    - `{:error, reason}`.
   The function is called when the upstream nodes are set, and the value is set to the result of the function.
 
+  Note that return values are JSON-serialized for storage. If the returned `value` or `reqson` contains atoms 
+  (e.g., `{:ok, :pending}` or `{:ok, %{status: :active}}`), those atoms will be converted to 
+  strings when retrieved via `get_value/3`.
+
   In the case of a failure, the function is automatically retried, up to `max_retries` times.
   If the function fails after `max_retries` attempts, the node is marked as failed.
   If the function does not return within `abandon_after_seconds`, it is considered abandoned, and it will be retried (up to `max_retries` times).
@@ -90,6 +94,10 @@ defmodule Journey.Node do
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
+
+  ## Return Values
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  in the returned `value` and `reason` will be converted to strings when persisted.
 
   """
   def compute(name, gated_by, f_compute, opts \\ [])
@@ -137,6 +145,10 @@ defmodule Journey.Node do
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "redacted", remove_pii: "updated :name",  execution_id: "...", last_updated_at: 1_234_567_890}
   ```
+
+  ## Return Values
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  in the returned `value` and `reason` will be converted to strings when persisted.
 
   """
   def mutate(name, gated_by, f_compute, opts \\ [])
@@ -246,6 +258,10 @@ defmodule Journey.Node do
 
   ```
 
+  ## Return Values
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  in the returned `value` and `reason` will be converted to strings when persisted.
+
   """
   def schedule_once(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
@@ -316,6 +332,10 @@ defmodule Journey.Node do
 
   ```
 
+  ## Return Values
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  in the returned `value` and `reason` will be converted to strings when persisted.
+
   """
 
   def schedule_recurring(name, gated_by, f_compute, opts \\ [])
@@ -328,7 +348,6 @@ defmodule Journey.Node do
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
-      #      grace_window_seconds: Keyword.get(opts, :grace_window_seconds, 60)
     }
   end
 
