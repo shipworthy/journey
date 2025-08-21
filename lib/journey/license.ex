@@ -58,7 +58,7 @@ defmodule Journey.License.Functions do
 
   defp print_license_info() do
     IO.puts("""
-    🚀 Journey is free for non-commercial and small projects (≤$10k/month in revenue).
+    🚀 Journey is free for "small" projects (≤$10k/month in revenue).
     🔑 All other uses require a build key. Get yours at https://gojourney.dev/your_keys
     🙏 Thank you for using Journey!
     """)
