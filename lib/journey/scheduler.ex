@@ -102,10 +102,9 @@ defmodule Journey.Scheduler do
       if requires_invalidation_check?(r, graph_node) do
         # After a compute node succeeds, check if any downstream values should be invalidated
         Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(execution.id, graph)
-        advance(execution)
-      else
-        advance(execution)
       end
+
+      advance(execution)
     end)
 
     execution
