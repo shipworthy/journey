@@ -55,9 +55,8 @@ defmodule Journey.Scheduler do
       prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"
       Logger.debug("#{prefix}: starting async computation")
 
-      graph_node =
-        Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
-        |> Journey.Graph.find_node_by_name(computation.node_name)
+      graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+      graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
 
       input_versions_to_capture =
         conditions_fulfilled
@@ -100,6 +99,11 @@ defmodule Journey.Scheduler do
 
       invoke_f_on_save(prefix, graph_node.f_on_save, execution.id, r)
 
+      if requires_invalidation_check?(r, graph_node) do
+        # After a compute node succeeds, check if any downstream values should be invalidated
+        Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(execution.id, graph)
+      end
+
       advance(execution)
     end)
 
@@ -125,4 +129,7 @@ defmodule Journey.Scheduler do
       Logger.debug("#{prefix}: f_on_save completed")
     end)
   end
+
+  defp requires_invalidation_check?({:ok, _result}, graph_node), do: graph_node.type == :compute
+  defp requires_invalidation_check?(_other_result, _graph_node), do: false
 end

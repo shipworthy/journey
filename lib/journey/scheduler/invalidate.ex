@@ -13,47 +13,40 @@ defmodule Journey.Scheduler.Invalidate do
   Iteratively clears all discardable computations - computed values whose dependencies
   are no longer met. Continues until no more values can be discarded.
   """
-  def ensure_all_discardable_cleared(execution) do
-    prefix = "[#{execution.id}] [#{mf()}]"
+  def ensure_all_discardable_cleared(execution_id, graph) do
+    prefix = "[#{execution_id}] [#{mf()}]"
     Logger.debug("#{prefix}: starting invalidation check")
 
-    # Fetch graph internally
-    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
-
     if graph == nil do
-      Logger.error("#{prefix}: graph not found (#{execution.graph_name}, #{execution.graph_version})")
-      execution
+      Logger.error("#{prefix}: graph is nil")
+      nil
     else
-      do_iterative_clearing(execution, graph, prefix)
+      do_iterative_clearing(execution_id, graph, prefix)
     end
   end
 
-  defp do_iterative_clearing(execution, graph, prefix) do
+  defp do_iterative_clearing(execution_id, graph, prefix) do
     {:ok, cleared_count} =
       Journey.Repo.transaction(fn repo ->
-        all_values = Journey.Persistence.Values.load_from_db(execution.id, repo)
-        clear_discardable_computations_in_transaction(execution.id, all_values, graph, repo, prefix)
+        all_values = Journey.Persistence.Values.load_from_db(execution_id, repo)
+        clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix)
       end)
 
     if cleared_count > 0 do
       Logger.info("#{prefix}: cleared #{cleared_count} discardable computations, checking for more...")
       # Recursively clear until nothing left
-      updated_execution = Journey.load(execution.id)
-      do_iterative_clearing(updated_execution, graph, prefix)
+      do_iterative_clearing(execution_id, graph, prefix)
     else
       Logger.debug("#{prefix}: no discardable computations found, invalidation complete")
-      execution
+      nil
     end
   end
 
   defp clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix) do
-    # Find set computed values
+    # Find set computed values (only compute nodes - excluding mutate/schedule nodes which represent completed actions)
     set_computed_values =
       all_values
-      |> Enum.filter(fn v ->
-        v.set_time != nil and
-          v.node_type in [:compute, :mutate, :schedule_once, :schedule_recurring]
-      end)
+      |> Enum.filter(fn v -> v.set_time != nil and v.node_type == :compute end)
 
     Logger.debug("#{prefix}: checking #{length(set_computed_values)} computed values for discardability")
 
