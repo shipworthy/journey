@@ -5,7 +5,7 @@ config :journey, Journey.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  port: 5438,
+  port: 5432,
   queue_target: 1000,
   queue_interval: 2000
 

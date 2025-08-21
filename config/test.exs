@@ -11,7 +11,7 @@ config :journey, Journey.Repo,
   pool_size: 60,
   pool: Ecto.Adapters.SQL.Sandbox,
   ownership_timeout: 700_000,
-  port: 5438
+  port: 5432
 
 config :journey, ecto_repos: [Journey.Repo]
 
