@@ -1,7 +1,7 @@
 defmodule Journey.MixProject do
   use Mix.Project
 
-  @version "0.10.23"
+  @version "0.10.24"
 
   def project do
     [
@@ -33,7 +33,8 @@ defmodule Journey.MixProject do
       licenses: ["Journey License"],
       links: %{
         "GitHub" => "https://github.com/markmark206/journey",
-        "License" => "https://github.com/markmark206/journey/blob/v#{@version}/LICENSE.md"
+        "License" => "https://github.com/markmark206/journey/blob/v#{@version}/LICENSE.md",
+        "About" => "https://gojourney.dev"
       }
     ]
   end
