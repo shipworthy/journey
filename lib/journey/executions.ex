@@ -176,7 +176,10 @@ defmodule Journey.Executions do
     case result do
       {:ok, updated_execution} ->
         Logger.info("#{prefix}: value unset successfully")
-        updated_execution = Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution)
+        graph = Journey.Graph.Catalog.fetch(updated_execution.graph_name, updated_execution.graph_version)
+        Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution.id, graph)
+        # Reload to get the updated revision after invalidation
+        updated_execution = Journey.load(updated_execution.id)
         Journey.Scheduler.advance(updated_execution)
 
       {:error, {:no_change, original_execution}} ->
@@ -253,7 +256,10 @@ defmodule Journey.Executions do
     |> case do
       {:ok, updated_execution} ->
         Logger.info("#{prefix}: value set successfully")
-        updated_execution = Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution)
+        graph = Journey.Graph.Catalog.fetch(updated_execution.graph_name, updated_execution.graph_version)
+        Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution.id, graph)
+        # Reload to get the updated revision after invalidation
+        updated_execution = Journey.load(updated_execution.id)
         Journey.Scheduler.advance(updated_execution)
 
       {:error, {:no_change, original_execution}} ->
@@ -331,7 +337,10 @@ defmodule Journey.Executions do
     |> case do
       {:ok, updated_execution} ->
         Logger.info("#{prefix}: value set successfully")
-        updated_execution = Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution)
+        graph = Journey.Graph.Catalog.fetch(updated_execution.graph_name, updated_execution.graph_version)
+        Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution.id, graph)
+        # Reload to get the updated revision after invalidation
+        updated_execution = Journey.load(updated_execution.id)
         Journey.Scheduler.advance(updated_execution)
 
       {:error, {:no_change, original_execution}} ->
