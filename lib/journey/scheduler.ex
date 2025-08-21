@@ -74,38 +74,33 @@ defmodule Journey.Scheduler do
             {:error, "Exception. #{exception_as_string}"}
         end
 
-      should_check_invalidation =
-        r
-        |> case do
-          {:ok, result} ->
-            Logger.debug("#{prefix}: async computation completed successfully")
-            Completions.record_success(computation, input_versions_to_capture, result)
-            # Only check invalidation for compute nodes (not mutate/schedule nodes)
-            graph_node.type == :compute
+      r
+      |> case do
+        {:ok, result} ->
+          Logger.debug("#{prefix}: async computation completed successfully")
+          Completions.record_success(computation, input_versions_to_capture, result)
 
-          {:error, error_details} ->
-            Logger.warning("#{prefix}: async computation completed with an error")
-            Completions.record_error(computation, error_details)
-            jitter_ms = :rand.uniform(10_000)
-            Process.sleep(jitter_ms)
-            false
+        {:error, error_details} ->
+          Logger.warning("#{prefix}: async computation completed with an error")
+          Completions.record_error(computation, error_details)
+          jitter_ms = :rand.uniform(10_000)
+          Process.sleep(jitter_ms)
 
-          unexpected_value ->
-            result_truncated = "#{inspect(unexpected_value)}" |> String.trim() |> String.slice(0, 1000)
+        unexpected_value ->
+          result_truncated = "#{inspect(unexpected_value)}" |> String.trim() |> String.slice(0, 1000)
 
-            Logger.error(
-              "#{prefix}: #{computation.node_name}'s f_compute function was expected to return `{:ok, _}` or {:error, _} tuples, but it returned an unexpected value: '#{result_truncated}'"
-            )
+          Logger.error(
+            "#{prefix}: #{computation.node_name}'s f_compute function was expected to return `{:ok, _}` or {:error, _} tuples, but it returned an unexpected value: '#{result_truncated}'"
+          )
 
-            Completions.record_error(computation, "Unexpected value: '#{result_truncated}'")
-            jitter_ms = :rand.uniform(10_000)
-            Process.sleep(jitter_ms)
-            false
-        end
+          Completions.record_error(computation, "Unexpected value: '#{result_truncated}'")
+          jitter_ms = :rand.uniform(10_000)
+          Process.sleep(jitter_ms)
+      end
 
       invoke_f_on_save(prefix, graph_node.f_on_save, execution.id, r)
 
-      if should_check_invalidation do
+      if requires_invalidation_check?(r, graph_node) do
         # After a compute node succeeds, check if any downstream values should be invalidated
         updated_execution = Journey.load(execution.id)
         updated_execution = Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution)
@@ -137,4 +132,7 @@ defmodule Journey.Scheduler do
       Logger.debug("#{prefix}: f_on_save completed")
     end)
   end
+
+  defp requires_invalidation_check?({:ok, _result}, graph_node), do: graph_node.type == :compute
+  defp requires_invalidation_check?(_other_result, _graph_node), do: false
 end
