@@ -47,12 +47,12 @@ defmodule Journey.Scheduler.Invalidate do
   end
 
   defp clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix) do
-    # Find set computed values
+    # Find set computed values (only compute nodes - excluding mutate/schedule nodes which represent completed actions)
     set_computed_values =
       all_values
       |> Enum.filter(fn v ->
         v.set_time != nil and
-          v.node_type in [:compute, :mutate, :schedule_once, :schedule_recurring]
+          v.node_type == :compute
       end)
 
     Logger.debug("#{prefix}: checking #{length(set_computed_values)} computed values for discardability")
