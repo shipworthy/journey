@@ -238,6 +238,10 @@ defmodule Journey do
   * `name` - String identifying the graph (e.g., "user registration workflow")
   * `version` - String version identifier following semantic versioning (e.g., "v1.0.0")
   * `nodes` - List of node definitions created with `Journey.Node` functions (`input/1`, `compute/4`, etc.)
+  * `opts` - Optional keyword list of options:
+    * `:f_on_save` - Graph-wide callback function invoked after any node computation succeeds.
+      Receives `(execution_id, node_name, result)` where result is `{:ok, value}` or `{:error, reason}`.
+      This callback is called after any node-specific `f_on_save` callbacks.
 
   ## Returns
   * `%Journey.Graph{}` struct representing the validated and registered computation graph
@@ -245,12 +249,14 @@ defmodule Journey do
   ## Errors
   * Raises `RuntimeError` if graph validation fails (e.g., circular dependencies, unknown node references)
   * Raises `ArgumentError` if parameters have invalid types or empty node list
+  * Raises `KeywordValidator.Error` if options are invalid
 
   ## Key Behaviors
   * **Validation** - Automatically validates graph structure for cycles, dependency correctness
   * **Registration** - Registers graph in catalog for execution tracking and reloading
   * **Immutable** - Graph definition is immutable once created; create new versions for changes
   * **Node types** - Supports input, compute, mutate, schedule_once, and schedule_recurring nodes
+  * **`f_on_save` Callbacks** - If defined, graph-wide `f_on_save` callback is called after Node-specific `f_on_save`s (if defined)
 
   ## Examples
 
@@ -272,6 +278,30 @@ defmodule Journey do
   iex> execution = Journey.set_value(execution, :name, "Alice")
   iex> Journey.get_value(execution, :greeting, wait_any: true)
   {:ok, "Hello, Alice!"}
+  ```
+
+  Graph with a graph-wide `f_on_save` callback:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> _graph = Journey.new_graph(
+  ...>   "notification workflow",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:user_id),
+  ...>     compute(:fetch_user, [:user_id], fn %{user_id: id} ->
+  ...>       {:ok, %{id: id, name: "User \#{id}"}}
+  ...>     end),
+  ...>     compute(:send_email, [:fetch_user], fn %{fetch_user: user} ->
+  ...>       {:ok, "Email sent to \#{user.name}"}
+  ...>     end)
+  ...>   ],
+  ...>   f_on_save: fn _execution_id, node_name, result ->
+  ...>     # This will be called for both :fetch_user and :send_email computations
+  ...>     IO.puts("Node \#{node_name} completed with result: \#{inspect(result)}")
+  ...>     :ok
+  ...>   end
+  ...> )
   ```
 
   Complex workflow with conditional dependencies:
@@ -345,9 +375,9 @@ defmodule Journey do
   ```
 
   """
-  def new_graph(name, version, nodes)
+  def new_graph(name, version, nodes, opts \\ [])
       when is_binary(name) and is_binary(version) and is_list(nodes) do
-    Graph.new(name, version, nodes)
+    Graph.new(name, version, nodes, opts)
     |> Journey.Graph.Validations.validate()
     |> Graph.Catalog.register()
   end

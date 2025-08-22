@@ -97,7 +97,7 @@ defmodule Journey.Scheduler do
           Process.sleep(jitter_ms)
       end
 
-      invoke_f_on_save(prefix, graph_node.f_on_save, execution.id, r)
+      invoke_f_on_save(prefix, graph_node.f_on_save, graph.f_on_save, execution.id, computation.node_name, r)
 
       if requires_invalidation_check?(r, graph_node) do
         # After a compute node succeeds, check if any downstream values should be invalidated
@@ -110,24 +110,42 @@ defmodule Journey.Scheduler do
     execution
   end
 
-  defp invoke_f_on_save(prefix, nil, _eid, _result) do
-    Logger.debug("#{prefix}: f_on_save is not defined, skipping")
-    nil
-  end
+  defp invoke_f_on_save(prefix, node_f_on_save, graph_f_on_save, execution_id, node_name, result) do
+    # First invoke node-specific f_on_save if defined
+    if node_f_on_save do
+      Task.start(fn ->
+        Logger.debug("#{prefix}: calling node-specific f_on_save")
 
-  defp invoke_f_on_save(prefix, f, eid, result) do
-    Task.start(fn ->
-      Logger.debug("#{prefix}: calling f_on_save")
+        try do
+          node_f_on_save.(execution_id, result)
+        rescue
+          e ->
+            Logger.error("#{prefix}: node-specific f_on_save raised an exception: '#{inspect(e)}'")
+        end
 
-      try do
-        f.(eid, result)
-      rescue
-        e ->
-          Logger.error("#{prefix}: f_on_save raised an exception: '#{inspect(e)}'")
-      end
+        Logger.debug("#{prefix}: node-specific f_on_save completed")
+      end)
+    end
 
-      Logger.debug("#{prefix}: f_on_save completed")
-    end)
+    # Then invoke graph-wide f_on_save if defined
+    if graph_f_on_save do
+      Task.start(fn ->
+        Logger.debug("#{prefix}: calling graph-wide f_on_save")
+
+        try do
+          graph_f_on_save.(execution_id, node_name, result)
+        rescue
+          e ->
+            Logger.error("#{prefix}: graph-wide f_on_save raised an exception: '#{inspect(e)}'")
+        end
+
+        Logger.debug("#{prefix}: graph-wide f_on_save completed")
+      end)
+    end
+
+    if is_nil(node_f_on_save) and is_nil(graph_f_on_save) do
+      Logger.debug("#{prefix}: no f_on_save defined (neither node-specific nor graph-wide)")
+    end
   end
 
   defp requires_invalidation_check?({:ok, _result}, graph_node), do: graph_node.type == :compute
