@@ -66,6 +66,67 @@ defmodule Journey.Tools do
     })
   end
 
+  @doc """
+  Returns the current state of a computation node.
+
+  Returns the state of the most recent computation attempt for the given node.
+  If no computation has been attempted yet, returns `:not_set`.
+  For input nodes (non-compute nodes), returns `:not_compute_node`.
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to check
+  - `node_name` - The atom name of the node to check
+
+  ## Returns
+  - `:not_set` - No computation has been attempted yet
+  - `:computing` - Currently computing
+  - `:success` - Computation completed successfully
+  - `:failed` - Computation failed
+  - `:abandoned` - Computation was abandoned
+  - `:cancelled` - Computation was cancelled
+  - `:not_compute_node` - The node is an input node, not a computation
+
+  ## Examples
+
+      iex> import Journey.Node
+      iex> graph = Journey.new_graph("computation_state doctest graph", "v1.0.0", [
+      ...>   input(:value),
+      ...>   compute(:double, [:value], fn %{value: v} -> {:ok, v * 2} end)
+      ...> ])
+      iex> {:ok, execution} = Journey.start_execution(graph)
+      iex> Journey.Tools.computation_state(execution.id, :double)
+      :not_set
+      iex> Journey.Tools.computation_state(execution.id, :value)
+      :not_compute_node
+      iex> {:ok, execution} = Journey.set_value(execution, :value, 5)
+      iex> {:ok, _result} = Journey.get_value(execution, :double, wait_new: true)
+      iex> Journey.Tools.computation_state(execution.id, :double)
+      :success
+  """
+  def computation_state(execution_id, node_name)
+      when is_binary(execution_id) and is_atom(node_name) do
+    execution = Journey.load(execution_id)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+    graph_node = Graph.find_node_by_name(graph, node_name)
+
+    case graph_node.type do
+      :input ->
+        :not_compute_node
+
+      _ ->
+        Journey.Executions.find_computations_by_node_name(execution, node_name)
+        |> computation_state_impl()
+    end
+  end
+
+  defp computation_state_impl(computations) when computations == [], do: :not_set
+
+  defp computation_state_impl(computations) when is_list(computations) do
+    computations
+    |> Enum.max_by(fn c -> {c.ex_revision_at_completion || -1, c.id} end)
+    |> Map.get(:state)
+  end
+
   @doc false
   def outstanding_computations(execution_id) when is_binary(execution_id) do
     execution = Journey.load(execution_id)
