@@ -6,7 +6,7 @@ Define your application workflows as dependency graphs where user inputs automat
 
 Your flows survive crashes, redeploys, page reloads, while scaling naturally with your application - no additional infrastructure or cloud service$ required.
 
-## Installation
+## Installation and Configuration
 
 To use Journey in your application, you will need to install the package, configure its db, optionally configure its logging, and tell it about the graphs you want Journey to be aware of.
 
@@ -88,4 +88,10 @@ config :journey, :graphs, [
 ]
 ```
 
-Documentation can be found at <https://shipworthy.hexdocs.pm/journey/>.
+## Questions / Comments / Issues
+
+To get in touch, report an issue, or ask a question, please create a github issue: https://github.com/markmark206/journey/issues
+
+## Full Documentation
+
+Documentation can be found at <https://hexdocs.pm/journey>.
