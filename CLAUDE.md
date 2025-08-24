@@ -71,6 +71,8 @@ Journey.set_value/3      # Set node values
 Journey.get_value/3      # Retrieve node values
 ```
 
+Please read lib/journey.ex and lib/journey/node.ex for Journey's API functions, their documentation and usage examples.
+
 ### Module Organization
 - `Journey` - Main API
 - `Journey.Graph` - Graph definition/validation
@@ -97,8 +99,8 @@ docker exec -it new_journey-postgres-db psql -U postgres journey_test
 
 ## Code Quality
 
-- **Credo linting** in strict mode
-- **Format enforcement** via `mix format`
+- **Credo linting** in strict mode (`make lint`)
+- **Format enforcement** via `mix format` / `make format`
 - **Zero warnings** - all treated as errors
 - **Security review** required for new dependencies
 
