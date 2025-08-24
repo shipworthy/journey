@@ -556,11 +556,13 @@ defmodule Journey.Tools do
       do: "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n",
       else: ""
     ) <>
-      Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
-        "#{indent}✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
+      Enum.map_join(readiness.conditions_met, "", fn condition_map = %{upstream_node: v, f_condition: f} ->
+        node_display = format_node_name_with_context(v.node_name, condition_map)
+        "#{indent}✅ #{node_display} | #{f_name(f)} | rev #{v.ex_revision}\n"
       end) <>
-      Enum.map_join(readiness.conditions_not_met, "\n", fn %{upstream_node: v, f_condition: f} ->
-        "#{indent}🛑 #{inspect(v.node_name)} | #{f_name(f)}"
+      Enum.map_join(readiness.conditions_not_met, "\n", fn condition_map = %{upstream_node: v, f_condition: f} ->
+        node_display = format_node_name_with_context(v.node_name, condition_map)
+        "#{indent}🛑 #{node_display} | #{f_name(f)}"
       end)
   end
 
@@ -570,6 +572,14 @@ defmodule Journey.Tools do
       :execution_id -> node_value
       :last_updated_at -> node_value
       _ -> inspect(node_value)
+    end
+  end
+
+  # Helper function to format node names with conditional context
+  defp format_node_name_with_context(node_name, condition_map) do
+    case Map.get(condition_map, :condition_context, :direct) do
+      :negated -> "not(#{inspect(node_name)})"
+      :direct -> inspect(node_name)
     end
   end
 end

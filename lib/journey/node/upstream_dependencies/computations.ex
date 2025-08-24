@@ -107,14 +107,16 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
     if f_condition.(relevant_value_node) do
       %{
         ready?: true,
-        conditions_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}],
+        conditions_met: [%{upstream_node: relevant_value_node, f_condition: f_condition, condition_context: :direct}],
         conditions_not_met: []
       }
     else
       %{
         ready?: false,
         conditions_met: [],
-        conditions_not_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}]
+        conditions_not_met: [
+          %{upstream_node: relevant_value_node, f_condition: f_condition, condition_context: :direct}
+        ]
       }
     end
   end
@@ -133,12 +135,14 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
       %{
         ready?: false,
         conditions_met: [],
-        conditions_not_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}]
+        conditions_not_met: [
+          %{upstream_node: relevant_value_node, f_condition: f_condition, condition_context: :negated}
+        ]
       }
     else
       %{
         ready?: true,
-        conditions_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}],
+        conditions_met: [%{upstream_node: relevant_value_node, f_condition: f_condition, condition_context: :negated}],
         conditions_not_met: []
       }
     end

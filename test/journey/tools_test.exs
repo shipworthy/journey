@@ -263,6 +263,141 @@ defmodule Journey.ToolsTest do
       assert Journey.Tools.computation_state_to_text(:failed) == "❌ :failed"
       assert Journey.Tools.computation_state_to_text(:not_set) == "⬜ :not_set (not yet attempted)"
     end
+
+    test "formats complex not conditions in mixed logical operators" do
+      import Journey.Node
+      import Journey.Node.Conditions
+
+      # Create a comprehensive graph with various :not condition combinations
+      graph =
+        Journey.new_graph("Complex Not Conditions Test", "v1.0.0", [
+          # Input nodes
+          input(:user_applied),
+          input(:user_approved),
+          input(:user_requested_card),
+          input(:card_mailed),
+          input(:user_name),
+
+          # 1. Simple condition (no :not)
+          compute(:send_welcome, [:user_name], fn _ -> {:ok, "Welcome!"} end),
+
+          # 2. Single :not condition
+          compute(
+            :send_reminder,
+            {:not, {:user_requested_card, &true?/1}},
+            fn _ -> {:ok, "Please request your card"} end
+          ),
+
+          # 3. Complex :and with mixed :not and direct conditions
+          compute(
+            :send_approval_notice,
+            {
+              :and,
+              [
+                {:user_applied, &true?/1},
+                {:user_approved, &true?/1},
+                {:not, {:user_requested_card, &true?/1}}
+              ]
+            },
+            fn _ -> {:ok, "Congratulations! You're approved"} end
+          ),
+
+          # 4. Complex :or with multiple :not conditions
+          compute(
+            :send_follow_up,
+            {
+              :or,
+              [
+                {:not, {:user_applied, &true?/1}},
+                {:not, {:card_mailed, &true?/1}}
+              ]
+            },
+            fn _ -> {:ok, "Follow up message"} end
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Wait for the immediately unblocked computations to complete
+      # This ensures deterministic test output
+      {:ok, _} = Journey.get_value(execution, :send_reminder, wait_any: true)
+      {:ok, _} = Journey.get_value(execution, :send_follow_up, wait_any: true)
+
+      summary_data = Journey.Tools.summarize(execution.id)
+      result = Journey.Tools.summarize_to_text(summary_data)
+
+      # Get actual system node values for expected output
+      values = Journey.values(execution)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+      execution_id_value = Map.get(values, :execution_id)
+
+      # Redact dynamic values for reliable comparison
+      redacted_result =
+        result
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+
+      # Complete expected output as living documentation for engineers
+      # This shows how :not conditions are formatted in the summary output
+      expected_output = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'Complex Not Conditions Test' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 4
+      - # of Values: 4 (set) / 11 (total)
+      - # of Computations: 4
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 4
+
+        - send_follow_up: '\"Follow up message\"' | :compute
+          computed at REDACTED | rev: 4
+
+        - send_reminder: '\"Please request your card\"' | :compute
+          computed at REDACTED | rev: 3
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - card_mailed: <unk> | :input
+        - send_approval_notice: <unk> | :compute
+        - send_welcome: <unk> | :compute
+        - user_applied: <unk> | :input
+        - user_approved: <unk> | :input
+        - user_name: <unk> | :input
+        - user_requested_card: <unk> | :input  
+
+      Computations:
+      - Completed:
+        - :send_follow_up (CMPREDACTED): ✅ :success | :compute | rev 4
+          inputs used: 
+             :user_applied (rev 0)
+             :card_mailed (rev 0)
+        - :send_reminder (CMPREDACTED): ✅ :success | :compute | rev 3
+          inputs used: 
+             :user_requested_card (rev 0)
+
+      - Outstanding:
+        - send_welcome: ⬜ :not_set (not yet attempted) | :compute
+             🛑 :user_name | &provided?/1
+        - send_approval_notice: ⬜ :not_set (not yet attempted) | :compute
+             ✅ not(:user_requested_card) | &true?/1 | rev 0
+             🛑 :user_applied | &true?/1
+             🛑 :user_approved | &true?/1
+      """
+
+      assert redacted_result == String.trim(expected_output)
+    end
   end
 
   describe "generate_mermaid_graph/2" do
