@@ -50,6 +50,47 @@ defmodule Journey.ToolsTest do
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
+
+    test "uses emoji format for computation states" do
+      import Journey.Node
+
+      # Create a graph with multiple compute nodes
+      graph =
+        Journey.new_graph("emoji test graph", "v1.0.0", [
+          input(:value),
+          compute(:success_node, [:value], fn %{value: v} -> {:ok, v * 2} end),
+          compute(:fail_node, [:value], fn _deps -> {:error, "intentional failure"} end)
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Check initial state shows outstanding computations
+      summary_initial = Journey.Tools.summarize(execution.id)
+      assert summary_initial =~ "⬜ :not_set (not yet attempted)"
+      assert summary_initial =~ "🛑 :value | &provided?/1"
+
+      # Set value to trigger computations
+      execution = Journey.set_value(execution, :value, 10)
+
+      # Get values to trigger computations
+      {:ok, _} = Journey.get_value(execution, :success_node, wait_new: true)
+      # The fail_node will fail
+      {:error, _} = Journey.get_value(execution, :fail_node, wait_new: true)
+
+      # Check that completed states use emoji format
+      summary_after = Journey.Tools.summarize(execution.id)
+
+      # Should see success emoji for successful computation
+      assert summary_after =~ "✅ :success"
+
+      # Should see failure emoji for failed computation
+      assert summary_after =~ "❌ :failed"
+
+      # Verify the computation state text helper is being used properly
+      assert Journey.Tools.computation_state_to_text(:success) == "✅ :success"
+      assert Journey.Tools.computation_state_to_text(:failed) == "❌ :failed"
+      assert Journey.Tools.computation_state_to_text(:not_set) == "⬜ :not_set (not yet attempted)"
+    end
   end
 
   describe "generate_mermaid_graph/2" do

@@ -93,12 +93,12 @@ defmodule Journey.Tools do
       ...>   input(:value),
       ...>   compute(:double, [:value], fn %{value: v} -> {:ok, v * 2} end)
       ...> ])
-      iex> {:ok, execution} = Journey.start_execution(graph)
+      iex> execution = Journey.start_execution(graph)
       iex> Journey.Tools.computation_state(execution.id, :double)
       :not_set
       iex> Journey.Tools.computation_state(execution.id, :value)
       :not_compute_node
-      iex> {:ok, execution} = Journey.set_value(execution, :value, 5)
+      iex> execution = Journey.set_value(execution, :value, 5)
       iex> {:ok, _result} = Journey.get_value(execution, :double, wait_new: true)
       iex> Journey.Tools.computation_state(execution.id, :double)
       :success
@@ -440,7 +440,7 @@ defmodule Journey.Tools do
          computed_with: computed_with,
          ex_revision_at_completion: ex_revision_at_completion
        }) do
-    "  - :#{node_name} (#{id}): #{inspect(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
+    "  - :#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
       "    inputs used: \n" <>
       case computed_with do
         nil ->
@@ -473,7 +473,10 @@ defmodule Journey.Tools do
 
     indent = if(with_header?, do: "       ", else: "")
 
-    if(with_header?, do: "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n", else: "") <>
+    if(with_header?,
+      do: "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n",
+      else: ""
+    ) <>
       Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
         "#{indent}✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
       end) <>
