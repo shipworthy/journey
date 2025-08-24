@@ -5,18 +5,26 @@ defmodule Journey.ToolsTest do
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
   describe "summarize/1" do
-    test "basic validation" do
+    test "returns structured data for new execution" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
 
-      summary = Journey.Tools.summarize(execution.id)
+      summary_data = Journey.Tools.summarize(execution.id)
 
-      assert summary =~ """
-             Execution summary:
-             - ID: '#{execution.id}'
-             - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
-             - Archived at: not archived
-             """
+      assert summary_data.execution_id == execution.id
+      assert summary_data.graph_name == "test graph 1 Elixir.Journey.Test.Support"
+      assert summary_data.graph_version == "1.0.0"
+      assert summary_data.archived_at == nil
+      assert is_integer(summary_data.created_at)
+      assert is_integer(summary_data.updated_at)
+      assert is_integer(summary_data.duration_seconds)
+      assert is_integer(summary_data.revision)
+
+      assert Map.has_key?(summary_data.values, :set)
+      assert Map.has_key?(summary_data.values, :not_set)
+      assert Map.has_key?(summary_data.computations, :completed)
+      assert Map.has_key?(summary_data.computations, :outstanding)
+      assert summary_data.graph != nil
     end
 
     test "no such execution" do
@@ -28,7 +36,7 @@ defmodule Journey.ToolsTest do
       end
     end
 
-    test "basic validation, progressed execution " do
+    test "returns structured data for progressed execution" do
       graph = Journey.Test.Support.create_test_graph1()
 
       execution =
@@ -39,14 +47,127 @@ defmodule Journey.ToolsTest do
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
-      summary = Journey.Tools.summarize(execution.id)
+      summary_data = Journey.Tools.summarize(execution.id)
 
-      assert summary =~ """
-             Execution summary:
-             - ID: '#{execution.id}'
-             - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
-             - Archived at: not archived
-             """
+      assert summary_data.execution_id == execution.id
+      assert summary_data.graph_name == "test graph 1 Elixir.Journey.Test.Support"
+      assert summary_data.graph_version == "1.0.0"
+      assert summary_data.archived_at == nil
+
+      # Should have some set values after execution progresses
+      assert Enum.count(summary_data.values.set) > 0
+
+      # Should have some completed computations
+      assert Enum.count(summary_data.computations.completed) > 0
+
+      stop_background_sweeps_in_test(background_sweeps_task)
+    end
+  end
+
+  describe "summarize_to_text/1" do
+    test "formats complete execution summary text for new execution" do
+      graph = Journey.Test.Support.create_test_graph1()
+      execution = Journey.start_execution(graph)
+
+      summary_data = Journey.Tools.summarize(execution.id)
+      result = Journey.Tools.summarize_to_text(summary_data)
+
+      # Get actual system node values for expected output
+      last_updated_at_value = Journey.values(execution) |> Map.get(:last_updated_at)
+
+      # Redact dynamic values for reliable comparison
+      redacted_result =
+        result
+        # |> redact_text_execution_id(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+
+      # |> redact_text_system_node_values()
+
+      # Test key parts of the output rather than exact match due to complexity
+      #      assert redacted_result =~ "Execution summary:"
+      #      assert redacted_result =~ "- ID: 'REDACTED'"
+      #      assert redacted_result =~ "- Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'"
+      #      assert redacted_result =~ "- Archived at: not archived"
+      #      assert redacted_result =~ "- Created at: REDACTED UTC | REDACTED seconds ago"
+      #      assert redacted_result =~ "- Last updated at: REDACTED UTC | REDACTED seconds ago"
+      #      assert redacted_result =~ "- Duration: REDACTED seconds"
+      #      assert redacted_result =~ "- Revision: 0"
+      #      assert redacted_result =~ "Values:"
+      #      assert redacted_result =~ "- Set:"
+      #      assert redacted_result =~ "- Not set:"
+      #      assert redacted_result =~ "user_name: <unk> | :input"
+      #      assert redacted_result =~ "Computations:"
+      #      assert redacted_result =~ "- Outstanding:"
+
+      # Complete expected output as living documentation for engineers
+      expected_output = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 0
+      - # of Values: 2 (set) / 6 (total)
+      - # of Computations: 3
+
+      Values:
+      - Set:
+        - execution_id: '\"#{execution.id}\"' | :input
+          set at REDACTED | rev: 0
+
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - user_name: <unk> | :input
+        - greeting: <unk> | :compute
+        - time_to_issue_reminder_schedule: <unk> | :schedule_once
+        - reminder: <unk> | :compute  
+
+      Computations:
+      - Completed:
+
+
+      - Outstanding:
+        - time_to_issue_reminder_schedule: ⬜ :not_set (not yet attempted) | :schedule_once
+             🛑 :greeting | &provided?/1
+        - reminder: ⬜ :not_set (not yet attempted) | :compute
+             🛑 :greeting | &provided?/1
+             🛑 :time_to_issue_reminder_schedule | &provided?/1
+        - greeting: ⬜ :not_set (not yet attempted) | :compute
+             🛑 :user_name | &provided?/1
+      """
+
+      assert redacted_result == String.trim(expected_output)
+    end
+
+    test "formats complete execution summary text for progressed execution" do
+      graph = Journey.Test.Support.create_test_graph1()
+
+      execution =
+        Journey.start_execution(graph)
+        |> Journey.set_value(:user_name, "John Doe")
+
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+
+      {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
+
+      summary_data = Journey.Tools.summarize(execution.id)
+      result = Journey.Tools.summarize_to_text(summary_data)
+
+      # Should contain key elements of progressed execution
+      assert result =~ "Execution summary:"
+      assert result =~ "- ID: '#{execution.id}'"
+      assert result =~ "- Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'"
+      assert result =~ "Values:"
+      assert result =~ "Computations:"
+      assert result =~ "user_name: '\"John Doe\"'"
+      assert result =~ "✅ :success"
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
@@ -65,9 +186,10 @@ defmodule Journey.ToolsTest do
       execution = Journey.start_execution(graph)
 
       # Check initial state shows outstanding computations
-      summary_initial = Journey.Tools.summarize(execution.id)
-      assert summary_initial =~ "⬜ :not_set (not yet attempted)"
-      assert summary_initial =~ "🛑 :value | &provided?/1"
+      summary_initial_data = Journey.Tools.summarize(execution.id)
+      summary_initial_text = Journey.Tools.summarize_to_text(summary_initial_data)
+      assert summary_initial_text =~ "⬜ :not_set (not yet attempted)"
+      assert summary_initial_text =~ "🛑 :value | &provided?/1"
 
       # Set value to trigger computations
       execution = Journey.set_value(execution, :value, 10)
@@ -78,13 +200,17 @@ defmodule Journey.ToolsTest do
       {:error, _} = Journey.get_value(execution, :fail_node, wait_new: true)
 
       # Check that completed states use emoji format
-      summary_after = Journey.Tools.summarize(execution.id)
+      _execution_after = Journey.load(execution.id)
+
+      # Format as text and check for emoji usage
+      summary_data = Journey.Tools.summarize(execution.id)
+      summary_text = Journey.Tools.summarize_to_text(summary_data)
 
       # Should see success emoji for successful computation
-      assert summary_after =~ "✅ :success"
+      assert summary_text =~ "✅ :success"
 
       # Should see failure emoji for failed computation
-      assert summary_after =~ "❌ :failed"
+      assert summary_text =~ "❌ :failed"
 
       # Verify the computation state text helper is being used properly
       assert Journey.Tools.computation_state_to_text(:success) == "✅ :success"
@@ -263,5 +389,21 @@ defmodule Journey.ToolsTest do
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
+  end
+
+  # Helper functions for text redaction in tests
+  defp redact_text_timestamps(text) do
+    text
+    |> String.replace(~r/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z/, "REDACTED")
+  end
+
+  defp redact_text_duration(text) do
+    text
+    |> String.replace(~r/Duration: \d+ seconds/, "Duration: REDACTED seconds")
+  end
+
+  defp redact_text_seconds_ago(text) do
+    text
+    |> String.replace(~r/\d+ seconds ago/, "REDACTED seconds ago")
   end
 end

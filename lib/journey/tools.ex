@@ -255,37 +255,42 @@ defmodule Journey.Tools do
   end
 
   @doc """
-  Generates a detailed text summary of an execution's current state.
+  Generates structured data about an execution's current state.
 
-  Returns a formatted string containing:
-  - Execution metadata (ID, graph, timestamps, duration, revision)
-  - Values status with set/unset nodes and their values
-  - Computations breakdown showing completed and outstanding tasks
-  - Dependency analysis for blocked computations
+  Returns a map containing:
+  - Execution metadata (ID, graph, timestamps, duration, revision, archived status)
+  - Values categorized as set/not_set with their details
+  - Computations categorized as completed/outstanding with dependency info
 
   ## Example
 
-      iex> Journey.Tools.summarize("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
-      Execution summary:
-      - ID: 'EXEC07B2H0H7J1LTAE0VJDAL'
-      - Graph: 'g1' | 'v1'
-      - Archived at: not archived
-      - Created at: 2025-08-14 17:23:16Z UTC | 49348 seconds ago
-      - Last updated at: 2025-08-14 17:23:30Z UTC | 49334 seconds ago
-      - Duration: 14 seconds
-      - Revision: 7
-      - # of Values: 5 (set) / 5 (total)
-      - # of Computations: 2
-      ...
-      :ok
+      iex> Journey.Tools.summarize("EXEC07B2H0H7J1LTAE0VJDAL")
+      %{
+        execution_id: "EXEC07B2H0H7J1LTAE0VJDAL",
+        graph_name: "g1",
+        graph_version: "v1",
+        archived_at: nil,
+        created_at: 1723656196,
+        updated_at: 1723656210,
+        duration_seconds: 14,
+        revision: 7,
+        values: %{
+          set: [...],
+          not_set: [...]
+        },
+        computations: %{
+          completed: [...],
+          outstanding: [...]
+        }
+      }
 
   ## Parameters
-  - `execution_id` - The ID of the execution to summarize
+  - `execution_id` - The ID of the execution to analyze
 
   ## Returns
-  A formatted string with the complete execution state summary.
+  A structured map with execution state data.
 
-  Useful for debugging blocked executions and understanding computation dependencies.
+  Use `summarize_to_text/1` to format this data as human-readable text.
   """
   def summarize(execution_id) when is_binary(execution_id) do
     execution =
@@ -311,10 +316,77 @@ defmodule Journey.Tools do
       |> Enum.filter(fn c -> c.ex_revision_at_completion == nil end)
       |> Enum.sort_by(& &1.node_name, :desc)
 
-    archived_at =
-      case execution.archived_at do
+    %{
+      execution_id: execution_id,
+      graph_name: execution.graph_name,
+      graph_version: execution.graph_version,
+      archived_at: execution.archived_at,
+      created_at: execution.inserted_at,
+      updated_at: execution.updated_at,
+      duration_seconds: execution.updated_at - execution.inserted_at,
+      revision: execution.revision,
+      values: %{
+        set: set_values,
+        not_set: not_set_values
+      },
+      computations: %{
+        completed: computations_completed,
+        outstanding: computations_outstanding
+      },
+      graph: graph
+    }
+  end
+
+  @doc """
+  Formats execution summary data as human-readable text.
+
+  Takes structured data from `summarize/1` and converts it to the same detailed
+  text format that was previously provided by the original `summarize/1` function.
+
+  ## Example
+
+      iex> summary_data = Journey.Tools.summarize("EXEC07B2H0H7J1LTAE0VJDAL")
+      iex> Journey.Tools.summarize_to_text(summary_data) |> IO.puts()
+      Execution summary:
+      - ID: 'EXEC07B2H0H7J1LTAE0VJDAL'
+      - Graph: 'g1' | 'v1'
+      - Archived at: not archived
+      - Created at: 2025-08-14 17:23:16Z UTC | 49348 seconds ago
+      - Last updated at: 2025-08-14 17:23:30Z UTC | 49334 seconds ago
+      - Duration: 14 seconds
+      - Revision: 7
+      - # of Values: 5 (set) / 5 (total)
+      - # of Computations: 2
+      ...
+      :ok
+
+  ## Parameters
+  - `summary_data` - The structured data map returned by `summarize/1`
+
+  ## Returns
+  A formatted string with the complete execution state summary.
+
+  Useful for debugging blocked executions and understanding computation dependencies.
+  """
+  def summarize_to_text(summary_data) when is_map(summary_data) do
+    %{
+      execution_id: execution_id,
+      graph_name: graph_name,
+      graph_version: graph_version,
+      archived_at: archived_at,
+      created_at: created_at,
+      updated_at: updated_at,
+      duration_seconds: duration_seconds,
+      revision: revision,
+      values: %{set: set_values, not_set: not_set_values},
+      computations: %{completed: computations_completed, outstanding: computations_outstanding},
+      graph: graph
+    } = summary_data
+
+    archived_at_text =
+      case archived_at do
         nil -> "not archived"
-        _ -> DateTime.from_unix!(execution.archived_at)
+        _ -> DateTime.from_unix!(archived_at)
       end
 
     now = System.system_time(:second)
@@ -322,14 +394,14 @@ defmodule Journey.Tools do
     """
     Execution summary:
     - ID: '#{execution_id}'
-    - Graph: '#{execution.graph_name}' | '#{execution.graph_version}'
-    - Archived at: #{archived_at}
-    - Created at: #{DateTime.from_unix!(execution.inserted_at)} UTC | #{now - execution.inserted_at} seconds ago
-    - Last updated at: #{DateTime.from_unix!(execution.updated_at)} UTC | #{now - execution.updated_at} seconds ago
-    - Duration: #{Number.Delimit.number_to_delimited(execution.updated_at - execution.inserted_at, precision: 0)} seconds
-    - Revision: #{execution.revision}
-    - # of Values: #{Enum.count(set_values)} (set) / #{Enum.count(execution.values)} (total)
-    - # of Computations: #{Enum.count(execution.computations)}
+    - Graph: '#{graph_name}' | '#{graph_version}'
+    - Archived at: #{archived_at_text}
+    - Created at: #{DateTime.from_unix!(created_at)} UTC | #{now - created_at} seconds ago
+    - Last updated at: #{DateTime.from_unix!(updated_at)} UTC | #{now - updated_at} seconds ago
+    - Duration: #{Number.Delimit.number_to_delimited(duration_seconds, precision: 0)} seconds
+    - Revision: #{revision}
+    - # of Values: #{Enum.count(set_values)} (set) / #{Enum.count(set_values) + Enum.count(not_set_values)} (total)
+    - # of Computations: #{Enum.count(computations_completed) + Enum.count(computations_outstanding)}
 
     Values:
     - Set:
@@ -353,7 +425,7 @@ defmodule Journey.Tools do
       Enum.map_join(not_set_values, "\n", fn %{node_type: node_type, node_name: node_name} ->
         "  - #{node_name}: <unk> | #{inspect(node_type)}"
       end) <>
-      list_computations(graph, execution.values, computations_completed, computations_outstanding)
+      list_computations(graph, set_values ++ not_set_values, computations_completed, computations_outstanding)
   end
 
   @doc """
