@@ -4,12 +4,12 @@ defmodule Journey.ToolsTest do
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
-  describe "summarize/1" do
+  describe "summarize_as_data/1" do
     test "returns structured data for new execution" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
 
-      summary_data = Journey.Tools.summarize(execution.id)
+      summary_data = Journey.Tools.summarize_as_data(execution.id)
 
       assert summary_data.execution_id == execution.id
       assert summary_data.graph_name == "test graph 1 Elixir.Journey.Test.Support"
@@ -32,7 +32,7 @@ defmodule Journey.ToolsTest do
       _execution = Journey.start_execution(graph)
 
       assert_raise KeyError, fn ->
-        Journey.Tools.summarize("none such")
+        Journey.Tools.summarize_as_data("none such")
       end
     end
 
@@ -47,7 +47,7 @@ defmodule Journey.ToolsTest do
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
-      summary_data = Journey.Tools.summarize(execution.id)
+      summary_data = Journey.Tools.summarize_as_data(execution.id)
 
       assert summary_data.execution_id == execution.id
       assert summary_data.graph_name == "test graph 1 Elixir.Journey.Test.Support"
@@ -64,13 +64,12 @@ defmodule Journey.ToolsTest do
     end
   end
 
-  describe "summarize_to_text/1" do
+  describe "summarize_as_text/1 (text formatting)" do
     test "formats complete execution summary text for new execution" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
 
-      summary_data = Journey.Tools.summarize(execution.id)
-      result = Journey.Tools.summarize_to_text(summary_data)
+      result = Journey.Tools.summarize_as_text(execution.id)
 
       # Get actual system node values for expected output
       values = Journey.values(execution)
@@ -142,8 +141,7 @@ defmodule Journey.ToolsTest do
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
-      summary_data = Journey.Tools.summarize(execution.id)
-      result = Journey.Tools.summarize_to_text(summary_data)
+      result = Journey.Tools.summarize_as_text(execution.id)
 
       # Get actual values for expected output
       values = Journey.values(execution)
@@ -233,8 +231,7 @@ defmodule Journey.ToolsTest do
       execution = Journey.start_execution(graph)
 
       # Check initial state shows outstanding computations
-      summary_initial_data = Journey.Tools.summarize(execution.id)
-      summary_initial_text = Journey.Tools.summarize_to_text(summary_initial_data)
+      summary_initial_text = Journey.Tools.summarize_as_text(execution.id)
       assert summary_initial_text =~ "⬜ :not_set (not yet attempted)"
       assert summary_initial_text =~ "🛑 :value | &provided?/1"
 
@@ -250,8 +247,7 @@ defmodule Journey.ToolsTest do
       _execution_after = Journey.load(execution.id)
 
       # Format as text and check for emoji usage
-      summary_data = Journey.Tools.summarize(execution.id)
-      summary_text = Journey.Tools.summarize_to_text(summary_data)
+      summary_text = Journey.Tools.summarize_as_text(execution.id)
 
       # Should see success emoji for successful computation
       assert summary_text =~ "✅ :success"
@@ -336,8 +332,7 @@ defmodule Journey.ToolsTest do
       {:ok, _} = Journey.get_value(execution, :send_reminder, wait_any: true)
       {:ok, _} = Journey.get_value(execution, :send_follow_up, wait_any: true)
 
-      summary_data = Journey.Tools.summarize(execution.id)
-      result = Journey.Tools.summarize_to_text(summary_data)
+      result = Journey.Tools.summarize_as_text(execution.id)
 
       # Get actual system node values for expected output
       values = Journey.values(execution)
@@ -416,6 +411,30 @@ defmodule Journey.ToolsTest do
       """
 
       assert redacted_result == String.trim(expected_output)
+    end
+  end
+
+  describe "summarize_as_text/1" do
+    test "returns formatted text summary as convenience function" do
+      graph = Journey.Test.Support.create_test_graph1()
+      execution = Journey.start_execution(graph)
+
+      result = Journey.Tools.summarize_as_text(execution.id)
+
+      # Verify it returns a formatted string with expected content
+      assert is_binary(result)
+      assert result =~ "Execution summary:"
+      assert result =~ execution.id
+      assert result =~ "test graph 1 Elixir.Journey.Test.Support"
+      assert result =~ "- Graph:"
+      assert result =~ "- Revision:"
+      assert result =~ "Values:"
+      assert result =~ "Computations:"
+
+      # Test deprecated function returns the same result
+      # Using string-based call to avoid compile-time deprecation warning in test
+      deprecated_result = Code.eval_string("Journey.Tools.summarize(\"#{execution.id}\")") |> elem(0)
+      assert deprecated_result == result
     end
   end
 

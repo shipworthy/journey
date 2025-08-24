@@ -25,7 +25,7 @@ defmodule Journey.Scheduler.Scheduler.MutateTest do
       execution = execution |> Journey.set_value(:switch_position, "on")
       wait_for_switch_to_be_turned_back_off(execution, 10)
 
-      Journey.Tools.summarize(execution.id) |> Journey.Tools.summarize_to_text() |> IO.puts()
+      Journey.Tools.summarize_as_text(execution.id) |> IO.puts()
     end
   end
 

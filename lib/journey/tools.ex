@@ -257,7 +257,6 @@ defmodule Journey.Tools do
   end
 
   @doc false
-
   def advance(execution_id) when is_binary(execution_id) do
     execution_id
     |> Journey.load()
@@ -274,7 +273,7 @@ defmodule Journey.Tools do
 
   ## Example
 
-      iex> Journey.Tools.summarize("EXEC07B2H0H7J1LTAE0VJDAL")
+      iex> Journey.Tools.summarize_as_data("EXEC07B2H0H7J1LTAE0VJDAL")
       %{
         execution_id: "EXEC07B2H0H7J1LTAE0VJDAL",
         graph_name: "g1",
@@ -300,9 +299,9 @@ defmodule Journey.Tools do
   ## Returns
   A structured map with execution state data.
 
-  Use `summarize_to_text/1` to format this data as human-readable text.
+  Use `summarize_as_text/1` to get execution summary as text.
   """
-  def summarize(execution_id) when is_binary(execution_id) do
+  def summarize_as_data(execution_id) when is_binary(execution_id) do
     execution =
       execution_id
       |> Journey.load(include_archived: true)
@@ -348,37 +347,48 @@ defmodule Journey.Tools do
   end
 
   @doc """
-  Formats execution summary data as human-readable text.
-
-  Takes structured data from `summarize/1` and converts it to the same detailed
-  text format that was previously provided by the original `summarize/1` function.
+  Generates a human-readable text summary of an execution's current state.
 
   ## Example
 
-      iex> summary_data = Journey.Tools.summarize("EXEC07B2H0H7J1LTAE0VJDAL")
-      iex> Journey.Tools.summarize_to_text(summary_data) |> IO.puts()
+      iex> Journey.Tools.summarize_as_text("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
       Execution summary:
       - ID: 'EXEC07B2H0H7J1LTAE0VJDAL'
       - Graph: 'g1' | 'v1'
-      - Archived at: not archived
-      - Created at: 2025-08-14 17:23:16Z UTC | 49348 seconds ago
-      - Last updated at: 2025-08-14 17:23:30Z UTC | 49334 seconds ago
-      - Duration: 14 seconds
-      - Revision: 7
-      - # of Values: 5 (set) / 5 (total)
-      - # of Computations: 2
       ...
       :ok
 
   ## Parameters
-  - `summary_data` - The structured data map returned by `summarize/1`
+  - `execution_id` - The ID of the execution to analyze
 
   ## Returns
   A formatted string with the complete execution state summary.
 
-  Useful for debugging blocked executions and understanding computation dependencies.
+  Use `summarize_as_data/1` to get execution summary as data.
   """
-  def summarize_to_text(summary_data) when is_map(summary_data) do
+  def summarize_as_text(execution_id) when is_binary(execution_id) do
+    execution_id
+    |> summarize_as_data()
+    |> convert_summary_data_to_text()
+  end
+
+  @doc """
+  Generates a human-readable text summary of an execution's current state.
+
+  **This function is deprecated.** Use `summarize_as_text/1` instead.
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to analyze
+
+  ## Returns
+  A formatted string with the complete execution state summary.
+  """
+  @deprecated "Use summarize_as_text/1 instead"
+  def summarize(execution_id) when is_binary(execution_id) do
+    summarize_as_text(execution_id)
+  end
+
+  defp convert_summary_data_to_text(summary_data) when is_map(summary_data) do
     %{
       execution_id: execution_id,
       graph_name: graph_name,
@@ -529,6 +539,22 @@ defmodule Journey.Tools do
     "#{indent}#{status} #{node_display} | #{f_name(condition.f_condition)}#{revision_info}"
   end
 
+  defp format_child_with_connector(child, child_indent, continuation_indent) do
+    case child.type do
+      type when type in [:and, :or] ->
+        "#{child_indent}#{type}\n" <> format_children_with_connectors(child.children, continuation_indent)
+
+      :not ->
+        case child.child.type do
+          :leaf -> format_condition_tree(child, child_indent)
+          _ -> "#{child_indent}:not\n" <> format_condition_tree(child.child, continuation_indent <> " └─ ")
+        end
+
+      :leaf ->
+        format_condition_tree(child, child_indent)
+    end
+  end
+
   defp format_children_with_connectors(children, base_indent) do
     children
     |> Enum.with_index()
@@ -537,18 +563,8 @@ defmodule Journey.Tools do
       connector = if is_last, do: " └─ ", else: " ├─ "
       child_indent = base_indent <> connector
       continuation_indent = base_indent <> if(is_last, do: "    ", else: " │  ")
-      
-      case child.type do
-        type when type in [:and, :or] ->
-          "#{child_indent}#{type}\n" <> format_children_with_connectors(child.children, continuation_indent)
-        :not ->
-          case child.child.type do
-            :leaf -> format_condition_tree(child, child_indent)
-            _ -> "#{child_indent}:not\n" <> format_condition_tree(child.child, continuation_indent <> " └─ ")
-          end
-        :leaf ->
-          format_condition_tree(child, child_indent)
-      end
+
+      format_child_with_connector(child, child_indent, continuation_indent)
     end)
   end
 
