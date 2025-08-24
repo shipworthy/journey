@@ -127,6 +127,52 @@ defmodule Journey.Tools do
     |> Map.get(:state)
   end
 
+  @doc """
+  Converts a computation state atom to human-readable text with a visual symbol.
+
+  Returns a formatted string with an appropriate symbol and the state atom
+  for each computation state, following the pattern used in other Journey
+  text formatting functions.
+
+  ## Parameters
+  - `state` - The computation state atom returned by `computation_state/2`
+
+  ## Returns
+  A string with symbol and the state atom.
+
+  ## State Representations
+  - `:not_set` - "◯ :not_set (not yet attempted)"
+  - `:computing` - "⏳ :computing"
+  - `:success` - "✓ :success"
+  - `:failed` - "✗ :failed"
+  - `:abandoned` - "⚠ :abandoned"
+  - `:cancelled` - "✗ :cancelled"
+  - `:not_compute_node` - "• :not_compute_node"
+
+  ## Examples
+
+      iex> Journey.Tools.computation_state_to_text(:success)
+      "✓ :success"
+
+      iex> Journey.Tools.computation_state_to_text(:computing)
+      "⏳ :computing"
+
+      iex> Journey.Tools.computation_state_to_text(:not_set)
+      "◯ :not_set (not yet attempted)"
+  """
+  def computation_state_to_text(state) when is_atom(state) do
+    case state do
+      :not_set -> "◯ :not_set (not yet attempted)"
+      :computing -> "⏳ :computing"
+      :success -> "✓ :success"
+      :failed -> "✗ :failed"
+      :abandoned -> "⚠ :abandoned"
+      :cancelled -> "✗ :cancelled"
+      :not_compute_node -> "• :not_compute_node"
+      other -> "? :#{other}"
+    end
+  end
+
   @doc false
   def outstanding_computations(execution_id) when is_binary(execution_id) do
     execution = Journey.load(execution_id)

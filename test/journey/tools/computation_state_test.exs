@@ -23,6 +23,7 @@ defmodule Journey.Tools.ComputationStateTest do
       execution = Journey.start_execution(graph)
 
       assert Journey.Tools.computation_state(execution.id, :greeting) == :not_set
+      assert Journey.Tools.computation_state_to_text(:not_set) == "◯ :not_set (not yet attempted)"
     end
 
     test "returns :success for successful computation" do
@@ -44,6 +45,7 @@ defmodule Journey.Tools.ComputationStateTest do
       {:ok, _greeting} = Journey.get_value(execution, :greeting, wait_new: true)
 
       assert Journey.Tools.computation_state(execution.id, :greeting) == :success
+      assert Journey.Tools.computation_state_to_text(:success) == "✓ :success"
     end
 
     test "returns :failed for failed computation" do
@@ -65,6 +67,7 @@ defmodule Journey.Tools.ComputationStateTest do
       {:error, _} = Journey.get_value(execution, :will_fail, wait_new: true)
 
       assert Journey.Tools.computation_state(execution.id, :will_fail) == :failed
+      assert Journey.Tools.computation_state_to_text(:failed) == "✗ :failed"
     end
 
     test "returns :not_compute_node for input nodes" do
@@ -83,6 +86,7 @@ defmodule Journey.Tools.ComputationStateTest do
       execution = Journey.start_execution(graph)
 
       assert Journey.Tools.computation_state(execution.id, :user_name) == :not_compute_node
+      assert Journey.Tools.computation_state_to_text(:not_compute_node) == "• :not_compute_node"
     end
 
     test "handles schedule_once nodes" do
@@ -230,6 +234,24 @@ defmodule Journey.Tools.ComputationStateTest do
       {:ok, _} = Journey.get_value(execution, :modifier, wait_new: true)
 
       assert Journey.Tools.computation_state(execution.id, :modifier) == :success
+      assert Journey.Tools.computation_state_to_text(:success) == "✓ :success"
+    end
+  end
+
+  describe "computation_state_to_text/1" do
+    test "converts all computation states to text with symbols" do
+      assert Journey.Tools.computation_state_to_text(:not_set) == "◯ :not_set (not yet attempted)"
+      assert Journey.Tools.computation_state_to_text(:computing) == "⏳ :computing"
+      assert Journey.Tools.computation_state_to_text(:success) == "✓ :success"
+      assert Journey.Tools.computation_state_to_text(:failed) == "✗ :failed"
+      assert Journey.Tools.computation_state_to_text(:abandoned) == "⚠ :abandoned"
+      assert Journey.Tools.computation_state_to_text(:cancelled) == "✗ :cancelled"
+      assert Journey.Tools.computation_state_to_text(:not_compute_node) == "• :not_compute_node"
+    end
+
+    test "handles unknown states gracefully" do
+      assert Journey.Tools.computation_state_to_text(:unknown_state) == "? :unknown_state"
+      assert Journey.Tools.computation_state_to_text(:some_future_state) == "? :some_future_state"
     end
   end
 end
