@@ -141,34 +141,34 @@ defmodule Journey.Tools do
   A string with symbol and the state atom.
 
   ## State Representations
-  - `:not_set` - "◯ :not_set (not yet attempted)"
+  - `:not_set` - "⬜ :not_set (not yet attempted)"
   - `:computing` - "⏳ :computing"
-  - `:success` - "✓ :success"
-  - `:failed` - "✗ :failed"
-  - `:abandoned` - "⚠ :abandoned"
-  - `:cancelled` - "✗ :cancelled"
-  - `:not_compute_node` - "• :not_compute_node"
+  - `:success` - "✅ :success"
+  - `:failed` - "❌ :failed"
+  - `:abandoned` - "❓ :abandoned"
+  - `:cancelled` - "🛑 :cancelled"
+  - `:not_compute_node` - "📝 :not_compute_node"
 
   ## Examples
 
       iex> Journey.Tools.computation_state_to_text(:success)
-      "✓ :success"
+      "✅ :success"
 
       iex> Journey.Tools.computation_state_to_text(:computing)
       "⏳ :computing"
 
       iex> Journey.Tools.computation_state_to_text(:not_set)
-      "◯ :not_set (not yet attempted)"
+      "⬜ :not_set (not yet attempted)"
   """
   def computation_state_to_text(state) when is_atom(state) do
     case state do
-      :not_set -> "◯ :not_set (not yet attempted)"
+      :not_set -> "⬜ :not_set (not yet attempted)"
       :computing -> "⏳ :computing"
-      :success -> "✓ :success"
-      :failed -> "✗ :failed"
-      :abandoned -> "⚠ :abandoned"
-      :cancelled -> "✗ :cancelled"
-      :not_compute_node -> "• :not_compute_node"
+      :success -> "✅ :success"
+      :failed -> "❌ :failed"
+      :abandoned -> "❓ :abandoned"
+      :cancelled -> "🛑 :cancelled"
+      :not_compute_node -> "📝 :not_compute_node"
       other -> "? :#{other}"
     end
   end
