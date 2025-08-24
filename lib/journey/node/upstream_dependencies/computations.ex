@@ -59,19 +59,18 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
       conditions
       |> Enum.map(fn c -> evaluate_computation_for_readiness(all_executions_values, c) end)
 
-    if Enum.any?(results, fn r -> r.ready? end) do
-      %{
-        ready?: true,
-        conditions_met: Enum.flat_map(results, fn r -> r.conditions_met end),
-        conditions_not_met: Enum.flat_map(results, fn r -> r.conditions_not_met end)
+    any_met = Enum.any?(results, fn r -> r.ready? end)
+
+    %{
+      ready?: any_met,
+      conditions_met: Enum.flat_map(results, fn r -> r.conditions_met end),
+      conditions_not_met: Enum.flat_map(results, fn r -> r.conditions_not_met end),
+      structure: %{
+        type: :or,
+        met?: any_met,
+        children: Enum.map(results, fn r -> r.structure end)
       }
-    else
-      %{
-        ready?: false,
-        conditions_met: Enum.flat_map(results, fn r -> r.conditions_met end),
-        conditions_not_met: Enum.flat_map(results, fn r -> r.conditions_not_met end)
-      }
-    end
+    }
   end
 
   def evaluate_computation_for_readiness(all_executions_values, {:and, conditions}) when is_list(conditions) do
@@ -79,19 +78,18 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
       conditions
       |> Enum.map(fn c -> evaluate_computation_for_readiness(all_executions_values, c) end)
 
-    if Enum.all?(results, fn c -> c.ready? end) do
-      %{
-        ready?: true,
-        conditions_met: Enum.flat_map(results, fn r -> r.conditions_met end),
-        conditions_not_met: Enum.flat_map(results, fn r -> r.conditions_not_met end)
+    all_met = Enum.all?(results, fn c -> c.ready? end)
+
+    %{
+      ready?: all_met,
+      conditions_met: Enum.flat_map(results, fn r -> r.conditions_met end),
+      conditions_not_met: Enum.flat_map(results, fn r -> r.conditions_not_met end),
+      structure: %{
+        type: :and,
+        met?: all_met,
+        children: Enum.map(results, fn r -> r.structure end)
       }
-    else
-      %{
-        ready?: false,
-        conditions_met: Enum.flat_map(results, fn r -> r.conditions_met end),
-        conditions_not_met: Enum.flat_map(results, fn r -> r.conditions_not_met end)
-      }
-    end
+    }
   end
 
   def evaluate_computation_for_readiness(all_executions_values, {upstream_node_name, f_condition})
@@ -104,19 +102,19 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
       raise "missing value node for #{upstream_node_name}"
     end
 
-    if f_condition.(relevant_value_node) do
-      %{
-        ready?: true,
-        conditions_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}],
-        conditions_not_met: []
+    condition_met = f_condition.(relevant_value_node)
+    condition_data = %{upstream_node: relevant_value_node, f_condition: f_condition, condition_context: :direct}
+
+    %{
+      ready?: condition_met,
+      conditions_met: if(condition_met, do: [condition_data], else: []),
+      conditions_not_met: if(condition_met, do: [], else: [condition_data]),
+      structure: %{
+        type: :leaf,
+        met?: condition_met,
+        condition: condition_data
       }
-    else
-      %{
-        ready?: false,
-        conditions_met: [],
-        conditions_not_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}]
-      }
-    end
+    }
   end
 
   def evaluate_computation_for_readiness(all_executions_values, {:not, {upstream_node_name, f_condition}})
@@ -129,18 +127,23 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
       raise "missing value node for #{upstream_node_name}"
     end
 
-    if f_condition.(relevant_value_node) do
-      %{
-        ready?: false,
-        conditions_met: [],
-        conditions_not_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}]
+    inner_condition_met = f_condition.(relevant_value_node)
+    negated_condition_met = not inner_condition_met
+    condition_data = %{upstream_node: relevant_value_node, f_condition: f_condition, condition_context: :negated}
+
+    %{
+      ready?: negated_condition_met,
+      conditions_met: if(negated_condition_met, do: [condition_data], else: []),
+      conditions_not_met: if(negated_condition_met, do: [], else: [condition_data]),
+      structure: %{
+        type: :not,
+        met?: negated_condition_met,
+        child: %{
+          type: :leaf,
+          met?: inner_condition_met,
+          condition: %{upstream_node: relevant_value_node, f_condition: f_condition, condition_context: :direct}
+        }
       }
-    else
-      %{
-        ready?: true,
-        conditions_met: [%{upstream_node: relevant_value_node, f_condition: f_condition}],
-        conditions_not_met: []
-      }
-    end
+    }
   end
 end

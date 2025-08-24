@@ -27,12 +27,12 @@ defmodule LoadTest.SunnyDay do
 
               _huh ->
                 Logger.error("#{e.id}: execution failed.")
-                Journey.Tools.summarize(e.id) |> IO.puts()
+                Journey.Tools.summarize_as_text(e.id) |> IO.puts()
             end
           rescue
             exception ->
               Logger.error("#{inspect(e.id)}: execution raised an exception: #{inspect(exception)}")
-              Journey.Tools.summarize(e.id) |> IO.puts()
+              Journey.Tools.summarize_as_text(e.id) |> IO.puts()
           end
         end)
       end

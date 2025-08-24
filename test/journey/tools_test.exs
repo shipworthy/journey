@@ -4,19 +4,27 @@ defmodule Journey.ToolsTest do
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
-  describe "summarize/1" do
-    test "basic validation" do
+  describe "summarize_as_data/1" do
+    test "returns structured data for new execution" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
 
-      summary = Journey.Tools.summarize(execution.id)
+      summary_data = Journey.Tools.summarize_as_data(execution.id)
 
-      assert summary =~ """
-             Execution summary:
-             - ID: '#{execution.id}'
-             - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
-             - Archived at: not archived
-             """
+      assert summary_data.execution_id == execution.id
+      assert summary_data.graph_name == "test graph 1 Elixir.Journey.Test.Support"
+      assert summary_data.graph_version == "1.0.0"
+      assert summary_data.archived_at == nil
+      assert is_integer(summary_data.created_at)
+      assert is_integer(summary_data.updated_at)
+      assert is_integer(summary_data.duration_seconds)
+      assert is_integer(summary_data.revision)
+
+      assert Map.has_key?(summary_data.values, :set)
+      assert Map.has_key?(summary_data.values, :not_set)
+      assert Map.has_key?(summary_data.computations, :completed)
+      assert Map.has_key?(summary_data.computations, :outstanding)
+      assert summary_data.graph != nil
     end
 
     test "no such execution" do
@@ -24,11 +32,11 @@ defmodule Journey.ToolsTest do
       _execution = Journey.start_execution(graph)
 
       assert_raise KeyError, fn ->
-        Journey.Tools.summarize("none such")
+        Journey.Tools.summarize_as_data("none such")
       end
     end
 
-    test "basic validation, progressed execution " do
+    test "returns structured data for progressed execution" do
       graph = Journey.Test.Support.create_test_graph1()
 
       execution =
@@ -39,16 +47,394 @@ defmodule Journey.ToolsTest do
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
 
-      summary = Journey.Tools.summarize(execution.id)
+      summary_data = Journey.Tools.summarize_as_data(execution.id)
 
-      assert summary =~ """
-             Execution summary:
-             - ID: '#{execution.id}'
-             - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
-             - Archived at: not archived
-             """
+      assert summary_data.execution_id == execution.id
+      assert summary_data.graph_name == "test graph 1 Elixir.Journey.Test.Support"
+      assert summary_data.graph_version == "1.0.0"
+      assert summary_data.archived_at == nil
+
+      # Should have some set values after execution progresses
+      assert Enum.count(summary_data.values.set) > 0
+
+      # Should have some completed computations
+      assert Enum.count(summary_data.computations.completed) > 0
 
       stop_background_sweeps_in_test(background_sweeps_task)
+    end
+  end
+
+  describe "summarize_as_text/1 (text formatting)" do
+    test "formats complete execution summary text for new execution" do
+      graph = Journey.Test.Support.create_test_graph1()
+      execution = Journey.start_execution(graph)
+
+      result = Journey.Tools.summarize_as_text(execution.id)
+
+      # Get actual system node values for expected output
+      values = Journey.values(execution)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+      execution_id_value = Map.get(values, :execution_id)
+
+      # Redact dynamic values for reliable comparison
+      redacted_result =
+        result
+        # |> redact_text_execution_id(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+
+      # Complete expected output as living documentation for engineers
+      expected_output = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 0
+      - # of Values: 2 (set) / 6 (total)
+      - # of Computations: 3
+
+      Values:
+      - Set:
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - greeting: <unk> | :compute
+        - reminder: <unk> | :compute
+        - time_to_issue_reminder_schedule: <unk> | :schedule_once
+        - user_name: <unk> | :input  
+
+      Computations:
+      - Completed:
+
+
+      - Outstanding:
+        - time_to_issue_reminder_schedule: ⬜ :not_set (not yet attempted) | :schedule_once
+             🛑 :greeting | &provided?/1
+        - reminder: ⬜ :not_set (not yet attempted) | :compute
+             :and
+              ├─ 🛑 :greeting | &provided?/1
+              └─ 🛑 :time_to_issue_reminder_schedule | &provided?/1
+        - greeting: ⬜ :not_set (not yet attempted) | :compute
+             🛑 :user_name | &provided?/1
+      """
+
+      assert redacted_result == String.trim(expected_output)
+    end
+
+    test "formats complete execution summary text for progressed execution" do
+      graph = Journey.Test.Support.create_test_graph1()
+
+      execution =
+        Journey.start_execution(graph)
+        |> Journey.set_value(:user_name, "John Doe")
+
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+
+      {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
+
+      result = Journey.Tools.summarize_as_text(execution.id)
+
+      # Get actual values for expected output
+      values = Journey.values(execution)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+      greeting_value = Map.get(values, :greeting)
+      reminder_value = Map.get(values, :reminder)
+      time_to_issue_reminder_schedule_value = Map.get(values, :time_to_issue_reminder_schedule)
+      user_name_value = Map.get(values, :user_name)
+      execution_id_value = Map.get(values, :execution_id)
+
+      # Redact dynamic values for reliable comparison
+      redacted_result =
+        result
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+
+      expected_output = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 7
+      - # of Values: 6 (set) / 6 (total)
+      - # of Computations: 3
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 7
+
+        - reminder: '#{inspect(reminder_value)}' | :compute
+          computed at REDACTED | rev: 7
+
+        - time_to_issue_reminder_schedule: '#{time_to_issue_reminder_schedule_value}' | :schedule_once
+          computed at REDACTED | rev: 5
+
+        - greeting: '#{inspect(greeting_value)}' | :compute
+          computed at REDACTED | rev: 3
+
+        - user_name: '#{inspect(user_name_value)}' | :input
+          set at REDACTED | rev: 1
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        
+
+      Computations:
+      - Completed:
+        - :reminder (CMPREDACTED): ✅ :success | :compute | rev 7
+          inputs used: 
+             :greeting (rev 3)
+             :time_to_issue_reminder_schedule (rev 5)
+        - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :schedule_once | rev 5
+          inputs used: 
+             :greeting (rev 3)
+        - :greeting (CMPREDACTED): ✅ :success | :compute | rev 3
+          inputs used: 
+             :user_name (rev 1)
+
+      - Outstanding:
+      """
+
+      assert redacted_result == String.trim_leading(expected_output)
+
+      stop_background_sweeps_in_test(background_sweeps_task)
+    end
+
+    test "uses emoji format for computation states" do
+      import Journey.Node
+
+      # Create a graph with multiple compute nodes
+      graph =
+        Journey.new_graph("emoji test graph", "v1.0.0", [
+          input(:value),
+          compute(:success_node, [:value], fn %{value: v} -> {:ok, v * 2} end),
+          compute(:fail_node, [:value], fn _deps -> {:error, "intentional failure"} end)
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Check initial state shows outstanding computations
+      summary_initial_text = Journey.Tools.summarize_as_text(execution.id)
+      assert summary_initial_text =~ "⬜ :not_set (not yet attempted)"
+      assert summary_initial_text =~ "🛑 :value | &provided?/1"
+
+      # Set value to trigger computations
+      execution = Journey.set_value(execution, :value, 10)
+
+      # Get values to trigger computations
+      {:ok, _} = Journey.get_value(execution, :success_node, wait_new: true)
+      # The fail_node will fail
+      {:error, _} = Journey.get_value(execution, :fail_node, wait_new: true)
+
+      # Check that completed states use emoji format
+      _execution_after = Journey.load(execution.id)
+
+      # Format as text and check for emoji usage
+      summary_text = Journey.Tools.summarize_as_text(execution.id)
+
+      # Should see success emoji for successful computation
+      assert summary_text =~ "✅ :success"
+
+      # Should see failure emoji for failed computation
+      assert summary_text =~ "❌ :failed"
+
+      # Verify the computation state text helper is being used properly
+      assert Journey.Tools.computation_state_to_text(:success) == "✅ :success"
+      assert Journey.Tools.computation_state_to_text(:failed) == "❌ :failed"
+      assert Journey.Tools.computation_state_to_text(:not_set) == "⬜ :not_set (not yet attempted)"
+    end
+
+    test "formats complex not conditions in mixed logical operators" do
+      import Journey.Node
+      import Journey.Node.Conditions
+
+      # Create a comprehensive graph with various :not condition combinations
+      graph =
+        Journey.new_graph("Complex Not Conditions Test", "v1.0.0", [
+          # Input nodes
+          input(:user_applied),
+          input(:user_approved),
+          input(:user_requested_card),
+          input(:card_mailed),
+          input(:user_name),
+
+          # 1. Simple condition (no :not)
+          compute(:send_welcome, [:user_name], fn _ -> {:ok, "Welcome!"} end),
+
+          # 2. Single :not condition
+          compute(
+            :send_reminder,
+            {:not, {:user_requested_card, &true?/1}},
+            fn _ -> {:ok, "Please request your card"} end
+          ),
+
+          # 3. Complex :and with mixed :not and direct conditions
+          compute(
+            :send_approval_notice,
+            {
+              :and,
+              [
+                {:user_applied, &true?/1},
+                {:user_approved, &true?/1},
+                {:not, {:user_requested_card, &true?/1}}
+              ]
+            },
+            fn _ -> {:ok, "Congratulations! You're approved"} end
+          ),
+
+          # 4. Complex :or with multiple :not conditions
+          compute(
+            :send_follow_up,
+            {
+              :or,
+              [
+                {:not, {:user_applied, &true?/1}},
+                {:not, {:card_mailed, &true?/1}}
+              ]
+            },
+            fn _ -> {:ok, "Follow up message"} end
+          ),
+          # 4. Complex :or with multiple unmet conditions
+          compute(
+            :user_applied_or_card_mailed,
+            {
+              :or,
+              [
+                {:user_applied, &true?/1},
+                {:card_mailed, &true?/1}
+              ]
+            },
+            fn _ -> {:ok, "Follow up message"} end
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Wait for the immediately unblocked computations to complete
+      # This ensures deterministic test output
+      {:ok, _} = Journey.get_value(execution, :send_reminder, wait_any: true)
+      {:ok, _} = Journey.get_value(execution, :send_follow_up, wait_any: true)
+
+      result = Journey.Tools.summarize_as_text(execution.id)
+
+      # Get actual system node values for expected output
+      values = Journey.values(execution)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+      execution_id_value = Map.get(values, :execution_id)
+
+      # Redact dynamic values for reliable comparison
+      redacted_result =
+        result
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+
+      # Complete expected output as living documentation for engineers
+      # This shows how :not conditions are formatted in the summary output
+      expected_output = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'Complex Not Conditions Test' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 4
+      - # of Values: 4 (set) / 12 (total)
+      - # of Computations: 5
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 4
+
+        - send_follow_up: '\"Follow up message\"' | :compute
+          computed at REDACTED | rev: 4
+
+        - send_reminder: '\"Please request your card\"' | :compute
+          computed at REDACTED | rev: 3
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - card_mailed: <unk> | :input
+        - send_approval_notice: <unk> | :compute
+        - send_welcome: <unk> | :compute
+        - user_applied: <unk> | :input
+        - user_applied_or_card_mailed: <unk> | :compute
+        - user_approved: <unk> | :input
+        - user_name: <unk> | :input
+        - user_requested_card: <unk> | :input  
+
+      Computations:
+      - Completed:
+        - :send_follow_up (CMPREDACTED): ✅ :success | :compute | rev 4
+          inputs used: 
+             :user_applied (rev 0)
+             :card_mailed (rev 0)
+        - :send_reminder (CMPREDACTED): ✅ :success | :compute | rev 3
+          inputs used: 
+             :user_requested_card (rev 0)
+
+      - Outstanding:
+        - user_applied_or_card_mailed: ⬜ :not_set (not yet attempted) | :compute
+             :or
+              ├─ 🛑 :user_applied | &true?/1
+              └─ 🛑 :card_mailed | &true?/1
+        - send_welcome: ⬜ :not_set (not yet attempted) | :compute
+             🛑 :user_name | &provided?/1
+        - send_approval_notice: ⬜ :not_set (not yet attempted) | :compute
+             :and
+              ├─ 🛑 :user_applied | &true?/1
+              ├─ 🛑 :user_approved | &true?/1
+              └─ 🛑 :not(:user_requested_card) | &true?/1
+      """
+
+      assert redacted_result == String.trim(expected_output)
+    end
+  end
+
+  describe "summarize_as_text/1" do
+    test "returns formatted text summary as convenience function" do
+      graph = Journey.Test.Support.create_test_graph1()
+      execution = Journey.start_execution(graph)
+
+      result = Journey.Tools.summarize_as_text(execution.id)
+
+      # Verify it returns a formatted string with expected content
+      assert is_binary(result)
+      assert result =~ "Execution summary:"
+      assert result =~ execution.id
+      assert result =~ "test graph 1 Elixir.Journey.Test.Support"
+      assert result =~ "- Graph:"
+      assert result =~ "- Revision:"
+      assert result =~ "Values:"
+      assert result =~ "Computations:"
+
+      # Test deprecated function returns the same result
+      # Using string-based call to avoid compile-time deprecation warning in test
+      deprecated_result = Code.eval_string("Journey.Tools.summarize(\"#{execution.id}\")") |> elem(0)
+      assert deprecated_result == result
     end
   end
 
@@ -222,5 +608,21 @@ defmodule Journey.ToolsTest do
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
+  end
+
+  # Helper functions for text redaction in tests
+  defp redact_text_timestamps(text) do
+    text
+    |> String.replace(~r/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z/, "REDACTED")
+  end
+
+  defp redact_text_duration(text) do
+    text
+    |> String.replace(~r/Duration: \d+ seconds/, "Duration: REDACTED seconds")
+  end
+
+  defp redact_text_seconds_ago(text) do
+    text
+    |> String.replace(~r/\d+ seconds ago/, "REDACTED seconds ago")
   end
 end

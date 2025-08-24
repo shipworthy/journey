@@ -57,13 +57,23 @@ defmodule Journey.Tools do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
-    computation_node = Enum.find(execution.computations, fn c -> c.node_name == computation_node_name end)
+    gated_by = graph |> Graph.find_node_by_name(computation_node_name) |> Map.get(:gated_by)
 
-    outstanding_computation(graph, execution.values, %{
-      node_name: computation_node.node_name,
-      state: computation_node.state,
-      computation_type: computation_node.computation_type
-    })
+    readiness =
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        execution.values,
+        gated_by
+      )
+
+    # Use flat format for this debugging function
+    Enum.map_join(readiness.conditions_met, "", fn condition_map = %{upstream_node: v, f_condition: f} ->
+      node_display = format_node_name_with_context(v.node_name, condition_map)
+      "✅ #{node_display} | #{f_name(f)} | rev #{v.ex_revision}\n"
+    end) <>
+      Enum.map_join(readiness.conditions_not_met, "\n", fn condition_map = %{upstream_node: v, f_condition: f} ->
+        node_display = format_node_name_with_context(v.node_name, condition_map)
+        "🛑 #{node_display} | #{f_name(f)}"
+      end)
   end
 
   @doc """
@@ -93,12 +103,12 @@ defmodule Journey.Tools do
       ...>   input(:value),
       ...>   compute(:double, [:value], fn %{value: v} -> {:ok, v * 2} end)
       ...> ])
-      iex> {:ok, execution} = Journey.start_execution(graph)
+      iex> execution = Journey.start_execution(graph)
       iex> Journey.Tools.computation_state(execution.id, :double)
       :not_set
       iex> Journey.Tools.computation_state(execution.id, :value)
       :not_compute_node
-      iex> {:ok, execution} = Journey.set_value(execution, :value, 5)
+      iex> execution = Journey.set_value(execution, :value, 5)
       iex> {:ok, _result} = Journey.get_value(execution, :double, wait_new: true)
       iex> Journey.Tools.computation_state(execution.id, :double)
       :success
@@ -247,7 +257,6 @@ defmodule Journey.Tools do
   end
 
   @doc false
-
   def advance(execution_id) when is_binary(execution_id) do
     execution_id
     |> Journey.load()
@@ -255,39 +264,44 @@ defmodule Journey.Tools do
   end
 
   @doc """
-  Generates a detailed text summary of an execution's current state.
+  Generates structured data about an execution's current state.
 
-  Returns a formatted string containing:
-  - Execution metadata (ID, graph, timestamps, duration, revision)
-  - Values status with set/unset nodes and their values
-  - Computations breakdown showing completed and outstanding tasks
-  - Dependency analysis for blocked computations
+  Returns a map containing:
+  - Execution metadata (ID, graph, timestamps, duration, revision, archived status)
+  - Values categorized as set/not_set with their details
+  - Computations categorized as completed/outstanding with dependency info
 
   ## Example
 
-      iex> Journey.Tools.summarize("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
-      Execution summary:
-      - ID: 'EXEC07B2H0H7J1LTAE0VJDAL'
-      - Graph: 'g1' | 'v1'
-      - Archived at: not archived
-      - Created at: 2025-08-14 17:23:16Z UTC | 49348 seconds ago
-      - Last updated at: 2025-08-14 17:23:30Z UTC | 49334 seconds ago
-      - Duration: 14 seconds
-      - Revision: 7
-      - # of Values: 5 (set) / 5 (total)
-      - # of Computations: 2
-      ...
-      :ok
+      iex> Journey.Tools.summarize_as_data("EXEC07B2H0H7J1LTAE0VJDAL")
+      %{
+        execution_id: "EXEC07B2H0H7J1LTAE0VJDAL",
+        graph_name: "g1",
+        graph_version: "v1",
+        archived_at: nil,
+        created_at: 1723656196,
+        updated_at: 1723656210,
+        duration_seconds: 14,
+        revision: 7,
+        values: %{
+          set: [...],
+          not_set: [...]
+        },
+        computations: %{
+          completed: [...],
+          outstanding: [...]
+        }
+      }
 
   ## Parameters
-  - `execution_id` - The ID of the execution to summarize
+  - `execution_id` - The ID of the execution to analyze
 
   ## Returns
-  A formatted string with the complete execution state summary.
+  A structured map with execution state data.
 
-  Useful for debugging blocked executions and understanding computation dependencies.
+  Use `summarize_as_text/1` to get execution summary as text.
   """
-  def summarize(execution_id) when is_binary(execution_id) do
+  def summarize_as_data(execution_id) when is_binary(execution_id) do
     execution =
       execution_id
       |> Journey.load(include_archived: true)
@@ -311,10 +325,88 @@ defmodule Journey.Tools do
       |> Enum.filter(fn c -> c.ex_revision_at_completion == nil end)
       |> Enum.sort_by(& &1.node_name, :desc)
 
-    archived_at =
-      case execution.archived_at do
+    %{
+      execution_id: execution_id,
+      graph_name: execution.graph_name,
+      graph_version: execution.graph_version,
+      archived_at: execution.archived_at,
+      created_at: execution.inserted_at,
+      updated_at: execution.updated_at,
+      duration_seconds: execution.updated_at - execution.inserted_at,
+      revision: execution.revision,
+      values: %{
+        set: set_values,
+        not_set: not_set_values
+      },
+      computations: %{
+        completed: computations_completed,
+        outstanding: computations_outstanding
+      },
+      graph: graph
+    }
+  end
+
+  @doc """
+  Generates a human-readable text summary of an execution's current state.
+
+  ## Example
+
+      iex> Journey.Tools.summarize_as_text("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
+      Execution summary:
+      - ID: 'EXEC07B2H0H7J1LTAE0VJDAL'
+      - Graph: 'g1' | 'v1'
+      ...
+      :ok
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to analyze
+
+  ## Returns
+  A formatted string with the complete execution state summary.
+
+  Use `summarize_as_data/1` to get execution summary as data.
+  """
+  def summarize_as_text(execution_id) when is_binary(execution_id) do
+    execution_id
+    |> summarize_as_data()
+    |> convert_summary_data_to_text()
+  end
+
+  @doc """
+  Generates a human-readable text summary of an execution's current state.
+
+  **This function is deprecated.** Use `summarize_as_text/1` instead.
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to analyze
+
+  ## Returns
+  A formatted string with the complete execution state summary.
+  """
+  @deprecated "Use summarize_as_text/1 instead"
+  def summarize(execution_id) when is_binary(execution_id) do
+    summarize_as_text(execution_id)
+  end
+
+  defp convert_summary_data_to_text(summary_data) when is_map(summary_data) do
+    %{
+      execution_id: execution_id,
+      graph_name: graph_name,
+      graph_version: graph_version,
+      archived_at: archived_at,
+      created_at: created_at,
+      updated_at: updated_at,
+      duration_seconds: duration_seconds,
+      revision: revision,
+      values: %{set: set_values, not_set: not_set_values},
+      computations: %{completed: computations_completed, outstanding: computations_outstanding},
+      graph: graph
+    } = summary_data
+
+    archived_at_text =
+      case archived_at do
         nil -> "not archived"
-        _ -> DateTime.from_unix!(execution.archived_at)
+        _ -> DateTime.from_unix!(archived_at)
       end
 
     now = System.system_time(:second)
@@ -322,38 +414,45 @@ defmodule Journey.Tools do
     """
     Execution summary:
     - ID: '#{execution_id}'
-    - Graph: '#{execution.graph_name}' | '#{execution.graph_version}'
-    - Archived at: #{archived_at}
-    - Created at: #{DateTime.from_unix!(execution.inserted_at)} UTC | #{now - execution.inserted_at} seconds ago
-    - Last updated at: #{DateTime.from_unix!(execution.updated_at)} UTC | #{now - execution.updated_at} seconds ago
-    - Duration: #{Number.Delimit.number_to_delimited(execution.updated_at - execution.inserted_at, precision: 0)} seconds
-    - Revision: #{execution.revision}
-    - # of Values: #{Enum.count(set_values)} (set) / #{Enum.count(execution.values)} (total)
-    - # of Computations: #{Enum.count(execution.computations)}
+    - Graph: '#{graph_name}' | '#{graph_version}'
+    - Archived at: #{archived_at_text}
+    - Created at: #{DateTime.from_unix!(created_at)} UTC | #{now - created_at} seconds ago
+    - Last updated at: #{DateTime.from_unix!(updated_at)} UTC | #{now - updated_at} seconds ago
+    - Duration: #{Number.Delimit.number_to_delimited(duration_seconds, precision: 0)} seconds
+    - Revision: #{revision}
+    - # of Values: #{Enum.count(set_values)} (set) / #{Enum.count(set_values) + Enum.count(not_set_values)} (total)
+    - # of Computations: #{Enum.count(computations_completed) + Enum.count(computations_outstanding)}
 
     Values:
     - Set:
     """ <>
-      Enum.map_join(set_values, "\n", fn %{
-                                           node_type: node_type,
-                                           node_name: node_name,
-                                           set_time: set_time,
-                                           node_value: node_value,
-                                           ex_revision: ex_revision
-                                         } ->
-        verb = if node_type == :input, do: "set", else: "computed"
+      (set_values
+       |> Enum.sort_by(fn %{ex_revision: ex_revision, node_name: node_name} ->
+         {-ex_revision, node_name}
+       end)
+       |> Enum.map_join("\n", fn %{
+                                   node_type: node_type,
+                                   node_name: node_name,
+                                   set_time: set_time,
+                                   node_value: node_value,
+                                   ex_revision: ex_revision
+                                 } ->
+         verb = if node_type == :input, do: "set", else: "computed"
+         formatted_value = format_node_value(node_name, node_value)
 
-        "  - #{node_name}: '#{inspect(node_value)}' | #{inspect(node_type)}\n" <>
-          "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}\n"
-      end) <>
+         "  - #{node_name}: '#{formatted_value}' | #{inspect(node_type)}\n" <>
+           "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}\n"
+       end)) <>
       """
       \n
       - Not set:
       """ <>
-      Enum.map_join(not_set_values, "\n", fn %{node_type: node_type, node_name: node_name} ->
-        "  - #{node_name}: <unk> | #{inspect(node_type)}"
-      end) <>
-      list_computations(graph, execution.values, computations_completed, computations_outstanding)
+      (not_set_values
+       |> Enum.sort_by(fn %{node_name: node_name} -> node_name end)
+       |> Enum.map_join("\n", fn %{node_type: node_type, node_name: node_name} ->
+         "  - #{node_name}: <unk> | #{inspect(node_type)}"
+       end)) <>
+      list_computations(graph, set_values ++ not_set_values, computations_completed, computations_outstanding)
   end
 
   @doc """
@@ -406,6 +505,69 @@ defmodule Journey.Tools do
     "&#{fi[:name]}/#{fi[:arity]}"
   end
 
+  defp format_condition_tree(%{type: :or, children: children}, indent) do
+    "#{indent}:or\n" <>
+      format_children_with_connectors(children, indent)
+  end
+
+  defp format_condition_tree(%{type: :and, children: [single_child]}, indent) do
+    format_condition_tree(single_child, indent)
+  end
+
+  defp format_condition_tree(%{type: :and, children: children}, indent) do
+    "#{indent}:and\n" <>
+      format_children_with_connectors(children, indent)
+  end
+
+  defp format_condition_tree(%{type: :not, child: %{type: :leaf, met?: met?, condition: condition}}, indent) do
+    status = if met?, do: "✅", else: "🛑"
+    node_display = format_node_name_with_context(condition.upstream_node.node_name, condition)
+    revision_info = if met?, do: " | rev #{condition.upstream_node.ex_revision}", else: ""
+
+    "#{indent}#{status} :not(#{node_display}) | #{f_name(condition.f_condition)}#{revision_info}"
+  end
+
+  defp format_condition_tree(%{type: :not, child: child}, indent) do
+    "#{indent}:not\n" <> format_condition_tree(child, indent <> " └─ ")
+  end
+
+  defp format_condition_tree(%{type: :leaf, met?: met?, condition: condition}, indent) do
+    status = if met?, do: "✅", else: "🛑"
+    node_display = format_node_name_with_context(condition.upstream_node.node_name, condition)
+    revision_info = if met?, do: " | rev #{condition.upstream_node.ex_revision}", else: ""
+
+    "#{indent}#{status} #{node_display} | #{f_name(condition.f_condition)}#{revision_info}"
+  end
+
+  defp format_child_with_connector(child, child_indent, continuation_indent) do
+    case child.type do
+      type when type in [:and, :or] ->
+        "#{child_indent}#{type}\n" <> format_children_with_connectors(child.children, continuation_indent)
+
+      :not ->
+        case child.child.type do
+          :leaf -> format_condition_tree(child, child_indent)
+          _ -> "#{child_indent}:not\n" <> format_condition_tree(child.child, continuation_indent <> " └─ ")
+        end
+
+      :leaf ->
+        format_condition_tree(child, child_indent)
+    end
+  end
+
+  defp format_children_with_connectors(children, base_indent) do
+    children
+    |> Enum.with_index()
+    |> Enum.map_join("\n", fn {child, index} ->
+      is_last = index == length(children) - 1
+      connector = if is_last, do: " └─ ", else: " ├─ "
+      child_indent = base_indent <> connector
+      continuation_indent = base_indent <> if(is_last, do: "    ", else: " │  ")
+
+      format_child_with_connector(child, child_indent, continuation_indent)
+    end)
+  end
+
   defp list_computations(graph, values, computations_completed, computations_outstanding) do
     {abandoned, completed_non_abandoned} =
       Enum.split_with(computations_completed, fn comp -> comp.state == :abandoned end)
@@ -440,7 +602,7 @@ defmodule Journey.Tools do
          computed_with: computed_with,
          ex_revision_at_completion: ex_revision_at_completion
        }) do
-    "  - :#{node_name} (#{id}): #{inspect(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
+    "  - :#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
       "    inputs used: \n" <>
       case computed_with do
         nil ->
@@ -461,24 +623,42 @@ defmodule Journey.Tools do
          graph,
          values,
          %{node_name: node_name, state: state, computation_type: computation_type},
-         with_header? \\ false
+         with_header?
        ) do
+    gated_by = graph |> Graph.find_node_by_name(node_name) |> Map.get(:gated_by)
+
     readiness =
       Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
         values,
-        graph
-        |> Graph.find_node_by_name(node_name)
-        |> Map.get(:gated_by)
+        gated_by
       )
 
-    indent = if(with_header?, do: "       ", else: "")
+    header =
+      if with_header? do
+        "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n"
+      else
+        ""
+      end
 
-    if(with_header?, do: "  - #{node_name}: #{inspect(state)} | #{inspect(computation_type)}\n", else: "") <>
-      Enum.map_join(readiness.conditions_met, "", fn %{upstream_node: v, f_condition: f} ->
-        "#{indent}✅ #{inspect(v.node_name)} | #{f_name(f)} | rev #{v.ex_revision}\n"
-      end) <>
-      Enum.map_join(readiness.conditions_not_met, "\n", fn %{upstream_node: v, f_condition: f} ->
-        "#{indent}🛑 #{inspect(v.node_name)} | #{f_name(f)}"
-      end)
+    formatted_conditions = format_condition_tree(readiness.structure, "       ")
+
+    header <> formatted_conditions
+  end
+
+  # Helper function to format node values appropriately
+  defp format_node_value(node_name, node_value) do
+    case node_name do
+      :execution_id -> node_value
+      :last_updated_at -> node_value
+      _ -> inspect(node_value)
+    end
+  end
+
+  # Helper function to format node names with conditional context
+  defp format_node_name_with_context(node_name, condition_map) do
+    case Map.get(condition_map, :condition_context, :direct) do
+      :negated -> "not(#{inspect(node_name)})"
+      :direct -> inspect(node_name)
+    end
   end
 end
