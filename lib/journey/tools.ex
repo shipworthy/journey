@@ -57,13 +57,23 @@ defmodule Journey.Tools do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
-    computation_node = Enum.find(execution.computations, fn c -> c.node_name == computation_node_name end)
+    gated_by = graph |> Graph.find_node_by_name(computation_node_name) |> Map.get(:gated_by)
 
-    outstanding_computation(graph, execution.values, %{
-      node_name: computation_node.node_name,
-      state: computation_node.state,
-      computation_type: computation_node.computation_type
-    })
+    readiness =
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        execution.values,
+        gated_by
+      )
+
+    # Use flat format for this debugging function
+    Enum.map_join(readiness.conditions_met, "", fn condition_map = %{upstream_node: v, f_condition: f} ->
+      node_display = format_node_name_with_context(v.node_name, condition_map)
+      "✅ #{node_display} | #{f_name(f)} | rev #{v.ex_revision}\n"
+    end) <>
+      Enum.map_join(readiness.conditions_not_met, "\n", fn condition_map = %{upstream_node: v, f_condition: f} ->
+        node_display = format_node_name_with_context(v.node_name, condition_map)
+        "🛑 #{node_display} | #{f_name(f)}"
+      end)
   end
 
   @doc """
@@ -485,6 +495,40 @@ defmodule Journey.Tools do
     "&#{fi[:name]}/#{fi[:arity]}"
   end
 
+  defp format_condition_tree(%{type: :or, children: children}, indent) do
+    "#{indent}:or\n" <>
+      Enum.map_join(children, "\n", &format_condition_tree(&1, indent <> "    "))
+  end
+
+  defp format_condition_tree(%{type: :and, children: [single_child]}, indent) do
+    format_condition_tree(single_child, indent)
+  end
+
+  defp format_condition_tree(%{type: :and, children: children}, indent) do
+    "#{indent}:and\n" <>
+      Enum.map_join(children, "\n", &format_condition_tree(&1, indent <> "    "))
+  end
+
+  defp format_condition_tree(%{type: :not, child: %{type: :leaf, met?: met?, condition: condition}}, indent) do
+    status = if met?, do: "✅", else: "🛑"
+    node_display = format_node_name_with_context(condition.upstream_node.node_name, condition)
+    revision_info = if met?, do: " | rev #{condition.upstream_node.ex_revision}", else: ""
+
+    "#{indent}#{status} :not(#{node_display}) | #{f_name(condition.f_condition)}#{revision_info}"
+  end
+
+  defp format_condition_tree(%{type: :not, child: child}, indent) do
+    "#{indent}:not\n" <> format_condition_tree(child, indent <> "    ")
+  end
+
+  defp format_condition_tree(%{type: :leaf, met?: met?, condition: condition}, indent) do
+    status = if met?, do: "✅", else: "🛑"
+    node_display = format_node_name_with_context(condition.upstream_node.node_name, condition)
+    revision_info = if met?, do: " | rev #{condition.upstream_node.ex_revision}", else: ""
+
+    "#{indent}#{status} #{node_display} | #{f_name(condition.f_condition)}#{revision_info}"
+  end
+
   defp list_computations(graph, values, computations_completed, computations_outstanding) do
     {abandoned, completed_non_abandoned} =
       Enum.split_with(computations_completed, fn comp -> comp.state == :abandoned end)
@@ -540,30 +584,26 @@ defmodule Journey.Tools do
          graph,
          values,
          %{node_name: node_name, state: state, computation_type: computation_type},
-         with_header? \\ false
+         with_header?
        ) do
+    gated_by = graph |> Graph.find_node_by_name(node_name) |> Map.get(:gated_by)
+
     readiness =
       Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
         values,
-        graph
-        |> Graph.find_node_by_name(node_name)
-        |> Map.get(:gated_by)
+        gated_by
       )
 
-    indent = if(with_header?, do: "       ", else: "")
+    header =
+      if with_header? do
+        "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n"
+      else
+        ""
+      end
 
-    if(with_header?,
-      do: "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n",
-      else: ""
-    ) <>
-      Enum.map_join(readiness.conditions_met, "", fn condition_map = %{upstream_node: v, f_condition: f} ->
-        node_display = format_node_name_with_context(v.node_name, condition_map)
-        "#{indent}✅ #{node_display} | #{f_name(f)} | rev #{v.ex_revision}\n"
-      end) <>
-      Enum.map_join(readiness.conditions_not_met, "\n", fn condition_map = %{upstream_node: v, f_condition: f} ->
-        node_display = format_node_name_with_context(v.node_name, condition_map)
-        "#{indent}🛑 #{node_display} | #{f_name(f)}"
-      end)
+    formatted_conditions = format_condition_tree(readiness.structure, "       ")
+
+    header <> formatted_conditions
   end
 
   # Helper function to format node values appropriately

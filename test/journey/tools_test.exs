@@ -121,8 +121,9 @@ defmodule Journey.ToolsTest do
         - time_to_issue_reminder_schedule: ⬜ :not_set (not yet attempted) | :schedule_once
              🛑 :greeting | &provided?/1
         - reminder: ⬜ :not_set (not yet attempted) | :compute
-             🛑 :greeting | &provided?/1
-             🛑 :time_to_issue_reminder_schedule | &provided?/1
+             :and
+                 🛑 :greeting | &provided?/1
+                 🛑 :time_to_issue_reminder_schedule | &provided?/1
         - greeting: ⬜ :not_set (not yet attempted) | :compute
              🛑 :user_name | &provided?/1
       """
@@ -313,6 +314,18 @@ defmodule Journey.ToolsTest do
               ]
             },
             fn _ -> {:ok, "Follow up message"} end
+          ),
+          # 4. Complex :or with multiple unmet conditions
+          compute(
+            :user_applied_or_card_mailed,
+            {
+              :or,
+              [
+                {:user_applied, &true?/1},
+                {:card_mailed, &true?/1}
+              ]
+            },
+            fn _ -> {:ok, "Follow up message"} end
           )
         ])
 
@@ -350,8 +363,8 @@ defmodule Journey.ToolsTest do
       - Last updated at: REDACTED UTC | REDACTED seconds ago
       - Duration: REDACTED seconds
       - Revision: 4
-      - # of Values: 4 (set) / 11 (total)
-      - # of Computations: 4
+      - # of Values: 4 (set) / 12 (total)
+      - # of Computations: 5
 
       Values:
       - Set:
@@ -373,6 +386,7 @@ defmodule Journey.ToolsTest do
         - send_approval_notice: <unk> | :compute
         - send_welcome: <unk> | :compute
         - user_applied: <unk> | :input
+        - user_applied_or_card_mailed: <unk> | :compute
         - user_approved: <unk> | :input
         - user_name: <unk> | :input
         - user_requested_card: <unk> | :input  
@@ -388,12 +402,17 @@ defmodule Journey.ToolsTest do
              :user_requested_card (rev 0)
 
       - Outstanding:
+        - user_applied_or_card_mailed: ⬜ :not_set (not yet attempted) | :compute
+             :or
+                 🛑 :user_applied | &true?/1
+                 🛑 :card_mailed | &true?/1
         - send_welcome: ⬜ :not_set (not yet attempted) | :compute
              🛑 :user_name | &provided?/1
         - send_approval_notice: ⬜ :not_set (not yet attempted) | :compute
-             ✅ not(:user_requested_card) | &true?/1 | rev 0
-             🛑 :user_applied | &true?/1
-             🛑 :user_approved | &true?/1
+             :and
+                 🛑 :user_applied | &true?/1
+                 🛑 :user_approved | &true?/1
+                 🛑 :not(:user_requested_card) | &true?/1
       """
 
       assert redacted_result == String.trim(expected_output)
