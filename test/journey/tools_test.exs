@@ -85,24 +85,6 @@ defmodule Journey.ToolsTest do
         |> redact_text_duration()
         |> redact_text_seconds_ago()
 
-      # |> redact_text_system_node_values()
-
-      # Test key parts of the output rather than exact match due to complexity
-      #      assert redacted_result =~ "Execution summary:"
-      #      assert redacted_result =~ "- ID: 'REDACTED'"
-      #      assert redacted_result =~ "- Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'"
-      #      assert redacted_result =~ "- Archived at: not archived"
-      #      assert redacted_result =~ "- Created at: REDACTED UTC | REDACTED seconds ago"
-      #      assert redacted_result =~ "- Last updated at: REDACTED UTC | REDACTED seconds ago"
-      #      assert redacted_result =~ "- Duration: REDACTED seconds"
-      #      assert redacted_result =~ "- Revision: 0"
-      #      assert redacted_result =~ "Values:"
-      #      assert redacted_result =~ "- Set:"
-      #      assert redacted_result =~ "- Not set:"
-      #      assert redacted_result =~ "user_name: <unk> | :input"
-      #      assert redacted_result =~ "Computations:"
-      #      assert redacted_result =~ "- Outstanding:"
-
       # Complete expected output as living documentation for engineers
       expected_output = """
       Execution summary:
