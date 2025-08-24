@@ -73,7 +73,9 @@ defmodule Journey.ToolsTest do
       result = Journey.Tools.summarize_to_text(summary_data)
 
       # Get actual system node values for expected output
-      last_updated_at_value = Journey.values(execution) |> Map.get(:last_updated_at)
+      values = Journey.values(execution)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+      execution_id_value = Map.get(values, :execution_id)
 
       # Redact dynamic values for reliable comparison
       redacted_result =
@@ -116,7 +118,7 @@ defmodule Journey.ToolsTest do
 
       Values:
       - Set:
-        - execution_id: '\"#{execution.id}\"' | :input
+        - execution_id: '#{execution_id_value}' | :input
           set at REDACTED | rev: 0
 
         - last_updated_at: '#{last_updated_at_value}' | :input
@@ -124,10 +126,10 @@ defmodule Journey.ToolsTest do
 
 
       - Not set:
-        - user_name: <unk> | :input
         - greeting: <unk> | :compute
+        - reminder: <unk> | :compute
         - time_to_issue_reminder_schedule: <unk> | :schedule_once
-        - reminder: <unk> | :compute  
+        - user_name: <unk> | :input  
 
       Computations:
       - Completed:
@@ -160,14 +162,76 @@ defmodule Journey.ToolsTest do
       summary_data = Journey.Tools.summarize(execution.id)
       result = Journey.Tools.summarize_to_text(summary_data)
 
-      # Should contain key elements of progressed execution
-      assert result =~ "Execution summary:"
-      assert result =~ "- ID: '#{execution.id}'"
-      assert result =~ "- Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'"
-      assert result =~ "Values:"
-      assert result =~ "Computations:"
-      assert result =~ "user_name: '\"John Doe\"'"
-      assert result =~ "✅ :success"
+      # Get actual values for expected output
+      values = Journey.values(execution)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+      greeting_value = Map.get(values, :greeting)
+      reminder_value = Map.get(values, :reminder)
+      time_to_issue_reminder_schedule_value = Map.get(values, :time_to_issue_reminder_schedule)
+      user_name_value = Map.get(values, :user_name)
+      execution_id_value = Map.get(values, :execution_id)
+
+      # Redact dynamic values for reliable comparison
+      redacted_result =
+        result
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+
+      expected_output = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'test graph 1 Elixir.Journey.Test.Support' | '1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 7
+      - # of Values: 6 (set) / 6 (total)
+      - # of Computations: 3
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 7
+
+        - reminder: '#{inspect(reminder_value)}' | :compute
+          computed at REDACTED | rev: 7
+
+        - time_to_issue_reminder_schedule: '#{time_to_issue_reminder_schedule_value}' | :schedule_once
+          computed at REDACTED | rev: 5
+
+        - greeting: '#{inspect(greeting_value)}' | :compute
+          computed at REDACTED | rev: 3
+
+        - user_name: '#{inspect(user_name_value)}' | :input
+          set at REDACTED | rev: 1
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        
+
+      Computations:
+      - Completed:
+        - :reminder (CMPREDACTED): ✅ :success | :compute | rev 7
+          inputs used: 
+             :greeting (rev 3)
+             :time_to_issue_reminder_schedule (rev 5)
+        - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :schedule_once | rev 5
+          inputs used: 
+             :greeting (rev 3)
+        - :greeting (CMPREDACTED): ✅ :success | :compute | rev 3
+          inputs used: 
+             :user_name (rev 1)
+
+      - Outstanding:
+      """
+
+      assert redacted_result == String.trim_leading(expected_output)
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end

@@ -406,25 +406,32 @@ defmodule Journey.Tools do
     Values:
     - Set:
     """ <>
-      Enum.map_join(set_values, "\n", fn %{
-                                           node_type: node_type,
-                                           node_name: node_name,
-                                           set_time: set_time,
-                                           node_value: node_value,
-                                           ex_revision: ex_revision
-                                         } ->
-        verb = if node_type == :input, do: "set", else: "computed"
+      (set_values
+       |> Enum.sort_by(fn %{ex_revision: ex_revision, node_name: node_name} ->
+         {-ex_revision, node_name}
+       end)
+       |> Enum.map_join("\n", fn %{
+                                   node_type: node_type,
+                                   node_name: node_name,
+                                   set_time: set_time,
+                                   node_value: node_value,
+                                   ex_revision: ex_revision
+                                 } ->
+         verb = if node_type == :input, do: "set", else: "computed"
+         formatted_value = format_node_value(node_name, node_value)
 
-        "  - #{node_name}: '#{inspect(node_value)}' | #{inspect(node_type)}\n" <>
-          "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}\n"
-      end) <>
+         "  - #{node_name}: '#{formatted_value}' | #{inspect(node_type)}\n" <>
+           "    #{verb} at #{DateTime.from_unix!(set_time)} | rev: #{ex_revision}\n"
+       end)) <>
       """
       \n
       - Not set:
       """ <>
-      Enum.map_join(not_set_values, "\n", fn %{node_type: node_type, node_name: node_name} ->
-        "  - #{node_name}: <unk> | #{inspect(node_type)}"
-      end) <>
+      (not_set_values
+       |> Enum.sort_by(fn %{node_name: node_name} -> node_name end)
+       |> Enum.map_join("\n", fn %{node_type: node_type, node_name: node_name} ->
+         "  - #{node_name}: <unk> | #{inspect(node_type)}"
+       end)) <>
       list_computations(graph, set_values ++ not_set_values, computations_completed, computations_outstanding)
   end
 
@@ -555,5 +562,14 @@ defmodule Journey.Tools do
       Enum.map_join(readiness.conditions_not_met, "\n", fn %{upstream_node: v, f_condition: f} ->
         "#{indent}🛑 #{inspect(v.node_name)} | #{f_name(f)}"
       end)
+  end
+
+  # Helper function to format node values appropriately
+  defp format_node_value(node_name, node_value) do
+    case node_name do
+      :execution_id -> node_value
+      :last_updated_at -> node_value
+      _ -> inspect(node_value)
+    end
   end
 end
