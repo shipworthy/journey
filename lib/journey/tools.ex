@@ -497,7 +497,7 @@ defmodule Journey.Tools do
 
   defp format_condition_tree(%{type: :or, children: children}, indent) do
     "#{indent}:or\n" <>
-      Enum.map_join(children, "\n", &format_condition_tree(&1, indent <> "    "))
+      format_children_with_connectors(children, indent)
   end
 
   defp format_condition_tree(%{type: :and, children: [single_child]}, indent) do
@@ -506,7 +506,7 @@ defmodule Journey.Tools do
 
   defp format_condition_tree(%{type: :and, children: children}, indent) do
     "#{indent}:and\n" <>
-      Enum.map_join(children, "\n", &format_condition_tree(&1, indent <> "    "))
+      format_children_with_connectors(children, indent)
   end
 
   defp format_condition_tree(%{type: :not, child: %{type: :leaf, met?: met?, condition: condition}}, indent) do
@@ -518,7 +518,7 @@ defmodule Journey.Tools do
   end
 
   defp format_condition_tree(%{type: :not, child: child}, indent) do
-    "#{indent}:not\n" <> format_condition_tree(child, indent <> "    ")
+    "#{indent}:not\n" <> format_condition_tree(child, indent <> " └─ ")
   end
 
   defp format_condition_tree(%{type: :leaf, met?: met?, condition: condition}, indent) do
@@ -527,6 +527,29 @@ defmodule Journey.Tools do
     revision_info = if met?, do: " | rev #{condition.upstream_node.ex_revision}", else: ""
 
     "#{indent}#{status} #{node_display} | #{f_name(condition.f_condition)}#{revision_info}"
+  end
+
+  defp format_children_with_connectors(children, base_indent) do
+    children
+    |> Enum.with_index()
+    |> Enum.map_join("\n", fn {child, index} ->
+      is_last = index == length(children) - 1
+      connector = if is_last, do: " └─ ", else: " ├─ "
+      child_indent = base_indent <> connector
+      continuation_indent = base_indent <> if(is_last, do: "    ", else: " │  ")
+      
+      case child.type do
+        type when type in [:and, :or] ->
+          "#{child_indent}#{type}\n" <> format_children_with_connectors(child.children, continuation_indent)
+        :not ->
+          case child.child.type do
+            :leaf -> format_condition_tree(child, child_indent)
+            _ -> "#{child_indent}:not\n" <> format_condition_tree(child.child, continuation_indent <> " └─ ")
+          end
+        :leaf ->
+          format_condition_tree(child, child_indent)
+      end
+    end)
   end
 
   defp list_computations(graph, values, computations_completed, computations_outstanding) do

@@ -122,8 +122,8 @@ defmodule Journey.ToolsTest do
              🛑 :greeting | &provided?/1
         - reminder: ⬜ :not_set (not yet attempted) | :compute
              :and
-                 🛑 :greeting | &provided?/1
-                 🛑 :time_to_issue_reminder_schedule | &provided?/1
+              ├─ 🛑 :greeting | &provided?/1
+              └─ 🛑 :time_to_issue_reminder_schedule | &provided?/1
         - greeting: ⬜ :not_set (not yet attempted) | :compute
              🛑 :user_name | &provided?/1
       """
@@ -404,15 +404,15 @@ defmodule Journey.ToolsTest do
       - Outstanding:
         - user_applied_or_card_mailed: ⬜ :not_set (not yet attempted) | :compute
              :or
-                 🛑 :user_applied | &true?/1
-                 🛑 :card_mailed | &true?/1
+              ├─ 🛑 :user_applied | &true?/1
+              └─ 🛑 :card_mailed | &true?/1
         - send_welcome: ⬜ :not_set (not yet attempted) | :compute
              🛑 :user_name | &provided?/1
         - send_approval_notice: ⬜ :not_set (not yet attempted) | :compute
              :and
-                 🛑 :user_applied | &true?/1
-                 🛑 :user_approved | &true?/1
-                 🛑 :not(:user_requested_card) | &true?/1
+              ├─ 🛑 :user_applied | &true?/1
+              ├─ 🛑 :user_approved | &true?/1
+              └─ 🛑 :not(:user_requested_card) | &true?/1
       """
 
       assert redacted_result == String.trim(expected_output)
