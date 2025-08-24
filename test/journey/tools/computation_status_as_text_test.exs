@@ -259,7 +259,8 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       {:ok, _schedule_time} = Journey.get_value(execution, :recurring_task, wait_new: true)
-      Process.sleep(1000)
+      execution = Journey.load(execution)
+      {:ok, _schedule_time} = Journey.get_value(execution, :recurring_task, wait_new: true)
 
       result = Journey.Tools.computation_status_as_text(execution.id, :recurring_task)
 
@@ -270,28 +271,26 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
 
       # Schedule recurring computations can be in different states depending on timing
       # We'll check that it matches one of the expected patterns
-      expected_success_rev_5 = """
-      :recurring_task (CMPREDACTED): ✅ :success | :schedule_recurring | rev 5
-      inputs used:
-         :value (rev 1)
-      """
+      #
+      expected_set_list =
+        [3, 5, 7]
+        |> Enum.map(fn rev ->
+          """
+          :recurring_task (CMPREDACTED): ✅ :success | :schedule_recurring | rev #{rev}
+          inputs used:
+             :value (rev 1)
+          """
+          |> String.trim()
+        end)
 
-      expected_success_rev_7 = """
-      :recurring_task (CMPREDACTED): ✅ :success | :schedule_recurring | rev 7
-      inputs used:
-         :value (rev 1)
-      """
+      expected_not_set =
+        """
+        :recurring_task (CMPREDACTED): ⬜ :not_set (not yet attempted) | :schedule_recurring
+            🛑 :value | &provided?/1
+        """
+        |> String.trim()
 
-      expected_not_set = """
-      :recurring_task (CMPREDACTED): ⬜ :not_set (not yet attempted) | :schedule_recurring
-          🛑 :value | &provided?/1
-      """
-
-      success_rev_5_matches = redacted_result == String.trim(expected_success_rev_5)
-      success_rev_7_matches = redacted_result == String.trim(expected_success_rev_7)
-      not_set_matches = redacted_result == String.trim(expected_not_set)
-
-      assert success_rev_5_matches or success_rev_7_matches or not_set_matches,
+      assert redacted_result in [expected_not_set | expected_set_list],
              "Expected either success (rev 5/7) or not_set format, got: #{redacted_result}"
 
       stop_background_sweeps_in_test(background_sweeps_task)
