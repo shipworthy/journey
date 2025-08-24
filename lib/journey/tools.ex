@@ -183,6 +183,162 @@ defmodule Journey.Tools do
     end
   end
 
+  @doc """
+  Shows the status and dependencies for a single computation node.
+
+  Provides a focused view of one specific computation node's status and dependencies,
+  similar to the computation sections in summarize_as_text/1 but for just one node.
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to analyze
+  - `node_name` - The atom name of the computation node to check
+
+  ## Returns
+  A string showing the node's current status and dependencies.
+
+  For completed computations, shows the result with inputs used:
+
+      :send_follow_up (CMPTA5MDJHVXRMG54150EGX): ✅ :success | :compute | rev 4
+      inputs used:
+         :user_applied (rev 0)
+         :card_mailed (rev 0)
+
+  For outstanding computations, shows the dependency tree:
+
+      :send_weekly_reminder (CMPTA5MDJHVXRMG54150EGX): ⬜ :not_set (not yet attempted) | :compute
+           :and
+            ├─ 🛑 :subscribe_weekly | &true?/1
+            ├─ 🛑 :weekly_reminder_schedule | &provided?/1
+            └─ ✅ :email_address | &provided?/1 | rev 2
+
+  For input nodes (non-compute nodes), returns an appropriate message.
+
+  ## Examples
+
+      iex> import Journey.Node
+      iex> graph = Journey.new_graph("computation_status_as_text doctest", "v1.0.0", [
+      ...>   input(:value),
+      ...>   compute(:double, [:value], fn %{value: v} -> {:ok, v * 2} end)
+      ...> ])
+      iex> execution = Journey.start_execution(graph)
+      iex> Journey.Tools.computation_status_as_text(execution.id, :double)
+      ":double: ⬜ :not_set (not yet attempted) | :compute\\n       ✅ :value | &is_set/1"
+
+      iex> import Journey.Node
+      iex> graph = Journey.new_graph("computation_status_as_text completed doctest", "v1.0.0", [
+      ...>   input(:value),
+      ...>   compute(:triple, [:value], fn %{value: v} -> {:ok, v * 3} end)
+      ...> ])
+      iex> execution = Journey.start_execution(graph)
+      iex> execution = Journey.set_value(execution, :value, 5)
+      iex> {:ok, _} = Journey.get_value(execution, :triple, wait_new: true)
+      iex> result = Journey.Tools.computation_status_as_text(execution.id, :triple)
+      iex> result =~ ":triple"
+      true
+      iex> result =~ "✅ :success"
+      true
+      iex> result =~ "inputs used"
+      true
+  """
+  def computation_status_as_text(execution_id, node_name)
+      when is_binary(execution_id) and is_atom(node_name) do
+    execution = Journey.load(execution_id)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+
+    case Graph.find_node_by_name(graph, node_name) do
+      nil ->
+        "Node :#{node_name} not found in graph"
+
+      graph_node ->
+        case graph_node.type do
+          :input ->
+            ":#{node_name}: 📝 :not_compute_node (input nodes do not compute)"
+
+          _ ->
+            state = computation_state(execution_id, node_name)
+            format_single_computation_status(execution, graph, graph_node, state)
+        end
+    end
+  end
+
+  defp format_single_computation_status(execution, graph, graph_node, state) do
+    case state do
+      state when state in [:success, :failed, :abandoned, :cancelled, :computing] ->
+        format_completed_computation_for_node(execution, graph_node, state)
+
+      :not_set ->
+        format_outstanding_computation_status(execution, graph, graph_node)
+    end
+  end
+
+  defp format_completed_computation_for_node(execution, graph_node, state) do
+    node_name = graph_node.name
+    computations = Journey.Executions.find_computations_by_node_name(execution, node_name)
+
+    if Enum.empty?(computations) do
+      ":#{node_name}: #{computation_state_to_text(state)} | #{inspect(graph_node.type)}"
+    else
+      most_recent_computation =
+        computations
+        |> Enum.max_by(fn c -> {c.ex_revision_at_completion || -1, c.id} end)
+
+      format_completed_computation_status(most_recent_computation)
+    end
+  end
+
+  defp format_completed_computation_status(%{
+         id: id,
+         node_name: node_name,
+         state: state,
+         computation_type: computation_type,
+         computed_with: computed_with,
+         ex_revision_at_completion: ex_revision_at_completion
+       }) do
+    ":#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
+      "inputs used:\n" <>
+      case computed_with do
+        nil ->
+          "   <none>"
+
+        [] ->
+          "   <none>"
+
+        inputs when inputs == %{} ->
+          "   <none>"
+
+        _ ->
+          Enum.map_join(computed_with, "\n", fn
+            {node_name, revision} ->
+              "   #{inspect(node_name)} (rev #{revision})"
+          end)
+      end
+  end
+
+  defp format_outstanding_computation_status(execution, _graph, graph_node) do
+    node_name = graph_node.name
+    gated_by = Map.get(graph_node, :gated_by)
+
+    readiness =
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        execution.values,
+        gated_by
+      )
+
+    # Find the computation ID for this outstanding computation
+    computation_id =
+      execution.computations
+      |> Enum.find(fn c -> c.node_name == node_name and c.state == :not_set end)
+      |> case do
+        nil -> "NO_COMPUTATION_ID"
+        computation -> computation.id
+      end
+
+    header = ":#{node_name} (#{computation_id}): #{computation_state_to_text(:not_set)} | #{inspect(graph_node.type)}\n"
+    formatted_conditions = format_condition_tree(readiness.structure, "    ")
+
+    header <> formatted_conditions
+  end
+
   @doc false
   def outstanding_computations(execution_id) when is_binary(execution_id) do
     execution = Journey.load(execution_id)
