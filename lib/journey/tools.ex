@@ -810,6 +810,70 @@ defmodule Journey.Tools do
     end
   end
 
+  @doc """
+  Retries a failed computation.
+
+  This function enables retrying computations that have exhausted their max_retries
+  by making their previous attempts "stale" through upstream revision changes, then
+  creating a new computation for the scheduler to pick up.
+
+  ## Parameters
+  - `execution_id` - The ID of the execution containing the failed computation
+  - `computation_node_name` - The atom name of the computation node to retry
+
+  ## Returns
+  The updated execution struct
+
+  ## Example
+      iex> Journey.Tools.retry_computation("EXEC123", :email_horoscope)
+      %Journey.Persistence.Schema.Execution{...}
+
+  ## How It Works
+  1. Finds upstream dependencies that are currently satisfied
+  2. Increments the revision of the first available upstream node
+  3. Creates a new :not_set computation for the scheduler to pick up
+  4. Previous failed attempts become "stale" in the retry counting logic
+  5. The scheduler can now execute the new computation attempt
+  """
+  def retry_computation(execution_id, computation_node_name)
+      when is_binary(execution_id) and is_atom(computation_node_name) do
+    execution = Journey.load(execution_id)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+    graph_node = Journey.Graph.find_node_by_name(graph, computation_node_name)
+
+    # Find satisfied upstream dependencies
+    readiness =
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        execution.values,
+        graph_node.gated_by
+      )
+
+    # Get the first satisfied upstream node that has a value
+    upstream_node_to_increment =
+      readiness.conditions_met
+      |> Enum.find(fn condition -> condition.upstream_node.node_value != nil end)
+      |> case do
+        nil -> raise "No upstream dependencies with values found for node #{computation_node_name}"
+        condition -> condition.upstream_node.node_name
+      end
+
+    # Increment the revision of the selected upstream node
+    increment_revision(execution_id, upstream_node_to_increment)
+
+    # Create a new computation for the scheduler to pick up
+    Journey.Repo.transaction(fn repo ->
+      %Journey.Persistence.Schema.Execution.Computation{
+        execution_id: execution_id,
+        node_name: Atom.to_string(computation_node_name),
+        computation_type: graph_node.type,
+        state: :not_set
+      }
+      |> repo.insert!()
+    end)
+
+    advance(execution_id)
+  end
+
   # Helper function to format node names with conditional context
   defp format_node_name_with_context(node_name, condition_map) do
     case Map.get(condition_map, :condition_context, :direct) do

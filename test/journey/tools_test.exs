@@ -1,6 +1,10 @@
 defmodule Journey.ToolsTest do
   use ExUnit.Case, async: true
 
+  import Journey.Node
+  import Journey.Node.Conditions
+  import Journey.Executions, only: [find_computations_by_node_name: 2]
+
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
@@ -218,8 +222,6 @@ defmodule Journey.ToolsTest do
     end
 
     test "uses emoji format for computation states" do
-      import Journey.Node
-
       # Create a graph with multiple compute nodes
       graph =
         Journey.new_graph("emoji test graph", "v1.0.0", [
@@ -262,9 +264,6 @@ defmodule Journey.ToolsTest do
     end
 
     test "formats complex not conditions in mixed logical operators" do
-      import Journey.Node
-      import Journey.Node.Conditions
-
       # Create a comprehensive graph with various :not condition combinations
       graph =
         Journey.new_graph("Complex Not Conditions Test", "v1.0.0", [
@@ -607,6 +606,79 @@ defmodule Journey.ToolsTest do
       assert ocs == []
 
       stop_background_sweeps_in_test(background_sweeps_task)
+    end
+  end
+
+  describe "retry_computation/2" do
+    test "allows retrying failed computations after max_retries exhausted" do
+      # Create a graph with a computation that can fail
+      graph =
+        Journey.new_graph("retry test", "v1", [
+          input(:trigger),
+          compute(
+            :failing_computation,
+            [:trigger],
+            fn _inputs ->
+              {:error, "Simulated failure"}
+            end,
+            # Low retry limit for testing
+            max_retries: 2
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set_value(execution, :trigger, "start")
+
+      # Start background sweeps to process computations
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+
+      # Verify computation has failed and won't retry more
+      execution = keep_advancing(execution, 2)
+      computations = find_computations_by_node_name(execution, :failing_computation)
+      assert Enum.all?(computations, fn c -> c.state == :failed end)
+      assert length(computations) == 2
+
+      # Use retry_computation
+      execution = Journey.Tools.retry_computation(execution.id, :failing_computation)
+
+      # Verify the new computations have been attempted, and also failed.
+      execution = keep_advancing(execution, 2)
+      computations = find_computations_by_node_name(execution, :failing_computation)
+      assert Enum.all?(computations, fn c -> c.state == :failed end)
+      assert length(computations) == 4
+
+      stop_background_sweeps_in_test(background_sweeps_task)
+    end
+
+    defp keep_advancing(execution, remaining_count) when remaining_count == 0 do
+      :timer.sleep(1000)
+      Journey.load(execution)
+    end
+
+    defp keep_advancing(execution, remaining_count) when remaining_count > 0 do
+      :timer.sleep(1000)
+
+      execution
+      |> Journey.Scheduler.advance()
+      |> keep_advancing(remaining_count - 1)
+    end
+
+    test "raises error when no upstream dependencies with values found" do
+      # Create a graph with a computation that has no upstream values set
+      graph =
+        Journey.new_graph("no upstream test", "v1", [
+          input(:missing_trigger),
+          compute(:dependent_computation, [:missing_trigger], fn %{missing_trigger: val} ->
+            {:ok, val}
+          end)
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Try to retry without setting upstream values
+      assert_raise RuntimeError, ~r/No upstream dependencies with values found/, fn ->
+        Journey.Tools.retry_computation(execution.id, :dependent_computation)
+      end
     end
   end
 
