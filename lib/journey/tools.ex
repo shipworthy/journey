@@ -325,8 +325,7 @@ defmodule Journey.Tools do
           gated_by
         )
 
-      formatted_conditions = format_condition_tree(readiness.structure, "    ")
-      "dependencies at time of failure:\n" <> formatted_conditions
+      format_condition_tree(readiness.structure, "    ")
     else
       "inputs used:\n   <none>"
     end
