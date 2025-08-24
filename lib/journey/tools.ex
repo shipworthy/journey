@@ -282,35 +282,63 @@ defmodule Journey.Tools do
         computations
         |> Enum.max_by(fn c -> {c.ex_revision_at_completion || -1, c.id} end)
 
-      format_completed_computation_status(most_recent_computation)
+      format_completed_computation_status(most_recent_computation, execution, graph_node)
     end
   end
 
-  defp format_completed_computation_status(%{
-         id: id,
-         node_name: node_name,
-         state: state,
-         computation_type: computation_type,
-         computed_with: computed_with,
-         ex_revision_at_completion: ex_revision_at_completion
-       }) do
-    ":#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
-      "inputs used:\n" <>
-      case computed_with do
-        nil ->
-          "   <none>"
+  defp format_completed_computation_status(
+         %{
+           id: id,
+           node_name: node_name,
+           state: state,
+           computation_type: computation_type,
+           computed_with: computed_with,
+           ex_revision_at_completion: ex_revision_at_completion
+         },
+         execution,
+         graph_node
+       ) do
+    header =
+      ":#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n"
 
-        [] ->
-          "   <none>"
+    # For failed computations with no computed_with data, show the dependency tree
+    if state == :failed and empty_computed_with?(computed_with) do
+      header <> format_failed_computation_dependencies(execution, graph_node)
+    else
+      # For successful computations or failed with computed_with data, show what was used
+      header <> format_inputs_used(computed_with)
+    end
+  end
 
-        inputs when inputs == %{} ->
-          "   <none>"
+  defp empty_computed_with?(nil), do: true
+  defp empty_computed_with?([]), do: true
+  defp empty_computed_with?(inputs) when inputs == %{}, do: true
+  defp empty_computed_with?(_), do: false
 
-        _ ->
-          Enum.map_join(computed_with, "\n", fn
-            {node_name, revision} ->
-              "   #{inspect(node_name)} (rev #{revision})"
-          end)
+  defp format_failed_computation_dependencies(execution, graph_node) do
+    gated_by = Map.get(graph_node, :gated_by)
+
+    if gated_by do
+      readiness =
+        Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+          execution.values,
+          gated_by
+        )
+
+      format_condition_tree(readiness.structure, "    ")
+    else
+      "inputs used:\n   <none>"
+    end
+  end
+
+  defp format_inputs_used(computed_with) do
+    "inputs used:\n" <>
+      if empty_computed_with?(computed_with) do
+        "   <none>"
+      else
+        Enum.map_join(computed_with, "\n", fn {node_name, revision} ->
+          "   #{inspect(node_name)} (rev #{revision})"
+        end)
       end
   end
 

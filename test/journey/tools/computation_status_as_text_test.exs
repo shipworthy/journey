@@ -157,8 +157,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
 
       expected_output = """
       :will_fail (CMPREDACTED): ❌ :failed | :compute | rev 7
-      inputs used:
-         <none>
+          ✅ :value | &provided?/1 | rev 1
       """
 
       assert redacted_result == String.trim(expected_output)
