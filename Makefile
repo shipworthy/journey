@@ -55,7 +55,7 @@ db-local-psql:
 
 db-local-rebuild:
 	docker rm -fv $(POSTGRES_DB_CONTAINER_NAME)
-	docker run --name $(POSTGRES_DB_CONTAINER_NAME) -p 5438:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16.4
+	docker run --name $(POSTGRES_DB_CONTAINER_NAME) -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16.4
 
 
 deps-get:
