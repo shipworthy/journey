@@ -106,7 +106,7 @@ defmodule Journey.JourneyListExecutionsTest do
 
       listed_execution_ids =
         Journey.list_executions(graph_name: basic_graph(test_id).name, order_by_execution_fields: [:updated_at])
-        |> Enum.map(& &1.id)
+        |> Enum.map(fn execution -> execution.id end)
         |> Enum.filter(fn id -> id in execution_ids end)
 
       assert expected_order == listed_execution_ids
@@ -148,6 +148,168 @@ defmodule Journey.JourneyListExecutionsTest do
     test "graph_version requires graph_name" do
       assert_raise ArgumentError, "Option :graph_version requires :graph_name to be specified", fn ->
         Journey.list_executions(graph_version: "v1.0.0")
+      end
+    end
+
+    test "sorting with tuple syntax and mixed formats" do
+      test_id = random_string()
+      graph = basic_graph(test_id)
+
+      # Create a few executions
+      execution_ids =
+        Enum.map(1..3, fn i ->
+          execution = Journey.start_execution(graph) |> Journey.set_value(:first_name, "User#{i}")
+          # Ensure different timestamps (1 second granularity)
+          Process.sleep(1100)
+          execution.id
+        end)
+
+      # Test that tuple syntax doesn't crash and returns results
+      desc_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [inserted_at: :desc]
+        )
+
+      desc_ids =
+        Enum.map(desc_results, fn execution -> execution.id end) |> Enum.filter(fn id -> id in execution_ids end)
+
+      assert length(desc_ids) == 3
+
+      # Test ascending order also works
+      asc_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [inserted_at: :asc]
+        )
+
+      asc_ids = Enum.map(asc_results, fn execution -> execution.id end) |> Enum.filter(fn id -> id in execution_ids end)
+      assert length(asc_ids) == 3
+
+      # Verify both queries return the same executions
+      assert Enum.sort(asc_ids) == Enum.sort(desc_ids)
+
+      # Test mixed directions - multiple sort fields
+      mixed_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [graph_name: :asc, inserted_at: :desc]
+        )
+
+      mixed_ids =
+        Enum.map(mixed_results, fn execution -> execution.id end) |> Enum.filter(fn id -> id in execution_ids end)
+
+      assert length(mixed_ids) == 3
+
+      # Test that the actual sorting direction is correctly applied
+      # Create two executions with a clear time difference in a fresh graph
+      specific_graph = basic_graph("#{test_id}_specific")
+      _e1 = Journey.start_execution(specific_graph) |> Journey.set_value(:first_name, "First")
+      Process.sleep(1100)
+      _e2 = Journey.start_execution(specific_graph) |> Journey.set_value(:first_name, "Second")
+
+      # Test descending - newer should come first
+      desc_specific =
+        Journey.list_executions(
+          graph_name: specific_graph.name,
+          order_by_execution_fields: [inserted_at: :desc]
+        )
+
+      # Just verify that both directions work without syntax errors and return expected counts
+      asc_specific =
+        Journey.list_executions(
+          graph_name: specific_graph.name,
+          order_by_execution_fields: [inserted_at: :asc]
+        )
+
+      assert length(desc_specific) == 2
+      assert length(asc_specific) == 2
+
+      # Verify the timestamps are actually different and in the expected order
+      desc_timestamps = Enum.map(desc_specific, fn execution -> execution.inserted_at end)
+      asc_timestamps = Enum.map(asc_specific, fn execution -> execution.inserted_at end)
+
+      # For descending, larger timestamps should come first
+      assert desc_timestamps == Enum.sort(desc_timestamps, :desc)
+      # For ascending, smaller timestamps should come first
+      assert asc_timestamps == Enum.sort(asc_timestamps, :asc)
+    end
+
+    test "atom format functionality" do
+      test_id = random_string()
+      graph = basic_graph(test_id)
+
+      # Create executions
+      execution_ids =
+        Enum.map(1..3, fn i ->
+          execution = Journey.start_execution(graph) |> Journey.set_value(:first_name, "User#{i}")
+          Process.sleep(1100)
+          execution.id
+        end)
+
+      # Atom format should work (defaults to ascending)
+      legacy_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [:inserted_at]
+        )
+
+      legacy_ids =
+        Enum.map(legacy_results, fn execution -> execution.id end) |> Enum.filter(fn id -> id in execution_ids end)
+
+      assert legacy_ids == execution_ids
+    end
+
+    test "mixed format: atoms and tuples together" do
+      test_id = random_string()
+      graph = basic_graph(test_id)
+
+      # Create executions
+      execution_ids =
+        Enum.map(1..3, fn i ->
+          execution = Journey.start_execution(graph) |> Journey.set_value(:first_name, "User#{i}")
+          Process.sleep(1100)
+          execution.id
+        end)
+
+      # Mixed format: combine atom and tuple syntax
+      mixed_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [:graph_name, :revision, inserted_at: :desc]
+        )
+
+      mixed_ids =
+        Enum.map(mixed_results, fn execution -> execution.id end) |> Enum.filter(fn id -> id in execution_ids end)
+
+      assert length(mixed_ids) == 3
+    end
+
+    test "invalid sort field format raises error" do
+      graph = basic_graph(random_string())
+
+      # Invalid direction
+      assert_raise ArgumentError, ~r/Invalid sort field format.*Expected atom or/, fn ->
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [inserted_at: :invalid]
+        )
+      end
+
+      # Invalid tuple format
+      assert_raise ArgumentError, ~r/Invalid sort field format.*Expected atom or/, fn ->
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [{"invalid", :asc}]
+        )
+      end
+
+      # Invalid entry type
+      assert_raise ArgumentError, ~r/Invalid sort field format.*Expected atom or/, fn ->
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: ["invalid_string"]
+        )
       end
     end
   end
