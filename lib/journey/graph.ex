@@ -49,21 +49,9 @@ defmodule Journey.Graph do
   defp compute_hash(nodes) do
     nodes
     |> Enum.sort_by(& &1.name)
-    |> Enum.map(&extract_hash_components/1)
+    |> Enum.map(fn %{name: name, type: type} -> {name, type} end)
     |> :erlang.term_to_binary()
     |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16()
-  end
-
-  defp extract_hash_components(node) do
-    base_components = {node.name, node.type}
-
-    case node do
-      %{gated_by: gated_by} ->
-        {base_components, gated_by}
-
-      _ ->
-        base_components
-    end
   end
 end
