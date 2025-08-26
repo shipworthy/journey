@@ -1179,20 +1179,17 @@ defmodule Journey do
       when is_binary(execution_id) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
-    # Load execution without preloading associations
     execution = Journey.Repo.get!(Execution, execution_id)
-
-    # Validate using the existing execution-based validation (it will fetch the graph from catalog)
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
-
-    # Use the execution_id version
-    Journey.Executions.set_value(execution_id, node_name, value)
+    Journey.Executions.set_value(execution.id, node_name, value)
   end
 
   def set_value(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution, node_name, value)
   end
@@ -1306,12 +1303,14 @@ defmodule Journey do
   def unset_value(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
     execution = Journey.Repo.get!(Execution, execution_id)
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.unset_value(execution, node_name)
   end
 
   def unset_value(execution, node_name)
       when is_struct(execution, Execution) and is_atom(node_name) do
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.unset_value(execution, node_name)
   end
@@ -1393,8 +1392,6 @@ defmodule Journey do
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
     check_options(opts, [:wait_any, :wait_new])
 
-    Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
-
     wait_new = Keyword.get(opts, :wait_new, false)
     wait_any = Keyword.get(opts, :wait_any, false)
 
@@ -1405,6 +1402,8 @@ defmodule Journey do
 
     timeout_ms_or_infinity = determine_timeout(wait_new, wait_any)
 
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
+    Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
     Executions.get_value(execution, node_name, timeout_ms_or_infinity, wait_new: wait_new != false)
   end
 

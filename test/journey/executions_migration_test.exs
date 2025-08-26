@@ -44,7 +44,7 @@ defmodule Journey.ExecutionsMigrationTest do
       assert original_hash != updated_graph.hash
 
       # Perform migration
-      migrated_execution = Journey.Executions.migrate_to_current_graph_if_needed(execution, updated_graph)
+      migrated_execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
       # Verify migration results
       assert migrated_execution.id == execution.id
@@ -90,11 +90,11 @@ defmodule Journey.ExecutionsMigrationTest do
         )
 
       # First migration
-      migrated_once = Journey.Executions.migrate_to_current_graph_if_needed(execution, updated_graph)
+      migrated_once = Journey.Executions.migrate_to_current_graph_if_needed(execution)
       assert migrated_once.graph_hash == updated_graph.hash
 
       # Second migration (should be no-op)
-      migrated_twice = Journey.Executions.migrate_to_current_graph_if_needed(migrated_once, updated_graph)
+      migrated_twice = Journey.Executions.migrate_to_current_graph_if_needed(migrated_once)
       assert migrated_twice.graph_hash == updated_graph.hash
       assert migrated_twice.id == migrated_once.id
 
@@ -117,7 +117,7 @@ defmodule Journey.ExecutionsMigrationTest do
       original_hash = execution.graph_hash
 
       # Call migrate with same graph (same hash)
-      result = Journey.Executions.migrate_to_current_graph_if_needed(execution, graph)
+      result = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
       # Should return same execution object (no migration)
       assert result == execution
@@ -139,7 +139,7 @@ defmodule Journey.ExecutionsMigrationTest do
       execution = Journey.set_value(execution, :user_id, 123)
 
       # Updated graph with various node types
-      updated_graph =
+      _updated_graph =
         Journey.new_graph(
           "complex_migration_test",
           "v1",
@@ -157,7 +157,7 @@ defmodule Journey.ExecutionsMigrationTest do
         )
 
       # Perform migration
-      migrated = Journey.Executions.migrate_to_current_graph_if_needed(execution, updated_graph)
+      migrated = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
       # Check all nodes exist
       assert {:ok, 123} == Journey.get_value(migrated, :user_id)
@@ -188,7 +188,7 @@ defmodule Journey.ExecutionsMigrationTest do
       assert execution.revision > 0
 
       # Create updated graph with new node
-      updated_graph =
+      _updated_graph =
         Journey.new_graph(
           "ex_revision_test",
           "v1",
@@ -196,7 +196,7 @@ defmodule Journey.ExecutionsMigrationTest do
         )
 
       # Perform migration
-      migrated = Journey.Executions.migrate_to_current_graph_if_needed(execution, updated_graph)
+      migrated = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
       # Find the new node's value record
       new_node_value = Journey.Executions.find_value_by_name(migrated, :new_node)
@@ -238,7 +238,7 @@ defmodule Journey.ExecutionsMigrationTest do
       results =
         for _i <- 1..5 do
           Task.async(fn ->
-            Journey.Executions.migrate_to_current_graph_if_needed(execution, updated_graph)
+            Journey.Executions.migrate_to_current_graph_if_needed(execution)
           end)
         end
         |> Task.await_many(5000)

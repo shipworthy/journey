@@ -14,7 +14,14 @@ defmodule Journey.Scheduler do
   def advance(execution) do
     prefix = "[#{execution.id}] [#{mf()}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
-    advance_with_graph(prefix, execution, Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version))
+
+    # Migrate execution to current graph if needed
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
+
+    # Fetch graph again after potential migration (execution may have updated graph version)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+
+    advance_with_graph(prefix, execution, graph)
   end
 
   defp advance_with_graph(prefix, execution, nil) do

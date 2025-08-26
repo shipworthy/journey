@@ -83,17 +83,20 @@ defmodule Journey.Executions do
 
   def load(execution_id, preload?, include_archived?)
       when is_binary(execution_id) and is_boolean(preload?) and is_boolean(include_archived?) do
-    if preload? do
-      from(e in q_execution(execution_id, include_archived?),
-        where: e.id == ^execution_id,
-        preload: [:values, :computations]
-      )
-      |> Journey.Repo.one()
-      |> convert_node_names_to_atoms()
-    else
-      from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
-      |> Journey.Repo.one()
-    end
+    execution =
+      if preload? do
+        from(e in q_execution(execution_id, include_archived?),
+          where: e.id == ^execution_id,
+          preload: [:values, :computations]
+        )
+        |> Journey.Repo.one()
+        |> convert_node_names_to_atoms()
+      else
+        from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
+        |> Journey.Repo.one()
+      end
+
+    migrate_to_current_graph_if_needed(execution)
   end
 
   def values(execution) do
@@ -859,17 +862,30 @@ defmodule Journey.Executions do
     |> Enum.map(fn h -> Map.delete(h, :revision_at_start) end)
   end
 
-  def migrate_to_current_graph_if_needed(execution, graph) do
+  def migrate_to_current_graph_if_needed(nil), do: nil
+
+  def migrate_to_current_graph_if_needed(execution) do
+    case Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version) do
+      nil ->
+        # Graph not found in catalog, proceed with original execution
+        execution
+
+      current_graph ->
+        migrate_to_this_graph_if_needed(execution, current_graph)
+    end
+  end
+
+  defp migrate_to_this_graph_if_needed(execution, graph) do
     if execution.graph_hash == graph.hash do
       # Hashes match, no migration needed
       execution
     else
       # Execution has no hash (old execution) or hashes differ, migrate
-      migrate_to_current_graph(execution, graph)
+      migrate_to_this_graph(execution, graph)
     end
   end
 
-  defp migrate_to_current_graph(execution, graph) do
+  defp migrate_to_this_graph(execution, graph) do
     {:ok, migrated_execution} =
       Journey.Repo.transaction(fn repo ->
         # Acquire advisory lock to prevent concurrent migrations of the same execution
