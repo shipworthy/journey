@@ -646,8 +646,27 @@ defmodule Journey.Executions do
   defp filter_archived(query, false), do: from(e in query, where: is_nil(e.archived_at))
 
   defp apply_sorting(query, sort_fields) do
-    Enum.reduce(sort_fields, query, fn sort_field, acc ->
-      from(e in acc, order_by: [asc: ^sort_field])
+    normalized_fields = normalize_sort_fields(sort_fields)
+    order_by_list = Enum.map(normalized_fields, fn {field, direction} -> {direction, field} end)
+
+    from(e in query, order_by: ^order_by_list)
+  end
+
+  # Normalize sort fields to support both atom and tuple syntax
+  defp normalize_sort_fields(fields) when is_list(fields) do
+    Enum.map(fields, fn
+      # Atom format: bare atom defaults to :asc
+      atom when is_atom(atom) ->
+        {atom, :asc}
+
+      # Tuple format: {field, direction}
+      {field, direction} when is_atom(field) and direction in [:asc, :desc] ->
+        {field, direction}
+
+      # Invalid format
+      invalid ->
+        raise ArgumentError,
+              "Invalid sort field format: #{inspect(invalid)}. Expected atom or {field, :asc/:desc} tuple."
     end)
   end
 

@@ -580,12 +580,23 @@ defmodule Journey do
   * `fn(node_value) -> boolean` for unary checks
 
   ### `:order_by_execution_fields`
-  List of execution fields to sort by. Common fields:
+  List of execution fields to sort by with optional direction specification.
+
+  **Formats:**
+  * **Atom format**: Bare atoms default to ascending - `[:updated_at, :inserted_at]`
+  * **Tuple format**: Explicit direction specification - `[updated_at: :desc, inserted_at: :asc]`
+  * **Mixed format**: Both can be combined - `[:graph_name, inserted_at: :desc]`
+
+  **Available fields:**
   * `:inserted_at` - When execution was created
   * `:updated_at` - Last modification time
   * `:revision` - Current revision number
   * `:graph_name` - Name of the graph
   * `:graph_version` - Version of the graph
+
+  **Sort directions:**
+  * `:asc` - Ascending order (default for atom format)
+  * `:desc` - Descending order
 
   ## Key Behaviors
   * **Two-phase filtering** - Database filters (graph_name, archived, sorting) are applied first,
@@ -643,6 +654,28 @@ defmodule Journey do
   ```elixir
   iex> Journey.list_executions(graph_version: "v1.0.0")
   ** (ArgumentError) Option :graph_version requires :graph_name to be specified
+  ```
+
+  Sorting with direction specification:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "sort example - \#{Journey.Helpers.Random.random_string()}",
+  ...>   "v1.0.0",
+  ...>   [input(:priority)]
+  ...> )
+  iex> Journey.start_execution(graph) |> Journey.set_value(:priority, "high")
+  iex> Journey.start_execution(graph) |> Journey.set_value(:priority, "low")
+  iex> # Atom format (defaults to ascending)
+  iex> Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:inserted_at]) |> length()
+  2
+  iex> # Tuple format with descending order
+  iex> Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [inserted_at: :desc]) |> length()
+  2
+  iex> # Mixed format: atom and tuple
+  iex> Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:graph_name, inserted_at: :desc]) |> length()
+  2
   ```
 
   Filtering with comparison operators:
