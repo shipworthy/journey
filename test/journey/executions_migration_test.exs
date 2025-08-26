@@ -4,7 +4,7 @@ defmodule Journey.ExecutionsMigrationTest do
   import Journey.Node
   import Ecto.Query
 
-  describe "migrate_to_current_graph_if_needed/2" do
+  describe "migrate_to_current_graph_if_needed/1" do
     test "sunny-day migration: adds new nodes when graph is updated" do
       # Create original graph with two input nodes
       original_graph =
@@ -273,6 +273,56 @@ defmodule Journey.ExecutionsMigrationTest do
         assert value_counts[node_name] == 1,
                "Node #{node_name} has #{value_counts[node_name]} value records, expected 1"
       end
+    end
+
+    test "migration with computation execution and new compute nodes" do
+      # Create original graph with computation
+      original_graph =
+        Journey.new_graph(
+          "computation_migration_test",
+          "v1",
+          [
+            input(:i1),
+            input(:i2),
+            compute(:c, [:i1, :i2], fn %{i1: i1, i2: i2} -> {:ok, i1 + i2} end)
+          ]
+        )
+
+      # Setup execution with computation
+      execution = Journey.start_execution(original_graph)
+      execution = Journey.set_value(execution, :i1, 10)
+      execution = Journey.set_value(execution, :i2, 20)
+      assert {:ok, 30} = Journey.get_value(execution, :c, wait_any: true)
+
+      # Create updated graph (overwrites catalog)
+      updated_graph =
+        Journey.new_graph(
+          "computation_migration_test",
+          # Same name/version to overwrite
+          "v1",
+          [
+            input(:i1),
+            input(:i2),
+            # New input
+            input(:i3),
+            compute(:c, [:i1, :i2], fn %{i1: i1, i2: i2} -> {:ok, i1 + i2} end),
+            # New computation
+            compute(:c2, [:i1, :i2, :i3], fn %{i1: i1, i2: i2, i3: i3} -> {:ok, i1 * i2 * i3} end)
+          ]
+        )
+
+      # This set_value call will trigger migration automatically
+      execution = Journey.set_value(execution, :i3, 5)
+
+      # Verify original computation still works
+      assert {:ok, 30} = Journey.get_value(execution, :c)
+
+      # Verify new computation executes correctly
+      # 10 * 20 * 5 = 1000
+      assert {:ok, 1000} = Journey.get_value(execution, :c2, wait_any: true)
+
+      # Verify migration occurred
+      assert execution.graph_hash == updated_graph.hash
     end
   end
 end
