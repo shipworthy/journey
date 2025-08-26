@@ -8,6 +8,7 @@ defmodule Journey.Persistence.Schema.Execution do
   schema "executions" do
     field(:graph_name, :string)
     field(:graph_version, :string)
+    field(:graph_hash, :string)
     field(:archived_at, :integer, default: nil)
     has_many(:values, Journey.Persistence.Schema.Execution.Value, preload_order: [desc: :ex_revision])
 

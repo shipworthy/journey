@@ -6,13 +6,17 @@ defmodule Journey.Executions do
   require Logger
   import Journey.Helpers.Log
 
-  def create_new(graph_name, graph_version, nodes) do
+  # Namespace for PostgreSQL advisory locks used in graph migrations
+  @migration_lock_namespace 12_345
+
+  def create_new(graph_name, graph_version, nodes, graph_hash) do
     {:ok, execution} =
       Journey.Repo.transaction(fn repo ->
         execution =
           %Execution{
             graph_name: graph_name,
             graph_version: graph_version,
+            graph_hash: graph_hash,
             revision: 0
           }
           |> repo.insert!()
@@ -79,17 +83,20 @@ defmodule Journey.Executions do
 
   def load(execution_id, preload?, include_archived?)
       when is_binary(execution_id) and is_boolean(preload?) and is_boolean(include_archived?) do
-    if preload? do
-      from(e in q_execution(execution_id, include_archived?),
-        where: e.id == ^execution_id,
-        preload: [:values, :computations]
-      )
-      |> Journey.Repo.one()
-      |> convert_node_names_to_atoms()
-    else
-      from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
-      |> Journey.Repo.one()
-    end
+    execution =
+      if preload? do
+        from(e in q_execution(execution_id, include_archived?),
+          where: e.id == ^execution_id,
+          preload: [:values, :computations]
+        )
+        |> Journey.Repo.one()
+        |> convert_node_names_to_atoms()
+      else
+        from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
+        |> Journey.Repo.one()
+      end
+
+    migrate_to_current_graph_if_needed(execution)
   end
 
   def values(execution) do
@@ -853,5 +860,128 @@ defmodule Journey.Executions do
       :asc
     )
     |> Enum.map(fn h -> Map.delete(h, :revision_at_start) end)
+  end
+
+  def migrate_to_current_graph_if_needed(nil), do: nil
+
+  def migrate_to_current_graph_if_needed(execution) do
+    case Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version) do
+      nil ->
+        # Graph not found in catalog, proceed with original execution
+        execution
+
+      current_graph ->
+        migrate_to_this_graph_if_needed(execution, current_graph)
+    end
+  end
+
+  defp migrate_to_this_graph_if_needed(execution, graph) do
+    if execution.graph_hash == graph.hash do
+      # Hashes match, no migration needed
+      execution
+    else
+      # Execution has no hash (old execution) or hashes differ, migrate
+      migrate_to_this_graph(execution, graph)
+    end
+  end
+
+  defp migrate_to_this_graph(execution, graph) do
+    {:ok, migrated_execution} =
+      Journey.Repo.transaction(fn repo ->
+        # Acquire advisory lock to prevent concurrent migrations of the same execution
+        lock_key = :erlang.phash2(execution.id)
+        repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [@migration_lock_namespace, lock_key])
+
+        # Reload execution after acquiring lock to get the latest state
+        current_execution = load_execution_for_migration(repo, execution.id)
+
+        # Check if migration is still needed (another process might have just done it)
+        if current_execution.graph_hash == graph.hash do
+          # Already migrated by another process
+          current_execution
+        else
+          # Proceed with migration
+          perform_migration(repo, execution.id, current_execution, graph)
+        end
+      end)
+
+    migrated_execution
+  end
+
+  defp perform_migration(repo, execution_id, current_execution, graph) do
+    # Find missing nodes
+    missing_node_names = find_missing_nodes(current_execution, graph)
+
+    # Add missing nodes if any
+    if MapSet.size(missing_node_names) > 0 do
+      add_missing_nodes(repo, execution_id, current_execution.revision, graph, missing_node_names)
+    end
+
+    # Update execution's graph_hash
+    from(e in Execution, where: e.id == ^execution_id)
+    |> repo.update_all(set: [graph_hash: graph.hash])
+
+    # Reload and return the migrated execution
+    load(execution_id, true, false)
+  end
+
+  defp load_execution_for_migration(repo, execution_id) do
+    from(e in Execution,
+      where: e.id == ^execution_id,
+      preload: [:values, :computations]
+    )
+    |> repo.one!()
+    |> convert_node_names_to_atoms()
+  end
+
+  defp find_missing_nodes(current_execution, graph) do
+    # Get current node names from execution
+    existing_node_names =
+      current_execution.values
+      |> Enum.map(& &1.node_name)
+      |> MapSet.new()
+
+    # Get expected node names from graph
+    expected_node_names =
+      graph.nodes
+      |> Enum.map(& &1.name)
+      |> MapSet.new()
+
+    # Find missing nodes (as atoms)
+    MapSet.difference(expected_node_names, existing_node_names)
+  end
+
+  defp add_missing_nodes(repo, execution_id, revision, graph, missing_node_names) do
+    graph.nodes
+    |> Enum.filter(fn node ->
+      MapSet.member?(missing_node_names, node.name)
+    end)
+    |> Enum.each(fn graph_node ->
+      add_node_records(repo, execution_id, revision, graph_node)
+    end)
+  end
+
+  defp add_node_records(repo, execution_id, _revision, graph_node) do
+    # Create value record with ex_revision: 0 for new nodes
+    %Execution.Value{
+      execution_id: execution_id,
+      node_name: Atom.to_string(graph_node.name),
+      node_type: graph_node.type,
+      ex_revision: 0,
+      set_time: nil,
+      node_value: nil
+    }
+    |> repo.insert!()
+
+    # If it's a compute node, also create a computation record
+    if graph_node.type in Execution.ComputationType.values() do
+      %Execution.Computation{
+        execution_id: execution_id,
+        node_name: Atom.to_string(graph_node.name),
+        computation_type: graph_node.type,
+        state: :not_set
+      }
+      |> repo.insert!()
+    end
   end
 end
