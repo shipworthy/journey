@@ -862,7 +862,8 @@ defmodule Journey do
     Journey.Executions.create_new(
       graph.name,
       graph.version,
-      graph.nodes
+      graph.nodes,
+      graph.hash
     )
     |> Journey.Scheduler.advance()
   end
