@@ -103,7 +103,7 @@ lint:
 
 test:
 	MIX_ENV=test mix clean
-	mix ecto.create
+	MIX_ENV=test mix ecto.create
 	mix test --warnings-as-errors --cover
 
 
