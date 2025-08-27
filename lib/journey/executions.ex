@@ -732,38 +732,216 @@ defmodule Journey.Executions do
     :ok
   end
 
-  defp add_filters(q, value_filters) do
-    from(e in q, preload: [:values, :computations])
-    |> Journey.Repo.all()
-    |> Enum.map(fn execution -> convert_node_names_to_atoms(execution) end)
-    |> Enum.filter(fn execution ->
-      Enum.all?(value_filters, fn
-        {value_node_name, comparator, value_node_value}
-        when is_atom(value_node_name) and
-               (comparator in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in] or is_function(comparator)) ->
-          value_node = find_value_by_name(execution, value_node_name)
-          value_node != nil and cmp(comparator).(value_node.node_value, value_node_value)
+  # Database-level filtering for simple value comparisons
+  defp add_filters(query, []), do: query |> preload_and_convert()
 
-        {value_node_name, comparator}
-        when is_atom(value_node_name) and
-               (comparator in [:is_nil, :is_not_nil] or is_function(comparator)) ->
-          value_node = find_value_by_name(execution, value_node_name)
-          value_node != nil and cmp(comparator).(value_node.node_value)
+  defp add_filters(query, value_filters) when is_list(value_filters) do
+    # Validate all filters are database-compatible before proceeding
+    Enum.each(value_filters, &validate_db_filter/1)
+
+    query
+    |> apply_db_value_filters(value_filters)
+    |> preload_and_convert()
+  end
+
+  # Validate filters are compatible with database-level filtering
+  defp validate_db_filter({node_name, op, value})
+       when is_atom(node_name) and op in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in] do
+    # Additional validation for the value type
+    if primitive_value?(value) do
+      :ok
+    else
+      raise ArgumentError,
+            "Unsupported value type for database filtering: #{inspect(value)}. " <>
+              "Only strings, numbers, booleans, nil, and lists of primitives are supported."
+    end
+  end
+
+  defp validate_db_filter({node_name, op})
+       when is_atom(node_name) and op in [:is_nil, :is_not_nil],
+       do: :ok
+
+  # Crash with clear error message for unsupported filters
+  defp validate_db_filter(filter) do
+    raise ArgumentError,
+          "Unsupported filter for database-level filtering: #{inspect(filter)}. " <>
+            "Only simple comparisons on strings, numbers, booleans, nil, and lists of primitives are supported. " <>
+            "Custom functions are not supported."
+  end
+
+  # Check if a value is a primitive type that can be handled at database level
+  defp primitive_value?(value) when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
+    do: true
+
+  defp primitive_value?(values) when is_list(values) do
+    Enum.all?(values, fn v -> is_binary(v) or is_number(v) or is_boolean(v) or is_nil(v) end)
+  end
+
+  defp primitive_value?(_), do: false
+
+  # Apply database-level value filtering using JOINs and JSONB queries
+  defp apply_db_value_filters(query, value_filters) do
+    # Split filters by type for different handling strategies
+    {existence_filters, comparison_filters} =
+      Enum.split_with(value_filters, fn
+        {_, op} when op in [:is_nil, :is_not_nil] -> true
+        _ -> false
       end)
+
+    # Apply comparison filters with JOINs (leveraging unique execution_id, node_name)
+    query_with_comparisons =
+      Enum.reduce(comparison_filters, query, fn {node_name, op, value}, acc_query ->
+        apply_comparison_filter(acc_query, node_name, op, value)
+      end)
+
+    # Apply existence filters using anti-join and inner join patterns
+    Enum.reduce(existence_filters, query_with_comparisons, fn {node_name, op}, acc_query ->
+      node_name_str = Atom.to_string(node_name)
+
+      case op do
+        :is_nil ->
+          from(e in acc_query,
+            left_join: v in Journey.Persistence.Schema.Execution.Value,
+            on: v.execution_id == e.id and v.node_name == ^node_name_str,
+            where: is_nil(v.id)
+          )
+
+        :is_not_nil ->
+          from(e in acc_query,
+            join: v in Journey.Persistence.Schema.Execution.Value,
+            on: v.execution_id == e.id and v.node_name == ^node_name_str
+          )
+      end
     end)
   end
 
-  defp cmp(:eq), do: fn a, b -> a == b end
-  defp cmp(:neq), do: fn a, b -> a != b end
-  defp cmp(:lt), do: fn a, b -> a < b end
-  defp cmp(:lte), do: fn a, b -> a <= b end
-  defp cmp(:gt), do: fn a, b -> a > b end
-  defp cmp(:gte), do: fn a, b -> a >= b end
-  defp cmp(:in), do: fn a, b -> a in b end
-  defp cmp(:not_in), do: fn a, b -> a not in b end
-  defp cmp(:is_nil), do: fn a -> is_nil(a) end
-  defp cmp(:is_not_nil), do: fn a -> not is_nil(a) end
-  defp cmp(f) when is_function(f), do: f
+  # Apply individual comparison filters with direct JSONB conditions
+  defp apply_comparison_filter(query, node_name, :eq, value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: v.node_value == ^value
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :neq, value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: v.node_value != ^value
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :lt, value) when is_number(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric < ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :lt, value) when is_binary(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') < ?", v.node_value, v.node_value, ^value)
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :lte, value) when is_number(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric <= ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :lte, value) when is_binary(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') <= ?", v.node_value, v.node_value, ^value)
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :gt, value) when is_number(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric > ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :gt, value) when is_binary(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') > ?", v.node_value, v.node_value, ^value)
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :gte, value) when is_number(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric >= ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :gte, value) when is_binary(value) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') >= ?", v.node_value, v.node_value, ^value)
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :in, values) when is_list(values) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: v.node_value in ^values
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :not_in, values) when is_list(values) do
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: v.node_value not in ^values
+    )
+  end
+
+  # Helper to preload data and convert node names to atoms
+  defp preload_and_convert(query) do
+    from(e in query, preload: [:values, :computations])
+    |> Journey.Repo.all()
+    |> Enum.map(&convert_node_names_to_atoms/1)
+  end
 
   def find_value_by_name(execution, node_name) when is_atom(node_name) do
     execution.values |> Enum.find(fn value -> value.node_name == node_name end)

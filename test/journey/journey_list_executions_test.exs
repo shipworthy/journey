@@ -50,8 +50,7 @@ defmodule Journey.JourneyListExecutionsTest do
       some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :in, [20, 22]}])
       assert Enum.count(some_executions) == 2
 
-      neq = fn node_value, val -> node_value != val end
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, neq, 1}])
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :neq, 1}])
       assert Enum.count(some_executions) == 99
 
       some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_not_nil}])
@@ -60,8 +59,7 @@ defmodule Journey.JourneyListExecutionsTest do
       some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_nil}])
       assert some_executions == []
 
-      is_one = fn node_value -> node_value == 1 end
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, is_one}])
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 1}])
       assert Enum.count(some_executions) == 1
     end
 
@@ -311,6 +309,60 @@ defmodule Journey.JourneyListExecutionsTest do
           order_by_execution_fields: ["invalid_string"]
         )
       end
+    end
+
+    test "mixed data types: string and integer filtering" do
+      graph = basic_graph(random_string())
+
+      # Create executions with string names
+      exec_alice = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice")
+      exec_bob = Journey.start_execution(graph) |> Journey.set_value(:first_name, "bob")
+      _exec_charlie = Journey.start_execution(graph) |> Journey.set_value(:first_name, "charlie")
+
+      # Create executions with integer names
+      _exec_100 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 100)
+      exec_200 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 200)
+      exec_300 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 300)
+
+      # String filtering should only match string values
+      string_eq_results = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, "alice"}])
+      assert length(string_eq_results) == 1
+      assert hd(string_eq_results).id == exec_alice.id
+
+      string_lt_results =
+        Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :lt, "charlie"}])
+
+      # "alice" and "bob" are < "charlie"
+      assert length(string_lt_results) == 2
+      string_ids = Enum.map(string_lt_results, & &1.id) |> Enum.sort()
+      expected_string_ids = [exec_alice.id, exec_bob.id] |> Enum.sort()
+      assert string_ids == expected_string_ids
+
+      # Integer filtering should only match numeric values
+      int_eq_results = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 200}])
+      assert length(int_eq_results) == 1
+      assert hd(int_eq_results).id == exec_200.id
+
+      int_gt_results = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :gt, 150}])
+      # 200 and 300 are > 150
+      assert length(int_gt_results) == 2
+      int_ids = Enum.map(int_gt_results, & &1.id) |> Enum.sort()
+      expected_int_ids = [exec_200.id, exec_300.id] |> Enum.sort()
+      assert int_ids == expected_int_ids
+
+      # Cross-type queries return empty (no errors)
+      # Query for numeric value against string data - should find nothing
+      cross_type_numeric = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 999}])
+      assert Enum.empty?(cross_type_numeric)
+
+      # Query for string value against numeric data - should find nothing
+      cross_type_string = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, "999"}])
+      assert Enum.empty?(cross_type_string)
+
+      # Verify total count is still correct
+      all_results = Journey.list_executions(graph_name: graph.name)
+      # 3 string + 3 integer executions
+      assert length(all_results) == 6
     end
   end
 
