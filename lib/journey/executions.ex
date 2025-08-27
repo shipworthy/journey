@@ -836,7 +836,13 @@ defmodule Journey.Executions do
     from(e in query,
       join: v in Journey.Persistence.Schema.Execution.Value,
       on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
-      where: fragment("jsonb_typeof(?) = 'number' AND (?)::numeric < ?", v.node_value, v.node_value, ^value)
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric < ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
     )
   end
 
@@ -852,7 +858,13 @@ defmodule Journey.Executions do
     from(e in query,
       join: v in Journey.Persistence.Schema.Execution.Value,
       on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
-      where: fragment("jsonb_typeof(?) = 'number' AND (?)::numeric <= ?", v.node_value, v.node_value, ^value)
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric <= ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
     )
   end
 
@@ -868,7 +880,13 @@ defmodule Journey.Executions do
     from(e in query,
       join: v in Journey.Persistence.Schema.Execution.Value,
       on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
-      where: fragment("jsonb_typeof(?) = 'number' AND (?)::numeric > ?", v.node_value, v.node_value, ^value)
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric > ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
     )
   end
 
@@ -884,7 +902,13 @@ defmodule Journey.Executions do
     from(e in query,
       join: v in Journey.Persistence.Schema.Execution.Value,
       on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
-      where: fragment("jsonb_typeof(?) = 'number' AND (?)::numeric >= ?", v.node_value, v.node_value, ^value)
+      where:
+        fragment(
+          "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric >= ? ELSE false END",
+          v.node_value,
+          v.node_value,
+          ^value
+        )
     )
   end
 
