@@ -50,8 +50,7 @@ defmodule Journey.JourneyListExecutionsTest do
       some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :in, [20, 22]}])
       assert Enum.count(some_executions) == 2
 
-      neq = fn node_value, val -> node_value != val end
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, neq, 1}])
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :neq, 1}])
       assert Enum.count(some_executions) == 99
 
       some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_not_nil}])
@@ -60,8 +59,7 @@ defmodule Journey.JourneyListExecutionsTest do
       some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_nil}])
       assert some_executions == []
 
-      is_one = fn node_value -> node_value == 1 end
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, is_one}])
+      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 1}])
       assert Enum.count(some_executions) == 1
     end
 

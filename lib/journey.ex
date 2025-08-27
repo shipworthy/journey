@@ -559,9 +559,8 @@ defmodule Journey do
   ## Options
 
   ### `:value_filters`
-  Filter executions by node values. Each filter is a tuple with one of these formats:
-  * `{node_name, operator, value}` - Compare node value with a specific value
-  * `{node_name, function}` - Apply custom function to node value
+  Filter executions by node values using database-level filtering for optimal performance.
+  Each filter is a tuple: `{node_name, operator, value}`
 
   Supported operators:
   * `:eq` - Equal to
@@ -575,9 +574,8 @@ defmodule Journey do
   * `:is_nil` - Value is nil
   * `:is_not_nil` - Value is not nil
 
-  Custom functions can have signatures:
-  * `fn(node_value, comparison_value) -> boolean` for binary comparisons
-  * `fn(node_value) -> boolean` for unary checks
+  **Supported value types:** integers, strings, booleans, nil, and lists (for :in/:not_in).
+  Complex values (maps, tuples, functions) will raise an ArgumentError.
 
   ### `:order_by_execution_fields`
   List of execution fields to sort by with optional direction specification.
@@ -599,10 +597,8 @@ defmodule Journey do
   * `:desc` - Descending order
 
   ## Key Behaviors
-  * **Two-phase filtering** - Database filters (graph_name, archived, sorting) are applied first,
-    then in-memory filtering for node values
-  * **Performance consideration** - Value filters are applied in memory after database query,
-    so use `:limit` wisely with large datasets
+  * **Database-level filtering** - All filters (graph_name, value_filters, archived, sorting) are applied at the database level for optimal performance
+  * **Type safety** - Only primitive value types are supported for filtering; complex types will raise errors
   * **Archive handling** - Archived executions are excluded by default for performance
   * **Stable ordering** - Results are consistently ordered by specified fields
 
@@ -702,19 +698,19 @@ defmodule Journey do
   3
   ```
 
-  Using custom filter functions:
+  Advanced value filtering with operators:
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
   iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-  iex> # Binary comparison function
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a, b -> a == b end, 10}]) |> Enum.count()
+  iex> # Equality comparison
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 10}]) |> Enum.count()
   1
-  iex> # Unary check function
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn a -> a in [9, 12] end}]) |> Enum.count()
+  iex> # List membership check
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :in, [9, 12]}]) |> Enum.count()
   2
-  iex> # Check for even days
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, fn day -> rem(day, 2) == 0 end}]) |> Enum.count()
+  iex> # Range filtering
+  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 10}]) |> Enum.count()
   10
   ```
 
