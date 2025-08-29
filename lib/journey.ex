@@ -547,7 +547,7 @@ defmodule Journey do
     * `:graph_name` - String name of a specific graph to filter by
     * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
     * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
-    * `:filter_by` - List of node value filters (see Filtering section for details)
+    * `:filter_by` - List of node value filters using database-level filtering for optimal performance. Each filter is a tuple `{node_name, operator, value}` or `{node_name, operator}` for nil checks. Operators: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte` (comparisons), `:in`, `:not_in` (membership), `:is_nil`, `:is_not_nil` (existence). Values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`). Complex values (maps, tuples, functions) will raise an ArgumentError.
     * `:limit` - Maximum number of results (default: 10,000)
     * `:offset` - Number of results to skip for pagination (default: 0)
     * `:include_archived` - Whether to include archived executions (default: false)
@@ -557,25 +557,6 @@ defmodule Journey do
   * Empty list `[]` if no executions match the criteria
 
   ## Options
-
-  ### `:filter_by`
-  Filter executions by node values using database-level filtering for optimal performance.
-  Each filter is a tuple: `{node_name, operator, value}`
-
-  Supported operators:
-  * `:eq` - Equal to
-  * `:neq` - Not equal to
-  * `:lt` - Less than
-  * `:lte` - Less than or equal
-  * `:gt` - Greater than
-  * `:gte` - Greater than or equal
-  * `:in` - Value in list
-  * `:not_in` - Value not in list
-  * `:is_nil` - Value is nil
-  * `:is_not_nil` - Value is not nil
-
-  **Supported value types:** integers, strings, booleans, nil, and lists (for :in/:not_in).
-  Complex values (maps, tuples, functions) will raise an ArgumentError.
 
   ### `:sort_by`
   Sort by execution fields or node values. Supports atoms for ascending (`[:updated_at]`), 
@@ -587,8 +568,8 @@ defmodule Journey do
   * Direction: `:asc` (default) or `:desc`
 
   ## Key Behaviors
-  * Database-level filtering for optimal performance
-  * Only primitive value types supported for filtering (complex types raise errors)
+  * Filtering performed at database level for optimal performance
+  * Only primitive values supported for filtering (complex types raise errors)
   * Archived executions excluded by default
 
   ## Examples
@@ -658,59 +639,42 @@ defmodule Journey do
   ["medium", "low", "high"]
   ```
 
-  Filtering with comparison operators:
+  Filtering with multiple operators:
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
   iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-  iex> executions = Journey.list_executions(graph_name: graph.name, sort_by: [:inserted_at])
-  iex> Enum.count(executions)
-  20
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :eq, 1}]) |> Enum.count()
-  1
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :neq, 1}]) |> Enum.count()
-  19
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :gt, 7}]) |> Enum.count()
-  13
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :gte, 7}]) |> Enum.count()
-  14
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :lt, 7}]) |> Enum.count()
-  6
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :lte, 7}]) |> Enum.count()
-  7
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [5, 10, 15]}]) |> Enum.count()
-  3
-  ```
-
-  Advanced value filtering with operators:
-
-  ```elixir
-  iex> graph = Journey.Examples.Horoscope.graph()
-  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-  iex> # Equality comparison
+  iex> # Various filtering examples
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :eq, 10}]) |> Enum.count()
   1
-  iex> # List membership check
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [9, 12]}]) |> Enum.count()
-  2
-  iex> # Range filtering
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :lte, 10}]) |> Enum.count()
-  10
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :neq, 10}]) |> Enum.count()
+  19
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :lte, 5}]) |> Enum.count()
+  5
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [5, 10, 15]}]) |> Enum.count()
+  3
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_not_nil}]) |> Enum.count()
+  20
   ```
 
-  Pagination and limits:
+  Multiple filters, sorting, and pagination:
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
   iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
+  iex> # Multiple filters combined
+  iex> Journey.list_executions(
+  ...>   graph_name: graph.name,
+  ...>   filter_by: [{:birth_day, :gt, 10}, {:first_name, :is_not_nil}],
+  ...>   sort_by: [birth_day: :desc],
+  ...>   limit: 5
+  ...> ) |> Enum.count()
+  5
+  iex> # Pagination
   iex> Journey.list_executions(graph_name: graph.name, limit: 3) |> Enum.count()
   3
-  iex> Journey.list_executions(graph_name: graph.name, limit: 10, offset: 15) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, limit: 5, offset: 10) |> Enum.count()
   5
-  iex> page1 = Journey.list_executions(graph_name: graph.name, limit: 5, offset: 0)
-  iex> page2 = Journey.list_executions(graph_name: graph.name, limit: 5, offset: 5)
-  iex> length(page1) == 5 and length(page2) == 5
-  true
   ```
 
   Including archived executions:
