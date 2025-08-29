@@ -578,32 +578,18 @@ defmodule Journey do
   Complex values (maps, tuples, functions) will raise an ArgumentError.
 
   ### `:sort_by`
-  List of fields to sort by, supporting both execution fields and node values with optional direction specification.
+  Sort by execution fields or node values. Supports atoms for ascending (`[:updated_at]`), 
+  keywords for direction (`[updated_at: :desc]`), and mixed formats (`[:graph_name, inserted_at: :desc]`).
 
-  **Formats:**
-  * **Atom format**: Bare atoms default to ascending - `[:updated_at, :age, :score]`
-  * **Keyword format**: Explicit direction specification - `[updated_at: :desc, age: :asc]`
-  * **Mixed format**: Both can be combined - `[:graph_name, priority: :desc, :inserted_at]`
-
-  **Available execution fields:**
-  * `:inserted_at` - When execution was created
-  * `:updated_at` - Last modification time
-  * `:revision` - Current revision number
-  * `:graph_name` - Name of the graph
-  * `:graph_version` - Version of the graph
-
-  **Node value fields:**
-  * Any node name from the graph (e.g., `:age`, `:score`) using PostgreSQL's JSONB natural ordering
-
-  **Sort directions:**
-  * `:asc` - Ascending order (default for atom format)
-  * `:desc` - Descending order
+  **Available fields:**
+  * Execution fields: `:inserted_at`, `:updated_at`, `:revision`, `:graph_name`, `:graph_version`
+  * Node values: Any node name from the graph (e.g., `:age`, `:score`) using JSONB ordering
+  * Direction: `:asc` (default) or `:desc`
 
   ## Key Behaviors
-  * **Database-level filtering** - All filters (graph_name, value_filters, archived, sorting) are applied at the database level for optimal performance
-  * **Type safety** - Only primitive value types are supported for filtering; complex types will raise errors
-  * **Archive handling** - Archived executions are excluded by default for performance
-  * **Stable ordering** - Results are consistently ordered by specified fields
+  * Database-level filtering for optimal performance
+  * Only primitive value types supported for filtering (complex types raise errors)
+  * Archived executions excluded by default
 
   ## Examples
 
@@ -655,7 +641,7 @@ defmodule Journey do
   ** (ArgumentError) Option :graph_version requires :graph_name to be specified
   ```
 
-  Sorting with direction specification:
+  Sorting by execution fields and node values:
 
   ```elixir
   iex> import Journey.Node
@@ -666,15 +652,10 @@ defmodule Journey do
   ...> )
   iex> Journey.start_execution(graph) |> Journey.set_value(:priority, "high")
   iex> Journey.start_execution(graph) |> Journey.set_value(:priority, "low")
-  iex> # Atom format (defaults to ascending)
-  iex> Journey.list_executions(graph_name: graph.name, sort_by: [:inserted_at]) |> length()
-  2
-  iex> # Keyword format with descending order
-  iex> Journey.list_executions(graph_name: graph.name, sort_by: [inserted_at: :desc]) |> length()
-  2
-  iex> # Mixed format: atom and keyword
-  iex> Journey.list_executions(graph_name: graph.name, sort_by: [:graph_name, inserted_at: :desc]) |> length()
-  2
+  iex> Journey.start_execution(graph) |> Journey.set_value(:priority, "medium")
+  iex> # Sort by priority descending - shows the actual sorted values
+  iex> Journey.list_executions(graph_name: graph.name, sort_by: [priority: :desc]) |> Enum.map(fn e -> Journey.values(e) |> Map.get(:priority) end)
+  ["medium", "low", "high"]
   ```
 
   Filtering with comparison operators:
