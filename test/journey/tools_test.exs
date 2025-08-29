@@ -240,6 +240,9 @@ defmodule Journey.ToolsTest do
       # Set value to trigger computations
       execution = Journey.set_value(execution, :value, 10)
 
+      # Start background sweeps to process computations
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+
       # Get values to trigger computations
       {:ok, _} = Journey.get_value(execution, :success_node, wait_new: true)
       # The fail_node will fail
@@ -261,6 +264,8 @@ defmodule Journey.ToolsTest do
       assert Journey.Tools.computation_state_to_text(:success) == "✅ :success"
       assert Journey.Tools.computation_state_to_text(:failed) == "❌ :failed"
       assert Journey.Tools.computation_state_to_text(:not_set) == "⬜ :not_set (not yet attempted)"
+
+      stop_background_sweeps_in_test(background_sweeps_task)
     end
 
     test "formats complex not conditions in mixed logical operators" do
