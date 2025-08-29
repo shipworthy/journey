@@ -1,6 +1,7 @@
 defmodule Journey.ToolsTest do
   use ExUnit.Case, async: true
 
+  import Journey.Helpers.Random, only: [random_string: 0]
   import Journey.Node
   import Journey.Node.Conditions
   import Journey.Executions, only: [find_computations_by_node_name: 2]
@@ -224,7 +225,7 @@ defmodule Journey.ToolsTest do
     test "uses emoji format for computation states" do
       # Create a graph with multiple compute nodes
       graph =
-        Journey.new_graph("emoji test graph", "v1.0.0", [
+        Journey.new_graph("emoji test graph #{random_string()}", "v1.0.0", [
           input(:value),
           compute(:success_node, [:value], fn %{value: v} -> {:ok, v * 2} end),
           compute(:fail_node, [:value], fn _deps -> {:error, "intentional failure"} end)
@@ -271,7 +272,7 @@ defmodule Journey.ToolsTest do
     test "formats complex not conditions in mixed logical operators" do
       # Create a comprehensive graph with various :not condition combinations
       graph =
-        Journey.new_graph("Complex Not Conditions Test", "v1.0.0", [
+        Journey.new_graph("Complex Not Conditions Test #{random_string()}", "v1.0.0", [
           # Input nodes
           input(:user_applied),
           input(:user_approved),
@@ -356,7 +357,7 @@ defmodule Journey.ToolsTest do
       expected_output = """
       Execution summary:
       - ID: '#{execution.id}'
-      - Graph: 'Complex Not Conditions Test' | 'v1.0.0'
+      - Graph: '#{graph.name}' | 'v1.0.0'
       - Archived at: not archived
       - Created at: REDACTED UTC | REDACTED seconds ago
       - Last updated at: REDACTED UTC | REDACTED seconds ago
@@ -618,7 +619,7 @@ defmodule Journey.ToolsTest do
     test "allows retrying failed computations after max_retries exhausted" do
       # Create a graph with a computation that can fail
       graph =
-        Journey.new_graph("retry test", "v1", [
+        Journey.new_graph("retry test #{random_string()}", "v1", [
           input(:trigger),
           compute(
             :failing_computation,
@@ -671,7 +672,7 @@ defmodule Journey.ToolsTest do
     test "raises error when no upstream dependencies with values found" do
       # Create a graph with a computation that has no upstream values set
       graph =
-        Journey.new_graph("no upstream test", "v1", [
+        Journey.new_graph("no upstream test #{random_string()}", "v1", [
           input(:missing_trigger),
           compute(:dependent_computation, [:missing_trigger], fn %{missing_trigger: val} ->
             {:ok, val}
