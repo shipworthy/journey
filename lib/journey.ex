@@ -657,9 +657,11 @@ defmodule Journey do
   20
   ```
 
-  Pagination, limits, and multiple filters:
+  Multiple filters, sorting, and pagination:
 
   ```elixir
+  iex> graph = Journey.Examples.Horoscope.graph()
+  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
   iex> # Multiple filters combined
   iex> Journey.list_executions(
   ...>   graph_name: graph.name,
@@ -668,11 +670,7 @@ defmodule Journey do
   ...>   limit: 5
   ...> ) |> Enum.count()
   5
-  ```
-
-  Pagination:
-
-  ```elixir
+  iex> # Pagination
   iex> Journey.list_executions(graph_name: graph.name, limit: 3) |> Enum.count()
   3
   iex> Journey.list_executions(graph_name: graph.name, limit: 5, offset: 10) |> Enum.count()
