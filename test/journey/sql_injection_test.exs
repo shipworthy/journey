@@ -40,13 +40,13 @@ defmodule Journey.SqlInjectionTest do
       # Test each malicious payload - all should be safely handled without SQL injection
       for payload <- malicious_payloads do
         # All string payloads should be safely parameterized (no crashes or injection)
-        result = Journey.list_executions(graph_name: graph.name, value_filters: [{:name, :eq, payload}])
+        result = Journey.list_executions(graph_name: graph.name, filter_by: [{:name, :eq, payload}])
         assert is_list(result)
         # Should find no matches for malicious strings
         assert Enum.empty?(result)
 
         # Numeric field with string payload should also be safely handled
-        result2 = Journey.list_executions(graph_name: graph.name, value_filters: [{:test_field, :gt, payload}])
+        result2 = Journey.list_executions(graph_name: graph.name, filter_by: [{:test_field, :gt, payload}])
         assert is_list(result2)
         # Should find no matches
         assert Enum.empty?(result2)
@@ -54,7 +54,7 @@ defmodule Journey.SqlInjectionTest do
 
       # Test that complex objects are properly rejected
       assert_raise ArgumentError, ~r/Unsupported value type/, fn ->
-        Journey.list_executions(graph_name: graph.name, value_filters: [{:name, :eq, %{evil: "payload"}}])
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:name, :eq, %{evil: "payload"}}])
       end
     end
 
@@ -77,7 +77,7 @@ defmodule Journey.SqlInjectionTest do
 
       for malicious_node <- malicious_node_names do
         # Malicious node names should be safely handled - return empty results, no SQL injection
-        result = Journey.list_executions(graph_name: graph.name, value_filters: [{malicious_node, :eq, "test"}])
+        result = Journey.list_executions(graph_name: graph.name, filter_by: [{malicious_node, :eq, "test"}])
         assert is_list(result)
         # Should find no matches for non-existent nodes
         assert Enum.empty?(result)
@@ -119,7 +119,7 @@ defmodule Journey.SqlInjectionTest do
       result =
         Journey.list_executions(
           graph_name: graph.name,
-          value_filters: [
+          filter_by: [
             # legitimate
             {:num_field, :gt, 30},
             # malicious but safely parameterized
@@ -137,7 +137,7 @@ defmodule Journey.SqlInjectionTest do
       assert_raise ArgumentError, ~r/Unsupported value type/, fn ->
         Journey.list_executions(
           graph_name: graph.name,
-          value_filters: [
+          filter_by: [
             {:num_field, :gt, %{malicious: "object"}}
           ]
         )
@@ -147,7 +147,7 @@ defmodule Journey.SqlInjectionTest do
       result =
         Journey.list_executions(
           graph_name: graph.name,
-          value_filters: [
+          filter_by: [
             {:num_field, :gte, 40},
             {:str_field, :neq, "different_string"}
           ]
@@ -182,7 +182,7 @@ defmodule Journey.SqlInjectionTest do
 
       for injection <- injection_attempts do
         # These should not modify the database
-        result = Journey.list_executions(graph_name: graph.name, value_filters: [{:test_field, :eq, injection}])
+        result = Journey.list_executions(graph_name: graph.name, filter_by: [{:test_field, :eq, injection}])
         assert is_list(result)
       end
 
@@ -224,7 +224,7 @@ defmodule Journey.SqlInjectionTest do
 
       # Verify we can filter by these values safely
       for value <- special_values do
-        result = Journey.list_executions(graph_name: graph.name, value_filters: [{:text_field, :eq, value}])
+        result = Journey.list_executions(graph_name: graph.name, filter_by: [{:text_field, :eq, value}])
         assert length(result) == 1
 
         found_exec = hd(result)
@@ -232,7 +232,7 @@ defmodule Journey.SqlInjectionTest do
       end
 
       # Test string comparisons with special characters
-      result = Journey.list_executions(graph_name: graph.name, value_filters: [{:text_field, :lt, "text with zzz"}])
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:text_field, :lt, "text with zzz"}])
       assert length(result) == length(special_values)
     end
   end

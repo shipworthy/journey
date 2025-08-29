@@ -536,7 +536,7 @@ defmodule Journey do
   # Find executions where age > 18
   adults = Journey.list_executions(
     graph_name: "user_registration",
-    value_filters: [{:age, :gt, 18}]
+    filter_by: [{:age, :gt, 18}]
   )
   ```
 
@@ -547,7 +547,7 @@ defmodule Journey do
     * `:graph_name` - String name of a specific graph to filter by
     * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
     * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
-    * `:value_filters` - List of node value filters (see Filtering section for details)
+    * `:filter_by` - List of node value filters (see Filtering section for details)
     * `:limit` - Maximum number of results (default: 10,000)
     * `:offset` - Number of results to skip for pagination (default: 0)
     * `:include_archived` - Whether to include archived executions (default: false)
@@ -558,7 +558,7 @@ defmodule Journey do
 
   ## Options
 
-  ### `:value_filters`
+  ### `:filter_by`
   Filter executions by node values using database-level filtering for optimal performance.
   Each filter is a tuple: `{node_name, operator, value}`
 
@@ -666,19 +666,19 @@ defmodule Journey do
   iex> executions = Journey.list_executions(graph_name: graph.name, sort_by: [:inserted_at])
   iex> Enum.count(executions)
   20
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 1}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :eq, 1}]) |> Enum.count()
   1
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :neq, 1}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :neq, 1}]) |> Enum.count()
   19
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gt, 7}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :gt, 7}]) |> Enum.count()
   13
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :gte, 7}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :gte, 7}]) |> Enum.count()
   14
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lt, 7}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :lt, 7}]) |> Enum.count()
   6
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 7}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :lte, 7}]) |> Enum.count()
   7
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :in, [5, 10, 15]}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [5, 10, 15]}]) |> Enum.count()
   3
   ```
 
@@ -688,13 +688,13 @@ defmodule Journey do
   iex> graph = Journey.Examples.Horoscope.graph()
   iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
   iex> # Equality comparison
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 10}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :eq, 10}]) |> Enum.count()
   1
   iex> # List membership check
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :in, [9, 12]}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [9, 12]}]) |> Enum.count()
   2
   iex> # Range filtering
-  iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :lte, 10}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :lte, 10}]) |> Enum.count()
   10
   ```
 
@@ -740,13 +740,16 @@ defmodule Journey do
       :sort_by,
       # Undocumented alias for backwards compatibility
       :order_by_execution_fields,
+      :filter_by,
+      # Deprecated alias for backwards compatibility
       :value_filters,
       :limit,
       :offset,
       :include_archived
     ])
 
-    value_filters = Keyword.get(options, :value_filters, [])
+    # Handle filter_by taking precedence over value_filters (deprecated)
+    filter_by = options[:filter_by] || options[:value_filters] || []
     limit = Keyword.get(options, :limit, 10_000)
     offset = Keyword.get(options, :offset, 0)
 
@@ -763,7 +766,7 @@ defmodule Journey do
       raise ArgumentError, "Option :graph_version requires :graph_name to be specified"
     end
 
-    Journey.Executions.list(graph_name, graph_version, sort_by, value_filters, limit, offset, include_archived)
+    Journey.Executions.list(graph_name, graph_version, sort_by, filter_by, limit, offset, include_archived)
   end
 
   @doc """

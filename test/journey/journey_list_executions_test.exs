@@ -29,37 +29,37 @@ defmodule Journey.JourneyListExecutionsTest do
       listed_executions = Journey.list_executions(graph_name: graph.name)
       assert Enum.count(listed_executions) == 100
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :lt, 20}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :lt, 20}])
       assert Enum.count(some_executions) == 19
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :lte, 20}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :lte, 20}])
       assert Enum.count(some_executions) == 20
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 50}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, 50}])
       assert Enum.count(some_executions) == 1
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :neq, 50}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :neq, 50}])
       assert Enum.count(some_executions) == 99
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :gt, 60}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :gt, 60}])
       assert Enum.count(some_executions) == 40
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :gte, 60}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :gte, 60}])
       assert Enum.count(some_executions) == 41
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :in, [20, 22]}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :in, [20, 22]}])
       assert Enum.count(some_executions) == 2
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :neq, 1}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :neq, 1}])
       assert Enum.count(some_executions) == 99
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_not_nil}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_not_nil}])
       assert Enum.count(some_executions) == 100
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :is_nil}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_nil}])
       assert some_executions == []
 
-      some_executions = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 1}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, 1}])
       assert Enum.count(some_executions) == 1
     end
 
@@ -116,7 +116,7 @@ defmodule Journey.JourneyListExecutionsTest do
 
     test "unexpected option" do
       assert_raise ArgumentError,
-                   "Unknown options: [:graph]. Known options: [:graph_name, :graph_version, :include_archived, :limit, :offset, :order_by_execution_fields, :sort_by, :value_filters].",
+                   "Unknown options: [:graph]. Known options: [:filter_by, :graph_name, :graph_version, :include_archived, :limit, :offset, :order_by_execution_fields, :sort_by, :value_filters].",
                    fn ->
                      Journey.list_executions(graph: "no_such_graph")
                    end
@@ -325,12 +325,12 @@ defmodule Journey.JourneyListExecutionsTest do
       exec_300 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 300)
 
       # String filtering should only match string values
-      string_eq_results = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, "alice"}])
+      string_eq_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, "alice"}])
       assert length(string_eq_results) == 1
       assert hd(string_eq_results).id == exec_alice.id
 
       string_lt_results =
-        Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :lt, "charlie"}])
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :lt, "charlie"}])
 
       # "alice" and "bob" are < "charlie"
       assert length(string_lt_results) == 2
@@ -339,11 +339,11 @@ defmodule Journey.JourneyListExecutionsTest do
       assert string_ids == expected_string_ids
 
       # Integer filtering should only match numeric values
-      int_eq_results = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 200}])
+      int_eq_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, 200}])
       assert length(int_eq_results) == 1
       assert hd(int_eq_results).id == exec_200.id
 
-      int_gt_results = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :gt, 150}])
+      int_gt_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :gt, 150}])
       # 200 and 300 are > 150
       assert length(int_gt_results) == 2
       int_ids = Enum.map(int_gt_results, & &1.id) |> Enum.sort()
@@ -352,11 +352,11 @@ defmodule Journey.JourneyListExecutionsTest do
 
       # Cross-type queries return empty (no errors)
       # Query for numeric value against string data - should find nothing
-      cross_type_numeric = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, 999}])
+      cross_type_numeric = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, 999}])
       assert Enum.empty?(cross_type_numeric)
 
       # Query for string value against numeric data - should find nothing
-      cross_type_string = Journey.list_executions(graph_name: graph.name, value_filters: [{:first_name, :eq, "999"}])
+      cross_type_string = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, "999"}])
       assert Enum.empty?(cross_type_string)
 
       # Verify total count is still correct
