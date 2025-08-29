@@ -49,6 +49,32 @@ defmodule Journey.Graph.Validations do
     end
   end
 
+  def ensure_known_node_names(graph_name, graph_version, node_names)
+      when is_binary(graph_name) and is_binary(graph_version) and is_list(node_names) do
+    graph = Journey.Graph.Catalog.fetch(graph_name, graph_version)
+
+    if graph do
+      validate_node_names_against_graph(graph, node_names)
+    else
+      raise ArgumentError,
+            "Graph '#{graph_name}' version '#{graph_version}' not found. " <>
+              "Graphs must be created with Journey.new_graph/3 or registered in config: " <>
+              "config :journey, :graphs, [function_that_returns_graph]"
+    end
+  end
+
+  defp validate_node_names_against_graph(graph, node_names) do
+    all_node_names = graph.nodes |> Enum.map(& &1.name)
+
+    Enum.each(node_names, fn node_name ->
+      unless node_name in all_node_names do
+        raise ArgumentError,
+              "Sort field :#{node_name} does not exist in graph '#{graph.name}' version '#{graph.version}'. " <>
+                "Available nodes: #{inspect(Enum.sort(all_node_names))}"
+      end
+    end)
+  end
+
   defp validate_dependencies(graph) do
     all_node_names = Enum.map(graph.nodes, & &1.name)
     graph.nodes |> Enum.each(fn node -> validate_node(node, all_node_names) end)

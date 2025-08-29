@@ -116,7 +116,7 @@ defmodule Journey.JourneyListExecutionsTest do
 
     test "unexpected option" do
       assert_raise ArgumentError,
-                   "Unknown options: [:graph]. Known options: [:graph_name, :graph_version, :include_archived, :limit, :offset, :order_by_execution_fields, :value_filters].",
+                   "Unknown options: [:graph]. Known options: [:graph_name, :graph_version, :include_archived, :limit, :offset, :order_by_execution_fields, :sort_by, :value_filters].",
                    fn ->
                      Journey.list_executions(graph: "no_such_graph")
                    end
@@ -363,6 +363,235 @@ defmodule Journey.JourneyListExecutionsTest do
       all_results = Journey.list_executions(graph_name: graph.name)
       # 3 string + 3 integer executions
       assert length(all_results) == 6
+    end
+
+    test "sort_by with value fields" do
+      graph = basic_graph(random_string())
+
+      # Create executions with different first_name values
+      exec_3 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 3)
+      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 1)
+      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 2)
+
+      # Sort by value field ascending
+      asc_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [:first_name]
+        )
+
+      asc_ids = Enum.map(asc_results, & &1.id)
+      assert asc_ids == [exec_1.id, exec_2.id, exec_3.id]
+
+      # Sort by value field descending
+      desc_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [{:first_name, :desc}]
+        )
+
+      desc_ids = Enum.map(desc_results, & &1.id)
+      assert desc_ids == [exec_3.id, exec_2.id, exec_1.id]
+    end
+
+    test "sort_by mixing execution and value fields" do
+      test_id = random_string()
+      graph = basic_graph(test_id)
+
+      # Create executions with different values
+      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice")
+      Process.sleep(1100)
+      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "bob")
+      Process.sleep(1100)
+      exec_3 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice")
+
+      # Sort by value field first, then by execution field
+      results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [:first_name, :inserted_at]
+        )
+
+      ids = Enum.map(results, & &1.id)
+      # Should be sorted by first_name first (alice, alice, bob), then by inserted_at
+      assert ids == [exec_1.id, exec_3.id, exec_2.id]
+
+      # Sort by value field descending, then execution field
+      results_desc =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [{:first_name, :desc}, :inserted_at]
+        )
+
+      ids_desc = Enum.map(results_desc, & &1.id)
+      # Should be sorted by first_name desc (bob, alice, alice), then by inserted_at
+      assert ids_desc == [exec_2.id, exec_1.id, exec_3.id]
+    end
+
+    test "sort_by with NULL values" do
+      graph = basic_graph(random_string())
+
+      # Create executions - some with values, some without
+      # No first_name set
+      _exec_nil_1 = Journey.start_execution(graph)
+      _exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 2)
+      # No first_name set
+      _exec_nil_2 = Journey.start_execution(graph)
+      _exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 1)
+
+      # Sort ascending - check the order is correct
+      asc_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [:first_name]
+        )
+
+      # Get the actual first_name values in the sorted order
+      asc_values =
+        asc_results
+        |> Enum.map(fn execution ->
+          case Enum.find(execution.values, fn v -> v.node_name == :first_name end) do
+            nil -> :null
+            %{set_time: nil} -> :null
+            %{node_value: value} -> value
+          end
+        end)
+
+      # For JSONB NULL values, PostgreSQL puts NULLs at the end for ASC
+      expected_asc_order = [1, 2, :null, :null]
+      assert asc_values == expected_asc_order
+
+      # Sort descending - check the order is correct
+      desc_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [first_name: :desc]
+        )
+
+      desc_values =
+        desc_results
+        |> Enum.map(fn execution ->
+          case Enum.find(execution.values, fn v -> v.node_name == :first_name end) do
+            nil -> :null
+            %{set_time: nil} -> :null
+            %{node_value: value} -> value
+          end
+        end)
+
+      # For JSONB NULL values with DESC, PostgreSQL puts NULLs at the beginning
+      expected_desc_order = [:null, :null, 2, 1]
+      assert desc_values == expected_desc_order
+    end
+
+    test "sort_by validates non-existent value fields" do
+      graph = basic_graph(random_string())
+      Journey.start_execution(graph)
+
+      # Should raise error for non-existent field
+      assert_raise ArgumentError, ~r/Sort field :nonexistent does not exist/, fn ->
+        Journey.list_executions(
+          graph_name: graph.name,
+          graph_version: "1.0.0",
+          sort_by: [:nonexistent]
+        )
+      end
+    end
+
+    test "order_by_execution_fields still works as alias" do
+      graph = basic_graph(random_string())
+
+      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "first")
+      Process.sleep(1100)
+      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "second")
+
+      # Old parameter should still work
+      results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          order_by_execution_fields: [:inserted_at]
+        )
+
+      ids = Enum.map(results, & &1.id)
+      assert ids == [exec_1.id, exec_2.id]
+    end
+
+    test "sort_by takes precedence over order_by_execution_fields" do
+      graph = basic_graph(random_string())
+
+      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 1)
+      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 2)
+
+      # When both are provided, sort_by should win
+      results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [{:first_name, :desc}],
+          # This should be ignored
+          order_by_execution_fields: [:first_name]
+        )
+
+      ids = Enum.map(results, & &1.id)
+      # Descending order from sort_by
+      assert ids == [exec_2.id, exec_1.id]
+    end
+
+    test "sort_by with multiple value fields" do
+      # Create a dedicated graph with two input nodes for this test
+      test_id = random_string()
+      graph_name = "multi_value_sort_test_#{test_id}"
+
+      graph =
+        Journey.new_graph(
+          graph_name,
+          "1.0.0",
+          [
+            input(:priority),
+            input(:first_name)
+          ]
+        )
+
+      # Create test data with combinations that clearly show precedence
+      # Priority "high" + names "bob", "alice" (different insertion order to test sorting)
+      exec_high_bob =
+        Journey.start_execution(graph) |> Journey.set_value(:priority, "high") |> Journey.set_value(:first_name, "bob")
+
+      exec_high_alice =
+        Journey.start_execution(graph)
+        |> Journey.set_value(:priority, "high")
+        |> Journey.set_value(:first_name, "alice")
+
+      # Priority "low" + names "charlie", "alice"
+      exec_low_charlie =
+        Journey.start_execution(graph)
+        |> Journey.set_value(:priority, "low")
+        |> Journey.set_value(:first_name, "charlie")
+
+      exec_low_alice =
+        Journey.start_execution(graph) |> Journey.set_value(:priority, "low") |> Journey.set_value(:first_name, "alice")
+
+      # Test ascending sort: [:priority, :first_name]
+      # Should group by priority first ("high", then "low"), then by first_name within each group
+      asc_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [:priority, :first_name]
+        )
+
+      asc_ids = Enum.map(asc_results, & &1.id)
+      # Expected: high priority group (alice, bob), then low priority group (alice, charlie)
+      assert asc_ids == [exec_high_alice.id, exec_high_bob.id, exec_low_alice.id, exec_low_charlie.id]
+
+      # Test mixed directions: [priority: :desc, first_name: :asc]
+      # Should put "low" priority first (desc), then "high", with names ascending within each group
+      mixed_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          sort_by: [priority: :desc, first_name: :asc]
+        )
+
+      mixed_ids = Enum.map(mixed_results, & &1.id)
+      # Expected: low priority group (alice, charlie), then high priority group (alice, bob)
+      assert mixed_ids == [exec_low_alice.id, exec_low_charlie.id, exec_high_alice.id, exec_high_bob.id]
     end
   end
 

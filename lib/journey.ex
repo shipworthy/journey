@@ -546,8 +546,8 @@ defmodule Journey do
   * `options` - Keyword list of query options (all optional):
     * `:graph_name` - String name of a specific graph to filter by
     * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
-    * `:order_by_execution_fields` - List of fields to sort by (e.g., `[:updated_at]`, `[:inserted_at]`)
-    * `:value_filters` - List of node value filters (see Options section for details)
+    * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
+    * `:value_filters` - List of node value filters (see Filtering section for details)
     * `:limit` - Maximum number of results (default: 10,000)
     * `:offset` - Number of results to skip for pagination (default: 0)
     * `:include_archived` - Whether to include archived executions (default: false)
@@ -577,20 +577,23 @@ defmodule Journey do
   **Supported value types:** integers, strings, booleans, nil, and lists (for :in/:not_in).
   Complex values (maps, tuples, functions) will raise an ArgumentError.
 
-  ### `:order_by_execution_fields`
-  List of execution fields to sort by with optional direction specification.
+  ### `:sort_by`
+  List of fields to sort by, supporting both execution fields and node values with optional direction specification.
 
   **Formats:**
-  * **Atom format**: Bare atoms default to ascending - `[:updated_at, :inserted_at]`
-  * **Tuple format**: Explicit direction specification - `[updated_at: :desc, inserted_at: :asc]`
-  * **Mixed format**: Both can be combined - `[:graph_name, inserted_at: :desc]`
+  * **Atom format**: Bare atoms default to ascending - `[:updated_at, :age, :score]`
+  * **Keyword format**: Explicit direction specification - `[updated_at: :desc, age: :asc]`
+  * **Mixed format**: Both can be combined - `[:graph_name, priority: :desc, :inserted_at]`
 
-  **Available fields:**
+  **Available execution fields:**
   * `:inserted_at` - When execution was created
   * `:updated_at` - Last modification time
   * `:revision` - Current revision number
   * `:graph_name` - Name of the graph
   * `:graph_version` - Version of the graph
+
+  **Node value fields:**
+  * Any node name from the graph (e.g., `:age`, `:score`) using PostgreSQL's JSONB natural ordering
 
   **Sort directions:**
   * `:asc` - Ascending order (default for atom format)
@@ -664,13 +667,13 @@ defmodule Journey do
   iex> Journey.start_execution(graph) |> Journey.set_value(:priority, "high")
   iex> Journey.start_execution(graph) |> Journey.set_value(:priority, "low")
   iex> # Atom format (defaults to ascending)
-  iex> Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:inserted_at]) |> length()
+  iex> Journey.list_executions(graph_name: graph.name, sort_by: [:inserted_at]) |> length()
   2
-  iex> # Tuple format with descending order
-  iex> Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [inserted_at: :desc]) |> length()
+  iex> # Keyword format with descending order
+  iex> Journey.list_executions(graph_name: graph.name, sort_by: [inserted_at: :desc]) |> length()
   2
-  iex> # Mixed format: atom and tuple
-  iex> Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:graph_name, inserted_at: :desc]) |> length()
+  iex> # Mixed format: atom and keyword
+  iex> Journey.list_executions(graph_name: graph.name, sort_by: [:graph_name, inserted_at: :desc]) |> length()
   2
   ```
 
@@ -679,7 +682,7 @@ defmodule Journey do
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
   iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set_value(:birth_day, day) |> Journey.set_value(:birth_month, 4) |> Journey.set_value(:first_name, "Mario")
-  iex> executions = Journey.list_executions(graph_name: graph.name, order_by_execution_fields: [:inserted_at])
+  iex> executions = Journey.list_executions(graph_name: graph.name, sort_by: [:inserted_at])
   iex> Enum.count(executions)
   20
   iex> Journey.list_executions(graph_name: graph.name, value_filters: [{:birth_day, :eq, 1}]) |> Enum.count()
@@ -753,6 +756,8 @@ defmodule Journey do
     check_options(options, [
       :graph_name,
       :graph_version,
+      :sort_by,
+      # Undocumented alias for backwards compatibility
       :order_by_execution_fields,
       :value_filters,
       :limit,
@@ -766,7 +771,10 @@ defmodule Journey do
 
     graph_name = Keyword.get(options, :graph_name, nil)
     graph_version = Keyword.get(options, :graph_version, nil)
-    order_by_field = Keyword.get(options, :order_by_execution_fields, [:updated_at])
+
+    # Handle sort_by taking precedence over order_by_execution_fields
+    sort_by = options[:sort_by] || options[:order_by_execution_fields] || [:updated_at]
+
     include_archived = Keyword.get(options, :include_archived, false)
 
     # Validate that graph_version requires graph_name
@@ -774,7 +782,7 @@ defmodule Journey do
       raise ArgumentError, "Option :graph_version requires :graph_name to be specified"
     end
 
-    Journey.Executions.list(graph_name, graph_version, order_by_field, value_filters, limit, offset, include_archived)
+    Journey.Executions.list(graph_name, graph_version, sort_by, value_filters, limit, offset, include_archived)
   end
 
   @doc """
