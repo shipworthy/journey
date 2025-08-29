@@ -518,7 +518,7 @@ Journey.list_executions(
   graph_name: graph.name,
   graph_version: graph.version,
   order_by_execution_fields: [:inserted_at],
-  value_filters: [{:sum, :gt, 2}, {:x, :lt, 10}],
+  filter_by: [{:sum, :gt, 2}, {:x, :lt, 10}],
   offset: 0,
   limit: 10
 )

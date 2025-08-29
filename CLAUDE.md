@@ -2,6 +2,8 @@
 
 Please strive to provide factual data based on up-to-date reputable sources (e.g. hexdocs.pm). When making an assumption or making a guess, please say so. Facts and non-facts need to be clearly differentiated.
 
+Choose simplicity, clarity and readability over cleverness.
+
 # CLAUDE.md
 
 *This file provides project context to Claude Code for effective AI-assisted development.*
