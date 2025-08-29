@@ -626,30 +626,104 @@ defmodule Journey.Executions do
     monotonic_time_deadline < System.monotonic_time(:millisecond)
   end
 
-  def list(graph_name, graph_version, sort_by_ex_fields, value_filters, limit, offset, include_archived?)
+  def list(graph_name, graph_version, sort_by_fields, value_filters, limit, offset, include_archived?)
       when (is_nil(graph_name) or is_binary(graph_name)) and
              (is_nil(graph_version) or is_binary(graph_version)) and
-             is_list(sort_by_ex_fields) and
+             is_list(sort_by_fields) and
              is_list(value_filters) and
              is_number(limit) and
              is_number(offset) and
              is_boolean(include_archived?) do
+    # Normalize and validate sort fields
+    {normalized_fields, value_fields} = prepare_sort_fields(sort_by_fields, graph_name, graph_version)
+
+    # Build and execute query
     from(e in Execution, limit: ^limit, offset: ^offset)
     |> filter_archived(include_archived?)
-    |> apply_sorting(sort_by_ex_fields)
+    |> apply_combined_sorting(normalized_fields, value_fields)
     |> filter_by_graph_name(graph_name)
     |> filter_by_graph_version(graph_version)
     |> add_filters(value_filters)
   end
 
+  defp prepare_sort_fields(sort_by_fields, graph_name, graph_version) do
+    normalized_fields = normalize_sort_fields(sort_by_fields)
+    value_fields = extract_value_fields(normalized_fields)
+
+    # Validate value fields exist in the graph (if graph_name is provided)
+    if graph_name != nil and graph_version != nil and value_fields != [] do
+      field_names = Enum.map(value_fields, fn {field, _direction} -> field end)
+      Journey.Graph.Validations.ensure_known_node_names(graph_name, graph_version, field_names)
+    end
+
+    {normalized_fields, value_fields}
+  end
+
   defp filter_archived(query, true), do: query
   defp filter_archived(query, false), do: from(e in query, where: is_nil(e.archived_at))
 
-  defp apply_sorting(query, sort_fields) do
-    normalized_fields = normalize_sort_fields(sort_fields)
-    order_by_list = Enum.map(normalized_fields, fn {field, direction} -> {direction, field} end)
+  # Get execution table fields dynamically from schema
+  defp execution_fields do
+    Journey.Persistence.Schema.Execution.__schema__(:fields)
+  end
 
-    from(e in query, order_by: ^order_by_list)
+  defp extract_value_fields(normalized_fields) do
+    execution_field_set = MapSet.new(execution_fields())
+
+    normalized_fields
+    |> Enum.filter(fn {field, _direction} -> field not in execution_field_set end)
+  end
+
+  defp apply_combined_sorting(query, all_fields, _value_fields) when all_fields == [] do
+    query
+  end
+
+  defp apply_combined_sorting(query, all_fields, value_fields) when value_fields == [] do
+    # Only execution fields - simple ORDER BY
+    execution_order_by = Enum.map(all_fields, fn {field, direction} -> {direction, field} end)
+    from(e in query, order_by: ^execution_order_by)
+  end
+
+  defp apply_combined_sorting(query, all_fields, value_fields) do
+    # Mixed execution and value fields - need JOINs for value fields
+    query_with_joins = add_value_joins(query, value_fields)
+    order_by_list = build_order_by_list(all_fields, value_fields)
+    from(e in query_with_joins, order_by: ^order_by_list)
+  end
+
+  defp add_value_joins(query, value_fields) do
+    value_fields
+    |> Enum.with_index()
+    |> Enum.reduce(query, fn {{node_name, _direction}, index}, acc_query ->
+      alias_name = String.to_atom("v#{index}")
+
+      from(e in acc_query,
+        left_join: v in Journey.Persistence.Schema.Execution.Value,
+        as: ^alias_name,
+        on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name)
+      )
+    end)
+  end
+
+  defp build_order_by_list(all_fields, value_fields) do
+    execution_field_set = MapSet.new(execution_fields())
+    value_field_indexes = build_value_field_index_map(value_fields)
+
+    Enum.map(all_fields, fn {field, direction} ->
+      if field in execution_field_set do
+        {direction, field}
+      else
+        index = Map.get(value_field_indexes, field)
+        alias_name = String.to_atom("v#{index}")
+        {direction, dynamic([{^alias_name, v}], v.node_value)}
+      end
+    end)
+  end
+
+  defp build_value_field_index_map(value_fields) do
+    value_fields
+    |> Enum.with_index()
+    |> Map.new(fn {{field, _}, index} -> {field, index} end)
   end
 
   # Normalize sort fields to support both atom and tuple syntax
