@@ -45,6 +45,8 @@ defmodule Journey.Node do
   `gated_by` defines when this node becomes eligible to compute.
     Accepts either:
     - A list of atom node names, e.g. `[:a, :b]`, indicating the node becomes unblocked when all of the listed nodes have a value.
+    - A keyword list with conditions, e.g. `[a: fn node -> node.node_value > 10 end]`, for conditional dependencies.
+    - A mixed list combining atoms and keyword conditions, e.g. `[:a, :b, c: fn node -> node.node_value > 5 end]`.
     - A structured condition (see [unblocked_when/1](`Journey.Node.UpstreamDependencies.unblocked_when/1`) )
       allowing for logical operators (`:and`, `:or`) and custom value predicates (e.g. `unblocked_when({:and, [{:a, &provided?/1}, {:b, &provided?/1}]})`).
 
@@ -95,6 +97,34 @@ defmodule Journey.Node do
   %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
 
+  ## Keyword List Syntax for Conditional Dependencies
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "threshold alert example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:temperature),
+  ...>         # Using keyword list syntax for conditional dependency
+  ...>         compute(
+  ...>           :high_temp_alert,
+  ...>           [temperature: fn node -> node.node_value > 30 end],
+  ...>           fn %{temperature: temp} ->
+  ...>             {:ok, "High temperature alert: \#{temp}°C"}
+  ...>           end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, :temperature, 25)
+  iex> Journey.get_value(execution, :high_temp_alert)
+  {:error, :not_set}
+  iex> execution = Journey.set_value(execution, :temperature, 35)
+  iex> Journey.get_value(execution, :high_temp_alert, wait_any: true)
+  {:ok, "High temperature alert: 35°C"}
+  ```
+
   ## Return Values
   The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
   in the returned `value` and `reason` will be converted to strings when persisted.
@@ -105,7 +135,7 @@ defmodule Journey.Node do
     %Graph.Step{
       name: name,
       type: :compute,
-      gated_by: gated_by,
+      gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
@@ -156,7 +186,7 @@ defmodule Journey.Node do
     %Graph.Step{
       name: name,
       type: :mutate,
-      gated_by: gated_by,
+      gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       mutates: Keyword.fetch!(opts, :mutates),
@@ -198,7 +228,7 @@ defmodule Journey.Node do
     %Graph.Step{
       name: name,
       type: :compute,
-      gated_by: gated_by,
+      gated_by: normalize_gated_by(gated_by),
       f_compute: &archive_graph/1,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
@@ -268,7 +298,7 @@ defmodule Journey.Node do
     %Graph.Step{
       name: name,
       type: :schedule_once,
-      gated_by: gated_by,
+      gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
@@ -347,7 +377,7 @@ defmodule Journey.Node do
     %Graph.Step{
       name: name,
       type: :schedule_recurring,
-      gated_by: gated_by,
+      gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
@@ -369,7 +399,6 @@ defmodule Journey.Node do
     )
   end
 
-  @doc false
   def redact(map, keys) when is_map(map) and is_list(keys) do
     keys
     |> Enum.reduce(
@@ -378,5 +407,25 @@ defmodule Journey.Node do
         redact(acc, key)
       end
     )
+  end
+
+  defp normalize_gated_by(gated_by) when is_list(gated_by) do
+    import Journey.Node.Conditions, only: [provided?: 1]
+
+    conditions =
+      Enum.map(gated_by, fn
+        atom when is_atom(atom) ->
+          {atom, &provided?/1}
+
+        {node_name, condition_fn} when is_atom(node_name) and is_function(condition_fn, 1) ->
+          {node_name, fn node -> node.set_time != nil and condition_fn.(node) end}
+      end)
+
+    {:and, conditions}
+  end
+
+  defp normalize_gated_by(gated_by) do
+    # Not a list - pass through unchanged (handles tuples like unblocked_when/2 results)
+    gated_by
   end
 end
