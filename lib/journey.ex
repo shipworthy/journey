@@ -1,45 +1,104 @@
 defmodule Journey do
   @moduledoc """
-  This module provides functions for building and executing computation graphs, with persistence, reliability, and scalability.
 
-  ## TL;DR
 
-  Journey is a library for building and executing computation graphs.
+  Journey is an Elixir library for building and executing computation graphs, with built-in persistence, reliability, and scalability.
 
-  It lets you define your application as a self-computing graph and run it without having to worry about the nitty-gritty of persistence, dependencies, scalability, or reliability.
+  Define your application workflows as dependency graphs where user inputs automatically trigger computations in the correct order, with all state persisted to PostgreSQL.
 
-  Here is a basic example of using Journey. The example's graph defines values, the computation, and dependencies. Once `:x` and `:y` are provided or updated, `:sum` gets computed or recomputed.
+  Executions of the graph survive crashes, redeploys, page reloads, while scaling naturally with your application - no additional infrastructure or cloud service$ required.
+
+  Your application can perform durable, short or long-running executions, with retries, scalability, dependency tracking, scheduling and analytics.
+
+  Journey's primitives are simple: graph, dependencies, functions, persistence, retries, scheduling. Together, they help you build rich, scalable, reliable functionality with simple, well-structured and easy-to-understand code, quickly.
+
+  ## Overview
+
+  To illustrate a few concepts (graph, dependencies – including conditional dependencies, computation functions, persistence), here is a simple example.
+
+  This graph adds two numbers when they become available, and conditionally sets the "too large" flag.
+
+
   ```elixir
   iex> import Journey.Node
+  iex> # Defining a graph, with two input nodes and two downstream computations.
   iex> graph = Journey.new_graph(
   ...>   "demo graph",
   ...>   "v1",
   ...>   [
   ...>     input(:x),
   ...>     input(:y),
-  ...>     # the `:sum` computation requires :x and :y.
-  ...>     compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
+  ...>     # :sum is unblocked when :x and :y are provided.
+  ...>     compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end),
+  ...>     # :large_value_alert is unblocked when :sum is provided and is greater than 40.
+  ...>     compute(
+  ...>         :large_value_alert,
+  ...>         [sum: fn sum_node -> sum_node.node_value > 40 end],
+  ...>         fn %{sum: sum} -> {:ok, "🚨, at \#{sum}"} end,
+  ...>         f_on_save: fn _execution_id, _result ->
+  ...>            # (e.g. send a pubsub notification to the LiveView process to update the UI)
+  ...>            :ok
+  ...>         end
+  ...>     )
   ...>   ]
   ...> )
+  iex> # Start an execution of this graph, set input values, read computed values.
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set_value(execution, :x, 12)
   iex> execution = Journey.set_value(execution, :y, 2)
   iex> Journey.get_value(execution, :sum, wait_any: true)
   {:ok, 14}
-  iex> execution = Journey.set_value(execution, :y, 7)
-  iex> Journey.get_value(execution, :sum, wait_new: true)
-  {:ok, 19}
+  iex> Journey.get_value(execution, :large_value_alert)
+  {:error, :not_set}
+  iex> eid = execution.id
+  iex> # After an outage / redeployment / page reload / long pause, an execution
+  iex> # can be reloaded and continue, as if nothing happened.
+  iex> execution = Journey.load(eid)
+  iex> # An update to :y triggers a re-computation of downstream values.
+  iex> execution = Journey.set_value(execution, :y, 37)
+  iex> Journey.get_value(execution, :large_value_alert, wait_any: true)
+  {:ok, "🚨, at 49"}
+  iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
+  %{execution_id: "...", last_updated_at: 1234567890, sum: 49, x: 12, y: 37, large_value_alert: "🚨, at 49"}
+  ```
 
+  The graph can be visualized as a Mermaid graph:
+
+  ```
+  > Journey.Tools.generate_mermaid_graph(graph)
+  graph TD
+    %% Graph
+    subgraph Graph["🧩 'demo graph', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        x[x]
+        y[y]
+        sum["sum<br/>(anonymous fn)"]
+        large_value_alert["large_value_alert<br/>(anonymous fn)"]
+
+        x -->  sum
+        y -->  sum
+        sum -->  large_value_alert
+    end
+
+    %% Styling
+    classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000
+    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000
+    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000
+
+    %% Apply styles to actual nodes
+    class y,x,last_updated_at,execution_id inputNode
+    class large_value_alert,sum computeNode
   ```
 
   A few things to note about this example:
-  * every input value (:x, :y), or computation result (:sum) is persisted,
-  * the :sum computation happens reliably (with a retry policy),
-  * the :sum computation is as horizontally distributed as your app,
-  * the :sum computation is proactive: it will be computed when x and y become available,
-  * the executions of this flow can take as long as needed (milliseconds? months?), and will live through system restarts, crashes, redeployments, page reloads, etc.
-
-  You can see a livebook with this example in [basic.livemd](basic.html)
+  * Every input value (`:x`, `:y`), or computation result (`:sum`, `:large_value_alert`) is persisted as soon as it becomes available,
+  * The functions attached to `:sum` and `:large_value_alert`
+    - are called reliably, with a retry policy,
+    - will execute on any of the replicas of your application,
+    - are called proactively – when their upstream dependencies are available.
+  * Executions of this flow can take as long as needed (milliseconds? months?), and will live through system restarts, crashes, redeployments, page reloads, etc.
 
 
   ## So What Exactly Does Journey Provide?
@@ -559,7 +618,7 @@ defmodule Journey do
   ## Options
 
   ### `:sort_by`
-  Sort by execution fields or node values. Supports atoms for ascending (`[:updated_at]`), 
+  Sort by execution fields or node values. Supports atoms for ascending (`[:updated_at]`),
   keywords for direction (`[updated_at: :desc]`), and mixed formats (`[:graph_name, inserted_at: :desc]`).
 
   **Available fields:**
