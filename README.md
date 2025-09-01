@@ -1,10 +1,14 @@
 # Journey
 
-Journey is an Elixir library for building and executing computation graphs with built-in persistence, reliability, and scalability.
+Journey is an Elixir library for building and executing computation graphs, with built-in persistence, reliability, and scalability.
 
 Define your application workflows as dependency graphs where user inputs automatically trigger computations in the correct order, with all state persisted to PostgreSQL.
 
-Your flows survive crashes, redeploys, page reloads, while scaling naturally with your application - no additional infrastructure or cloud service$ required.
+Executions of the graph survive crashes, redeploys, page reloads, while scaling naturally with your application - no additional infrastructure or cloud service$ required.
+
+Your application can perform durable, short or long-running executions, with retries, scalability, dependency tracking, scheduling and analytics.
+
+Journey's primitives are simple: graph, dependencies, functions, persistence, retries, scheduling. Together, they help you build rich, scalable, reliable functionality with simple, well-structured and easy-to-understand code, quickly.
 
 ## Installation and Configuration
 
