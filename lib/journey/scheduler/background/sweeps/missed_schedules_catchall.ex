@@ -2,6 +2,14 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   @moduledoc """
   Catch-all sweep to recover schedules missed due to system downtime.
   Runs at most once every 23 hours, checking via SweepRun records.
+
+  ## Configuration
+
+  Configure via `config :journey, :missed_schedules_catchall`:
+
+  - `:enabled` - Whether the sweep is enabled (default: true)
+  - `:preferred_hour` - Hour of day (0-23) when sweep should run, or nil for no restriction (default: 2)
+  - `:lookback_days` - Number of days to look back for missed schedules (default: 7)
   """
 
   require Logger
@@ -13,8 +21,12 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   alias Journey.Persistence.Schema.SweepRun
 
   @batch_size 100
-  @lookback_days 7
   @min_hours_between_runs 23
+  @recent_boundary_minutes 25
+
+  # Default configuration values
+  @default_preferred_hour 2
+  @default_lookback_days 7
 
   @doc """
   Sweep for executions with past schedule values and trigger advance() on them.
@@ -24,42 +36,72 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   def sweep(execution_id \\ nil) do
     prefix = "[#{mf()}] [#{inspect(self())}]"
 
-    # Check if we should run based on last completed sweep
-    if should_run?() do
-      Logger.info("#{prefix}: starting missed schedules catch-all sweep")
+    # Check if we should run based on timing constraints
+    case should_run_or_not() do
+      :ok ->
+        Logger.info("#{prefix}: starting missed schedules catch-all sweep")
 
-      sweep_start = System.system_time(:second)
-      sweep_run = record_sweep_start(:missed_schedules_catchall, sweep_start)
+        sweep_start = System.system_time(:second)
+        sweep_run = record_sweep_start(:missed_schedules_catchall, sweep_start)
 
-      try do
-        # Compute time boundaries once for stable pagination
-        now = System.system_time(:second)
-        cutoff_time = now - @lookback_days * 24 * 60 * 60
-        recent_boundary = now - 25 * 60
+        try do
+          # Get configuration values
+          lookback_days = get_config(:lookback_days, @default_lookback_days)
 
-        total_processed = process_batches(execution_id, cutoff_time, recent_boundary, 0, 0)
+          # Compute time boundaries once for stable pagination
+          now = System.system_time(:second)
+          cutoff_time = now - lookback_days * 24 * 60 * 60
+          recent_boundary = now - @recent_boundary_minutes * 60
 
-        record_sweep_completion(sweep_run, total_processed)
+          total_processed = process_batches(execution_id, cutoff_time, recent_boundary, 0, 0)
 
-        if total_processed == 0 do
-          Logger.info("#{prefix}: no executions with missed schedules found")
-        else
-          Logger.info("#{prefix}: completed. advanced #{total_processed} execution(s)")
+          record_sweep_completion(sweep_run, total_processed)
+
+          if total_processed == 0 do
+            Logger.info("#{prefix}: no executions with missed schedules found")
+          else
+            Logger.info("#{prefix}: completed. advanced #{total_processed} execution(s)")
+          end
+
+          {total_processed, sweep_run.id}
+        rescue
+          e ->
+            Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
+            reraise e, __STACKTRACE__
         end
 
-        {total_processed, sweep_run.id}
-      rescue
-        e ->
-          Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
-          reraise e, __STACKTRACE__
-      end
-    else
-      Logger.debug("#{prefix}: skipping - ran recently")
-      {0, nil}
+      {:wait, reason} ->
+        Logger.debug("#{prefix}: skipping - #{reason}")
+        {0, nil}
     end
   end
 
-  defp should_run?() do
+  defp should_run_or_not() do
+    if get_config(:enabled, true) == false do
+      {:wait, "sweep is disabled via configuration"}
+    else
+      preferred_hour = get_config(:preferred_hour, @default_preferred_hour)
+      last_run = get_last_run()
+      now = System.system_time(:second)
+
+      cond do
+        # Check minimum time between runs first
+        last_run && last_run > now - @min_hours_between_runs * 60 * 60 ->
+          hours_since = div(now - last_run, 3600)
+          {:wait, "only #{hours_since} hours since last run (min: #{@min_hours_between_runs})"}
+
+        # Check preferred hour if configured (nil means no restriction)
+        preferred_hour != nil && get_current_hour_utc() != preferred_hour ->
+          {:wait, "current hour #{get_current_hour_utc()} != preferred hour #{preferred_hour}"}
+
+        # All conditions met
+        true ->
+          :ok
+      end
+    end
+  end
+
+  defp get_last_run do
     from(sr in SweepRun,
       where: sr.sweep_type == :missed_schedules_catchall,
       order_by: [desc: sr.started_at],
@@ -67,13 +109,16 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
       select: sr.started_at
     )
     |> Journey.Repo.one()
-    |> case do
-      nil ->
-        true
+  end
 
-      last_started_at_timestamp ->
-        last_started_at_timestamp < System.system_time(:second) - @min_hours_between_runs * 60 * 60
-    end
+  defp get_current_hour_utc do
+    {:ok, datetime} = DateTime.from_unix(System.system_time(:second))
+    datetime.hour
+  end
+
+  defp get_config(key, default) do
+    Application.get_env(:journey, :missed_schedules_catchall, [])
+    |> Keyword.get(key, default)
   end
 
   defp process_batches(execution_id, cutoff_time, recent_boundary, offset, total_processed) do

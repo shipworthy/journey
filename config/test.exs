@@ -25,3 +25,10 @@ config :journey, :graphs, [
   &Journey.Test.Support.create_test_graph1/0,
   fn -> Journey.Test.Support.create_test_graph2() end
 ]
+
+# Override missed schedules configuration for tests
+config :journey, :missed_schedules_catchall,
+  enabled: true,
+  # No hour restriction in tests
+  preferred_hour: nil,
+  lookback_days: 7

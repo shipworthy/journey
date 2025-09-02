@@ -270,6 +270,123 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     end
   end
 
+  describe "sweep/1 - configuration and scheduling" do
+    test "respects preferred_hour configuration when set" do
+      # Set config to only run at a different hour than current
+      current_hour = DateTime.utc_now().hour
+      different_hour = rem(current_hour + 1, 24)
+
+      original_config = Application.get_env(:journey, :missed_schedules_catchall, [])
+
+      Application.put_env(:journey, :missed_schedules_catchall,
+        preferred_hour: different_hour,
+        lookback_days: 7
+      )
+
+      try do
+        # Ensure we're not blocked by min_hours_between_runs
+        Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :missed_schedules_catchall))
+
+        # Sweep should not run due to wrong hour
+        {count, sweep_run_id} = MissedSchedulesCatchall.sweep()
+        assert count == 0
+        assert sweep_run_id == nil
+      after
+        Application.put_env(:journey, :missed_schedules_catchall, original_config)
+      end
+    end
+
+    test "runs when preferred_hour is nil (no restriction)" do
+      original_config = Application.get_env(:journey, :missed_schedules_catchall, [])
+
+      Application.put_env(:journey, :missed_schedules_catchall,
+        # No hour restriction
+        preferred_hour: nil,
+        lookback_days: 7
+      )
+
+      try do
+        # Ensure we're not blocked by min_hours_between_runs
+        Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :missed_schedules_catchall))
+
+        # Should run regardless of current hour
+        {_count, sweep_run_id} = MissedSchedulesCatchall.sweep()
+        assert sweep_run_id != nil
+      after
+        Application.put_env(:journey, :missed_schedules_catchall, original_config)
+      end
+    end
+
+    test "does not run when disabled via configuration" do
+      original_config = Application.get_env(:journey, :missed_schedules_catchall, [])
+
+      Application.put_env(:journey, :missed_schedules_catchall,
+        enabled: false,
+        preferred_hour: nil,
+        lookback_days: 7
+      )
+
+      try do
+        # Ensure we're not blocked by other conditions
+        Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :missed_schedules_catchall))
+
+        # Sweep should not run because it's disabled
+        {count, sweep_run_id} = MissedSchedulesCatchall.sweep()
+        assert count == 0
+        assert sweep_run_id == nil
+      after
+        Application.put_env(:journey, :missed_schedules_catchall, original_config)
+      end
+    end
+
+    test "respects lookback_days configuration" do
+      original_config = Application.get_env(:journey, :missed_schedules_catchall, [])
+
+      Application.put_env(:journey, :missed_schedules_catchall,
+        # Allow to run now
+        preferred_hour: nil,
+        # Only look back 3 days
+        lookback_days: 3
+      )
+
+      try do
+        unique_id = System.unique_integer()
+        # Create schedule 4 days old (outside 3-day window)
+        old_time = System.system_time(:second) - 4 * 24 * 60 * 60
+
+        graph =
+          Journey.new_graph(
+            "outside-window-#{unique_id}",
+            "v1.0.0",
+            [
+              input(:trigger),
+              schedule_once(:old_schedule, [:trigger], fn _ -> {:ok, old_time} end),
+              compute(:should_not_run, [:old_schedule], fn _ -> {:ok, "should not execute"} end)
+            ]
+          )
+
+        execution = Journey.start_execution(graph)
+
+        # Manually set old schedule value
+        from(v in Journey.Persistence.Schema.Execution.Value,
+          where: v.execution_id == ^execution.id and v.node_name == "old_schedule"
+        )
+        |> Journey.Repo.update_all(set: [node_value: old_time, set_time: old_time, ex_revision: 1])
+
+        # Run sweep - should ignore due to configured lookback window
+        {count, _} = MissedSchedulesCatchall.sweep(execution.id)
+        assert count == 0
+
+        # Verify downstream didn't run
+        execution = Journey.load(execution.id)
+        values = Journey.values(execution)
+        assert values[:should_not_run] == nil
+      after
+        Application.put_env(:journey, :missed_schedules_catchall, original_config)
+      end
+    end
+  end
+
   describe "sweep/1 - error handling and batch processing" do
     test "continues processing when individual execution fails" do
       unique_id = System.unique_integer()

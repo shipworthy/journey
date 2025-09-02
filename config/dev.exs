@@ -20,3 +20,10 @@ config :logger,
 config :journey, :graphs, [
   &Journey.Examples.CreditCardApplication.graph/0
 ]
+
+# Override missed schedules configuration for development
+config :journey, :missed_schedules_catchall,
+  enabled: true,
+  # No hour restriction in dev
+  preferred_hour: nil,
+  lookback_days: 7
