@@ -287,7 +287,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           ]
         )
 
-      good_execution = Journey.start_execution(good_graph) 
+      good_execution = Journey.start_execution(good_graph)
       good_execution = Journey.set_value(good_execution, :trigger, true)
 
       # Wait for schedule to compute successfully
@@ -297,13 +297,14 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       failing_execution = Journey.start_execution(good_graph)
       failing_execution = Journey.set_value(failing_execution, :trigger, true)
       {:ok, _} = Journey.get_value(failing_execution, :good_schedule, wait_any: true)
-      
+
       # Archive the failing execution - this will cause Journey.load() to return nil
       Journey.archive(failing_execution)
 
       # Now manually insert a past schedule value for the archived execution
       # This simulates the query finding it but load() failing
       import Ecto.Query
+
       from(v in Journey.Persistence.Schema.Execution.Value,
         where: v.execution_id == ^failing_execution.id and v.node_name == "good_schedule"
       )
