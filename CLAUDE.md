@@ -102,7 +102,7 @@ docker exec -it new_journey-postgres-db psql -U postgres journey_test
 ## Code Quality
 
 - **Credo linting** in strict mode (`make lint`)
-- **Format enforcement** via `mix format` / `make format`
+- **Format enforcement** via `make format`
 - **Zero warnings** - all treated as errors
 - **Security review** required for new dependencies
 

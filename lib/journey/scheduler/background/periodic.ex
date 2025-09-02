@@ -6,6 +6,7 @@ defmodule Journey.Scheduler.Background.Periodic do
   import Journey.Helpers.Log
 
   alias Journey.Scheduler.Background.Sweeps.Abandoned
+  alias Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall
   alias Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring
   alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
   alias Journey.Scheduler.Background.Sweeps.UnblockedBySchedule
@@ -49,6 +50,8 @@ defmodule Journey.Scheduler.Background.Periodic do
     {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(execution_id)
     UnblockedBySchedule.sweep(execution_id, sweeper_period_seconds())
     RegenerateScheduleRecurring.sweep(execution_id)
+    {_kicked_count, _sweep_run_id} = MissedSchedulesCatchall.sweep(execution_id)
+
     Logger.debug("#{prefix}: done")
   end
 
