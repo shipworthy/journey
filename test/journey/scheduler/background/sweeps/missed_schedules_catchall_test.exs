@@ -2,6 +2,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
   use ExUnit.Case, async: false
   import Journey.Node
   import Ecto.Query
+  import Journey.Helpers.Random
 
   alias Journey.Persistence.Schema.SweepRun
   alias Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall
@@ -81,7 +82,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     test "recovers missed schedule for specific execution" do
       # Create a realistic scenario where schedule was missed
       # Use a past time that's in the catch-all window (25min - 7 days old)
-      unique_id = System.unique_integer()
+      unique_id = random_string()
       # Use exactly 30 minutes ago to be outside the regular sweep's 25-minute window
       past_time = System.system_time(:second) - 30 * 60
 
@@ -123,7 +124,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     end
 
     test "ignores recent schedules (less than 25 minutes old)" do
-      unique_id = System.unique_integer()
+      unique_id = random_string()
       # 10 minutes ago
       recent_time = System.system_time(:second) - 10 * 60
 
@@ -162,7 +163,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     end
 
     test "ignores very old schedules (older than 7 days)" do
-      unique_id = System.unique_integer()
+      unique_id = random_string()
       # 8 days ago
       very_old_time = System.system_time(:second) - 8 * 24 * 60 * 60
 
@@ -196,7 +197,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     end
 
     test "processes valid time window schedules (25 minutes to 7 days old)" do
-      unique_id = System.unique_integer()
+      unique_id = random_string()
       # 2 hours ago (in valid window)
       valid_time = System.system_time(:second) - 2 * 60 * 60
 
@@ -234,7 +235,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     end
 
     test "handles both schedule_once and schedule_recurring" do
-      unique_id = System.unique_integer()
+      unique_id = random_string()
       # 1.5 hours ago
       past_time = System.system_time(:second) - 90 * 60
 
@@ -350,7 +351,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       )
 
       try do
-        unique_id = System.unique_integer()
+        unique_id = random_string()
         # Create schedule 4 days old (outside 3-day window)
         old_time = System.system_time(:second) - 4 * 24 * 60 * 60
 
@@ -387,9 +388,65 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     end
   end
 
+  describe "sweep/1 - race condition prevention" do
+    test "prevents concurrent sweep execution with advisory locks" do
+      # This test simulates multiple processes trying to run the sweep concurrently
+      # Only one should succeed in creating a sweep run
+
+      # Create some work for the sweep to do
+      unique_id = random_string()
+      past_time = System.system_time(:second) - 30 * 60
+
+      graph =
+        Journey.new_graph(
+          "concurrent-test-#{unique_id}",
+          "v1.0.0",
+          [
+            input(:trigger),
+            schedule_once(:past_schedule, [:trigger], fn _ -> {:ok, past_time} end),
+            compute(:result, [:past_schedule], fn _ -> {:ok, "done"} end)
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+      Journey.set_value(execution, :trigger, true)
+
+      # Spawn multiple concurrent processes that try to run the sweep
+      tasks =
+        for _i <- 1..5 do
+          Task.async(fn ->
+            # Each process tries to run the sweep
+            MissedSchedulesCatchall.sweep()
+          end)
+        end
+
+      # Wait for all tasks to complete
+      results = Task.await_many(tasks, 5000)
+
+      # Count how many sweeps actually ran (returned a sweep_run_id)
+      successful_sweeps =
+        results
+        |> Enum.filter(fn {_count, sweep_run_id} -> sweep_run_id != nil end)
+        |> length()
+
+      # Exactly one should have succeeded
+      assert successful_sweeps == 1, "Expected exactly 1 successful sweep, got #{successful_sweeps}"
+
+      # Verify only one SweepRun was created
+      sweep_runs =
+        from(sr in SweepRun,
+          where: sr.sweep_type == :missed_schedules_catchall,
+          order_by: [desc: sr.started_at]
+        )
+        |> Journey.Repo.all()
+
+      assert length(sweep_runs) == 1, "Expected exactly 1 sweep run in DB, got #{length(sweep_runs)}"
+    end
+  end
+
   describe "sweep/1 - error handling and batch processing" do
     test "continues processing when individual execution fails" do
-      unique_id = System.unique_integer()
+      unique_id = random_string()
       past_time = System.system_time(:second) - 2 * 60 * 60
 
       # Create good execution that should process successfully
@@ -439,7 +496,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
     end
 
     test "processes multiple executions in batches" do
-      unique_base_id = System.unique_integer()
+      unique_base_id = random_string()
       past_time = System.system_time(:second) - 2 * 60 * 60
 
       # Create 5 executions with past schedules
