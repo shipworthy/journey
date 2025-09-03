@@ -21,7 +21,8 @@ config :journey, :graphs, [
   &Journey.Examples.CreditCardApplication.graph/0
 ]
 
-# Override missed schedules configuration for development
+# Overrides for the "missed_schedules_catchall" sweep
+# (to pick up scheduled computations that came due while the system was down).
 config :journey, :missed_schedules_catchall,
   enabled: true,
   # No hour restriction in dev

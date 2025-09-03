@@ -26,7 +26,8 @@ config :journey, :graphs, [
   fn -> Journey.Test.Support.create_test_graph2() end
 ]
 
-# Override missed schedules configuration for tests
+# Overrides for the "missed_schedules_catchall" sweep
+# (to pick up scheduled computations that came due while the system was down).
 config :journey, :missed_schedules_catchall,
   enabled: true,
   # No hour restriction in tests
