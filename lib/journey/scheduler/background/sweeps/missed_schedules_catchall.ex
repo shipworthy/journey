@@ -1,5 +1,6 @@
 defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
-  @moduledoc """
+  @moduledoc false
+  _ = """
   Catch-all sweep to recover schedules missed due to system downtime.
   Runs at most once every 23 hours, checking via SweepRun records.
 
@@ -28,12 +29,14 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   @default_preferred_hour 2
   @default_lookback_days 7
 
-  @doc """
-  Sweep for executions with past schedule values and trigger advance() on them.
-  Processes in batches to avoid memory issues.
-  Returns {execution_count, sweep_run_id} tuple.
-  """
+  @doc false
   def sweep(execution_id \\ nil) do
+    _ = """
+    Sweep for executions with past schedule values and trigger advance() on them.
+    Processes in batches to avoid memory issues.
+    Returns {execution_count, sweep_run_id} tuple.
+    """
+
     prefix = "[#{mf()}] [#{inspect(self())}]"
 
     # Check if we should run based on timing constraints
