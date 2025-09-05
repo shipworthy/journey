@@ -9,7 +9,7 @@ defmodule Journey.License.Functions do
     |> System.get_env()
     |> case do
       nil ->
-        IO.puts("👋 Journey license key is not found (#{@license_key_env_var_name} environment var is not set).")
+        IO.puts("👋 Journey build key not found (#{@license_key_env_var_name} environment var is not set).")
         print_license_info()
         :not_set
 

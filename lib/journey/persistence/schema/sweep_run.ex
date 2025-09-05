@@ -13,7 +13,8 @@ defmodule Journey.Persistence.Schema.SweepRun do
         :unblocked_by_schedule,
         :abandoned,
         :regenerate_schedule_recurring,
-        :missed_schedules_catchall
+        :missed_schedules_catchall,
+        :stalled_executions
       ]
     )
 

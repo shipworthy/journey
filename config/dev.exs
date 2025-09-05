@@ -28,3 +28,10 @@ config :journey, :missed_schedules_catchall,
   # No hour restriction in dev
   preferred_hour: nil,
   lookback_days: 7
+
+# Overrides for the "stalled_executions" sweep
+# (to pick up executions that may have stalled due to crashes/power loss)
+config :journey, :stalled_executions_sweep,
+  enabled: true,
+  # No hour restriction in dev
+  preferred_hour: nil
