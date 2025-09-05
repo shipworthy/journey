@@ -12,8 +12,14 @@ config :journey, ecto_repos: [Journey.Repo]
 config :journey, :missed_schedules_catchall,
   enabled: true,
   # Hour of day (0-23, UTC) when sweep should run, nil for no restriction
-  preferred_hour: 2,
+  preferred_hour: 20,
   # Number of days to look back for scheduled computations to pick up.
   lookback_days: 7
+
+# The sweep to pick up executions that may have stalled
+config :journey, :stalled_executions_sweep,
+  enabled: true,
+  # Hour of day (0-23, UTC) when sweep should run, nil for no restriction
+  preferred_hour: 22
 
 import_config "#{config_env()}.exs"

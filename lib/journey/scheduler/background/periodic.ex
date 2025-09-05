@@ -9,6 +9,7 @@ defmodule Journey.Scheduler.Background.Periodic do
   alias Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall
   alias Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring
   alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
+  alias Journey.Scheduler.Background.Sweeps.StalledExecutions
   alias Journey.Scheduler.Background.Sweeps.UnblockedBySchedule
 
   @mode if Mix.env() != :test, do: :auto, else: :manual
@@ -51,6 +52,7 @@ defmodule Journey.Scheduler.Background.Periodic do
     UnblockedBySchedule.sweep(execution_id, sweeper_period_seconds())
     RegenerateScheduleRecurring.sweep(execution_id)
     {_kicked_count, _sweep_run_id} = MissedSchedulesCatchall.sweep(execution_id)
+    {_kicked_count, _sweep_run_id} = StalledExecutions.sweep(execution_id)
 
     Logger.debug("#{prefix}: done")
   end
