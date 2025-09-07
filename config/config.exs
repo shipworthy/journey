@@ -17,9 +17,6 @@ config :journey, :missed_schedules_catchall,
   lookback_days: 7
 
 # The sweep to pick up executions that may have stalled
-config :journey, :stalled_executions_sweep,
-  enabled: true,
-  # Hour of day (0-23, UTC) when sweep should run, nil for no restriction
-  preferred_hour: 22
+config :journey, :stalled_executions_sweep, enabled: true
 
 import_config "#{config_env()}.exs"
