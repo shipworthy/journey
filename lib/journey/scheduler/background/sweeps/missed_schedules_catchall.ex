@@ -69,7 +69,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
 
       {:skip, reason} ->
         # No sweep needed, log the reason and exit
-        Logger.debug("#{prefix}: skipping - #{reason}")
+        Logger.info("#{prefix}: skipping - #{reason}")
         {0, nil}
     end
   end

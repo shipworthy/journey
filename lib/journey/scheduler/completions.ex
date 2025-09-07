@@ -66,11 +66,22 @@ defmodule Journey.Scheduler.Completions do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
     Logger.debug("#{prefix}: starting.")
 
-    graph_node = Journey.Scheduler.Helpers.graph_node_from_execution_id(computation.execution_id, computation.node_name)
+    execution = computation.execution_id |> Journey.Executions.load(false, true)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+
+    if graph == nil do
+      message =
+        "#{prefix}: graph '#{execution.graph_name}' / '#{execution.graph_version}' is not registered"
+
+      Logger.error(message)
+      raise message
+    end
+
+    graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
 
     if graph_node == nil do
       message =
-        "#{prefix}: the registered graph for this computation does not exist or does not have the corresponding node"
+        "#{prefix}: graph '#{execution.graph_name}' / '#{execution.graph_version}' does not have node #{computation.node_name}"
 
       Logger.error(message)
       raise message

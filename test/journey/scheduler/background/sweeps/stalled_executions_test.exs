@@ -30,30 +30,10 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutionsTest do
       end
     end
 
-    test "returns {0, nil} when wrong hour" do
-      current_hour = DateTime.utc_now().hour
-      different_hour = rem(current_hour + 3, 24)
-
+    test "creates sweep run when enabled" do
       original_config = Application.get_env(:journey, :stalled_executions_sweep, [])
 
-      Application.put_env(:journey, :stalled_executions_sweep, preferred_hour: different_hour)
-
-      try do
-        {count, sweep_run_id} = StalledExecutions.sweep()
-        assert count == 0
-        assert sweep_run_id == nil
-      after
-        Application.put_env(:journey, :stalled_executions_sweep, original_config)
-      end
-    end
-
-    test "creates sweep run when enabled with no hour restriction" do
-      original_config = Application.get_env(:journey, :stalled_executions_sweep, [])
-
-      Application.put_env(:journey, :stalled_executions_sweep,
-        enabled: true,
-        preferred_hour: nil
-      )
+      Application.put_env(:journey, :stalled_executions_sweep, enabled: true)
 
       try do
         # Use a non-existent execution_id to avoid processing historical executions
@@ -72,35 +52,10 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutionsTest do
       end
     end
 
-    test "respects 23-hour minimum between runs" do
-      original_config = Application.get_env(:journey, :stalled_executions_sweep, [])
-
-      Application.put_env(:journey, :stalled_executions_sweep,
-        enabled: true,
-        preferred_hour: nil
-      )
-
-      try do
-        # Create first sweep run with non-existent ID to avoid processing historical executions
-        {_count1, sweep_run_id1} = StalledExecutions.sweep("NON_EXISTENT_ID_1")
-        assert sweep_run_id1 != nil
-
-        # Try to run again immediately - should be blocked
-        {count2, sweep_run_id2} = StalledExecutions.sweep("NON_EXISTENT_ID_2")
-        assert count2 == 0
-        assert sweep_run_id2 == nil
-      after
-        Application.put_env(:journey, :stalled_executions_sweep, original_config)
-      end
-    end
-
     test "handles non-existent execution_id gracefully" do
       original_config = Application.get_env(:journey, :stalled_executions_sweep, [])
 
-      Application.put_env(:journey, :stalled_executions_sweep,
-        enabled: true,
-        preferred_hour: nil
-      )
+      Application.put_env(:journey, :stalled_executions_sweep, enabled: true)
 
       try do
         {count, _sweep_run_id} = StalledExecutions.sweep("DOES_NOT_EXIST")
@@ -110,14 +65,39 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutionsTest do
       end
     end
 
+    test "respects 30-minute minimum between runs" do
+      original_config = Application.get_env(:journey, :stalled_executions_sweep, [])
+
+      Application.put_env(:journey, :stalled_executions_sweep, enabled: true)
+
+      try do
+        time_t0 = System.system_time(:second)
+
+        # First sweep at T0
+        {_count1, sweep_run_id1} = StalledExecutions.sweep("NON_EXISTENT_ID_1", time_t0)
+        assert sweep_run_id1 != nil
+
+        # Try at T0 + 28 minutes - should be blocked
+        time_t28 = time_t0 + 28 * 60
+        {count2, sweep_run_id2} = StalledExecutions.sweep("NON_EXISTENT_ID_2", time_t28)
+        assert count2 == 0
+        assert sweep_run_id2 == nil
+
+        # Try at T0 + 32 minutes - should work
+        time_t32 = time_t0 + 32 * 60
+        {_count3, sweep_run_id3} = StalledExecutions.sweep("NON_EXISTENT_ID_3", time_t32)
+        assert sweep_run_id3 != nil
+        assert sweep_run_id3 != sweep_run_id1
+      after
+        Application.put_env(:journey, :stalled_executions_sweep, original_config)
+      end
+    end
+
     test "sweep actually computes stalled execution" do
       unique_id = random_string()
       original_config = Application.get_env(:journey, :stalled_executions_sweep, [])
 
-      Application.put_env(:journey, :stalled_executions_sweep,
-        enabled: true,
-        preferred_hour: nil
-      )
+      Application.put_env(:journey, :stalled_executions_sweep, enabled: true)
 
       try do
         # Create execution

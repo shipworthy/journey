@@ -4,15 +4,11 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   Sweep to recover executions that may have stalled due to system crashes
   or power failures before computations could be marked as :computing.
 
-  Runs at most once every 23 hours, checking executions updated since last run.
-  Uses advisory locks to prevent race conditions between multiple processes.
-
   ## Configuration
 
   Configure via `config :journey, :stalled_executions_sweep`:
 
   - `:enabled` - Whether the sweep is enabled (default: true)
-  - `:preferred_hour` - Hour of day (0-23) when sweep should run, or nil for no restriction (default: nil)
   """
 
   require Logger
@@ -23,96 +19,57 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   alias Journey.Persistence.Schema.SweepRun
 
   @batch_size 100
-  @min_hours_between_runs 23
-  @recent_boundary_minutes 25
+  @min_seconds_between_runs 30 * 60
+  @too_new_threshold_seconds 10 * 60
+  @extra_overlap_seconds 3 * 60
 
   # Advisory lock ID for this sweep type
   @lock_id :erlang.phash2(:stalled_executions_sweep)
 
-  # Default configuration values
-  @default_preferred_hour nil
-
   @doc false
-  def sweep(execution_id \\ nil) do
+  def sweep(execution_id \\ nil, current_time \\ nil) do
     _ = """
     Sweep for executions that may have stalled and trigger advance() on them.
-    Processes in batches to avoid memory issues.
-    Returns {execution_count, sweep_run_id} tuple.
+    Returns {execution_count, new_sweep_run_id} tuple.
     """
 
+    current_time = current_time || System.system_time(:second)
+
+    if get_config(:enabled, true) do
+      sweep_impl(execution_id, current_time)
+    else
+      {0, nil}
+    end
+  end
+
+  defp sweep_impl(execution_id, current_time) do
     prefix = "[#{mf()}] [#{inspect(self())}]"
 
-    case get_new_sweep_record_maybe() do
-      {:ok, sweep_run_record} ->
-        Logger.info("#{prefix}: starting stalled executions sweep")
+    # Two-phase check – check before getting a lock and checking again.
+    if never_ran_or_enough_time_since_last_sweep?(current_time) do
+      case create_new_sweep_record_maybe(current_time) do
+        nil ->
+          {0, nil}
 
-        try do
-          total_processed = perform_sweep(execution_id)
-          record_sweep_completion(sweep_run_record, total_processed)
-          Logger.info("#{prefix}: completed. advanced #{total_processed} execution(s)")
-          {total_processed, sweep_run_record.id}
-        rescue
-          e ->
-            Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
-            reraise e, __STACKTRACE__
-        end
-
-      {:skip, reason} ->
-        Logger.debug("#{prefix}: skipping - #{reason}")
-        {0, nil}
-    end
-  end
-
-  defp get_new_sweep_record_maybe() do
-    # Phase 1: Cheap checks before acquiring lock
-    with :ok <- check_sweep_enabled(),
-         :ok <- check_preferred_hour(),
-         :ok <- quick_recency_check() do
-      # All cheap checks passed, now try to acquire lock and create record
-      attempt_sweep_record_creation()
+        new_sweep_record ->
+          try do
+            total_processed = perform_sweep(execution_id, current_time)
+            record_sweep_completion(new_sweep_record, total_processed, current_time)
+            Logger.info("#{prefix}: completed. attempted to advance #{total_processed} execution(s)")
+            {total_processed, new_sweep_record.id}
+          rescue
+            e ->
+              Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
+              reraise e, __STACKTRACE__
+          end
+      end
     else
-      {:skip, reason} -> {:skip, reason}
+      Logger.info("#{prefix}: skipping this run")
+      {0, nil}
     end
   end
 
-  defp check_sweep_enabled() do
-    if sweep_enabled?() do
-      :ok
-    else
-      {:skip, "sweep is disabled via configuration"}
-    end
-  end
-
-  defp check_preferred_hour() do
-    preferred_hour = get_config(:preferred_hour, @default_preferred_hour)
-    current_hour = get_current_hour_utc()
-
-    if preferred_hour == nil or current_hour == preferred_hour do
-      :ok
-    else
-      {:skip, "current hour #{current_hour} != preferred hour #{preferred_hour}"}
-    end
-  end
-
-  defp quick_recency_check do
-    now = System.system_time(:second)
-
-    case get_last_sweep_run() do
-      nil ->
-        :ok
-
-      %SweepRun{started_at: last_started} ->
-        hours_since = div(now - last_started, 3600)
-
-        if last_started > now - @min_hours_between_runs * 60 * 60 do
-          {:skip, "only #{hours_since} hours since last run (min: #{@min_hours_between_runs})"}
-        else
-          :ok
-        end
-    end
-  end
-
-  defp attempt_sweep_record_creation do
+  defp create_new_sweep_record_maybe(current_time) do
     Journey.Repo.transaction(fn ->
       # Acquire transaction-scoped advisory lock
       query = "SELECT pg_try_advisory_xact_lock($1)"
@@ -120,10 +77,21 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
       case Journey.Repo.query(query, [@lock_id]) do
         {:ok, %{rows: [[true]]}} ->
           # We have the lock, do authoritative check and maybe create record
-          authoritative_check_and_create()
+          # credo:disable-for-next-line Credo.Check.Refactor.Nesting
+          if never_ran_or_enough_time_since_last_sweep?(current_time) do
+            %SweepRun{}
+            |> SweepRun.changeset(%{
+              sweep_type: :stalled_executions,
+              started_at: current_time,
+              completed_at: nil,
+              executions_processed: 0
+            })
+            |> Journey.Repo.insert!()
+          else
+            nil
+          end
 
         {:ok, %{rows: [[false]]}} ->
-          # Another process has the lock
           Journey.Repo.rollback({:skip, "another process is already checking/running"})
 
         error ->
@@ -132,72 +100,46 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
     end)
     |> case do
       {:ok, sweep_run} ->
-        {:ok, sweep_run}
+        sweep_run
 
-      {:error, {:skip, reason}} ->
-        {:skip, reason}
-
-      {:error, reason} ->
-        {:skip, "transaction failed: #{inspect(reason)}"}
+      _no_success ->
+        nil
     end
   end
 
-  defp authoritative_check_and_create do
-    now = System.system_time(:second)
-
-    case get_last_sweep_run() do
-      nil ->
-        # No previous run, create the first one
-        create_and_return_sweep_run(now)
-
-      %SweepRun{started_at: last_started} ->
-        if last_started <= now - @min_hours_between_runs * 60 * 60 do
-          # Enough time has passed, create new run
-          create_and_return_sweep_run(now)
-        else
-          # Too recent - another process must have just created one
-          Journey.Repo.rollback({:skip, "another process recently started a sweep"})
-        end
-    end
-  end
-
-  defp create_and_return_sweep_run(started_at) do
-    %SweepRun{}
-    |> SweepRun.changeset(%{
-      sweep_type: :stalled_executions,
-      started_at: started_at,
-      completed_at: nil,
-      executions_processed: 0
-    })
-    |> Journey.Repo.insert!()
-
-    # Transaction will commit after this, releasing the lock
-  end
-
-  defp perform_sweep(execution_id) do
-    now = System.system_time(:second)
-    recent_boundary = now - @recent_boundary_minutes * 60
-    cutoff_time = get_last_sweep_cutoff()
-
-    process_batches(execution_id, cutoff_time, recent_boundary, 0, 0)
-  end
-
-  defp sweep_enabled? do
-    get_config(:enabled, true)
-  end
-
-  defp get_last_sweep_run do
+  defp never_ran_or_enough_time_since_last_sweep?(current_time) do
     from(sr in SweepRun,
       where: sr.sweep_type == :stalled_executions,
       order_by: [desc: sr.started_at],
       limit: 1
     )
     |> Journey.Repo.one()
+    |> case do
+      nil ->
+        Logger.info("[#{mf()}]: no existing run record")
+        true
+
+      last_run_record ->
+        enough_time_threshold = current_time - @min_seconds_between_runs
+        enough_time_passed? = last_run_record.started_at < enough_time_threshold
+        more_or_less = if enough_time_passed?, do: "more", else: "less"
+
+        Logger.info(
+          "[#{mf()}]: last run happened at #{to_dt(last_run_record.started_at)}, #{more_or_less} than #{@min_seconds_between_runs} seconds ago"
+        )
+
+        enough_time_passed?
+    end
   end
 
-  defp get_current_hour_utc do
-    {:ok, datetime} = DateTime.from_unix(System.system_time(:second))
-    datetime.hour
+  defp to_dt(nil), do: "nil"
+  defp to_dt(unix_time_seconds), do: DateTime.from_unix!(unix_time_seconds, :second)
+
+  defp perform_sweep(execution_id, current_time) do
+    check_from = compute_check_from_threshold()
+    check_to = current_time - @too_new_threshold_seconds
+    Logger.info("[#{mf()}]: checking executions updated between #{to_dt(check_from)} and #{to_dt(check_to)}")
+    process_batches_recursively(execution_id, check_from, check_to, 0, 0)
   end
 
   defp get_config(key, default) do
@@ -205,8 +147,8 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
     |> Keyword.get(key, default)
   end
 
-  defp process_batches(execution_id, cutoff_time, recent_boundary, offset, total_processed) do
-    execution_ids = find_stalled_executions(execution_id, cutoff_time, recent_boundary, @batch_size, offset)
+  defp process_batches_recursively(execution_id, check_from, check_to, offset, total_processed) do
+    execution_ids = find_stalled_executions(execution_id, check_from, check_to, @batch_size, offset)
 
     case execution_ids do
       [] ->
@@ -224,20 +166,29 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
               acc + 1
             rescue
               e ->
-                Logger.error("[#{mf()}] Failed to process execution #{exec_id}: #{inspect(e)}")
+                Logger.error(
+                  "[#{mf()}] Failed to process execution #{exec_id}: #{Exception.format(:error, e, __STACKTRACE__)}"
+                )
+
                 acc
             end
           end)
 
-        process_batches(execution_id, cutoff_time, recent_boundary, offset + @batch_size, total_processed + processed)
+        process_batches_recursively(
+          execution_id,
+          check_from,
+          check_to,
+          offset + @batch_size,
+          total_processed + processed
+        )
     end
   end
 
-  defp find_stalled_executions(execution_id, cutoff_time, recent_boundary, limit, offset) do
+  defp find_stalled_executions(execution_id, check_from, check_to, limit, offset) do
     from(e in base_executions_query(execution_id),
       where:
-        e.updated_at >= ^cutoff_time and
-          e.updated_at < ^recent_boundary,
+        e.updated_at >= ^check_from and
+          e.updated_at < ^check_to,
       distinct: true,
       select: e.id,
       order_by: e.id,
@@ -255,7 +206,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
     from(e in base_executions_query(nil), where: e.id == ^execution_id)
   end
 
-  defp get_last_sweep_cutoff() do
+  defp compute_check_from_threshold() do
     # Get timestamp from last completed sweep, with fallback
     last_completion =
       from(sr in SweepRun,
@@ -266,19 +217,22 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
       )
       |> Journey.Repo.one()
 
-    # Use last sweep start time, or fallback to beginning of time
+    # Use last sweep start time with a bit of extra, or fallback to beginning of time
     if last_completion == nil do
       # Beginning of Unix time
       0
     else
-      last_completion
+      # give it a bit extra overlap, and make sure to account for the records that were deemed too new last time.
+      last_completion -
+        @extra_overlap_seconds -
+        @too_new_threshold_seconds
     end
   end
 
-  defp record_sweep_completion(sweep_run, executions_processed) do
+  defp record_sweep_completion(sweep_run, executions_processed, current_time) do
     sweep_run
     |> SweepRun.changeset(%{
-      completed_at: System.system_time(:second),
+      completed_at: current_time,
       executions_processed: executions_processed
     })
     |> Journey.Repo.update!()
