@@ -36,7 +36,4 @@ config :journey, :missed_schedules_catchall,
 
 # Overrides for the "stalled_executions" sweep
 # (to pick up executions that may have stalled due to crashes/power loss)
-config :journey, :stalled_executions_sweep,
-  enabled: true,
-  # No hour restriction in tests
-  preferred_hour: nil
+config :journey, :stalled_executions_sweep, enabled: true
