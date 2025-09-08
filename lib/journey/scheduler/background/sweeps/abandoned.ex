@@ -26,24 +26,24 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
     prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}] [batch #{batch_number}]"
 
     if rem(batch_number, @batch_count_to_warn) == 0 do
-      # If we processed a lot of abandoned computations in this sweep, emit a warning. so the operator is aware.
-      Logger.warning("#{prefix}: processed #{batch_number * @batch_size} abandoned computations in this sweep")
+      # If we processed a lot of abandoned computations in this sweep, emit a warning, so that the operator is aware.
+      Logger.warning("#{prefix}: evaluated #{batch_number * @batch_size} abandoned computations in this sweep")
     end
 
     {:ok, processed_abandoned_computations} =
       Journey.Repo.transaction(fn repo ->
         find_abandoned_computations_batch(execution_id, repo)
         |> Enum.reject(fn c ->
-          # credo:disable-for-next-line Credo.Check.Refactor.Nesting
-          if MapSet.member?(seen_computation_ids, c.id) do
-            Logger.warning(
-              "#{prefix} [#{c.id}]: computation skipped (already handled and probably failed in this sweep)"
-            )
+          seen? = MapSet.member?(seen_computation_ids, c.id)
 
-            true
-          else
-            false
-          end
+          # credo:disable-for-next-line Credo.Check.Refactor.Nesting
+          if seen?,
+            do:
+              Logger.warning(
+                "#{prefix} [#{c.id}]: computation skipped (already handled and probably failed in this sweep)"
+              )
+
+          seen?
         end)
         |> process_computations(repo, prefix)
       end)
