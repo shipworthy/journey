@@ -7,66 +7,107 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
 
   import Journey.Helpers.Log
 
+  # This sweeper is processing abandoned computation in batches to avoid exhausting memory.
+  @batch_size 100
+
+  @batch_count_to_warn 1000
+
   def sweep(execution_id) do
     prefix = "[#{mf()}]"
     Logger.info("#{prefix}: starting")
 
-    r =
-      find_and_maybe_reschedule(execution_id)
-      |> Enum.map(fn %{execution_id: execution_id} -> execution_id end)
-      |> Enum.uniq()
-      |> Enum.map(fn swept_execution_id -> Journey.kick(swept_execution_id) end)
+    kicked_count = process_until_done(execution_id, MapSet.new(), 1)
 
-    Logger.info("#{prefix}: done")
-    r
+    Logger.info("#{prefix}: done, kicked #{kicked_count} execution(s)")
+    kicked_count
   end
 
-  def find_and_maybe_reschedule(execution_id) do
-    prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}]"
-    Logger.debug("#{prefix}: starting")
+  defp process_until_done(execution_id, seen_computation_ids, batch_number) do
+    prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}] [batch #{batch_number}]"
 
-    current_epoch_second = System.system_time(:second)
+    if rem(batch_number, @batch_count_to_warn) == 0 do
+      # If we processed a lot of abandoned computations in this sweep, emit a warning, so that the operator is aware.
+      Logger.warning("#{prefix}: evaluated #{batch_number * @batch_size} abandoned computations in this sweep")
+    end
 
-    {:ok, computations_marked_as_abandoned} =
+    {:ok, processed_abandoned_computations} =
       Journey.Repo.transaction(fn repo ->
-        abandoned_computations =
-          from(c in from_computations(execution_id),
-            join: e in Journey.Persistence.Schema.Execution,
-            on: c.execution_id == e.id,
-            where:
-              c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second and
-                is_nil(e.archived_at),
-            lock: "FOR UPDATE"
-          )
-          |> repo.all()
-          |> Journey.Executions.convert_values_to_atoms(:node_name)
+        find_abandoned_computations_batch(execution_id, repo)
+        |> Enum.reject(fn c ->
+          seen? = MapSet.member?(seen_computation_ids, c.id)
 
-        abandoned_computations = abandoned_computations |> filter_out_graphless()
+          # credo:disable-for-next-line Credo.Check.Refactor.Nesting
+          if seen?,
+            do:
+              Logger.warning(
+                "#{prefix} [#{c.id}]: computation skipped (already handled and probably failed in this sweep)"
+              )
 
-        abandoned_computations
-        |> Enum.each(fn ac -> Journey.Scheduler.Retry.maybe_schedule_a_retry(ac, repo) end)
-
-        if abandoned_computations == [] do
-          Logger.debug("#{prefix}: no abandoned computation(s) found")
-        else
-          Logger.info("#{prefix}: found #{Enum.count(abandoned_computations)} abandoned computation(s)")
-        end
-
-        abandoned_computations
-        |> Enum.map(fn ac ->
-          ac
-          |> Ecto.Changeset.change(%{
-            state: :abandoned,
-            completion_time: System.system_time(:second)
-          })
-          |> repo.update!()
+          seen?
         end)
+        |> process_computations(repo, prefix)
       end)
 
-    computations_marked_as_abandoned
+    kicked_count = kick_all_executions_for_these_computations(processed_abandoned_computations)
+    computation_ids = Enum.map(processed_abandoned_computations, fn record -> record.id end) |> MapSet.new()
+
+    if computation_ids == MapSet.new() do
+      Logger.info("#{prefix}: no abandoned computations found")
+      0
+    else
+      kicked_count +
+        process_until_done(execution_id, MapSet.union(seen_computation_ids, computation_ids), batch_number + 1)
+    end
+  end
+
+  defp kick_all_executions_for_these_computations(computations) do
+    computations
+    |> Enum.map(fn record -> record.execution_id end)
+    |> Enum.uniq()
+    |> Enum.map(fn execution_id -> Journey.kick(execution_id) end)
+    |> length()
+  end
+
+  defp find_abandoned_computations_batch(execution_id, repo) do
+    current_epoch_second = System.system_time(:second)
+
+    from(c in from_computations(execution_id),
+      join: e in Journey.Persistence.Schema.Execution,
+      on: c.execution_id == e.id,
+      where:
+        c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second and
+          is_nil(e.archived_at),
+      limit: ^@batch_size,
+      lock: "FOR UPDATE"
+    )
+    |> repo.all()
+    |> Journey.Executions.convert_values_to_atoms(:node_name)
+    |> filter_out_graphless()
+  end
+
+  defp process_computations(computations, repo, prefix) do
+    # Schedule retries
+    computations
+    |> Enum.each(fn ac ->
+      Journey.Scheduler.Retry.maybe_schedule_a_retry(ac, repo)
+    end)
+
+    # Mark as abandoned and return
+    computations
     |> Enum.map(fn ac ->
-      Logger.info("#{prefix}: processed an abandoned computation, #{ac.execution_id}.#{ac.node_name}.#{ac.id}")
-      ac
+      updated =
+        ac
+        |> Ecto.Changeset.change(%{
+          state: :abandoned,
+          completion_time: System.system_time(:second)
+        })
+        |> repo.update!()
+
+      Logger.info(
+        "#{prefix}: processed an abandoned computation, #{updated.execution_id}.#{updated.node_name}.#{updated.id}"
+      )
+
+      updated
     end)
   end
 

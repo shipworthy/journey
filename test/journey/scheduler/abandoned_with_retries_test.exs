@@ -39,22 +39,18 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
 
     Process.sleep(2_000)
 
-    [swept_execution] = Abandoned.sweep(execution.id)
-
-    assert execution.id == swept_execution.id
+    assert 1 == Abandoned.sweep(execution.id)
     assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 1 == count_computations(execution.id, :astrological_sign, :computing)
     Process.sleep(2_000)
 
-    [swept_execution] = Abandoned.sweep(execution.id)
-
-    assert execution.id == swept_execution.id
+    assert 1 == Abandoned.sweep(execution.id)
     assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)
     Process.sleep(2_000)
-    [] = Abandoned.sweep(execution.id)
+    assert 0 == Abandoned.sweep(execution.id)
     Process.sleep(2_000)
-    [] = Abandoned.sweep(execution.id)
+    assert 0 == Abandoned.sweep(execution.id)
     Process.sleep(2_000)
     assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)

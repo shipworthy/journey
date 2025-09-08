@@ -10,7 +10,10 @@ Choose simplicity, clarity and readability over cleverness.
 
 ## Journey: Computation Graph Library
 
-Journey is an Elixir library for building persistent, scalable computation graphs. It manages data flows, executions, and background scheduling with PostgreSQL persistence.
+Journey is an Elixir library for building persistent and scalable reactive graphs. It manages data flows, executions, and background scheduling with PostgreSQL persistence.
+
+The library is published on hex: https://hexdocs.pm/journey
+
 
 ## Development Workflow
 
@@ -36,6 +39,7 @@ Before declaring a change "done", ask yourself the following questions:
 - **Minimal changes**: Simple, focused modifications with basic tests
 - **Security-first**: Protect customer data and prevent vulnerabilities
 - **Coverage**: Update `mix.exs` threshold if coverage increases
+- **Readability**: Favor simplicity, clarity and readability over cleverness. Prefer explicit anonymous functions over capture operators.
 
 ## Core Architecture
 
