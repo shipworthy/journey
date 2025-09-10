@@ -37,7 +37,6 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
           where:
             c.computation_type in [^:schedule_once, ^:schedule_recurring] and
               c.state == ^:not_set and
-              is_nil(e.archived_at) and
               e.updated_at >= ^cutoff_time,
           select: c.execution_id,
           distinct: true

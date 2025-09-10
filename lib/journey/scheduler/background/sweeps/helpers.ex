@@ -45,14 +45,14 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers do
   defp filter_by_graphs_for_computations(graph_names_and_versions) do
     graph_names_and_versions
     |> Enum.reduce(dynamic(false), fn {name, version}, acc ->
-      dynamic([_c, e], ^acc or (e.graph_name == ^name and e.graph_version == ^version))
+      dynamic([_c, e], ^acc or (is_nil(e.archived_at) and e.graph_name == ^name and e.graph_version == ^version))
     end)
   end
 
   defp filter_by_graphs_for_executions(graph_names_and_versions) do
     graph_names_and_versions
     |> Enum.reduce(dynamic(false), fn {name, version}, acc ->
-      dynamic([e], ^acc or (e.graph_name == ^name and e.graph_version == ^version))
+      dynamic([e], ^acc or (is_nil(e.archived_at) and e.graph_name == ^name and e.graph_version == ^version))
     end)
   end
 end

@@ -161,7 +161,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ExecutionsForGraphsTest do
       assert executions == []
     end
 
-    test "includes archived executions in results" do
+    test "excludes archived executions from results" do
       # Create a graph with unique name
       graph =
         Journey.new_graph(
@@ -184,14 +184,14 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ExecutionsForGraphsTest do
       registered_graphs = Catalog.list()
       registered_graph_tuples = Enum.map(registered_graphs, fn g -> {g.name, g.version} end)
 
-      # Query executions - should include both archived and non-archived
+      # Query executions - should only include non-archived
       query = Helpers.executions_for_graphs(nil, registered_graph_tuples)
       executions = Journey.Repo.all(query)
 
       execution_ids = Enum.map(executions, & &1.id)
 
-      # Both executions should be in the results
-      assert exec_1.id in execution_ids
+      # Only non-archived execution should be in the results
+      refute exec_1.id in execution_ids
       assert exec_2.id in execution_ids
     end
   end

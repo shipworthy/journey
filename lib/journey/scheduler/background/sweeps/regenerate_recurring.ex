@@ -34,8 +34,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
         on: v.execution_id == e.id and v.node_name == c.node_name,
         # No pending :not_set computation exists for this node
         where:
-          is_nil(e.archived_at) and
-            c.computation_type == ^:schedule_recurring and
+          c.computation_type == ^:schedule_recurring and
             c.state == ^:success and
             v.node_type == ^:schedule_recurring and
             v.node_value <= ^now and

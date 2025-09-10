@@ -193,8 +193,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
     # Use executions_for_graphs helper
     from(e in executions_for_graphs(execution_id, all_graphs),
       where:
-        is_nil(e.archived_at) and
-          e.updated_at >= ^check_from and
+        e.updated_at >= ^check_from and
           e.updated_at < ^check_to,
       distinct: true,
       select: e.id,

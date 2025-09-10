@@ -257,8 +257,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
       join: v in Value,
       on: v.execution_id == e.id,
       where:
-        is_nil(e.archived_at) and
-          v.node_type in [:schedule_once, :schedule_recurring] and
+        v.node_type in [:schedule_once, :schedule_recurring] and
           v.node_value < ^recent_boundary and
           v.node_value > ^cutoff_time,
       distinct: true,
