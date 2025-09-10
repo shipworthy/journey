@@ -1,8 +1,10 @@
 defmodule Journey.Scheduler.SchedulerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Journey.Node
   import Journey.Helpers.GrabBag
+  import Journey.Helpers.Random
+  import Ecto.Query
 
   alias Journey.Scheduler
 
@@ -181,6 +183,65 @@ defmodule Journey.Scheduler.SchedulerTest do
       for eid <- execution_ids do
         assert 1 == Abandoned.sweep(eid)
       end
+    end
+
+    test "processes multiple batches of abandoned computations" do
+      # Create a simple graph with a single slow compute node
+      # We'll manually create 150 computation records for it
+      graph_name = "batch_test_#{random_string()}"
+
+      graph =
+        Journey.new_graph(
+          graph_name,
+          "v1.0.0",
+          [
+            input(:name),
+            compute(
+              :greeting,
+              [:name],
+              fn %{name: name} ->
+                Process.sleep(10_000)
+                {:ok, "hello #{name}"}
+              end,
+              abandon_after_seconds: 5
+            )
+          ]
+        )
+
+      Journey.Graph.Catalog.list() |> Enum.map(fn g -> g.name end)
+
+      count = 120
+
+      execution_ids =
+        for i <- 1..count do
+          Journey.start_execution(graph)
+          |> Journey.set_value(:name, "Mario #{i}")
+        end
+        |> Enum.map(fn e -> e.id end)
+
+      Process.sleep(8_000)
+
+      Journey.Repo.all(
+        from c in Journey.Persistence.Schema.Execution.Computation,
+          where: c.execution_id in ^execution_ids
+      )
+
+      # Run sweep with current time - should process all 150 in 2 batches
+      kicked_count = Abandoned.sweep(nil)
+
+      # Should have kicked the execution at least once (may be more due to real computations)
+      assert kicked_count >= count
+
+      # Verify all 150 computations are marked as abandoned
+      abandoned_computations =
+        Journey.Repo.all(
+          from c in Journey.Persistence.Schema.Execution.Computation,
+            where:
+              c.execution_id in ^execution_ids and
+                c.state == :abandoned
+        )
+
+      assert length(abandoned_computations) == count
     end
   end
 

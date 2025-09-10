@@ -424,7 +424,11 @@ defmodule Journey.ToolsTest do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
 
-      result = Journey.Tools.summarize_as_text(execution.id)
+      result =
+        Journey.Tools.summarize_as_text(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
 
       # Verify it returns a formatted string with expected content
       assert is_binary(result)
@@ -438,7 +442,13 @@ defmodule Journey.ToolsTest do
 
       # Test deprecated function returns the same result
       # Using string-based call to avoid compile-time deprecation warning in test
-      deprecated_result = Code.eval_string("Journey.Tools.summarize(\"#{execution.id}\")") |> elem(0)
+      deprecated_result =
+        Code.eval_string("Journey.Tools.summarize(\"#{execution.id}\")")
+        |> elem(0)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+
       assert deprecated_result == result
     end
   end

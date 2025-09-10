@@ -47,4 +47,13 @@ defmodule Journey.Graph.Catalog do
   def list(nil, graph_version) when is_binary(graph_version) do
     raise ArgumentError, "graph_version cannot be specified without graph_name"
   end
+
+  def unregister(graph_name, graph_version)
+      when is_binary(graph_name) and is_binary(graph_version) do
+    Agent.update(__MODULE__, fn state ->
+      Map.delete(state, {graph_name, graph_version})
+    end)
+
+    :ok
+  end
 end

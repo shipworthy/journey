@@ -119,33 +119,20 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesOptimizationTest do
       assert new_sweep_count >= initial_sweep_count + 1
     end
 
-    test "doesn't record completion on error" do
-      # This test would need to mock an error condition
-      # For now, we'll just verify normal error handling structure exists
+    test "records completion on success" do
       _exec = create_execution_with_schedule()
 
-      # Record initial sweep count
-      initial_sweep_count = Journey.Repo.aggregate(SweepRun, :count, :id)
+      # Run sweep and capture the returned sweep_run_id
+      {_kicked_count, sweep_run_id} = ScheduleNodes.sweep(nil)
 
-      # Normal sweep should complete
-      {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
+      # Get the specific sweep run we just created
+      sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
 
-      # Get the newly created sweep run
-      new_sweep_runs =
-        Journey.Repo.all(
-          from sr in SweepRun,
-            where: sr.sweep_type == :schedule_nodes,
-            order_by: [desc: sr.started_at],
-            limit: 1
-        )
-
-      assert length(new_sweep_runs) == 1
-      sweep_run = hd(new_sweep_runs)
+      # Verify completion was recorded
+      assert sweep_run.sweep_type == :schedule_nodes
       assert not is_nil(sweep_run.completed_at)
-
-      # Verify at least one new sweep was created (background sweeps may create additional ones)
-      new_sweep_count = Journey.Repo.aggregate(SweepRun, :count, :id)
-      assert new_sweep_count >= initial_sweep_count + 1
+      assert not is_nil(sweep_run.started_at)
+      assert sweep_run.completed_at >= sweep_run.started_at
     end
 
     @tag :performance
