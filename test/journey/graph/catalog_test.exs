@@ -147,6 +147,102 @@ defmodule Journey.Graph.CatalogTest do
     end
   end
 
+  describe "unregister/2" do
+    test "removes registered graph" do
+      graph = Journey.new_graph("test", "1.0.0", [])
+      Catalog.register(graph)
+
+      assert Catalog.fetch("test", "1.0.0") == graph
+
+      result = Catalog.unregister("test", "1.0.0")
+
+      assert result == :ok
+      assert Catalog.fetch("test", "1.0.0") == nil
+    end
+
+    test "removes specific version while leaving others intact" do
+      graph_v1 = Journey.new_graph("test", "1.0.0", [])
+      graph_v2 = Journey.new_graph("test", "2.0.0", [])
+
+      Catalog.register(graph_v1)
+      Catalog.register(graph_v2)
+
+      result = Catalog.unregister("test", "1.0.0")
+
+      assert result == :ok
+      assert Catalog.fetch("test", "1.0.0") == nil
+      assert Catalog.fetch("test", "2.0.0") == graph_v2
+    end
+
+    test "succeeds silently for unknown graph" do
+      result = Catalog.unregister("unknown", "1.0.0")
+
+      assert result == :ok
+    end
+
+    test "succeeds silently for unknown version" do
+      graph = Journey.new_graph("test", "1.0.0", [])
+      Catalog.register(graph)
+
+      result = Catalog.unregister("test", "2.0.0")
+
+      assert result == :ok
+      assert Catalog.fetch("test", "1.0.0") == graph
+    end
+
+    test "does not affect other graphs" do
+      graph1 = Journey.new_graph("graph1", "1.0.0", [])
+      graph2 = Journey.new_graph("graph2", "1.0.0", [])
+
+      Catalog.register(graph1)
+      Catalog.register(graph2)
+
+      result = Catalog.unregister("graph1", "1.0.0")
+
+      assert result == :ok
+      assert Catalog.fetch("graph1", "1.0.0") == nil
+      assert Catalog.fetch("graph2", "1.0.0") == graph2
+    end
+
+    test "unregistered graph does not appear in list" do
+      graph1 = Journey.new_graph("test", "1.0.0", [])
+      graph2 = Journey.new_graph("test", "2.0.0", [])
+
+      Catalog.register(graph1)
+      Catalog.register(graph2)
+
+      assert length(Catalog.list("test")) == 2
+
+      Catalog.unregister("test", "1.0.0")
+
+      remaining = Catalog.list("test")
+      assert length(remaining) == 1
+      assert remaining == [graph2]
+    end
+
+    test "unregistering all versions results in empty list for graph name" do
+      graph1 = Journey.new_graph("test", "1.0.0", [])
+      graph2 = Journey.new_graph("test", "2.0.0", [])
+
+      Catalog.register(graph1)
+      Catalog.register(graph2)
+
+      Catalog.unregister("test", "1.0.0")
+      Catalog.unregister("test", "2.0.0")
+
+      assert Catalog.list("test") == []
+    end
+
+    test "requires both parameters" do
+      graph = Journey.new_graph("test", "1.0.0", [])
+      Catalog.register(graph)
+
+      result = Catalog.unregister("test", "1.0.0")
+
+      assert result == :ok
+    end
+  end
+
   describe "version sorting" do
     test "sorts versions in descending order" do
       # Test with various version formats to ensure string sorting works correctly

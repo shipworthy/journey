@@ -3,26 +3,27 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
 
   require Logger
   import Ecto.Query
-  alias Journey.Persistence.Schema.Execution.Computation
 
   import Journey.Helpers.Log
+  import Journey.Scheduler.Background.Sweeps.Helpers
 
   # This sweeper is processing abandoned computation in batches to avoid exhausting memory.
   @batch_size 100
 
   @batch_count_to_warn 1000
 
-  def sweep(execution_id) do
+  def sweep(execution_id, current_time \\ nil) do
     prefix = "[#{mf()}]"
     Logger.info("#{prefix}: starting")
 
-    kicked_count = process_until_done(execution_id, MapSet.new(), 1)
+    current_time = current_time || System.system_time(:second)
+    kicked_count = process_until_done(execution_id, MapSet.new(), 1, current_time)
 
     Logger.info("#{prefix}: done, kicked #{kicked_count} execution(s)")
     kicked_count
   end
 
-  defp process_until_done(execution_id, seen_computation_ids, batch_number) do
+  defp process_until_done(execution_id, seen_computation_ids, batch_number, current_time) do
     prefix = "[#{if execution_id == nil, do: "all executions", else: execution_id}] [#{mf()}] [batch #{batch_number}]"
 
     if rem(batch_number, @batch_count_to_warn) == 0 do
@@ -32,7 +33,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
 
     {:ok, processed_abandoned_computations} =
       Journey.Repo.transaction(fn repo ->
-        find_abandoned_computations_batch(execution_id, repo)
+        find_abandoned_computations_batch(execution_id, repo, current_time)
         |> Enum.reject(fn c ->
           seen? = MapSet.member?(seen_computation_ids, c.id)
 
@@ -56,7 +57,12 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
       0
     else
       kicked_count +
-        process_until_done(execution_id, MapSet.union(seen_computation_ids, computation_ids), batch_number + 1)
+        process_until_done(
+          execution_id,
+          MapSet.union(seen_computation_ids, computation_ids),
+          batch_number + 1,
+          current_time
+        )
     end
   end
 
@@ -68,14 +74,16 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
     |> length()
   end
 
-  defp find_abandoned_computations_batch(execution_id, repo) do
-    current_epoch_second = System.system_time(:second)
+  defp find_abandoned_computations_batch(execution_id, repo, current_time) do
+    all_graphs =
+      Journey.Graph.Catalog.list()
+      |> Enum.map(fn g -> {g.name, g.version} end)
 
-    from(c in from_computations(execution_id),
+    from(c in computations_for_graphs(execution_id, all_graphs),
       join: e in Journey.Persistence.Schema.Execution,
       on: c.execution_id == e.id,
       where:
-        c.state == ^:computing and not is_nil(c.deadline) and c.deadline < ^current_epoch_second and
+        c.state == :computing and not is_nil(c.deadline) and c.deadline < ^current_time and
           is_nil(e.archived_at),
       limit: ^@batch_size,
       lock: "FOR UPDATE"
@@ -109,14 +117,6 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
 
       updated
     end)
-  end
-
-  defp from_computations(nil) do
-    from(c in Computation)
-  end
-
-  defp from_computations(execution_id) do
-    from(c in Computation, where: c.execution_id == ^execution_id)
   end
 
   defp filter_out_graphless(computations) do
