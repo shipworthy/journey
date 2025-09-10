@@ -17,8 +17,8 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   require Logger
   import Ecto.Query
   import Journey.Helpers.Log
+  import Journey.Scheduler.Background.Sweeps.Helpers
 
-  alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.Execution.Value
   alias Journey.Persistence.Schema.SweepRun
 
@@ -247,7 +247,13 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   end
 
   defp find_executions_with_past_schedules(execution_id, cutoff_time, recent_boundary, limit, offset) do
-    from(e in base_executions_query(execution_id),
+    # Get all registered graphs (same pattern as other sweepers)
+    all_graphs =
+      Journey.Graph.Catalog.list()
+      |> Enum.map(fn g -> {g.name, g.version} end)
+
+    # Use executions_for_graphs helper
+    from(e in executions_for_graphs(execution_id, all_graphs),
       join: v in Value,
       on: v.execution_id == e.id,
       where:
@@ -261,14 +267,6 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
       offset: ^offset
     )
     |> Journey.Repo.all()
-  end
-
-  defp base_executions_query(nil) do
-    from(e in Execution, where: is_nil(e.archived_at))
-  end
-
-  defp base_executions_query(execution_id) do
-    from(e in base_executions_query(nil), where: e.id == ^execution_id)
   end
 
   defp record_sweep_completion(sweep_run, executions_processed) do

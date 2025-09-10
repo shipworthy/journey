@@ -5,7 +5,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
   import Ecto.Query
 
   import Journey.Helpers.Log
-  alias Journey.Persistence.Schema.Execution
+  import Journey.Scheduler.Background.Sweeps.Helpers
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
@@ -20,8 +20,13 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
 
     now = System.system_time(:second)
 
+    # Get all registered graphs (same pattern as other sweepers)
+    all_graphs =
+      Journey.Graph.Catalog.list()
+      |> Enum.map(fn g -> {g.name, g.version} end)
+
     regenerated_count =
-      from(e in q_executions(execution_id),
+      from(e in executions_for_graphs(execution_id, all_graphs),
         as: :main_execution,
         join: c in assoc(e, :computations),
         as: :main_computation,
@@ -86,13 +91,5 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
 
     Logger.debug("#{prefix}: created a new :not_set computation, #{c.id}")
     c
-  end
-
-  defp q_executions(nil) do
-    from(e in Execution, where: is_nil(e.archived_at))
-  end
-
-  defp q_executions(execution_id) do
-    from(e in q_executions(nil), where: e.id == ^execution_id)
   end
 end

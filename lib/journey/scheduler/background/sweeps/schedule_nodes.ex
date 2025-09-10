@@ -5,7 +5,7 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
   import Ecto.Query
 
   import Journey.Helpers.Log
-  alias Journey.Persistence.Schema.Execution.Computation
+  import Journey.Scheduler.Background.Sweeps.Helpers
   alias Journey.Persistence.Schema.SweepRun
 
   @doc false
@@ -25,14 +25,18 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
       # Get cutoff time from last completed sweep
       cutoff_time = get_last_sweep_cutoff(:schedule_nodes)
 
+      # Get all registered graphs (same pattern as other sweepers)
+      all_graphs =
+        Journey.Graph.Catalog.list()
+        |> Enum.map(fn g -> {g.name, g.version} end)
+
       kicked_count =
-        from(c in q_computations(execution_id),
+        from(c in computations_for_graphs(execution_id, all_graphs),
           join: e in Journey.Persistence.Schema.Execution,
           on: c.execution_id == e.id,
           where:
             c.computation_type in [^:schedule_once, ^:schedule_recurring] and
               c.state == ^:not_set and
-              is_nil(e.archived_at) and
               e.updated_at >= ^cutoff_time,
           select: c.execution_id,
           distinct: true
@@ -61,14 +65,6 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
         # Don't record completion on error
         reraise error, __STACKTRACE__
     end
-  end
-
-  defp q_computations(nil) do
-    from(c in Computation)
-  end
-
-  defp q_computations(execution_id) do
-    from(c in Computation, where: c.execution_id == ^execution_id)
   end
 
   @beginning_of_time_unix 0

@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.Background.Sweeps.HelpersTest do
+defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest do
   use ExUnit.Case, async: false
   import Journey.Node
   import Journey.Helpers.Random

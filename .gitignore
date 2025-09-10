@@ -25,3 +25,5 @@ journey-*.tar
 *.swp
 .DS_Store
 .vscode/
+
+/scraps/
