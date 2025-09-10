@@ -200,10 +200,10 @@ defmodule Journey.Scheduler.SchedulerTest do
               :greeting,
               [:name],
               fn %{name: name} ->
-                Process.sleep(10_000)
+                Process.sleep(100_000)
                 {:ok, "hello #{name}"}
               end,
-              abandon_after_seconds: 5
+              abandon_after_seconds: 3
             )
           ]
         )
@@ -219,7 +219,7 @@ defmodule Journey.Scheduler.SchedulerTest do
         end
         |> Enum.map(fn e -> e.id end)
 
-      Process.sleep(8_000)
+      Process.sleep(5_000)
 
       Journey.Repo.all(
         from c in Journey.Persistence.Schema.Execution.Computation,
