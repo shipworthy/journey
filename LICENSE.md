@@ -10,7 +10,7 @@ Journey is dual-licensed to support individuals and small teams while ensuring t
 
 Journey is free to use for your project, if your Entity generates less than $10k/month in total revenue.
 
-For all other uses, please purchase a license: [https://gojourney.dev](https://gojourney.dev).
+For all other uses, please purchase a build key: [https://gojourney.dev](https://gojourney.dev).
 
 ---
 
@@ -28,19 +28,19 @@ For all other uses, please purchase a license: [https://gojourney.dev](https://g
 
 You may use Journey freely if your Entity generates less than $10,000 USD in total monthly revenue.
 
-For Entities generating at least $10,000 USD in total monthly revenue, each Project using Journey requires a separate commercial license. Please purchase a license: [https://gojourney.dev](https://gojourney.dev)
+For Entities generating at least $10,000 USD in total monthly revenue, each Project using Journey requires a separate commercial build key. Please purchase a build key: [https://gojourney.dev](https://gojourney.dev)
 
 ---
 
 ## 3. Commercial License Required
 
-If your Entity generates at least $10,000 USD in total monthly revenue, you must obtain a separate commercial license for each Project that uses Journey.
+If your Entity generates at least $10,000 USD in total monthly revenue, you must obtain a separate commercial build key for each Project that uses Journey.
 
 This includes internal business applications such as employee tools, operational systems, data processing applications, and administrative systems.
 
-To purchase a commercial license, please visit: [https://gojourney.dev](https://gojourney.dev)
+To purchase a commercial build key, please visit: [https://gojourney.dev](https://gojourney.dev)
 
-If you believe your use of Journey requires a commercial license, you may continue using it for up to **30 days** while you evaluate licensing terms, without a license key or with a free "Small Project" license key. Continued use beyond this period without a valid license may violate this agreement.
+If you believe your use of Journey requires a commercial license, you may continue using it for up to **30 days** while you evaluate licensing terms, without a build key or with a free "Small Project" build key. Continued use beyond this period without a valid commercial build key may violate this agreement.
 
 ---
 
