@@ -14,8 +14,8 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   require Logger
   import Ecto.Query
   import Journey.Helpers.Log
+  import Journey.Scheduler.Background.Sweeps.Helpers
 
-  alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.SweepRun
 
   @batch_size 100
@@ -185,9 +185,16 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   end
 
   defp find_stalled_executions(execution_id, check_from, check_to, limit, offset) do
-    from(e in base_executions_query(execution_id),
+    # Get all registered graphs (same pattern as Abandoned sweeper)
+    all_graphs =
+      Journey.Graph.Catalog.list()
+      |> Enum.map(fn g -> {g.name, g.version} end)
+
+    # Use executions_for_graphs helper
+    from(e in executions_for_graphs(execution_id, all_graphs),
       where:
-        e.updated_at >= ^check_from and
+        is_nil(e.archived_at) and
+          e.updated_at >= ^check_from and
           e.updated_at < ^check_to,
       distinct: true,
       select: e.id,
@@ -196,14 +203,6 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
       offset: ^offset
     )
     |> Journey.Repo.all()
-  end
-
-  defp base_executions_query(nil) do
-    from(e in Execution, where: is_nil(e.archived_at))
-  end
-
-  defp base_executions_query(execution_id) do
-    from(e in base_executions_query(nil), where: e.id == ^execution_id)
   end
 
   defp compute_check_from_threshold() do
