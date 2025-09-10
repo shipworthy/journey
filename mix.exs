@@ -1,7 +1,7 @@
 defmodule Journey.MixProject do
   use Mix.Project
 
-  @version "0.10.30"
+  @version "0.10.31"
 
   def project do
     [
@@ -14,7 +14,7 @@ defmodule Journey.MixProject do
       name: "Journey",
       docs: [
         main: "Journey",
-        extras: ["README.md", "LICENSE.md", "lib/examples/basic.livemd"]
+        extras: ["README.md", "LICENSE.md", "CHANGELOG.md", "lib/examples/basic.livemd"]
       ],
       test_coverage: [
         summary: [
