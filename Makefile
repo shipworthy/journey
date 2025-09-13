@@ -18,7 +18,7 @@
 	validate
 
 
-POSTGRES_DB_CONTAINER_NAME?=my-postgres
+POSTGRES_DB_CONTAINER_NAME?=new_journey-postgres-db
 
 
 all: build format-check lint test test-load
