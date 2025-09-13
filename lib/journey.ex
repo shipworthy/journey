@@ -270,9 +270,8 @@ defmodule Journey do
   @doc """
   Creates a new computation graph with the given name, version, and node definitions.
 
-  This is the foundational function for defining Journey graphs. It creates a validated
-  graph structure that can be used to start executions with `start_execution/1`. The graph
-  defines the data flow, dependencies, and computations for your application workflow.
+  The foundational function for defining Journey graphs. Creates a validated graph structure
+  for starting executions. Defines data flow, dependencies, and computations for workflows.
 
   ## Quick Example
 
@@ -291,31 +290,24 @@ defmodule Journey do
   execution = Journey.start_execution(graph)
   ```
 
-  Use `start_execution/1` to create executions and `set_value/3` to populate input values.
-
   ## Parameters
-  * `name` - String identifying the graph (e.g., "user registration workflow")
-  * `version` - String version identifier following semantic versioning (e.g., "v1.0.0")
-  * `nodes` - List of node definitions created with `Journey.Node` functions (`input/1`, `compute/4`, etc.)
-  * `opts` - Optional keyword list of options:
-    * `:f_on_save` - Graph-wide callback function invoked after any node computation succeeds.
-      Receives `(execution_id, node_name, result)` where result is `{:ok, value}` or `{:error, reason}`.
-      This callback is called after any node-specific `f_on_save` callbacks.
+  * `name` (string) - Graph identifier (e.g., "user registration workflow")
+  * `version` (string) - Semantic version (e.g., "v1.0.0")
+  * `nodes` (list) - Node definitions from `Journey.Node` functions (`input/1`, `compute/4`, etc.)
+  * `opts` (keyword) - Options:
+    * `:f_on_save` - Graph callback: `(execution_id, node_name, result) → :ok`
+      Called after node-specific callbacks. Result: `{:ok, value}` | `{:error, reason}`
 
   ## Returns
-  * `%Journey.Graph{}` struct representing the validated and registered computation graph
+  * `%Journey.Graph{}` - Validated and registered computation graph
 
-  ## Errors
-  * Raises `RuntimeError` if graph validation fails (e.g., circular dependencies, unknown node references)
-  * Raises `ArgumentError` if parameters have invalid types or empty node list
-  * Raises `KeywordValidator.Error` if options are invalid
-
-  ## Key Behaviors
-  * **Validation** - Automatically validates graph structure for cycles, dependency correctness
-  * **Registration** - Registers graph in catalog for execution tracking and reloading
-  * **Immutable** - Graph definition is immutable once created; create new versions for changes
-  * **Node types** - Supports input, compute, mutate, schedule_once, and schedule_recurring nodes
-  * **`f_on_save` Callbacks** - If defined, the graph-wide `f_on_save` callback is called after Node-specific `f_on_save`s (if defined)
+  ## Behavior & Errors
+  * Validates structure (cycles, dependencies) - raises `RuntimeError` on failure
+  * Registers in catalog for tracking and reloading
+  * Immutable once created - create new versions for changes
+  * Supports all node types: input, compute, mutate, schedule_once, schedule_recurring
+  * Graph-wide `f_on_save` called after node-specific callbacks
+  * Raises `ArgumentError` for invalid parameters; `KeywordValidator.Error` for invalid options
 
   ## Examples
 
@@ -444,7 +436,8 @@ defmodule Journey do
   @doc """
   Reloads the current state of an execution from the database to get the latest changes.
 
-  Executions can be modified by their background computations, or scheduled events, or other processes setting their values. This function is used to get the latest state of an execution -- as part of normal operations, or when the system starts up, or when the user whose session is being tracked as an execution comes back to the web site and resumes their flow.
+  Fetches latest execution state including changes from background computations, scheduled events,
+  or concurrent processes. Essential for resuming sessions after restarts or when users return.
 
   ## Quick Example
 
@@ -454,26 +447,21 @@ defmodule Journey do
   {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
   ```
 
-  Use `set_value/3` and `get_value/3` to modify and read execution values.
-
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
-  * `opts` - Keyword list of options (see Options section below)
+  * `execution` - `%Execution{}` struct or execution ID (string)
+  * `opts` (keyword) - Options:
+    * `:preload` (boolean) - Preload nodes/values (default: true). Use false for metadata-only performance.
+    * `:include_archived` (boolean) - Include archived executions (default: false)
 
   ## Returns
-  * A `%Journey.Persistence.Schema.Execution{}` struct with current database state, or `nil` if not found
+  * `%Execution{}` with current database state, or `nil` if not found
 
-  ## Options
-  * `:preload` - Whether to preload associated nodes and values. Defaults to `true`.
-    Set to `false` for better performance when you only need execution metadata.
-  * `:include_archived` - Whether to include archived executions. Defaults to `false`.
-    Archived executions are normally hidden but can be loaded with this option.
+  ## Behavior
+  * Always returns fresh database state (not cached)
+  * Includes latest revision number
+  * Archived executions return `nil` unless explicitly included
 
-  ## Key Behaviors
-  * **Fresh state** - Always returns the current state from the database, not cached data
-  * **Revision tracking** - Loaded execution will have the latest revision number
-  * **Archived handling** - Archived executions return `nil` unless explicitly included
-  * **Performance option** - Use `preload: false` to skip loading values/computations for speed
+  **See also:** `set_value/3`, `get_value/3`
 
   ## Examples
 
@@ -576,9 +564,8 @@ defmodule Journey do
   @doc """
   Queries and retrieves multiple executions from the database with flexible filtering, sorting, and pagination.
 
-  This function enables searching across all executions in your system, with powerful filtering
-  capabilities based on graph names, node values, and execution metadata. It's essential for
-  monitoring workflows, building dashboards, and analyzing execution patterns.
+  Enables searching across all executions with powerful filtering on graph names, node values,
+  and execution metadata. Essential for monitoring workflows, dashboards, and analytics.
 
   ## Quick Example
 
@@ -599,37 +586,30 @@ defmodule Journey do
   )
   ```
 
-  Use with `start_execution/1` to create executions and `load/2` to get individual execution details.
-
   ## Parameters
-  * `options` - Keyword list of query options (all optional):
-    * `:graph_name` - String name of a specific graph to filter by
-    * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
-    * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
-    * `:filter_by` - List of node value filters using database-level filtering for optimal performance. Each filter is a tuple `{node_name, operator, value}` or `{node_name, operator}` for nil checks. Operators: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte` (comparisons), `:in`, `:not_in` (membership), `:is_nil`, `:is_not_nil` (existence). Values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`). Complex values (maps, tuples, functions) will raise an ArgumentError.
-    * `:limit` - Maximum number of results (default: 10,000)
-    * `:offset` - Number of results to skip for pagination (default: 0)
-    * `:include_archived` - Whether to include archived executions (default: false)
+  * `options` (keyword) - All optional:
+    * `:graph_name` (string) - Filter by graph
+    * `:graph_version` (string) - Filter by version (requires :graph_name)
+    * `:sort_by` (list) - Sort fields: execution fields or node values [→ Sorting]
+    * `:filter_by` (list) - Node filters: `{node, op, value}` where op ∈ {:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in, :is_nil, :is_not_nil}. Primitives only. [→ Filtering]
+    * `:limit` (integer) - Max results (default: 10,000)
+    * `:offset` (integer) - Skip for pagination (default: 0)
+    * `:include_archived` (boolean) - Include archived (default: false)
 
   ## Returns
-  * List of `%Journey.Persistence.Schema.Execution{}` structs with preloaded values and computations
-  * Empty list `[]` if no executions match the criteria
+  * List of `%Execution{}` structs with preloaded values/computations, or `[]` if none match
 
-  ## Options
-
-  ### `:sort_by`
-  Sort by execution fields or node values. Supports atoms for ascending (`[:updated_at]`),
-  keywords for direction (`[updated_at: :desc]`), and mixed formats (`[:graph_name, inserted_at: :desc]`).
-
-  **Available fields:**
+  ### Sorting
+  Sort by execution fields or node values: `[:updated_at]`, `[updated_at: :desc]`, mixed formats.
   * Execution fields: `:inserted_at`, `:updated_at`, `:revision`, `:graph_name`, `:graph_version`
-  * Node values: Any node name from the graph (e.g., `:age`, `:score`) using JSONB ordering
-  * Direction: `:asc` (default) or `:desc`
+  * Node values: Any graph node (e.g., `:age`, `:score`) - JSONB ordering
+  * Direction: `:asc` (default) | `:desc`
 
-  ## Key Behaviors
-  * Filtering performed at database level for optimal performance
-  * Only primitive values supported for filtering (complex types raise errors)
-  * Archived executions excluded by default
+  ### Filtering
+  Database-level filtering for performance. Primitive values only (complex types raise errors).
+  Archived executions excluded by default.
+
+  **See also:** `start_execution/1`, `load/2`
 
   ## Examples
 
@@ -674,14 +654,8 @@ defmodule Journey do
   2
   ```
 
-  Validation that graph_version requires graph_name:
 
-  ```elixir
-  iex> Journey.list_executions(graph_version: "v1.0.0")
-  ** (ArgumentError) Option :graph_version requires :graph_name to be specified
-  ```
-
-  Sorting by execution fields and node values:
+  Sorting:
 
   ```elixir
   iex> import Journey.Node
@@ -698,7 +672,7 @@ defmodule Journey do
   ["medium", "low", "high"]
   ```
 
-  Filtering with multiple operators:
+  Filtering:
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
@@ -795,8 +769,8 @@ defmodule Journey do
   @doc """
   Starts a new execution instance of a computation graph, initializing it to accept input values and perform computations.
 
-  Creates a persistent execution in the database with a unique ID and begins background processing
-  for any schedulable nodes. The execution starts with revision 0 and no values set.
+  Creates persistent execution in database with unique ID. Begins background processing for
+  schedulable nodes. Starts with revision 0 and no values set.
 
   ## Quick Example
 
@@ -806,25 +780,23 @@ defmodule Journey do
   {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
   ```
 
-  Use `set_value/3` to provide input values and `get_value/3` to retrieve computed results.
-
   ## Parameters
-  * `graph` - A validated `%Journey.Graph{}` struct created with `new_graph/3`. The graph must
-    have passed validation during creation and be registered in the graph catalog.
+  * `graph` - Validated `%Journey.Graph{}` from `new_graph/3` (must be registered)
 
   ## Returns
-  * A new `%Journey.Persistence.Schema.Execution{}` struct with:
-    * `:id` - Unique execution identifier (UUID string)
-    * `:graph_name` and `:graph_version` - From the source graph
-    * `:revision` - Always starts at 0, increments with each state change
-    * `:archived_at` - Initially nil (not archived)
-    and other fields.
+  * New `%Execution{}` with:
+    * `:id` - Unique identifier (UUID)
+    * `:graph_name`, `:graph_version` - From source graph
+    * `:revision` - Starts at 0, increments with changes
+    * `:archived_at` - Initially nil
 
-  ## Key Behaviors
-  * **Database persistence** - Execution state is immediately saved to PostgreSQL
-  * **Unique execution** - Each call creates a completely independent execution instance
-  * **Background processing** - Scheduler automatically begins monitoring for schedulable nodes
-  * **Ready for inputs** - Can immediately accept input values via `set_value/3`
+  ## Behavior
+  * Immediately persisted to PostgreSQL
+  * Each call creates independent execution
+  * Scheduler monitors schedulable nodes
+  * Ready for input values
+
+  **See also:** `set_value/3`, `get_value/3`
 
   ## Examples
 
@@ -915,9 +887,8 @@ defmodule Journey do
   @doc """
   Returns a map of all nodes in an execution with their current status, including unset nodes.
 
-  Unlike `values/2` which only returns set nodes, this function shows all nodes including those
-  that haven't been set yet. Unset nodes are marked as `:not_set`, while set nodes are returned
-  as `{:set, value}` tuples. Useful for debugging and introspection.
+  Unlike `values/2` which only returns set nodes, this shows all nodes. Unset nodes: `:not_set`,
+  set nodes: `{:set, value}`. Useful for debugging and introspection.
 
   ## Quick Example
 
@@ -926,15 +897,14 @@ defmodule Journey do
   # %{name: {:set, "Alice"}, age: :not_set, execution_id: {:set, "EXEC..."}, ...}
   ```
 
-  Use `values/2` to get only set values, or `get_value/3` for individual node values.
-
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
-  * `opts` - Keyword list of options (`:reload` - defaults to `true` for fresh database state)
+  * `execution` - `%Execution{}` struct
+  * `opts` (keyword) - `:reload` (boolean, default: true) for fresh database state
 
   ## Returns
-  * Map with all nodes showing status: `:not_set` or `{:set, value}`
-  * Includes all nodes defined in the graph, regardless of current state
+  * Map with all nodes: `:not_set` | `{:set, value}` (includes all graph nodes)
+
+  **See also:** `values/2`, `get_value/3`
 
   ## Examples
 
@@ -974,8 +944,8 @@ defmodule Journey do
   @doc """
   Returns a map of all set node values in an execution, excluding unset nodes.
 
-  This function filters the execution to only include nodes that have been populated with data.
-  Unset nodes are excluded from the result. Always includes `:execution_id` and `:last_updated_at` metadata.
+  Filters execution to only populated nodes. Always includes `:execution_id` and
+  `:last_updated_at` metadata.
 
   ## Quick Example
 
@@ -985,15 +955,14 @@ defmodule Journey do
   # %{name: "Alice", execution_id: "EXEC...", last_updated_at: 1234567890}
   ```
 
-  Use `values_all/1` to see all nodes including unset ones, or `get_value/3` for individual values.
-
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
-  * `opts` - Keyword list of options (`:reload` - see `values_all/1` for details)
+  * `execution` - `%Execution{}` struct
+  * `opts` (keyword) - `:reload` (boolean) - see `values_all/1`
 
   ## Returns
-  * Map with node names as keys and their current values as values
-  * Only includes nodes that have been set (excludes `:not_set` nodes)
+  * Map with set nodes only (excludes `:not_set` nodes)
+
+  **See also:** `values_all/1`, `get_value/3`
 
   ## Examples
 
@@ -1043,10 +1012,9 @@ defmodule Journey do
   @doc """
   Returns the chronological history of all successful computations and set values for an execution.
 
-  This function provides visibility into the order of operations during execution, showing both
-  value sets and successful computations in chronological order. Only successful computations
-  are included; failed computations are filtered out. At the same revision, computations appear
-  before values.
+  Provides visibility into operation order during execution. Shows value sets and successful
+  computations chronologically. Failed computations filtered out. At same revision:
+  computations before values.
 
   ## Quick Example
 
@@ -1056,18 +1024,18 @@ defmodule Journey do
   #  %{node_name: :sum, computation_or_value: :computation, revision: 2}, ...]
   ```
 
-  Use `values/2` to see only current values, or `set_value/3` and `get_value/3` for individual operations.
-
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `execution` - `%Execution{}` struct or execution ID (string)
 
   ## Returns
-  * List of maps sorted by revision, where each map contains:
-    * `:computation_or_value` - either `:computation` or `:value`
-    * `:node_name` - the name of the node
-    * `:node_type` - the type of the node (`:input`, `:compute`, `:mutate`, etc.)
-    * `:revision` - the execution revision when this operation completed
-    * `:value` - the actual value (only present for `:value` entries)
+  * List of maps sorted by revision:
+    * `:computation_or_value` - `:computation` | `:value`
+    * `:node_name` - Node name
+    * `:node_type` - `:input` | `:compute` | `:mutate` | etc.
+    * `:revision` - Execution revision when completed
+    * `:value` - Actual value (`:value` entries only)
+
+  **See also:** `values/2`, `set_value/3`, `get_value/3`
 
   ## Examples
 
@@ -1114,26 +1082,22 @@ defmodule Journey do
   @doc """
   Sets the value for an input node in an execution and triggers recomputation of dependent nodes.
 
-  When a value is set, Journey automatically recomputes any dependent computed nodes to ensure
-  consistency across the dependency graph. The operation is idempotent - setting the same value
+  Automatically recomputes dependent nodes for consistency. Idempotent - setting the same value
   twice has no effect.
 
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
-  * `node_name` - Atom representing the input node name (must exist in the graph)
-  * `value` - The value to set. Supported types: nil, string, number, map, list, boolean. Note that if the map or the list contains atoms, those atoms will be converted to strings.
+  * `execution` - `%Execution{}` struct or execution ID (string)
+  * `node_name` (atom) - Input node name (must exist in graph)
+  * `value` - Value to set: nil | string | number | map | list | boolean
+    Note: atoms in maps/lists converted to strings
 
   ## Returns
-  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value changed)
+  * Updated `%Execution{}` with incremented revision (if changed)
 
-  ## Errors
-  * Raises `RuntimeError` if the node name does not exist in the execution's graph
-  * Raises `RuntimeError` if attempting to set a compute node (only input nodes can be set)
-
-  ## Key Behaviors
-  * **Automatic recomputation** - Setting a value triggers recomputation of all dependent nodes
-  * **Idempotent** - Setting the same value twice has no effect (no revision increment)
-  * **Input nodes only** - Only input nodes can be set; compute nodes are read-only
+  ## Behavior & Errors
+  * Triggers recomputation of dependent nodes (automatic cascade)
+  * Idempotent - same value → no revision change
+  * Input nodes only - raises `RuntimeError` for compute nodes or unknown nodes
 
   ## Quick Example
 
@@ -1142,7 +1106,7 @@ defmodule Journey do
   {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
   ```
 
-  Use `get_value/3` to retrieve the set value and `unset_value/2` to remove values.
+  **See also:** `get_value/3`, `unset_value/2`
 
   ## Examples
 
@@ -1201,23 +1165,11 @@ defmodule Journey do
   {:ok, 42}
   iex> Journey.get_value(execution, :flag)
   {:ok, true}
-  ```
-
-  Using an execution ID:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "set workflow - execution_id example",
-  ...>       "v1.0.0",
-  ...>       [input(:name)]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> # using execution ID
   iex> updated_execution = Journey.set_value(execution.id, :name, "Luigi")
   iex> Journey.get_value(updated_execution, :name)
   {:ok, "Luigi"}
   ```
-
   """
   def set_value(execution_id, node_name, value)
       when is_binary(execution_id) and is_atom(node_name) and
@@ -1241,9 +1193,8 @@ defmodule Journey do
   @doc """
   Removes the value from an input node in an execution and invalidates all dependent computed nodes.
 
-  When a value is unset, Journey automatically invalidates (unsets) all computed nodes that depend
-  on the unset input, creating a cascading effect through the dependency graph. This ensures data
-  consistency - no computed values remain that were based on the now-removed input.
+  Automatically invalidates dependent computed nodes through a cascading effect. Ensures data
+  consistency - no computed values remain based on removed input.
 
   ## Quick Example
 
@@ -1252,23 +1203,18 @@ defmodule Journey do
   {:error, :not_set} = Journey.get_value(execution, :name)
   ```
 
-  Use `set_value/3` to set values and `get_value/3` to check if values are set.
-
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
-  * `node_name` - Atom representing the input node name (must exist in the graph)
+  * `execution` - `%Execution{}` struct or execution ID (string)
+  * `node_name` (atom) - Input node name (must exist in graph)
 
   ## Returns
-  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value was set)
+  * Updated `%Execution{}` with incremented revision (if was set)
 
-  ## Errors
-  * Raises `RuntimeError` if the node name does not exist in the execution's graph
-  * Raises `RuntimeError` if attempting to unset a compute node (only input nodes can be unset)
+  ## Behavior & Errors
+  * Cascades to dependent nodes, idempotent, input nodes only
+  * Raises `RuntimeError` for compute nodes or unknown nodes
 
-  ## Key Behaviors
-  * **Cascading invalidation** - Dependent computed nodes are automatically unset
-  * **Idempotent** - Multiple unsets of the same value have no additional effect
-  * **Input nodes only** - Only input nodes can be unset; compute nodes cannot be unset
+  **See also:** `set_value/3`, `get_value/3`
 
   ## Examples
 
@@ -1327,22 +1273,6 @@ defmodule Journey do
   {:error, :not_set}
   ```
 
-  Idempotent behavior:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>   "unset workflow - idempotent example",
-  ...>   "v1.0.0",
-  ...>   [input(:name)]
-  ...> )
-  iex> execution = graph |> Journey.start_execution()
-  iex> original_revision = execution.revision
-  iex> execution_after_unset = Journey.unset_value(execution, :name)
-  iex> execution_after_unset.revision == original_revision
-  true
-  ```
-
   """
   def unset_value(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
@@ -1383,9 +1313,8 @@ defmodule Journey do
   * `opts` - Keyword list of options (see Options section below)
 
   ## Returns
-  * `{:ok, value}` – the value is set
-  * `{:error, :not_set}` – the value is not yet set
-  * `{:error, :no_such_value}` – the node does not exist
+  * `{:ok, value}` – if the value is set
+  * `{:error, :not_set}` – if the value is not yet set
 
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
@@ -1454,11 +1383,7 @@ defmodule Journey do
   @doc """
   Archives an execution, making it invisible and stopping all background processing.
 
-  Archiving permanently (*) freezes an execution by marking it with an archived timestamp.
-  This removes it from normal visibility and excludes it from all scheduler processing,
-  while preserving the data for potential future access.
-
-  *) an execution can be unarchived by calling `unarchive/1`
+  Marks with timestamp, excludes from scheduler, preserves data. Reversible via `unarchive/1`.
 
   ## Quick Example
 
@@ -1468,19 +1393,19 @@ defmodule Journey do
   Journey.load(execution, include_archived: true)  # Can still access
   ```
 
-  Use `unarchive/1` to reverse archiving and `list_executions/1` with `:include_archived` to find archived executions.
-
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `execution` - `%Execution{}` struct or execution ID (string)
 
   ## Returns
-  * Integer timestamp (Unix epoch seconds) when the execution was archived
+  * Integer timestamp (Unix epoch seconds) when archived
 
-  ## Key Behaviors
-  * **Scheduler exclusion** - Archived executions are excluded from all background sweeps and processing
-  * **Hidden by default** - Not returned by `list_executions/1` or `load/2` unless explicitly included
-  * **Idempotent** - Archiving an already archived execution returns the existing timestamp
-  * **Reversible** - Use `unarchive/1` to restore normal visibility and processing
+  ## Behavior
+  * Excluded from background sweeps and processing
+  * Hidden from `list_executions/1` and `load/2` by default
+  * Idempotent - returns existing timestamp if already archived
+  * Reversible via `unarchive/1`
+
+  **See also:** `unarchive/1`, `list_executions/1`
 
   ## Examples
 
@@ -1501,18 +1426,6 @@ defmodule Journey do
   true
   ```
 
-  Idempotent behavior:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph("archive idempotent", "v1.0.0", [input(:data)])
-  iex> execution = Journey.start_execution(graph)
-  iex> first_archive = Journey.archive(execution)
-  iex> second_archive = Journey.archive(execution)
-  iex> first_archive == second_archive
-  true
-  ```
-
   """
   def archive(execution_id) when is_binary(execution_id) do
     Journey.Executions.archive_execution(execution_id)
@@ -1524,11 +1437,13 @@ defmodule Journey do
   @doc """
   Un-archives the supplied execution, if it is archived.
 
-  ## Parameters:
-  - `execution` or `execution_id`: The execution to un-archive, or the ID of the execution to un-archive.
+  ## Parameters
+  * `execution` - `%Execution{}` struct or execution ID (string)
 
-  Returns
-  * :ok
+  ## Returns
+  * `:ok`
+
+  **See also:** `archive/1`
 
   ## Examples
 
