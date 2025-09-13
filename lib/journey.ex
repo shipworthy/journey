@@ -1166,9 +1166,9 @@ defmodule Journey do
   iex> Journey.get_value(execution, :flag)
   {:ok, true}
   iex> # using execution ID
-  iex> updated_execution = Journey.set_value(execution.id, :name, "Luigi")
-  iex> Journey.get_value(updated_execution, :name)
-  {:ok, "Luigi"}
+  iex> updated_execution = Journey.set_value(execution.id, :number, 43)
+  iex> Journey.get_value(updated_execution, :number)
+  {:ok, 43}
   ```
   """
   def set_value(execution_id, node_name, value)
