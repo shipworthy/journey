@@ -1,19 +1,54 @@
 # Overview
 
+
+<div align="right">
+"Start simple, go far."<br>
+— <a href="https://www.youtube.com/watch?v=JvBT4XBdoUE">Sasa Juric, "The Soul of Elixir and Erlang"</a>
+</div>
+
+
 ## What is Journey
-Journey is an Elixir library for building and executing computation graphs, with built-in persistence, reliability, and scalability.
 
-Define your application workflows as dependency graphs where user inputs automatically trigger computations in the correct order, with all state persisted to PostgreSQL.
+A persisted, reactive graph package, Journey eliminates the boilerplate code you normally have to write (over and over again) when implementing multi-step processes with persistence - state tracking and orchestration code, retry logic, persistence itself.
 
-Executions of the graph survive crashes, redeploys, page reloads, while scaling naturally with your application - no additional infrastructure or cloud service$ required.
+For durable processes of any size (a linear, 2-3 step process or a 60 step conditional flow), Journey helps you define your durable process as a simple dependency graph where inputs automatically trigger the right computations in the right order, with retries, on any of your application's replicas, and with everything persisted to PostgreSQL.
+
+You can use Journey for basic 3-steps flows (such as this basic "welcome" flow
+
+```elixir
+iex> import Journey.Node
+iex> graph = Journey.new_graph(
+...>   "demo welcome graph – readme doctest",
+...>   "v1",
+...>   [
+...>     input(:name),
+...>     input(:email_address),
+...>     compute(:greeting, [:name, :email_address], &send_welcome_email/1)
+...>   ]
+...> )
+```
+), or for complex multi-step conditional flows.
+
+Regardless of the size and nature of the workflow, for BOTH tiny-and-linear AND large-and-conditional durable flows, Journey saves you the work of writing and maintaining tedious boilerplate code (persistence, orchestration, retries, scalability), and lets you focus on the actual functionality of your application.
+
+You can build your workflow with GenServers, ETS/Mnesia/postgres, shared state, db schemas, custom retry logic, state reloading logic, and the code that would safely run send_welcome_email at the right time, even as your system gets rebooted or scales up and down or survives an outage. Journey eliminates the need for writing that boilerplate code, so you can focus on your business logic – regardless of whether you are building tiny-and-linear or large-and-conditional durable flows.
+
+So, is Journey just for complex (large, conditional) flows? Not at all! Journey lets your application provide durable, reliable, scalable execution, regardless of the complexity of your business logic. In fact, somewhat ironically, the amount of boilerplate code that you would otherwise need to write – and that Journey handles for you – for a simple, two-step linear process to make it durable and reliable, is disproportionately large, as percentage of your application's code.
+
+Executions of Journey graphs survive crashes, redeploys, page reloads, while scaling naturally with your application - no additional infrastructure or cloud service$ required.
 
 Your application can perform durable, short or long-running executions, with retries, scalability, dependency tracking, scheduling and analytics.
 
-Journey's primitives are simple: graph, dependencies, functions, persistence, retries, scheduling. Together, they help you build rich, scalable, reliable functionality with simple, well-structured and easy-to-understand code, quickly – from basic two-step logic, to a complex multi-step application.
+Journey's primitives are simple: graph, dependencies, functions, persistence, retries, scheduling. Together, they help you build rich, scalable, reliable functionality with simple, well-structured and easy-to-understand code, quickly.
+
+A tiny two-step sequence (see the tiny [Useless Machine](https://github.com/markmark206/journey/blob/main/lib/examples/useless_machine.ex) example), or a large multi-step application with conditional processing – Journey provides simple persistence, scalability and resilience.
+
 
 ## Basic Concepts
 
-To illustrate a few concepts (graph, dependencies – including conditional dependencies, computation functions, persistence), here is a simple example.
+To illustrate a few concepts (graph, dependencies – including conditional dependencies, computation functions, persistence), here is a slightly more complex example.
+
+Keep in mind that these concepts apply for both simple, two-step linear processes and complex, multi-step conditional processes. Journey makes it easy to implement durable flows of a wide ranges of size and complexity.
 
 This graph adds two numbers when they become available, and conditionally sets the "too large" flag.
 
