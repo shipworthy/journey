@@ -4,6 +4,7 @@ defmodule Journey.Graph.Validations do
   def validate(graph) do
     graph
     |> ensure_no_duplicate_node_names()
+    |> ensure_no_cycles()
     |> validate_dependencies()
   end
 
@@ -118,5 +119,97 @@ defmodule Journey.Graph.Validations do
 
   defp validate_node(%Journey.Graph.Input{} = input, _all_node_names) do
     input
+  end
+
+  defp ensure_no_cycles(graph) do
+    adjacency_list = build_adjacency_list(graph)
+    detect_cycles(adjacency_list, graph.name)
+    graph
+  end
+
+  defp build_adjacency_list(graph) do
+    graph.nodes
+    |> Enum.reduce(%{}, fn node, acc ->
+      dependencies = get_node_dependencies(node)
+      Map.put(acc, node.name, dependencies)
+    end)
+  end
+
+  defp get_node_dependencies(%Journey.Graph.Input{}), do: []
+
+  defp get_node_dependencies(%Journey.Graph.Step{} = step) do
+    step.gated_by
+    |> Journey.Node.UpstreamDependencies.Computations.list_all_node_names()
+  end
+
+  defp detect_cycles(adjacency_list, graph_name) do
+    all_nodes = Map.keys(adjacency_list) |> Enum.sort()
+    visited = MapSet.new()
+    rec_stack = MapSet.new()
+
+    Enum.reduce(all_nodes, visited, fn node, acc_visited ->
+      if MapSet.member?(acc_visited, node) do
+        acc_visited
+      else
+        check_node_for_cycle(node, adjacency_list, acc_visited, rec_stack, [], graph_name)
+      end
+    end)
+  end
+
+  defp check_node_for_cycle(node, adjacency_list, visited, rec_stack, path, graph_name) do
+    case dfs_cycle_check(node, adjacency_list, visited, rec_stack, path) do
+      {:cycle, cycle_path} ->
+        raise_cycle_error(cycle_path, graph_name)
+
+      {:ok, new_visited} ->
+        new_visited
+    end
+  end
+
+  defp dfs_cycle_check(node, adjacency_list, visited, rec_stack, path) do
+    visited = MapSet.put(visited, node)
+    rec_stack = MapSet.put(rec_stack, node)
+    path = [node | path]
+
+    dependencies = Map.get(adjacency_list, node, []) |> Enum.sort()
+
+    result = check_dependencies_for_cycles(dependencies, adjacency_list, visited, rec_stack, path)
+
+    case result do
+      {:cycle, cycle_path} -> {:cycle, cycle_path}
+      {:ok, final_visited} -> {:ok, MapSet.delete(final_visited, node)}
+    end
+  end
+
+  defp check_dependencies_for_cycles(dependencies, adjacency_list, visited, rec_stack, path) do
+    Enum.reduce_while(dependencies, {:ok, visited}, fn dep, {:ok, acc_visited} ->
+      process_dependency(dep, adjacency_list, acc_visited, rec_stack, path)
+    end)
+  end
+
+  defp process_dependency(dep, adjacency_list, acc_visited, rec_stack, path) do
+    cond do
+      MapSet.member?(rec_stack, dep) ->
+        # Found a back edge - this is a cycle
+        cycle_start_index = Enum.find_index(path, fn n -> n == dep end)
+        cycle_path = Enum.take(path, cycle_start_index + 1) |> Enum.reverse()
+        # Add the back edge to show the complete cycle
+        complete_cycle_path = cycle_path ++ [dep]
+        {:halt, {:cycle, complete_cycle_path}}
+
+      not MapSet.member?(acc_visited, dep) ->
+        case dfs_cycle_check(dep, adjacency_list, acc_visited, rec_stack, path) do
+          {:cycle, cycle_path} -> {:halt, {:cycle, cycle_path}}
+          {:ok, new_visited} -> {:cont, {:ok, new_visited}}
+        end
+
+      true ->
+        {:cont, {:ok, acc_visited}}
+    end
+  end
+
+  defp raise_cycle_error(cycle_path, graph_name) do
+    cycle_description = Enum.map_join(cycle_path, " → ", &inspect/1)
+    raise "Circular dependency detected in graph '#{graph_name}': #{cycle_description}"
   end
 end
