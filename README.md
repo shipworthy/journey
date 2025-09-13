@@ -33,7 +33,7 @@ iex> graph = Journey.new_graph(
 ...>     compute(
 ...>         :large_value_alert,
 ...>         [sum: fn sum_node -> sum_node.node_value > 40 end],
-...>         fn %{sum: sum} -> {:ok, "🚨, at \#{sum}"} end,
+...>         fn %{sum: sum} -> {:ok, "🚨, at #{sum}"} end,
 ...>         f_on_save: fn _execution_id, _result ->
 ...>            # (e.g. send a pubsub notification to the LiveView process to update the UI)
 ...>            :ok
@@ -219,7 +219,7 @@ iex> graph = Journey.new_graph(
 ...>           # Computes itself once :first_name and :zodiac_sign are in place:
 ...>           [:first_name, :zodiac_sign],
 ...>           fn %{first_name: name, zodiac_sign: zodiac_sign} ->
-...>             {:ok, "🍪s await, \#{zodiac_sign} \#{name}!"}
+...>             {:ok, "🍪s await, #{zodiac_sign} #{name}!"}
 ...>           end
 ...>         )
 ...>       ]
@@ -253,7 +253,7 @@ iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
 %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
 iex>
 iex> # 6. and we can always list executions.
-iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
+iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest (all together now)", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
 iex> e.id == this_execution.id
 true
 ```
