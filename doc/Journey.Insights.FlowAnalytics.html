@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.38.2">
+    <meta name="project" content="Journey v0.10.31">
+
+
+    <title>Journey.Insights.FlowAnalytics — Journey v0.10.31</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-KV3YOVJ3.css" />
+
+    <script defer src="dist/sidebar_items-8DE7E386.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-DPJLHKSM.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="Journey.html" class="sidebar-projectName" translate="no">
+Journey
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.10.31
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras=""></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of Journey</span>
+            <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button type="submit" class="search-button" aria-label="Submit Search" tabindex="-1">
+            <i class="ri-search-2-line ri-lg" aria-hidden="true"></i>
+          </button>
+          <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+            <i class="ri-close-line ri-lg" title="Cancel search"></i>
+          </button>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">Journey.Insights.FlowAnalytics</span> 
+      <small class="app-vsn" translate="no">(Journey v0.10.31)</small>
+
+    </h1>
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Provides system-wide aggregate data about the state of the executions of a particular graph.
+This can be thought of as &quot;analytics&quot; for a particular graph.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h1>
+<div class="summary-functions summary">
+  <h2>
+    <a href="#functions">Functions</a>
+  </h2>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#flow_analytics/3" data-no-tooltip="" translate="no">flow_analytics(graph_name, graph_version, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Provides business-focused analytics for understanding customer behavior through Journey graphs.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#to_text/1" data-no-tooltip="" translate="no">to_text(flow_analytics)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Formats flow analytics data as human-readable text output.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h1>
+    <div class="functions-list">
+<section class="detail" id="flow_analytics/3">
+
+    <span id="flow_analytics/2"></span>
+
+  <div class="detail-header">
+    <a href="#flow_analytics/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">flow_analytics(graph_name, graph_version, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Provides business-focused analytics for understanding customer behavior through Journey graphs.</p><p>Uses optimized database queries that scale efficiently to millions of executions by leveraging
+PostgreSQL's aggregation capabilities. System nodes (execution_id and last_updated_at) are
+automatically excluded from the analysis.</p><h2 id="flow_analytics/3-parameters" class="section-heading"><a href="#flow_analytics/3-parameters" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Parameters</span></h2><ul><li><code class="inline">graph_name</code> - String, the graph name to analyze</li><li><code class="inline">graph_version</code> - String, the graph version to analyze</li><li><code class="inline">opts</code> - Keyword list with options:<ul><li><p><code class="inline">:include_executions</code> - <code class="inline">:all</code> | <code class="inline">:archived</code> | <code class="inline">:active</code> (default: <code class="inline">:active</code>)</p></li><li><code class="inline">:flow_ends_here_after</code> - Duration in seconds after which we consider a flow &quot;ended&quot; if no activity (default: 86400 seconds / 1 day)</li></ul></li></ul><h2 id="flow_analytics/3-return-structure" class="section-heading"><a href="#flow_analytics/3-return-structure" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Return Structure</span></h2><p>Returns a map with graph metadata, execution-level analytics, and per-node customer journey metrics.</p><h2 id="flow_analytics/3-examples" class="section-heading"><a href="#flow_analytics/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples</span></h2><p>  iex(3)&gt; Journey.Insights.FlowAnalytics.flow_analytics(&quot;Credit Card Application flow graph&quot;, &quot;v1.0.0&quot;)
+  %{</p><pre><code class="makeup elixir" translate="no"><span class="ss">graph_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Credit Card Application flow graph&quot;</span><span class="p">,</span><span class="w">
+</span><span class="ss">analyzed_at</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2025-08-02T04:08:28.351195Z&quot;</span><span class="p">,</span><span class="w">
+</span><span class="ss">executions</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1895907944-1">%{</span><span class="w">
+  </span><span class="ss">count</span><span class="p">:</span><span class="w"> </span><span class="mi">8294</span><span class="p">,</span><span class="w">
+  </span><span class="ss">duration_avg_seconds_to_last_update</span><span class="p">:</span><span class="w"> </span><span class="mi">48</span><span class="p">,</span><span class="w">
+  </span><span class="ss">duration_median_seconds_to_last_update</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span><span class="p" data-group-id="1895907944-1">}</span><span class="p">,</span><span class="w">
+</span><span class="ss">graph_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="ss">node_stats</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1895907944-2">%{</span><span class="w">
+  </span><span class="ss">nodes</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1895907944-3">[</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-4">%{</span><span class="w">
+      </span><span class="ss">node_type</span><span class="p">:</span><span class="w"> </span><span class="ss">:input</span><span class="p">,</span><span class="w">
+      </span><span class="ss">node_name</span><span class="p">:</span><span class="w"> </span><span class="ss">:birth_date</span><span class="p">,</span><span class="w">
+      </span><span class="c1"># The number of executions that have set a value for this node.</span><span class="w">
+      </span><span class="ss">reached_count</span><span class="p">:</span><span class="w"> </span><span class="mi">3884</span><span class="p">,</span><span class="w">
+      </span><span class="c1"># The average time it took for an execution to reach this node.</span><span class="w">
+      </span><span class="ss">average_time_to_reach</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+      </span><span class="c1"># The number of executions which haven&#39;t been updated for a while, and this was the last node that was updated.</span><span class="w">
+      </span><span class="ss">flow_ends_here_count</span><span class="p">:</span><span class="w"> </span><span class="mi">1953</span><span class="p">,</span><span class="w">
+      </span><span class="c1"># The percentage of all executions that ended here.</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_all</span><span class="p">:</span><span class="w"> </span><span class="mf">23.5</span><span class="p">,</span><span class="w">
+      </span><span class="c1"># The percentage of executions that reached this node and ended here.</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_reached</span><span class="p">:</span><span class="w"> </span><span class="mf">50.28</span><span class="p">,</span><span class="w">
+      </span><span class="c1"># The percentage of executions that have set a value for this node.</span><span class="w">
+      </span><span class="ss">reached_percentage</span><span class="p">:</span><span class="w"> </span><span class="mf">46.8</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-4">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-5">%{</span><span class="w">
+      </span><span class="ss">node_type</span><span class="p">:</span><span class="w"> </span><span class="ss">:input</span><span class="p">,</span><span class="w">
+      </span><span class="ss">node_name</span><span class="p">:</span><span class="w"> </span><span class="ss">:email_address</span><span class="p">,</span><span class="w">
+      </span><span class="ss">reached_count</span><span class="p">:</span><span class="w"> </span><span class="mi">2066</span><span class="p">,</span><span class="w">
+      </span><span class="ss">average_time_to_reach</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_count</span><span class="p">:</span><span class="w"> </span><span class="mi">213</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_all</span><span class="p">:</span><span class="w"> </span><span class="mf">2.6</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_reached</span><span class="p">:</span><span class="w"> </span><span class="mf">10.31</span><span class="p">,</span><span class="w">
+      </span><span class="ss">reached_percentage</span><span class="p">:</span><span class="w"> </span><span class="mf">24.9</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-5">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-6">%{</span><span class="w">
+      </span><span class="ss">node_type</span><span class="p">:</span><span class="w"> </span><span class="ss">:input</span><span class="p">,</span><span class="w">
+      </span><span class="ss">node_name</span><span class="p">:</span><span class="w"> </span><span class="ss">:full_name</span><span class="p">,</span><span class="w">
+      </span><span class="ss">reached_count</span><span class="p">:</span><span class="w"> </span><span class="mi">5736</span><span class="p">,</span><span class="w">
+      </span><span class="ss">average_time_to_reach</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_count</span><span class="p">:</span><span class="w"> </span><span class="mi">3716</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_all</span><span class="p">:</span><span class="w"> </span><span class="mf">44.8</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_reached</span><span class="p">:</span><span class="w"> </span><span class="mf">64.78</span><span class="p">,</span><span class="w">
+      </span><span class="ss">reached_percentage</span><span class="p">:</span><span class="w"> </span><span class="mf">69.2</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-6">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-7">%{</span><span class="w">
+      </span><span class="ss">node_type</span><span class="p">:</span><span class="w"> </span><span class="ss">:compute</span><span class="p">,</span><span class="w">
+      </span><span class="ss">node_name</span><span class="p">:</span><span class="w"> </span><span class="ss">:credit_score</span><span class="p">,</span><span class="w">
+      </span><span class="ss">reached_count</span><span class="p">:</span><span class="w"> </span><span class="mi">1844</span><span class="p">,</span><span class="w">
+      </span><span class="ss">average_time_to_reach</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_count</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_all</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="ss">flow_ends_here_percentage_of_reached</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="ss">reached_percentage</span><span class="p">:</span><span class="w"> </span><span class="mf">22.2</span><span class="w">
+    </span><span class="p" data-group-id="1895907944-7">}</span><span class="p">,</span><span class="w">
+    </span><span class="n">...</span><span class="w">
+  </span><span class="p" data-group-id="1895907944-3">]</span><span class="w">
+</span><span class="p" data-group-id="1895907944-2">}</span></code></pre><p>  }</p>
+  </section>
+</section>
+<section class="detail" id="to_text/1">
+
+  <div class="detail-header">
+    <a href="#to_text/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">to_text(flow_analytics)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Formats flow analytics data as human-readable text output.</p><h2 id="to_text/1-example" class="section-heading"><a href="#to_text/1-example" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Example:</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">flow_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey.Insights.FlowAnalytics</span><span class="o">.</span><span class="n">flow_analytics</span><span class="p" data-group-id="4231613202-1">(</span><span class="s">&quot;Credit Card Application flow graph&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;v1.0.0&quot;</span><span class="p" data-group-id="4231613202-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Journey.Insights.FlowAnalytics</span><span class="o">.</span><span class="n">to_text</span><span class="p" data-group-id="4231613202-2">(</span><span class="n">flow_data</span><span class="p" data-group-id="4231613202-2">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="4231613202-3">(</span><span class="p" data-group-id="4231613202-3">)</span><span class="w">
+</span><span class="ss">Graph</span><span class="p">:</span><span class="w"> </span><span class="sc">&#39;Credit Card Application flow graph&#39;</span><span class="w">
+</span><span class="ss">Version</span><span class="p">:</span><span class="w"> </span><span class="sc">&#39;v1.0.0&#39;</span><span class="w">
+</span><span class="nc">Analyzed</span><span class="w"> </span><span class="ss">at</span><span class="p">:</span><span class="w"> </span><span class="mi">2025</span><span class="o">-</span><span class="mi">08</span><span class="o">-</span><span class="mi">02</span><span class="nc">T04</span><span class="p">:</span><span class="mi">08</span><span class="p">:</span><span class="mi">28</span><span class="nc">Z</span><span class="w">
+
+</span><span class="nc">EXECUTION</span><span class="w"> </span><span class="ss">STATS</span><span class="p">:</span><span class="w">
+</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="w">
+</span><span class="nc">Total</span><span class="w"> </span><span class="ss">executions</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="mi">294</span><span class="w">
+</span><span class="nc">Average</span><span class="w"> </span><span class="ss">duration</span><span class="p">:</span><span class="w"> </span><span class="mi">48</span><span class="w"> </span><span class="n">seconds</span><span class="w">
+</span><span class="nc">Median</span><span class="w"> </span><span class="ss">duration</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">seconds</span><span class="w">
+
+</span><span class="nc">NODE</span><span class="w"> </span><span class="nc">STATS</span><span class="w"> </span><span class="p" data-group-id="4231613202-4">(</span><span class="mi">4</span><span class="w"> </span><span class="n">nodes</span><span class="p" data-group-id="4231613202-4">)</span><span class="p">:</span><span class="w">
+</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="w">
+</span><span class="nc">Node</span><span class="w"> </span><span class="ss">Name</span><span class="p">:</span><span class="w"> </span><span class="sc">&#39;birth_date&#39;</span><span class="w">
+</span><span class="ss">Type</span><span class="p">:</span><span class="w"> </span><span class="n">input</span><span class="w">
+</span><span class="nc">Reached</span><span class="w"> </span><span class="ss">by</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="mi">884</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-5">(</span><span class="mf">46.8</span><span class="p">%</span><span class="p" data-group-id="4231613202-5">)</span><span class="w">
+</span><span class="nc">Average</span><span class="w"> </span><span class="n">time</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="ss">reach</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">second</span><span class="w">
+</span><span class="nc">Flow</span><span class="w"> </span><span class="n">ends</span><span class="w"> </span><span class="ss">here</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="mi">953</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-6">(</span><span class="mf">23.5</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">all</span><span class="p">,</span><span class="w"> </span><span class="mf">50.3</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">reached</span><span class="p" data-group-id="4231613202-6">)</span><span class="w">
+
+</span><span class="nc">Node</span><span class="w"> </span><span class="ss">Name</span><span class="p">:</span><span class="w"> </span><span class="sc">&#39;email_address&#39;</span><span class="w">
+</span><span class="ss">Type</span><span class="p">:</span><span class="w"> </span><span class="n">input</span><span class="w">
+</span><span class="nc">Reached</span><span class="w"> </span><span class="ss">by</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="mi">066</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-7">(</span><span class="mf">24.9</span><span class="p">%</span><span class="p" data-group-id="4231613202-7">)</span><span class="w">
+</span><span class="nc">Average</span><span class="w"> </span><span class="n">time</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="ss">reach</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">seconds</span><span class="w">
+</span><span class="nc">Flow</span><span class="w"> </span><span class="n">ends</span><span class="w"> </span><span class="ss">here</span><span class="p">:</span><span class="w"> </span><span class="mi">213</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-8">(</span><span class="mf">2.6</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">all</span><span class="p">,</span><span class="w"> </span><span class="mf">10.3</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">reached</span><span class="p" data-group-id="4231613202-8">)</span><span class="w">
+
+</span><span class="nc">Node</span><span class="w"> </span><span class="ss">Name</span><span class="p">:</span><span class="w"> </span><span class="sc">&#39;full_name&#39;</span><span class="w">
+</span><span class="ss">Type</span><span class="p">:</span><span class="w"> </span><span class="n">input</span><span class="w">
+</span><span class="nc">Reached</span><span class="w"> </span><span class="ss">by</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="mi">736</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-9">(</span><span class="mf">69.2</span><span class="p">%</span><span class="p" data-group-id="4231613202-9">)</span><span class="w">
+</span><span class="nc">Average</span><span class="w"> </span><span class="n">time</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="ss">reach</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">seconds</span><span class="w">
+</span><span class="nc">Flow</span><span class="w"> </span><span class="n">ends</span><span class="w"> </span><span class="ss">here</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="mi">716</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-10">(</span><span class="mf">44.8</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">all</span><span class="p">,</span><span class="w"> </span><span class="mf">64.8</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">reached</span><span class="p" data-group-id="4231613202-10">)</span><span class="w">
+
+</span><span class="nc">Node</span><span class="w"> </span><span class="ss">Name</span><span class="p">:</span><span class="w"> </span><span class="sc">&#39;credit_score&#39;</span><span class="w">
+</span><span class="ss">Type</span><span class="p">:</span><span class="w"> </span><span class="n">compute</span><span class="w">
+</span><span class="nc">Reached</span><span class="w"> </span><span class="ss">by</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="mi">844</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-11">(</span><span class="mf">22.2</span><span class="p">%</span><span class="p" data-group-id="4231613202-11">)</span><span class="w">
+</span><span class="nc">Average</span><span class="w"> </span><span class="n">time</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="ss">reach</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="n">second</span><span class="w">
+</span><span class="nc">Flow</span><span class="w"> </span><span class="n">ends</span><span class="w"> </span><span class="ss">here</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">executions</span><span class="w"> </span><span class="p" data-group-id="4231613202-12">(</span><span class="mf">0.0</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">all</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">%</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">reached</span><span class="p" data-group-id="4231613202-12">)</span></code></pre>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+      <p>
+
+          <span class="line">
+            <a href="https://hex.pm/packages/journey/0.10.31" class="footer-hex-package">Hex Package</a>
+
+            <a href="https://preview.hex.pm/preview/journey/0.10.31">Hex Preview</a>
+
+          </span>
+
+        <span class="line">
+          <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+            Search HexDocs
+          </button>
+
+            <a href="Journey.epub" title="ePub version">
+              Download ePub version
+            </a>
+
+        </span>
+      </p>
+
+      <p class="built-using">
+        Built using
+        <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.38.2) for the
+
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+      </p>
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

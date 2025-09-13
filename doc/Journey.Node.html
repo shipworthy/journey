@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.38.2">
+    <meta name="project" content="Journey v0.10.31">
+
+
+    <title>Journey.Node — Journey v0.10.31</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-KV3YOVJ3.css" />
+
+    <script defer src="dist/sidebar_items-8DE7E386.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-DPJLHKSM.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="Journey.html" class="sidebar-projectName" translate="no">
+Journey
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.10.31
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras=""></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of Journey</span>
+            <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button type="submit" class="search-button" aria-label="Submit Search" tabindex="-1">
+            <i class="ri-search-2-line ri-lg" aria-hidden="true"></i>
+          </button>
+          <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+            <i class="ri-close-line ri-lg" title="Cancel search"></i>
+          </button>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">Journey.Node</span> 
+      <small class="app-vsn" translate="no">(Journey v0.10.31)</small>
+
+    </h1>
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>This module contains functions for creating nodes in a graph.
+Nodes in a graph can be of several types:</p><ul><li><a href="#input/1"><code class="inline">input/1</code></a> – a node that takes input from the user.</li><li><a href="#compute/4"><code class="inline">compute/4</code></a> – a node that computes a value based on its upstream nodes.</li><li><a href="#mutate/4"><code class="inline">mutate/4</code></a> – a node that mutates the value of another node.</li><li><a href="#schedule_once/3"><code class="inline">schedule_once/3</code></a> – a node that, once unblocked, in its turn, unblocks others, on a schedule.</li><li><a href="#schedule_recurring/3"><code class="inline">schedule_recurring/3</code></a> – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.</li></ul>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h1>
+<div class="summary-functions summary">
+  <h2>
+    <a href="#functions">Functions</a>
+  </h2>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#archive/3" data-no-tooltip="" translate="no">archive(name, gated_by, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Creates a graph node that mutates the value of another node.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#compute/4" data-no-tooltip="" translate="no">compute(name, gated_by, f_compute, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Creates a self-computing node.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#input/1" data-no-tooltip="" translate="no">input(name)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Creates a graph input node. The value of an input node is set with <a><code class="inline">Journey.set_value/3</code></a>. The name of the node must be an atom.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#mutate/4" data-no-tooltip="" translate="no">mutate(name, gated_by, f_compute, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Creates a graph node that mutates the value of another node.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#schedule_once/4" data-no-tooltip="" translate="no">schedule_once(name, gated_by, f_compute, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Creates a graph node that declares its readiness at a specific time, once.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#schedule_recurring/4" data-no-tooltip="" translate="no">schedule_recurring(name, gated_by, f_compute, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Creates a graph node that declares its readiness at a specific time, time after time.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h1>
+    <div class="functions-list">
+<section class="detail" id="archive/3">
+
+    <span id="archive/2"></span>
+
+  <div class="detail-header">
+    <a href="#archive/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">archive(name, gated_by, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Creates a graph node that mutates the value of another node.</p><h2 id="archive/3-examples" class="section-heading"><a href="#archive/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples:</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nc">Journey.Node</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">graph</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">new_graph</span><span class="p" data-group-id="0020912211-1">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;`archive()` doctest graph (a useless machine that archives itself immediately;)&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="0020912211-2">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="0020912211-3">(</span><span class="ss">:name</span><span class="p" data-group-id="0020912211-3">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">archive</span><span class="p" data-group-id="0020912211-4">(</span><span class="ss">:archive</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="0020912211-5">[</span><span class="ss">:name</span><span class="p" data-group-id="0020912211-5">]</span><span class="p" data-group-id="0020912211-4">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="0020912211-2">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="0020912211-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">graph</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">start_execution</span><span class="p" data-group-id="0020912211-6">(</span><span class="p" data-group-id="0020912211-6">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="o">.</span><span class="n">archived_at</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="no">nil</span><span class="w">
+</span><span class="no">true</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="0020912211-7">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Mario&quot;</span><span class="p" data-group-id="0020912211-7">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="0020912211-8">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="p" data-group-id="0020912211-8">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="0020912211-9">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:archive</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_any</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="0020912211-9">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Journey</span><span class="o">.</span><span class="n">load</span><span class="p" data-group-id="0020912211-10">(</span><span class="n">execution</span><span class="p" data-group-id="0020912211-10">)</span><span class="w">
+</span><span class="no">nil</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">load</span><span class="p" data-group-id="0020912211-11">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">include_archived</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="0020912211-11">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="o">.</span><span class="n">archived_at</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="no">nil</span><span class="w">
+</span><span class="no">false</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="compute/4">
+
+    <span id="compute/3"></span>
+
+  <div class="detail-header">
+    <a href="#compute/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">compute(name, gated_by, f_compute, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Creates a self-computing node.</p><p><code class="inline">name</code> is an atom uniquely identifying the node in this graph.</p><p><code class="inline">gated_by</code> defines when this node becomes eligible to compute.
+  Accepts either:</p><ul><li>A list of atom node names, e.g. <code class="inline">[:a, :b]</code>, indicating the node becomes unblocked when all of the listed nodes have a value.</li><li>A keyword list with conditions, e.g. <code class="inline">[a: fn node -&gt; node.node_value &gt; 10 end]</code>, for conditional dependencies.</li><li>A mixed list combining atoms and keyword conditions, e.g. <code class="inline">[:a, :b, c: fn node -&gt; node.node_value &gt; 5 end]</code>.</li><li>A structured condition (see <a href="Journey.Node.UpstreamDependencies.html#unblocked_when/1">unblocked_when/1</a> )
+allowing for logical operators (<code class="inline">:and</code>, <code class="inline">:or</code>) and custom value predicates (e.g. <code class="inline">unblocked_when({:and, [{:a, &amp;provided?/1}, {:b, &amp;provided?/1}]})</code>).</li></ul><p><code class="inline">f_compute</code> is the function that computes the value of the node, once the upstream dependencies are satisfied.
+The function is provided a map of the upstream nodes and their values as its argument and returns a tuple:</p><ul><li><code class="inline">{:ok, value}</code> or</li><li><code class="inline">{:error, reason}</code>.
+The function is called when the upstream nodes are set, and the value is set to the result of the function.</li></ul><p>Note that return values are JSON-serialized for storage. If the returned <code class="inline">value</code> or <code class="inline">reason</code> contains atoms 
+(e.g., <code class="inline">{:ok, :pending}</code> or <code class="inline">{:ok, %{status: :active}}</code>), those atoms will be converted to 
+strings when retrieved via <code class="inline">get_value/3</code>.</p><p>In the case of a failure, the function is automatically retried, up to <code class="inline">max_retries</code> times.
+If the function fails after <code class="inline">max_retries</code> attempts, the node is marked as failed.
+If the function does not return within <code class="inline">abandon_after_seconds</code>, it is considered abandoned, and it will be retried (up to <code class="inline">max_retries</code> times).</p><h2 id="compute/4-examples" class="section-heading"><a href="#compute/4-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples:</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nc">Journey.Node</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">graph</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">new_graph</span><span class="p" data-group-id="0851962124-1">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;`compute()` doctest graph (pig-latinize-ish a name)&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="0851962124-2">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="0851962124-3">(</span><span class="ss">:name</span><span class="p" data-group-id="0851962124-3">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">compute</span><span class="p" data-group-id="0851962124-4">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">:pig_latin_ish_name</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="p" data-group-id="0851962124-5">[</span><span class="ss">:name</span><span class="p" data-group-id="0851962124-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="0851962124-6">fn</span><span class="w"> </span><span class="p" data-group-id="0851962124-7">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="n">name</span><span class="p" data-group-id="0851962124-7">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="p" data-group-id="0851962124-8">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;</span><span class="si" data-group-id="0851962124-9">#{</span><span class="n">name</span><span class="si" data-group-id="0851962124-9">}</span><span class="s">-ay&quot;</span><span class="p" data-group-id="0851962124-8">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="0851962124-6">end</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">max_retries</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="c1"># Optional (default: 3)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">abandon_after_seconds</span><span class="p">:</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="c1"># Optional (default: 60)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">f_on_save</span><span class="p">:</span><span class="w"> </span><span class="k" data-group-id="0851962124-10">fn</span><span class="w"> </span><span class="c">_execution_id</span><span class="p">,</span><span class="w"> </span><span class="c">_params</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="c1"># Optional callback to be called when the value is saved.</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="c1"># This is useful for notifying other systems (e.g. a LiveView</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="c1"># via PubSub.notify()) – that the value has been saved.</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="ss">:ok</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="0851962124-10">end</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="p" data-group-id="0851962124-4">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="0851962124-2">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="0851962124-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">graph</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">start_execution</span><span class="p" data-group-id="0851962124-11">(</span><span class="p" data-group-id="0851962124-11">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="0851962124-12">(</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Alice&quot;</span><span class="p" data-group-id="0851962124-12">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="0851962124-13">(</span><span class="ss">:pig_latin_ish_name</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_any</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="0851962124-13">)</span><span class="w">
+</span><span class="p" data-group-id="0851962124-14">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Alice-ay&quot;</span><span class="p" data-group-id="0851962124-14">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">values</span><span class="p" data-group-id="0851962124-15">(</span><span class="p" data-group-id="0851962124-15">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">redact</span><span class="p" data-group-id="0851962124-16">(</span><span class="p" data-group-id="0851962124-17">[</span><span class="ss">:execution_id</span><span class="p">,</span><span class="w"> </span><span class="ss">:last_updated_at</span><span class="p" data-group-id="0851962124-17">]</span><span class="p" data-group-id="0851962124-16">)</span><span class="w">
+</span><span class="p" data-group-id="0851962124-18">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Alice&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">pig_latin_ish_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Alice-ay&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">execution_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">last_updated_at</span><span class="p">:</span><span class="w"> </span><span class="mi">1_234_567_890</span><span class="p" data-group-id="0851962124-18">}</span></code></pre><h2 id="compute/4-keyword-list-syntax-for-conditional-dependencies" class="section-heading"><a href="#compute/4-keyword-list-syntax-for-conditional-dependencies" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Keyword List Syntax for Conditional Dependencies</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nc">Journey.Node</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">graph</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">new_graph</span><span class="p" data-group-id="2274477663-1">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;threshold alert example&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="2274477663-2">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="2274477663-3">(</span><span class="ss">:temperature</span><span class="p" data-group-id="2274477663-3">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="c1"># Using keyword list syntax for conditional dependency</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">compute</span><span class="p" data-group-id="2274477663-4">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">:high_temp_alert</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="p" data-group-id="2274477663-5">[</span><span class="ss">temperature</span><span class="p">:</span><span class="w"> </span><span class="k" data-group-id="2274477663-6">fn</span><span class="w"> </span><span class="n">node</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">node</span><span class="o">.</span><span class="n">node_value</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">30</span><span class="w"> </span><span class="k" data-group-id="2274477663-6">end</span><span class="p" data-group-id="2274477663-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="2274477663-7">fn</span><span class="w"> </span><span class="p" data-group-id="2274477663-8">%{</span><span class="ss">temperature</span><span class="p">:</span><span class="w"> </span><span class="n">temp</span><span class="p" data-group-id="2274477663-8">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="p" data-group-id="2274477663-9">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;High temperature alert: </span><span class="si" data-group-id="2274477663-10">#{</span><span class="n">temp</span><span class="si" data-group-id="2274477663-10">}</span><span class="s">°C&quot;</span><span class="p" data-group-id="2274477663-9">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="2274477663-7">end</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="p" data-group-id="2274477663-4">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="2274477663-2">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="2274477663-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">graph</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">start_execution</span><span class="p" data-group-id="2274477663-11">(</span><span class="p" data-group-id="2274477663-11">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="2274477663-12">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:temperature</span><span class="p">,</span><span class="w"> </span><span class="mi">25</span><span class="p" data-group-id="2274477663-12">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="2274477663-13">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:high_temp_alert</span><span class="p" data-group-id="2274477663-13">)</span><span class="w">
+</span><span class="p" data-group-id="2274477663-14">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="ss">:not_set</span><span class="p" data-group-id="2274477663-14">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="2274477663-15">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:temperature</span><span class="p">,</span><span class="w"> </span><span class="mi">35</span><span class="p" data-group-id="2274477663-15">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="2274477663-16">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:high_temp_alert</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_any</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="2274477663-16">)</span><span class="w">
+</span><span class="p" data-group-id="2274477663-17">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;High temperature alert: 35°C&quot;</span><span class="p" data-group-id="2274477663-17">}</span></code></pre><h2 id="compute/4-return-values" class="section-heading"><a href="#compute/4-return-values" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Return Values</span></h2><p>The f_compute function must return <code class="inline">{:ok, value}</code> or <code class="inline">{:error, reason}</code>. Note that atoms 
+in the returned <code class="inline">value</code> and <code class="inline">reason</code> will be converted to strings when persisted.</p>
+  </section>
+</section>
+<section class="detail" id="input/1">
+
+  <div class="detail-header">
+    <a href="#input/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">input(name)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Creates a graph input node. The value of an input node is set with <a href="Journey.html#set_value/3"><code class="inline">Journey.set_value/3</code></a>. The name of the node must be an atom.</p><h2 id="input/1-examples" class="section-heading"><a href="#input/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples:</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nc">Journey.Node</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">graph</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">new_graph</span><span class="p" data-group-id="8209190405-1">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;`input()` doctest graph (just a few input nodes)&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="8209190405-2">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="8209190405-3">(</span><span class="ss">:first_name</span><span class="p" data-group-id="8209190405-3">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="8209190405-4">(</span><span class="ss">:last_name</span><span class="p" data-group-id="8209190405-4">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="8209190405-5">(</span><span class="ss">:zip_code</span><span class="p" data-group-id="8209190405-5">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">       </span><span class="p" data-group-id="8209190405-2">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="8209190405-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">graph</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">start_execution</span><span class="p" data-group-id="8209190405-6">(</span><span class="p" data-group-id="8209190405-6">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="8209190405-7">(</span><span class="ss">:first_name</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Mario&quot;</span><span class="p" data-group-id="8209190405-7">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Journey</span><span class="o">.</span><span class="n">values</span><span class="p" data-group-id="8209190405-8">(</span><span class="n">execution</span><span class="p" data-group-id="8209190405-8">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">redact</span><span class="p" data-group-id="8209190405-9">(</span><span class="p" data-group-id="8209190405-10">[</span><span class="ss">:execution_id</span><span class="p">,</span><span class="w"> </span><span class="ss">:last_updated_at</span><span class="p" data-group-id="8209190405-10">]</span><span class="p" data-group-id="8209190405-9">)</span><span class="w">
+</span><span class="p" data-group-id="8209190405-11">%{</span><span class="ss">first_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Mario&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">execution_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">last_updated_at</span><span class="p">:</span><span class="w"> </span><span class="mi">1_234_567_890</span><span class="p" data-group-id="8209190405-11">}</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="mutate/4">
+
+    <span id="mutate/3"></span>
+
+  <div class="detail-header">
+    <a href="#mutate/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">mutate(name, gated_by, f_compute, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Creates a graph node that mutates the value of another node.</p><h2 id="mutate/4-examples" class="section-heading"><a href="#mutate/4-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples:</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nc">Journey.Node</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">graph</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">new_graph</span><span class="p" data-group-id="5733649830-1">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;`mutate()` doctest graph (a useless machine;)&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="5733649830-2">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="5733649830-3">(</span><span class="ss">:name</span><span class="p" data-group-id="5733649830-3">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">mutate</span><span class="p" data-group-id="5733649830-4">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">:remove_pii</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="p" data-group-id="5733649830-5">[</span><span class="ss">:name</span><span class="p" data-group-id="5733649830-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="5733649830-6">fn</span><span class="w"> </span><span class="p" data-group-id="5733649830-7">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="c">_name</span><span class="p" data-group-id="5733649830-7">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="c1"># Return the new value for the &quot;name&quot; node.</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="p" data-group-id="5733649830-8">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;redacted&quot;</span><span class="p" data-group-id="5733649830-8">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="5733649830-6">end</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">mutates</span><span class="p">:</span><span class="w"> </span><span class="ss">:name</span><span class="w"> </span><span class="c1"># The name of an existing node whose value will be mutated.</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="p" data-group-id="5733649830-4">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="5733649830-2">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="5733649830-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="n">graph</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">start_execution</span><span class="p" data-group-id="5733649830-9">(</span><span class="p" data-group-id="5733649830-9">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="5733649830-10">(</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Mario&quot;</span><span class="p" data-group-id="5733649830-10">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="5733649830-11">(</span><span class="ss">:remove_pii</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_any</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="5733649830-11">)</span><span class="w">
+</span><span class="p" data-group-id="5733649830-12">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;updated :name&quot;</span><span class="p" data-group-id="5733649830-12">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">values</span><span class="p" data-group-id="5733649830-13">(</span><span class="p" data-group-id="5733649830-13">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">redact</span><span class="p" data-group-id="5733649830-14">(</span><span class="p" data-group-id="5733649830-15">[</span><span class="ss">:execution_id</span><span class="p">,</span><span class="w"> </span><span class="ss">:last_updated_at</span><span class="p" data-group-id="5733649830-15">]</span><span class="p" data-group-id="5733649830-14">)</span><span class="w">
+</span><span class="p" data-group-id="5733649830-16">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;redacted&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">remove_pii</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;updated :name&quot;</span><span class="p">,</span><span class="w">  </span><span class="ss">execution_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">last_updated_at</span><span class="p">:</span><span class="w"> </span><span class="mi">1_234_567_890</span><span class="p" data-group-id="5733649830-16">}</span></code></pre><h2 id="mutate/4-return-values" class="section-heading"><a href="#mutate/4-return-values" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Return Values</span></h2><p>The f_compute function must return <code class="inline">{:ok, value}</code> or <code class="inline">{:error, reason}</code>. Note that atoms 
+in the returned <code class="inline">value</code> and <code class="inline">reason</code> will be converted to strings when persisted.</p>
+  </section>
+</section>
+<section class="detail" id="schedule_once/4">
+
+    <span id="schedule_once/3"></span>
+
+  <div class="detail-header">
+    <a href="#schedule_once/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">schedule_once(name, gated_by, f_compute, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Creates a graph node that declares its readiness at a specific time, once.</p><p>Once this node is unblocked, it will be executed to set the time at which it will unblock its downstream dependencies.</p><h2 id="schedule_once/4-examples" class="section-heading"><a href="#schedule_once/4-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples:</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nc">Journey.Node</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">graph</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">new_graph</span><span class="p" data-group-id="8704773724-1">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;`schedule_once()` doctest graph (it reminds you to take a nap in a couple of seconds;)&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="8704773724-2">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="8704773724-3">(</span><span class="ss">:name</span><span class="p" data-group-id="8704773724-3">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">schedule_once</span><span class="p" data-group-id="8704773724-4">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">:schedule_a_nap</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="p" data-group-id="8704773724-5">[</span><span class="ss">:name</span><span class="p" data-group-id="8704773724-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="8704773724-6">fn</span><span class="w"> </span><span class="p" data-group-id="8704773724-7">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="c">_name</span><span class="p" data-group-id="8704773724-7">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="c1"># This function is to return the time (in epoch seconds) at which</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="c1"># its downstream dependencies should be unblocked.</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="n">in_two_seconds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">System</span><span class="o">.</span><span class="n">system_time</span><span class="p" data-group-id="8704773724-8">(</span><span class="ss">:second</span><span class="p" data-group-id="8704773724-8">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="p" data-group-id="8704773724-9">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">in_two_seconds</span><span class="p" data-group-id="8704773724-9">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="8704773724-6">end</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="p" data-group-id="8704773724-4">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">compute</span><span class="p" data-group-id="8704773724-10">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">:nap_time</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="p" data-group-id="8704773724-11">[</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="ss">:schedule_a_nap</span><span class="p" data-group-id="8704773724-11">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="8704773724-12">fn</span><span class="w"> </span><span class="p" data-group-id="8704773724-13">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="ss">schedule_a_nap</span><span class="p">:</span><span class="w"> </span><span class="c">_time_to_take_a_nap</span><span class="p" data-group-id="8704773724-13">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="p" data-group-id="8704773724-14">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;It&#39;s time to take a nap, </span><span class="si" data-group-id="8704773724-15">#{</span><span class="n">name</span><span class="si" data-group-id="8704773724-15">}</span><span class="s">!&quot;</span><span class="p" data-group-id="8704773724-14">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="8704773724-12">end</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="p" data-group-id="8704773724-10">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="8704773724-2">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="8704773724-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="n">graph</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">start_execution</span><span class="p" data-group-id="8704773724-16">(</span><span class="p" data-group-id="8704773724-16">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="8704773724-17">(</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Mario&quot;</span><span class="p" data-group-id="8704773724-17">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">values</span><span class="p" data-group-id="8704773724-18">(</span><span class="p" data-group-id="8704773724-18">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Map</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="8704773724-19">(</span><span class="ss">:name</span><span class="p" data-group-id="8704773724-19">)</span><span class="w">
+</span><span class="s">&quot;Mario&quot;</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="c1"># This is only needed in a test, to simulate the background processing that happens in non-tests automatically.</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">background_sweeps_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey.Scheduler.Background.Periodic</span><span class="o">.</span><span class="n">start_background_sweeps_in_test</span><span class="p" data-group-id="8704773724-20">(</span><span class="n">execution</span><span class="o">.</span><span class="n">id</span><span class="p" data-group-id="8704773724-20">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="8704773724-21">(</span><span class="ss">:nap_time</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_any</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="8704773724-21">)</span><span class="w">
+</span><span class="p" data-group-id="8704773724-22">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;It&#39;s time to take a nap, Mario!&quot;</span><span class="p" data-group-id="8704773724-22">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Journey.Scheduler.Background.Periodic</span><span class="o">.</span><span class="n">stop_background_sweeps_in_test</span><span class="p" data-group-id="8704773724-23">(</span><span class="n">background_sweeps_task</span><span class="p" data-group-id="8704773724-23">)</span><span class="w">
+</span></code></pre><h2 id="schedule_once/4-return-values" class="section-heading"><a href="#schedule_once/4-return-values" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Return Values</span></h2><p>The f_compute function must return <code class="inline">{:ok, value}</code> or <code class="inline">{:error, reason}</code>. Note that atoms 
+in the returned <code class="inline">value</code> and <code class="inline">reason</code> will be converted to strings when persisted.</p>
+  </section>
+</section>
+<section class="detail" id="schedule_recurring/4">
+
+    <span id="schedule_recurring/3"></span>
+
+  <div class="detail-header">
+    <a href="#schedule_recurring/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">schedule_recurring(name, gated_by, f_compute, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Creates a graph node that declares its readiness at a specific time, time after time.</p><p>Once this node is unblocked, it will be repeatedly computed, to set the time at which it will unblock its downstream dependencies.</p><p>This is useful for triggering recurring tasks, such as sending reminders or notifications.</p><h2 id="schedule_recurring/4-examples" class="section-heading"><a href="#schedule_recurring/4-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Examples:</span></h2><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nc">Journey.Node</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">graph</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">new_graph</span><span class="p" data-group-id="2877746513-1">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;`schedule_recurring()` doctest graph (it issues &#39;reminders&#39; every few seconds)&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="s">&quot;v1.0.0&quot;</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="2877746513-2">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">input</span><span class="p" data-group-id="2877746513-3">(</span><span class="ss">:name</span><span class="p" data-group-id="2877746513-3">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">schedule_recurring</span><span class="p" data-group-id="2877746513-4">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">:schedule_a_reminder</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="p" data-group-id="2877746513-5">[</span><span class="ss">:name</span><span class="p" data-group-id="2877746513-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="2877746513-6">fn</span><span class="w"> </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="n">soon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">System</span><span class="o">.</span><span class="n">system_time</span><span class="p" data-group-id="2877746513-7">(</span><span class="ss">:second</span><span class="p" data-group-id="2877746513-7">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="p" data-group-id="2877746513-8">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">soon</span><span class="p" data-group-id="2877746513-8">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="2877746513-6">end</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="p" data-group-id="2877746513-4">)</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="n">compute</span><span class="p" data-group-id="2877746513-9">(</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="ss">:send_a_reminder</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="p" data-group-id="2877746513-10">[</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="ss">:schedule_a_reminder</span><span class="p" data-group-id="2877746513-10">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="2877746513-11">fn</span><span class="w"> </span><span class="p" data-group-id="2877746513-12">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="n">name</span><span class="p" data-group-id="2877746513-12">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="n">reminder_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Map</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="2877746513-13">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="ss">:send_a_reminder</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="2877746513-13">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="2877746513-14">(</span><span class="s">&quot;[</span><span class="si" data-group-id="2877746513-15">#{</span><span class="nc">System</span><span class="o">.</span><span class="n">system_time</span><span class="p" data-group-id="2877746513-16">(</span><span class="ss">:second</span><span class="p" data-group-id="2877746513-16">)</span><span class="si" data-group-id="2877746513-15">}</span><span class="s">] </span><span class="si" data-group-id="2877746513-17">#{</span><span class="n">name</span><span class="si" data-group-id="2877746513-17">}</span><span class="s">, here is your scheduled reminder # </span><span class="si" data-group-id="2877746513-18">#{</span><span class="n">reminder_count</span><span class="si" data-group-id="2877746513-18">}</span><span class="s">.&quot;</span><span class="p" data-group-id="2877746513-14">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">            </span><span class="p" data-group-id="2877746513-19">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">reminder_count</span><span class="p" data-group-id="2877746513-19">}</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">          </span><span class="k" data-group-id="2877746513-11">end</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">        </span><span class="p" data-group-id="2877746513-9">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">      </span><span class="p" data-group-id="2877746513-2">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="p" data-group-id="2877746513-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="n">graph</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">start_execution</span><span class="p" data-group-id="2877746513-20">(</span><span class="p" data-group-id="2877746513-20">)</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w">    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">set_value</span><span class="p" data-group-id="2877746513-21">(</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Mario&quot;</span><span class="p" data-group-id="2877746513-21">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">values</span><span class="p" data-group-id="2877746513-22">(</span><span class="p" data-group-id="2877746513-22">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Map</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="2877746513-23">(</span><span class="ss">:name</span><span class="p" data-group-id="2877746513-23">)</span><span class="w">
+</span><span class="s">&quot;Mario&quot;</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="c1"># This is only needed in a test, to simulate the background processing that happens in non-tests automatically.</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">background_sweeps_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey.Scheduler.Background.Periodic</span><span class="o">.</span><span class="n">start_background_sweeps_in_test</span><span class="p" data-group-id="2877746513-24">(</span><span class="n">execution</span><span class="o">.</span><span class="n">id</span><span class="p" data-group-id="2877746513-24">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="c1"># Wait for initial reminders</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="2877746513-25">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">count1</span><span class="p" data-group-id="2877746513-25">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="2877746513-26">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:send_a_reminder</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_any</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="2877746513-26">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">count1</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="no">true</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="c1"># Wait for more reminders to verify recurring behavior</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">load</span><span class="p" data-group-id="2877746513-27">(</span><span class="n">execution</span><span class="p" data-group-id="2877746513-27">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="2877746513-28">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">count2</span><span class="p" data-group-id="2877746513-28">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="2877746513-29">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:send_a_reminder</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_new</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="2877746513-29">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">count2</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">count1</span><span class="w">
+</span><span class="no">true</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">execution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">load</span><span class="p" data-group-id="2877746513-30">(</span><span class="n">execution</span><span class="p" data-group-id="2877746513-30">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="2877746513-31">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">count3</span><span class="p" data-group-id="2877746513-31">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Journey</span><span class="o">.</span><span class="n">get_value</span><span class="p" data-group-id="2877746513-32">(</span><span class="n">execution</span><span class="p">,</span><span class="w"> </span><span class="ss">:send_a_reminder</span><span class="p">,</span><span class="w"> </span><span class="ss">wait_new</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="2877746513-32">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">count3</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">count2</span><span class="w">
+</span><span class="no">true</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Journey.Scheduler.Background.Periodic</span><span class="o">.</span><span class="n">stop_background_sweeps_in_test</span><span class="p" data-group-id="2877746513-33">(</span><span class="n">background_sweeps_task</span><span class="p" data-group-id="2877746513-33">)</span><span class="w">
+</span></code></pre><h2 id="schedule_recurring/4-return-values" class="section-heading"><a href="#schedule_recurring/4-return-values" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Return Values</span></h2><p>The f_compute function must return <code class="inline">{:ok, value}</code> or <code class="inline">{:error, reason}</code>. Note that atoms 
+in the returned <code class="inline">value</code> and <code class="inline">reason</code> will be converted to strings when persisted.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+      <p>
+
+          <span class="line">
+            <a href="https://hex.pm/packages/journey/0.10.31" class="footer-hex-package">Hex Package</a>
+
+            <a href="https://preview.hex.pm/preview/journey/0.10.31">Hex Preview</a>
+
+          </span>
+
+        <span class="line">
+          <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+            Search HexDocs
+          </button>
+
+            <a href="Journey.epub" title="ePub version">
+              Download ePub version
+            </a>
+
+        </span>
+      </p>
+
+      <p class="built-using">
+        Built using
+        <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.38.2) for the
+
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+      </p>
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
