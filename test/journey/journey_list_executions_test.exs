@@ -365,6 +365,62 @@ defmodule Journey.JourneyListExecutionsTest do
       assert length(all_results) == 6
     end
 
+    test "contains operator for substring matching" do
+      graph = basic_graph(random_string())
+
+      # Create executions with various email addresses
+      exec_gmail_alice = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice@gmail.com")
+      exec_gmail_bob = Journey.start_execution(graph) |> Journey.set_value(:first_name, "bob@gmail.com")
+      exec_yahoo_charlie = Journey.start_execution(graph) |> Journey.set_value(:first_name, "charlie@yahoo.com")
+      _exec_company_dave = Journey.start_execution(graph) |> Journey.set_value(:first_name, "dave@company.org")
+      _exec_integer = Journey.start_execution(graph) |> Journey.set_value(:first_name, 12_345)
+
+      # Test basic substring matching
+      gmail_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "@gmail"}])
+      assert length(gmail_results) == 2
+      gmail_ids = Enum.map(gmail_results, & &1.id) |> Enum.sort()
+      expected_gmail_ids = [exec_gmail_alice.id, exec_gmail_bob.id] |> Enum.sort()
+      assert gmail_ids == expected_gmail_ids
+
+      # Test matching at beginning of string
+      alice_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "alice"}])
+      assert length(alice_results) == 1
+      assert hd(alice_results).id == exec_gmail_alice.id
+
+      # Test matching at end of string
+      com_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, ".com"}])
+      assert length(com_results) == 3
+      com_ids = Enum.map(com_results, & &1.id) |> Enum.sort()
+      expected_com_ids = [exec_gmail_alice.id, exec_gmail_bob.id, exec_yahoo_charlie.id] |> Enum.sort()
+      assert com_ids == expected_com_ids
+
+      # Test no matches
+      no_match_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "notfound"}])
+
+      assert Enum.empty?(no_match_results)
+
+      # Test case sensitivity
+      case_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "ALICE"}])
+      assert Enum.empty?(case_results)
+
+      # Test that non-string values are ignored (integer value should not match)
+      numeric_contains_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "123"}])
+
+      assert Enum.empty?(numeric_contains_results)
+
+      # Test empty string pattern (should match all string values)
+      empty_pattern_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, ""}])
+      # All string values, not the integer
+      assert length(empty_pattern_results) == 4
+
+      # Test single character matching
+      at_symbol_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "@"}])
+      # All email addresses
+      assert length(at_symbol_results) == 4
+    end
+
     test "sort_by with value fields" do
       graph = basic_graph(random_string())
 
