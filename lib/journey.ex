@@ -414,7 +414,7 @@ defmodule Journey do
     * `:graph_name` - String name of a specific graph to filter by
     * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
     * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
-    * `:filter_by` - List of node value filters using database-level filtering for optimal performance. Each filter is a tuple `{node_name, operator, value}` or `{node_name, operator}` for nil checks. Operators: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte` (comparisons), `:in`, `:not_in` (membership), `:is_nil`, `:is_not_nil` (existence). Values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`). Complex values (maps, tuples, functions) will raise an ArgumentError.
+    * `:filter_by` - List of node value filters using database-level filtering for optimal performance. Each filter is a tuple `{node_name, operator, value}` or `{node_name, operator}` for nil checks. Operators: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte` (comparisons), `:in`, `:not_in` (membership), `:contains` (case-sensitive substring matching, strings only), `:icontains` (case-insensitive substring matching, strings only), `:is_nil`, `:is_not_nil` (existence). Values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`). Complex values (maps, tuples, functions) will raise an ArgumentError.
     * `:limit` - Maximum number of results (default: 10,000)
     * `:offset` - Number of results to skip for pagination (default: 0)
     * `:include_archived` - Whether to include archived executions (default: false)
@@ -521,6 +521,10 @@ defmodule Journey do
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [5, 10, 15]}]) |> Enum.count()
   3
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_not_nil}]) |> Enum.count()
+  20
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "ari"}]) |> Enum.count()
+  20
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "MARIO"}]) |> Enum.count()
   20
   ```
 
