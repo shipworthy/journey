@@ -497,6 +497,54 @@ defmodule Journey.JourneyListExecutionsTest do
       assert hd(org_results).id == exec_company_dave.id
     end
 
+    test "literal wildcard character handling in :contains and :icontains" do
+      graph = basic_graph(random_string())
+
+      # Create executions with literal wildcard characters
+      exec_percent = Journey.start_execution(graph) |> Journey.set_value(:first_name, "10% discount")
+      exec_underscore = Journey.start_execution(graph) |> Journey.set_value(:first_name, "user_name")
+      exec_backslash = Journey.start_execution(graph) |> Journey.set_value(:first_name, "path\\file")
+      exec_combined = Journey.start_execution(graph) |> Journey.set_value(:first_name, "50%_off\\today")
+      exec_normal = Journey.start_execution(graph) |> Journey.set_value(:first_name, "normal_text")
+
+      # Test searching for literal % (should not match everything)
+      percent_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "%"}])
+      assert length(percent_results) == 2
+      percent_ids = Enum.map(percent_results, & &1.id) |> Enum.sort()
+      expected_percent_ids = [exec_percent.id, exec_combined.id] |> Enum.sort()
+      assert percent_ids == expected_percent_ids
+
+      # Test searching for literal _ (should not match single characters)
+      underscore_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "_"}])
+      assert length(underscore_results) == 3
+      underscore_ids = Enum.map(underscore_results, & &1.id) |> Enum.sort()
+      expected_underscore_ids = [exec_underscore.id, exec_combined.id, exec_normal.id] |> Enum.sort()
+      assert underscore_ids == expected_underscore_ids
+
+      # Test searching for literal \ (should not escape the following character)
+      backslash_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "\\"}])
+      assert length(backslash_results) == 2
+      backslash_ids = Enum.map(backslash_results, & &1.id) |> Enum.sort()
+      expected_backslash_ids = [exec_backslash.id, exec_combined.id] |> Enum.sort()
+      assert backslash_ids == expected_backslash_ids
+
+      # Test case-insensitive literal wildcard matching
+      icontains_percent = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "%"}])
+      assert length(icontains_percent) == 2
+
+      # Test that patterns still work correctly for substring matching
+      discount_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "discount"}])
+
+      assert length(discount_results) == 1
+      assert hd(discount_results).id == exec_percent.id
+
+      # Test complex pattern with multiple wildcards
+      complex_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "%_"}])
+      assert length(complex_results) == 1
+      assert hd(complex_results).id == exec_combined.id
+    end
+
     test "sort_by with value fields" do
       graph = basic_graph(random_string())
 

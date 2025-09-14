@@ -853,6 +853,17 @@ defmodule Journey.Executions do
 
   defp primitive_value?(_), do: false
 
+  # Escape special characters in LIKE patterns to treat them as literals
+  defp escape_like_pattern(pattern) do
+    pattern
+    # Escape backslash first
+    |> String.replace("\\", "\\\\")
+    # Escape percent
+    |> String.replace("%", "\\%")
+    # Escape underscore
+    |> String.replace("_", "\\_")
+  end
+
   # Apply database-level value filtering using JOINs and JSONB queries
   defp apply_db_value_filters(query, value_filters) do
     # Split filters by type for different handling strategies
@@ -1011,7 +1022,8 @@ defmodule Journey.Executions do
   end
 
   defp apply_comparison_filter(query, node_name, :contains, pattern) when is_binary(pattern) do
-    like_pattern = "%#{pattern}%"
+    escaped_pattern = escape_like_pattern(pattern)
+    like_pattern = "%#{escaped_pattern}%"
 
     from(e in query,
       join: v in Journey.Persistence.Schema.Execution.Value,
@@ -1021,7 +1033,8 @@ defmodule Journey.Executions do
   end
 
   defp apply_comparison_filter(query, node_name, :icontains, pattern) when is_binary(pattern) do
-    like_pattern = "%#{pattern}%"
+    escaped_pattern = escape_like_pattern(pattern)
+    like_pattern = "%#{escaped_pattern}%"
 
     from(e in query,
       join: v in Journey.Persistence.Schema.Execution.Value,
