@@ -820,7 +820,7 @@ defmodule Journey.Executions do
 
   # Validate filters are compatible with database-level filtering
   defp validate_db_filter({node_name, op, value})
-       when is_atom(node_name) and op in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in, :contains] do
+       when is_atom(node_name) and op in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in, :contains, :icontains] do
     # Additional validation for the value type
     if primitive_value?(value) do
       :ok
@@ -1017,6 +1017,16 @@ defmodule Journey.Executions do
       join: v in Journey.Persistence.Schema.Execution.Value,
       on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
       where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') LIKE ?", v.node_value, v.node_value, ^like_pattern)
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :icontains, pattern) when is_binary(pattern) do
+    like_pattern = "%#{pattern}%"
+
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') ILIKE ?", v.node_value, v.node_value, ^like_pattern)
     )
   end
 

@@ -421,6 +421,82 @@ defmodule Journey.JourneyListExecutionsTest do
       assert length(at_symbol_results) == 4
     end
 
+    test "icontains operator for case-insensitive substring matching" do
+      graph = basic_graph(random_string())
+
+      # Create executions with various email addresses in different cases
+      exec_gmail_alice = Journey.start_execution(graph) |> Journey.set_value(:first_name, "Alice@Gmail.com")
+      exec_gmail_bob = Journey.start_execution(graph) |> Journey.set_value(:first_name, "BOB@gmail.COM")
+      exec_yahoo_charlie = Journey.start_execution(graph) |> Journey.set_value(:first_name, "charlie@YAHOO.com")
+      exec_company_dave = Journey.start_execution(graph) |> Journey.set_value(:first_name, "Dave@Company.ORG")
+      _exec_integer = Journey.start_execution(graph) |> Journey.set_value(:first_name, 12_345)
+
+      # Test case-insensitive substring matching with lowercase pattern
+      gmail_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "@gmail"}])
+      assert length(gmail_results) == 2
+      gmail_ids = Enum.map(gmail_results, & &1.id) |> Enum.sort()
+      expected_gmail_ids = [exec_gmail_alice.id, exec_gmail_bob.id] |> Enum.sort()
+      assert gmail_ids == expected_gmail_ids
+
+      # Test case-insensitive matching with uppercase pattern
+      alice_upper_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "ALICE"}])
+
+      assert length(alice_upper_results) == 1
+      assert hd(alice_upper_results).id == exec_gmail_alice.id
+
+      # Test case-insensitive matching with mixed case pattern
+      yahoo_mixed_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "YaHoO"}])
+
+      assert length(yahoo_mixed_results) == 1
+      assert hd(yahoo_mixed_results).id == exec_yahoo_charlie.id
+
+      # Test case-insensitive matching at end of string
+      com_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, ".COM"}])
+      assert length(com_results) == 3
+      com_ids = Enum.map(com_results, & &1.id) |> Enum.sort()
+      expected_com_ids = [exec_gmail_alice.id, exec_gmail_bob.id, exec_yahoo_charlie.id] |> Enum.sort()
+      assert com_ids == expected_com_ids
+
+      # Test that non-string values are ignored (integer value should not match)
+      numeric_icontains_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "123"}])
+
+      assert Enum.empty?(numeric_icontains_results)
+
+      # Test empty string pattern (should match all string values)
+      empty_pattern_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, ""}])
+
+      # All string values, not the integer
+      assert length(empty_pattern_results) == 4
+
+      # Test case-insensitive single character matching
+      at_symbol_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "@"}])
+      # All email addresses
+      assert length(at_symbol_results) == 4
+
+      # Compare with case-sensitive :contains to show the difference
+      case_sensitive_alice =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "alice"}])
+
+      # Should only match lowercase "charlie" (not uppercase "Alice")
+      assert Enum.empty?(case_sensitive_alice)
+
+      case_insensitive_alice =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "alice"}])
+
+      # Should match "Alice" regardless of case
+      assert length(case_insensitive_alice) == 1
+      assert hd(case_insensitive_alice).id == exec_gmail_alice.id
+
+      # Test with .org domain (case insensitive)
+      org_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, ".org"}])
+      assert length(org_results) == 1
+      assert hd(org_results).id == exec_company_dave.id
+    end
+
     test "sort_by with value fields" do
       graph = basic_graph(random_string())
 
