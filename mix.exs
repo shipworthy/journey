@@ -14,7 +14,13 @@ defmodule Journey.MixProject do
       name: "Journey",
       docs: [
         main: "readme",
-        extras: ["README.md", "LICENSE.md", "CHANGELOG.md", "MIGRATION_STRATEGY.md", "lib/examples/basic.livemd"]
+        extras: ["README.md", "LICENSE.md", "CHANGELOG.md", "MIGRATION_STRATEGY.md", "lib/examples/basic.livemd"],
+        groups_for_docs: [
+          "Graph Management": &(&1[:group] == "Graph Management"),
+          "Execution Lifecycle": &(&1[:group] == "Execution Lifecycle"),
+          "Value Operations": &(&1[:group] == "Value Operations"),
+          "Execution Queries": &(&1[:group] == "Execution Queries")
+        ]
       ],
       test_coverage: [
         summary: [

@@ -75,6 +75,7 @@ defmodule Journey do
   alias Journey.Graph
   alias Journey.Persistence.Schema.Execution
 
+  @doc group: "Graph Management"
   @doc """
   Creates a new computation graph with the given name, version, and node definitions.
 
@@ -241,6 +242,7 @@ defmodule Journey do
     |> Graph.Catalog.register()
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Reloads the current state of an execution from the database to get the latest changes.
 
@@ -369,6 +371,7 @@ defmodule Journey do
     load(execution.id, opts)
   end
 
+  @doc group: "Execution Queries"
   @doc """
   Queries and retrieves multiple executions from the database with flexible filtering, sorting, and pagination.
 
@@ -574,6 +577,7 @@ defmodule Journey do
     Journey.Executions.list(graph_name, graph_version, sort_by, filter_by, limit, offset, include_archived)
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Starts a new execution instance of a computation graph, initializing it to accept input values and perform computations.
 
@@ -692,6 +696,7 @@ defmodule Journey do
     |> Journey.Scheduler.advance()
   end
 
+  @doc group: "Execution Queries"
   @doc """
   Returns a map of all nodes in an execution with their current status, including unset nodes.
 
@@ -749,6 +754,7 @@ defmodule Journey do
     Executions.values(execution)
   end
 
+  @doc group: "Execution Queries"
   @doc """
   Returns a map of all set node values in an execution, excluding unset nodes.
 
@@ -817,6 +823,7 @@ defmodule Journey do
     |> Enum.into(%{})
   end
 
+  @doc group: "Execution Queries"
   @doc """
   Returns the chronological history of all successful computations and set values for an execution.
 
@@ -887,6 +894,7 @@ defmodule Journey do
     Journey.Executions.history(execution.id)
   end
 
+  @doc group: "Value Operations"
   @doc """
   Sets the value for an input node in an execution and triggers recomputation of dependent nodes.
 
@@ -998,6 +1006,7 @@ defmodule Journey do
     Journey.Executions.set_value(execution, node_name, value)
   end
 
+  @doc group: "Value Operations"
   @doc """
   Removes the value from an input node in an execution and invalidates all dependent computed nodes.
 
@@ -1097,6 +1106,7 @@ defmodule Journey do
     Journey.Executions.unset_value(execution, node_name)
   end
 
+  @doc group: "Value Operations"
   @doc """
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
@@ -1188,6 +1198,7 @@ defmodule Journey do
     Executions.get_value(execution, node_name, timeout_ms_or_infinity, wait_new: wait_new != false)
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Archives an execution, making it invisible and stopping all background processing.
 
@@ -1242,6 +1253,7 @@ defmodule Journey do
   def archive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
     do: Journey.archive(execution.id)
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Un-archives the supplied execution, if it is archived.
 
