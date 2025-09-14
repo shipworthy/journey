@@ -235,5 +235,122 @@ defmodule Journey.SqlInjectionTest do
       result = Journey.list_executions(graph_name: graph.name, filter_by: [{:text_field, :lt, "text with zzz"}])
       assert length(result) == length(special_values)
     end
+
+    test "SQL injection protection for :contains and :icontains operators" do
+      graph =
+        Journey.new_graph(
+          "contains_injection_test_#{Journey.Helpers.Random.random_string()}",
+          "1.0.0",
+          [input(:search_field)]
+        )
+
+      # Create legitimate data
+      _exec1 = Journey.start_execution(graph) |> Journey.set_value(:search_field, "user@example.com")
+      _exec2 = Journey.start_execution(graph) |> Journey.set_value(:search_field, "admin@test.org")
+      _exec3 = Journey.start_execution(graph) |> Journey.set_value(:search_field, 12_345)
+
+      # Test SQL injection attempts with :contains operator
+      malicious_contains_payloads = [
+        # Classic SQL injection attempts
+        "'; DROP TABLE executions; --",
+        "' OR '1'='1",
+        "'; DELETE FROM values; --",
+
+        # LIKE-specific injection attempts
+        "' OR (? #>> '{}') LIKE '%' OR '1'='1",
+        "%'; DROP TABLE executions; --",
+        "_'; INSERT INTO executions VALUES ('hacked'); --",
+
+        # PostgreSQL function injection attempts
+        "pg_sleep(5)",
+        "version()",
+
+        # JSONB-specific injection attempts
+        "{}'; DROP TABLE values; --",
+        "'::text; DELETE FROM executions; --"
+      ]
+
+      # Test each malicious payload with :contains - all should be safely handled
+      for payload <- malicious_contains_payloads do
+        result = Journey.list_executions(graph_name: graph.name, filter_by: [{:search_field, :contains, payload}])
+        assert is_list(result)
+        # Should find no matches for malicious strings
+        assert Enum.empty?(result)
+
+        # Also test :icontains
+        result2 = Journey.list_executions(graph_name: graph.name, filter_by: [{:search_field, :icontains, payload}])
+        assert is_list(result2)
+        assert Enum.empty?(result2)
+      end
+
+      # Test that legitimate substring searches work correctly
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:search_field, :contains, "@"}])
+      # Both email addresses
+      assert length(result) == 2
+
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:search_field, :icontains, "EXAMPLE"}])
+      # Case-insensitive match for user@example.com
+      assert length(result) == 1
+    end
+
+    test "LIKE wildcard handling for :contains and :icontains operators" do
+      graph =
+        Journey.new_graph(
+          "wildcard_test_#{Journey.Helpers.Random.random_string()}",
+          "1.0.0",
+          [input(:content)]
+        )
+
+      # Create data with LIKE wildcard characters that should be treated as literals
+      wildcard_values = [
+        "10% increase",
+        "user_name_field",
+        "path\\to\\file",
+        "100% complete",
+        "test_case_1",
+        "folder\\subfolder",
+        "50%_discount",
+        "file_name\\path"
+      ]
+
+      # Create executions with wildcard characters
+      for value <- wildcard_values do
+        _exec = Journey.start_execution(graph) |> Journey.set_value(:content, value)
+      end
+
+      # Test that we can search for literal % characters (should not act as wildcard)
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :contains, "%"}])
+      expected_percent_matches = ["10% increase", "100% complete", "50%_discount"]
+      assert length(result) == 3
+
+      result_values = result |> Enum.map(fn exec -> Journey.get_value(exec, :content) |> elem(1) end) |> Enum.sort()
+      assert result_values == Enum.sort(expected_percent_matches)
+
+      # Test that we can search for literal _ characters (should not act as wildcard)
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :contains, "_"}])
+      expected_underscore_matches = ["user_name_field", "test_case_1", "50%_discount", "file_name\\path"]
+      assert length(result) == 4
+
+      result_values = result |> Enum.map(fn exec -> Journey.get_value(exec, :content) |> elem(1) end) |> Enum.sort()
+      assert result_values == Enum.sort(expected_underscore_matches)
+
+      # Test that we can search for literal \ characters
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :contains, "\\"}])
+      expected_backslash_matches = ["path\\to\\file", "folder\\subfolder", "file_name\\path"]
+      assert length(result) == 3
+
+      result_values = result |> Enum.map(fn exec -> Journey.get_value(exec, :content) |> elem(1) end) |> Enum.sort()
+      assert result_values == Enum.sort(expected_backslash_matches)
+
+      # Test case-insensitive matching with :icontains
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :icontains, "USER_"}])
+      assert length(result) == 1
+      assert Journey.get_value(hd(result), :content) == {:ok, "user_name_field"}
+
+      # Test combination of wildcards
+      result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :contains, "%_"}])
+      assert length(result) == 1
+      assert Journey.get_value(hd(result), :content) == {:ok, "50%_discount"}
+    end
   end
 end

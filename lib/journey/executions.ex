@@ -820,7 +820,7 @@ defmodule Journey.Executions do
 
   # Validate filters are compatible with database-level filtering
   defp validate_db_filter({node_name, op, value})
-       when is_atom(node_name) and op in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in] do
+       when is_atom(node_name) and op in [:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in, :contains, :icontains] do
     # Additional validation for the value type
     if primitive_value?(value) do
       :ok
@@ -852,6 +852,17 @@ defmodule Journey.Executions do
   end
 
   defp primitive_value?(_), do: false
+
+  # Escape special characters in LIKE patterns to treat them as literals
+  defp escape_like_pattern(pattern) do
+    pattern
+    # Escape backslash first
+    |> String.replace("\\", "\\\\")
+    # Escape percent
+    |> String.replace("%", "\\%")
+    # Escape underscore
+    |> String.replace("_", "\\_")
+  end
 
   # Apply database-level value filtering using JOINs and JSONB queries
   defp apply_db_value_filters(query, value_filters) do
@@ -1007,6 +1018,28 @@ defmodule Journey.Executions do
       join: v in Journey.Persistence.Schema.Execution.Value,
       on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
       where: v.node_value not in ^values
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :contains, pattern) when is_binary(pattern) do
+    escaped_pattern = escape_like_pattern(pattern)
+    like_pattern = "%#{escaped_pattern}%"
+
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') LIKE ?", v.node_value, v.node_value, ^like_pattern)
+    )
+  end
+
+  defp apply_comparison_filter(query, node_name, :icontains, pattern) when is_binary(pattern) do
+    escaped_pattern = escape_like_pattern(pattern)
+    like_pattern = "%#{escaped_pattern}%"
+
+    from(e in query,
+      join: v in Journey.Persistence.Schema.Execution.Value,
+      on: v.execution_id == e.id and v.node_name == ^Atom.to_string(node_name),
+      where: fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') ILIKE ?", v.node_value, v.node_value, ^like_pattern)
     )
   end
 
