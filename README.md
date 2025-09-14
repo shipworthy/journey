@@ -16,16 +16,16 @@ For durable processes of any size (a linear, 2-3 step process or a 60 step condi
 You can use Journey for basic 3-steps flows (such as this basic "welcome" flow
 
 ```elixir
-iex> import Journey.Node
-iex> graph = Journey.new_graph(
-...>   "demo welcome graph – readme doctest",
-...>   "v1",
-...>   [
-...>     input(:name),
-...>     input(:email_address),
-...>     compute(:greeting, [:name, :email_address], &send_welcome_email/1)
-...>   ]
-...> )
+import Journey.Node
+graph = Journey.new_graph(
+   "demo welcome graph – readme doctest",
+   "v1",
+   [
+     input(:name),
+     input(:email_address),
+     compute(:greeting, [:name, :email_address], &send_welcome_email/1)
+   ]
+)
 ```
 ), or for complex multi-step conditional flows.
 
