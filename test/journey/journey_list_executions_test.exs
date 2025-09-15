@@ -545,6 +545,111 @@ defmodule Journey.JourneyListExecutionsTest do
       assert hd(complex_results).id == exec_combined.id
     end
 
+    test "list_contains operator for list element matching" do
+      graph = list_graph(random_string())
+
+      # Create executions with different list values
+      exec_string_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, ["user1", "user2", "admin"])
+      exec_mixed_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, ["user3", 42, "user4"])
+      exec_integer_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, [1, 2, 3, 4])
+      exec_empty_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, [])
+      _exec_non_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, "not_a_list")
+      exec_nil_value = Journey.start_execution(graph)
+
+      # Test finding string element in list
+      user1_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "user1"}])
+
+      assert length(user1_results) == 1
+      assert hd(user1_results).id == exec_string_list.id
+
+      # Test finding string element that appears in mixed type list
+      user3_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "user3"}])
+
+      assert length(user3_results) == 1
+      assert hd(user3_results).id == exec_mixed_list.id
+
+      # Test finding integer element in list
+      integer_2_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, 2}])
+      assert length(integer_2_results) == 1
+      assert hd(integer_2_results).id == exec_integer_list.id
+
+      # Test finding integer element in mixed list
+      integer_42_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, 42}])
+
+      assert length(integer_42_results) == 1
+      assert hd(integer_42_results).id == exec_mixed_list.id
+
+      # Test cross-type matching: string "42" should NOT match integer 42 (JSON is type-strict)
+      string_42_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "42"}])
+
+      assert Enum.empty?(string_42_results)
+
+      # Test no matches for non-existent element
+      no_match_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "not_found"}])
+
+      assert Enum.empty?(no_match_results)
+
+      # Test empty list returns no results
+      empty_list_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "anything"}])
+
+      refute Enum.any?(empty_list_results, fn exec -> exec.id == exec_empty_list.id end)
+
+      # Test non-list values return no results
+      non_list_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "not_a_list"}])
+
+      assert Enum.empty?(non_list_results)
+
+      # Test nil values return no results
+      nil_results =
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "anything"}])
+
+      refute Enum.any?(nil_results, fn exec -> exec.id == exec_nil_value.id end)
+
+      # Test multiple list_contains filters (AND logic)
+      combined_results =
+        Journey.list_executions(
+          graph_name: graph.name,
+          filter_by: [
+            {:recipients, :list_contains, "user3"},
+            {:recipients, :list_contains, 42}
+          ]
+        )
+
+      assert length(combined_results) == 1
+      assert hd(combined_results).id == exec_mixed_list.id
+    end
+
+    test "list_contains validation errors" do
+      graph = list_graph(random_string())
+
+      # Test invalid value type - boolean
+      assert_raise ArgumentError, fn ->
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, true}])
+      end
+
+      # Test invalid value type - nil
+      assert_raise ArgumentError, fn ->
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, nil}])
+      end
+
+      # Test invalid value type - map
+      assert_raise ArgumentError, fn ->
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, %{key: "value"}}])
+      end
+
+      # Test invalid value type - list
+      assert_raise ArgumentError, fn ->
+        Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, ["nested", "list"]}])
+      end
+    end
+
     test "sort_by with value fields" do
       graph = basic_graph(random_string())
 
@@ -789,6 +894,14 @@ defmodule Journey.JourneyListExecutionsTest do
           end
         )
       ]
+    )
+  end
+
+  defp list_graph(test_id) do
+    Journey.new_graph(
+      "list graph, recipients #{__MODULE__} #{test_id}",
+      "1.0.0",
+      [input(:recipients)]
     )
   end
 end
