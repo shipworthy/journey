@@ -360,14 +360,17 @@ defmodule Journey.Executions do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     wait_new = Keyword.get(opts, :wait_new, false)
+    wait_for_revision_after = Keyword.get(opts, :wait_for_revision_after)
 
     Logger.debug(
       "#{prefix}: starting." <>
         if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: "") <>
-        if(wait_new, do: " (wait_new: true)", else: "")
+        if(wait_new, do: " (wait_new: true)", else: "") <>
+        if(wait_for_revision_after != nil, do: " (wait_for_revision_after: #{wait_for_revision_after})", else: "")
     )
 
     monotonic_time_deadline =
@@ -382,10 +385,15 @@ defmodule Journey.Executions do
           System.monotonic_time(:millisecond) + ms
       end
 
-    if wait_new do
-      load_value_wait_new(execution, node_name, monotonic_time_deadline, 0)
-    else
-      load_value(execution, node_name, monotonic_time_deadline, 0)
+    cond do
+      wait_new ->
+        load_value_wait_new(execution, node_name, monotonic_time_deadline, 0)
+
+      wait_for_revision_after != nil ->
+        load_value_internal(execution, node_name, monotonic_time_deadline, 0, wait_for_revision_after)
+
+      true ->
+        load_value(execution, node_name, monotonic_time_deadline, 0)
     end
     |> tap(fn
       {:ok, _result} ->

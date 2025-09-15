@@ -77,13 +77,17 @@ defmodule Journey.JourneyWaitNewTest do
     end
 
     test "wait_any and wait_new are mutually exclusive", %{execution: execution} do
-      assert_raise ArgumentError, "Options :wait_any and :wait_new are mutually exclusive", fn ->
-        Journey.get_value(execution, :first_name, wait_any: true, wait_new: true)
-      end
+      assert_raise ArgumentError,
+                   "Options :wait_any, :wait_new, and :wait_for_revision_after are mutually exclusive",
+                   fn ->
+                     Journey.get_value(execution, :first_name, wait_any: true, wait_new: true)
+                   end
 
-      assert_raise ArgumentError, "Options :wait_any and :wait_new are mutually exclusive", fn ->
-        Journey.get_value(execution, :first_name, wait_any: 5000, wait_new: 1000)
-      end
+      assert_raise ArgumentError,
+                   "Options :wait_any, :wait_new, and :wait_for_revision_after are mutually exclusive",
+                   fn ->
+                     Journey.get_value(execution, :first_name, wait_any: 5000, wait_new: 1000)
+                   end
     end
 
     test "wait_new works with dependent computations", %{execution: execution} do

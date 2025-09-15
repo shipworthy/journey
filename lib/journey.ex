@@ -1205,6 +1205,11 @@ defmodule Journey do
 
   # Wait for a new version of the value
   {:ok, new_value} = Journey.get_value(execution, :name, wait_new: true)
+
+  # Wait for a revision after a specific version
+  revision = Journey.get_value_revision(execution, :computed_field)
+  execution = Journey.set_value(execution, :input, "new_value")
+  {:ok, updated_value} = Journey.get_value(execution, :computed_field, wait_for_revision_after: revision)
   ```
 
   Use `set_value/3` to set input values that trigger computations.
@@ -1221,7 +1226,7 @@ defmodule Journey do
 
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
-  * Raises `ArgumentError` if both `:wait_any` and `:wait_new` options are provided (mutually exclusive)
+  * Raises `ArgumentError` if more than one of `:wait_any`, `:wait_new`, or `:wait_for_revision_after` options are provided (mutually exclusive)
 
   ## Options
   * `:wait_any` – whether or not to wait for the value to be set. This option can have the following values:
@@ -1235,8 +1240,12 @@ defmodule Journey do
     * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet, or until timeout
     * a positive integer – wait for the supplied number of milliseconds for a new revision
     This is useful for when want a new version of the value, and are waiting for it to get computed.
+  * `:wait_for_revision_after` – wait for a value with a revision higher than the specified revision. This option can have the following values:
+    * `nil` – wait for any value to be set (same as `wait_any: true`)
+    * integer – wait for a revision higher than this number, with default timeout
+    This provides explicit control over which revision you're waiting for.
 
-  **Note:** `:wait_any` and `:wait_new` are mutually exclusive.
+  **Note:** `:wait_any`, `:wait_new`, and `:wait_for_revision_after` are mutually exclusive.
 
   ## Examples
 
@@ -1266,21 +1275,73 @@ defmodule Journey do
   """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
-    check_options(opts, [:wait_any, :wait_new])
+    check_options(opts, [:wait_any, :wait_new, :wait_for_revision_after])
 
     wait_new = Keyword.get(opts, :wait_new, false)
     wait_any = Keyword.get(opts, :wait_any, false)
+    wait_for_revision_after = Keyword.get(opts, :wait_for_revision_after)
 
     # Check for mutually exclusive options
-    if wait_new != false and wait_any != false do
-      raise ArgumentError, "Options :wait_any and :wait_new are mutually exclusive"
+    exclusive_options = [wait_new != false, wait_any != false, wait_for_revision_after != nil]
+
+    if Enum.count(exclusive_options, & &1) > 1 do
+      raise ArgumentError, "Options :wait_any, :wait_new, and :wait_for_revision_after are mutually exclusive"
     end
 
-    timeout_ms_or_infinity = determine_timeout(wait_new, wait_any)
+    timeout_ms_or_infinity = determine_timeout(wait_new, wait_any, wait_for_revision_after != nil)
 
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
-    Executions.get_value(execution, node_name, timeout_ms_or_infinity, wait_new: wait_new != false)
+
+    opts_to_pass =
+      []
+      |> then(fn opts ->
+        if wait_new != false, do: Keyword.put(opts, :wait_new, true), else: opts
+      end)
+      |> then(fn opts ->
+        if wait_for_revision_after != nil,
+          do: Keyword.put(opts, :wait_for_revision_after, wait_for_revision_after),
+          else: opts
+      end)
+
+    Executions.get_value(execution, node_name, timeout_ms_or_infinity, opts_to_pass)
+  end
+
+  @doc """
+  Gets the current revision number of a node's value in an execution.
+
+  Returns the revision number of the specified node, or `nil` if the node
+  doesn't have a value set yet. This is useful for the `wait_for_revision_after`
+  option in `get_value/3`.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `node_name` - The atom name of the node to check
+
+  ## Returns
+  * Integer revision number if the node has a value
+  * `nil` if the node has no value set
+
+  ## Examples
+
+      iex> import Journey.Node
+      iex> graph = Journey.new_graph("example", "1.0.0", [input(:name)])
+      iex> execution = Journey.start_execution(graph) |> Journey.set_value(:name, "Alice")
+      iex> Journey.get_value_revision(execution, :name)
+      1
+      iex> Journey.get_value_revision(execution, :nonexistent_node)
+      nil
+
+  """
+  def get_value_revision(execution, node_name)
+      when is_struct(execution, Execution) and is_atom(node_name) do
+    execution.values
+    |> Enum.find(fn value -> value.node_name == node_name end)
+    |> case do
+      nil -> nil
+      %{set_time: nil} -> nil
+      value -> value.ex_revision
+    end
   end
 
   @doc """
@@ -1399,15 +1460,16 @@ defmodule Journey do
 
   @default_timeout_ms 30_000
 
-  defp determine_timeout(false, false), do: nil
-  defp determine_timeout(wait_new, false), do: timeout_value(wait_new)
-  defp determine_timeout(false, wait_any), do: timeout_value(wait_any)
+  defp determine_timeout(false, false, false), do: nil
+  defp determine_timeout(wait_new, false, false), do: timeout_value(wait_new)
+  defp determine_timeout(false, wait_any, false), do: timeout_value(wait_any)
+  defp determine_timeout(false, false, true), do: @default_timeout_ms
 
-  defp determine_timeout(wait_new, wait_any) do
+  defp determine_timeout(wait_new, wait_any, wait_for_revision_after) do
     raise ArgumentError,
-          "Invalid timeout options: wait_new: #{inspect(wait_new)}, wait_any: #{inspect(wait_any)}. " <>
+          "Invalid timeout options: wait_new: #{inspect(wait_new)}, wait_any: #{inspect(wait_any)}, wait_for_revision_after: #{inspect(wait_for_revision_after)}. " <>
             "Valid values: false, 0, true (in which case the default is #{@default_timeout_ms}), :infinity, or positive integer (milliseconds). " <>
-            "Options :wait_any and :wait_new are mutually exclusive."
+            "Options :wait_any, :wait_new, and :wait_for_revision_after are mutually exclusive."
   end
 
   defp timeout_value(v) when is_integer(v) or v == :infinity, do: v
