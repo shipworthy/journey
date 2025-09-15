@@ -1071,6 +1071,134 @@ defmodule Journey do
   end
 
   @doc """
+  Sets multiple values for input nodes in an execution atomically and triggers recomputation of dependent nodes.
+
+  This function allows setting multiple related values in a single atomic operation, ensuring consistency
+  and optimal performance. All values are updated together in a single database transaction with one
+  revision increment. The operation is idempotent - if all provided values are the same as current values,
+  no revision increment occurs.
+
+  ## Parameters
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `values_map` - Map of node names to values, e.g., `%{node1: "value1", node2: 42}`
+
+  ## Returns
+  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if any value changed)
+
+  ## Errors
+  * Raises `RuntimeError` if any node name does not exist in the execution's graph
+  * Raises `RuntimeError` if attempting to set compute nodes (only input nodes can be set)
+
+  ## Key Behaviors
+  * **Atomic updates** - All values are set together in a single transaction
+  * **Single revision increment** - One revision bump for all changes
+  * **Optimal performance** - Only values that actually changed are updated
+  * **Complete no-op** - If no values changed, no database operations occur
+  * **Automatic recomputation** - Setting values triggers recomputation of all dependent nodes
+
+  ## Quick Example
+
+  ```elixir
+  execution = Journey.set_values(execution, %{
+    name: "Mario",
+    age: 35,
+    active: true
+  })
+  ```
+
+  Use `set_value/3` for single values and `get_value/3` to retrieve values.
+
+  ## Examples
+
+  Basic multi-value setting with cascading recomputation:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "multi-set workflow example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:first_name),
+  ...>         input(:last_name),
+  ...>         compute(:full_name, [:first_name, :last_name], fn %{first_name: first, last_name: last} ->
+  ...>           {:ok, "\#{first} \#{last}"}
+  ...>         end)
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_values(execution, %{first_name: "Mario", last_name: "Bros"})
+  iex> Journey.get_value(execution, :full_name, wait_any: true)
+  {:ok, "Mario Bros"}
+  ```
+
+  No-op behavior when values unchanged:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "multi-set no-op example",
+  ...>       "v1.0.0",
+  ...>       [input(:name), input(:age)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_values(execution, %{name: "Mario", age: 35})
+  iex> first_revision = execution.revision
+  iex> execution = Journey.set_values(execution, %{name: "Mario", age: 35})
+  iex> execution.revision == first_revision
+  true
+  ```
+
+  Partial updates - only changed values are updated:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "multi-set partial example",
+  ...>       "v1.0.0",
+  ...>       [input(:name), input(:age), input(:active)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_values(execution, %{name: "Mario", age: 35, active: true})
+  iex> first_revision = execution.revision
+  iex> execution = Journey.set_values(execution, %{name: "Luigi", age: 35, active: true})
+  iex> execution.revision > first_revision
+  true
+  ```
+
+  Empty map handling:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "multi-set empty example",
+  ...>       "v1.0.0",
+  ...>       [input(:name)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> original_revision = execution.revision
+  iex> execution = Journey.set_values(execution, %{})
+  iex> execution.revision == original_revision
+  true
+  ```
+
+  """
+  def set_values(execution_id, values_map)
+      when is_binary(execution_id) and is_map(values_map) do
+    execution = Journey.load(execution_id)
+    set_values(execution, values_map)
+  end
+
+  def set_values(execution, values_map)
+      when is_struct(execution, Execution) and is_map(values_map) do
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
+
+    # Validate all node names and values first
+    validate_values_map(execution, values_map)
+
+    Journey.Executions.set_values(execution, values_map)
+  end
+
+  @doc """
   Removes the value from an input node in an execution and invalidates all dependent computed nodes.
 
   When a value is unset, Journey automatically invalidates (unsets) all computed nodes that depend
@@ -1423,6 +1551,27 @@ defmodule Journey do
     if unexpected_option_names != MapSet.new([]) do
       raise ArgumentError,
             "Unknown options: #{inspect(MapSet.to_list(unexpected_option_names))}. Known options: #{inspect(MapSet.to_list(known_option_names) |> Enum.sort())}."
+    end
+  end
+
+  defp validate_values_map(execution, values_map) do
+    Enum.each(values_map, fn {node_name, value} ->
+      validate_node_name(node_name)
+      validate_value_type(node_name, value)
+      Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
+    end)
+  end
+
+  defp validate_node_name(node_name) do
+    unless is_atom(node_name) do
+      raise ArgumentError, "Node names must be atoms, got: #{inspect(node_name)}"
+    end
+  end
+
+  defp validate_value_type(node_name, value) do
+    unless value == nil or is_binary(value) or is_number(value) or is_map(value) or
+             is_list(value) or is_boolean(value) do
+      raise ArgumentError, "Invalid value type for node #{node_name}: #{inspect(value)}"
     end
   end
 end

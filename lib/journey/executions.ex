@@ -360,6 +360,104 @@ defmodule Journey.Executions do
     end
   end
 
+  # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
+  def set_values(execution, values_map) when is_map(values_map) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.debug("#{prefix}: setting #{map_size(values_map)} values: #{inspect(Map.keys(values_map))}")
+
+    # Filter out unchanged values BEFORE starting transaction
+    changed_values = filter_changed_values(execution, values_map)
+
+    if map_size(changed_values) == 0 do
+      # Complete no-op: nothing changed, return execution as-is
+      Logger.debug("#{prefix}: no values changed, skipping update")
+      execution
+    else
+      Logger.debug("#{prefix}: #{map_size(changed_values)} values changed, proceeding with transaction")
+
+      # Proceed with transaction only for changed values
+      result =
+        Journey.Repo.transaction(fn repo ->
+          new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
+          now_seconds = System.system_time(:second)
+
+          # Update only the changed values
+          update_changed_values_in_transaction(execution.id, changed_values, new_revision, now_seconds, repo)
+
+          # Update last_updated_at once
+          update_last_updated_at(execution.id, new_revision, now_seconds, repo)
+
+          Journey.load(execution.id)
+        end)
+
+      case result do
+        {:ok, updated_execution} ->
+          Logger.info("#{prefix}: values set successfully, revision: #{updated_execution.revision}")
+          graph = Journey.Graph.Catalog.fetch(updated_execution.graph_name, updated_execution.graph_version)
+          Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution.id, graph)
+          # Reload to get the updated revision after invalidation
+          updated_execution = Journey.load(updated_execution.id)
+          Journey.Scheduler.advance(updated_execution)
+          updated_execution
+
+        {:error, reason} ->
+          Logger.error("#{prefix}: transaction failed: #{inspect(reason)}")
+          raise "Failed to set values: #{inspect(reason)}"
+      end
+    end
+  end
+
+  defp filter_changed_values(execution, values_map) do
+    # Create a map of current values for comparison
+    current_values =
+      execution.values
+      |> Enum.filter(fn v -> Map.has_key?(values_map, v.node_name) end)
+      |> Map.new(fn v -> {v.node_name, v.node_value} end)
+
+    # Filter to only include values that are actually changing
+    values_map
+    |> Enum.filter(fn {node_name, new_value} ->
+      current_value = Map.get(current_values, node_name)
+      current_value != new_value
+    end)
+    |> Map.new()
+  end
+
+  defp update_changed_values_in_transaction(execution_id, changed_values, revision, now_seconds, repo) do
+    Enum.each(changed_values, fn {node_name, value} ->
+      update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo)
+    end)
+  end
+
+  defp update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo) do
+    {1, _} =
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
+      )
+      |> repo.update_all(
+        set: [
+          ex_revision: revision,
+          node_value: value,
+          updated_at: now_seconds,
+          set_time: now_seconds
+        ]
+      )
+  end
+
+  defp update_last_updated_at(execution_id, revision, now_seconds, repo) do
+    from(v in Execution.Value,
+      where: v.execution_id == ^execution_id and v.node_name == "last_updated_at"
+    )
+    |> repo.update_all(
+      set: [
+        ex_revision: revision,
+        node_value: now_seconds,
+        updated_at: now_seconds,
+        set_time: now_seconds
+      ]
+    )
+  end
+
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     wait_new = Keyword.get(opts, :wait_new, false)
