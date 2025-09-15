@@ -414,7 +414,7 @@ defmodule Journey do
     * `:graph_name` - String name of a specific graph to filter by
     * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
     * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
-    * `:filter_by` - List of node value filters using database-level filtering for optimal performance. Each filter is a tuple `{node_name, operator, value}` or `{node_name, operator}` for nil checks. Operators: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte` (comparisons), `:in`, `:not_in` (membership), `:contains` (case-sensitive substring matching, strings only), `:icontains` (case-insensitive substring matching, strings only), `:is_nil`, `:is_not_nil` (existence). Values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`). Complex values (maps, tuples, functions) will raise an ArgumentError.
+    * `:filter_by` - List of node value filters using database-level filtering for optimal performance. Each filter is a tuple `{node_name, operator, value}` or `{node_name, operator}` for nil checks. Operators: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte` (comparisons), `:in`, `:not_in` (membership), `:contains` (case-sensitive substring matching, strings only), `:icontains` (case-insensitive substring matching, strings only), `:list_contains` (checks if a list-valued node contains the specified string or integer element), `:is_nil`, `:is_not_nil` (existence). Values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`). Complex values (maps, tuples, functions) will raise an ArgumentError.
     * `:limit` - Maximum number of results (default: 10,000)
     * `:offset` - Number of results to skip for pagination (default: 0)
     * `:include_archived` - Whether to include archived executions (default: false)
@@ -526,6 +526,26 @@ defmodule Journey do
   20
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "MARIO"}]) |> Enum.count()
   20
+  ```
+
+  List containment filtering with `:list_contains`:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "notification example - \#{Journey.Helpers.Random.random_string()}",
+  ...>   "v1.0.0",
+  ...>   [input(:recipients)]
+  ...> )
+  iex> Journey.start_execution(graph) |> Journey.set_value(:recipients, ["user1", "user2", "admin"])
+  iex> Journey.start_execution(graph) |> Journey.set_value(:recipients, ["user3", "user4"])
+  iex> Journey.start_execution(graph) |> Journey.set_value(:recipients, [1, 2, 3])
+  iex> # Find executions where recipients list contains "user1"
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "user1"}]) |> Enum.count()
+  1
+  iex> # Find executions where recipients list contains integer 2
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, 2}]) |> Enum.count()
+  1
   ```
 
   Multiple filters, sorting, and pagination:
