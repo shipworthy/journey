@@ -1,16 +1,16 @@
-defmodule Journey.JourneySetValuesTest do
+defmodule Journey.JourneySetValueMultiTest do
   use ExUnit.Case, async: true
 
   import Journey.Helpers.Random, only: [random_string: 0]
 
   import Journey.Node
 
-  describe "set_values |" do
+  describe "set_value with multiple values |" do
     test "basic multi-value setting" do
       execution =
         multi_input_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_values(%{first_name: "Mario", last_name: "Bros"})
+        |> Journey.set_value(%{first_name: "Mario", last_name: "Bros"})
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
       assert Journey.get_value(execution, :last_name) == {:ok, "Bros"}
@@ -23,7 +23,7 @@ defmodule Journey.JourneySetValuesTest do
         |> Journey.start_execution()
 
       original_revision = execution.revision
-      execution = Journey.set_values(execution, %{})
+      execution = Journey.set_value(execution, %{})
 
       assert execution.revision == original_revision
     end
@@ -34,11 +34,11 @@ defmodule Journey.JourneySetValuesTest do
         |> Journey.start_execution()
 
       # Set initial values
-      execution_v2 = Journey.set_values(execution_v1, %{first_name: "Mario", last_name: "Bros"})
+      execution_v2 = Journey.set_value(execution_v1, %{first_name: "Mario", last_name: "Bros"})
       assert execution_v2.revision > execution_v1.revision
 
       # Set same values again - should be no-op
-      execution_v3 = Journey.set_values(execution_v2, %{first_name: "Mario", last_name: "Bros"})
+      execution_v3 = Journey.set_value(execution_v2, %{first_name: "Mario", last_name: "Bros"})
       assert execution_v3.revision == execution_v2.revision
     end
 
@@ -48,14 +48,14 @@ defmodule Journey.JourneySetValuesTest do
         |> Journey.start_execution()
 
       # Set initial values
-      execution_v2 = Journey.set_values(execution_v1, %{first_name: "Mario", last_name: "Bros"})
+      execution_v2 = Journey.set_value(execution_v1, %{first_name: "Mario", last_name: "Bros"})
 
       # Wait for computation to complete and get final revision
       {:ok, "Mario Bros"} = Journey.get_value(execution_v2, :full_name, wait_any: true)
       execution_v2_final = Journey.load(execution_v2.id)
 
       # Change only one value, keep one the same
-      execution_v3 = Journey.set_values(execution_v2_final, %{first_name: "Luigi", last_name: "Bros"})
+      execution_v3 = Journey.set_value(execution_v2_final, %{first_name: "Luigi", last_name: "Bros"})
 
       # Should increment revision exactly once more for the change
       assert execution_v3.revision == execution_v2_final.revision + 1
@@ -67,7 +67,7 @@ defmodule Journey.JourneySetValuesTest do
       execution =
         multi_input_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_values(%{first_name: "Mario", last_name: "Bros", age: 35})
+        |> Journey.set_value(%{first_name: "Mario", last_name: "Bros", age: 35})
 
       # All values should be set and computed value should be available
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
@@ -80,7 +80,7 @@ defmodule Journey.JourneySetValuesTest do
       execution =
         value_types_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_values(%{
+        |> Journey.set_value(%{
           text: "hello",
           number: 42,
           flag: true,
@@ -98,9 +98,21 @@ defmodule Journey.JourneySetValuesTest do
     test "using execution ID string" do
       execution = basic_graph(random_string()) |> Journey.start_execution()
 
-      updated_execution = Journey.set_values(execution.id, %{first_name: "Mario"})
+      updated_execution = Journey.set_value(execution.id, %{first_name: "Mario"})
 
       assert Journey.get_value(updated_execution, :first_name) == {:ok, "Mario"}
+    end
+
+    test "keyword list syntax (ergonomic API)" do
+      execution =
+        multi_input_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set_value(first_name: "Mario", last_name: "Bros", age: 35)
+
+      assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
+      assert Journey.get_value(execution, :last_name) == {:ok, "Bros"}
+      assert Journey.get_value(execution, :age) == {:ok, 35}
+      assert Journey.get_value(execution, :full_name, wait_any: true) == {:ok, "Mario Bros"}
     end
 
     test "invalidates dependent computations correctly" do
@@ -109,11 +121,11 @@ defmodule Journey.JourneySetValuesTest do
         |> Journey.start_execution()
 
       # Set initial values and let computation run
-      execution = Journey.set_values(execution, %{first_name: "Mario", last_name: "Bros"})
+      execution = Journey.set_value(execution, %{first_name: "Mario", last_name: "Bros"})
       {:ok, "Mario Bros"} = Journey.get_value(execution, :full_name, wait_any: true)
 
       # Change values - should invalidate and recompute
-      execution = Journey.set_values(execution, %{first_name: "Luigi", last_name: "Mario"})
+      execution = Journey.set_value(execution, %{first_name: "Luigi", last_name: "Mario"})
       {:ok, "Luigi Mario"} = Journey.get_value(execution, :full_name, wait_new: true)
     end
 
@@ -124,7 +136,7 @@ defmodule Journey.JourneySetValuesTest do
 
       Process.sleep(1200)
 
-      execution = Journey.set_values(execution, %{first_name: "Mario"})
+      execution = Journey.set_value(execution, %{first_name: "Mario"})
 
       execution = execution |> Journey.load()
 
@@ -142,7 +154,7 @@ defmodule Journey.JourneySetValuesTest do
       assert_raise RuntimeError,
                    ~r"':unknown_node' is not a valid input node in execution",
                    fn ->
-                     Journey.set_values(execution, %{unknown_node: "value"})
+                     Journey.set_value(execution, %{unknown_node: "value"})
                    end
     end
 
@@ -154,7 +166,7 @@ defmodule Journey.JourneySetValuesTest do
       assert_raise ArgumentError,
                    ~r"Invalid value type for node first_name:",
                    fn ->
-                     Journey.set_values(execution, %{first_name: {:invalid, :tuple}})
+                     Journey.set_value(execution, %{first_name: {:invalid, :tuple}})
                    end
     end
 
@@ -166,7 +178,7 @@ defmodule Journey.JourneySetValuesTest do
       assert_raise ArgumentError,
                    "Node names must be atoms, got: \"first_name\"",
                    fn ->
-                     Journey.set_values(execution, %{"first_name" => "Mario"})
+                     Journey.set_value(execution, %{"first_name" => "Mario"})
                    end
     end
 
@@ -179,7 +191,7 @@ defmodule Journey.JourneySetValuesTest do
 
       # Set 3 values at once
       execution =
-        Journey.set_values(execution, %{
+        Journey.set_value(execution, %{
           first_name: "Mario",
           last_name: "Bros",
           age: 35
@@ -194,7 +206,7 @@ defmodule Journey.JourneySetValuesTest do
       execution1 =
         multi_input_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_values(%{first_name: "Mario", last_name: "Bros", age: 35})
+        |> Journey.set_value(%{first_name: "Mario", last_name: "Bros", age: 35})
 
       execution2 =
         multi_input_graph(execution1.graph_name)

@@ -944,37 +944,57 @@ defmodule Journey do
   end
 
   @doc """
-  Sets the value for an input node in an execution and triggers recomputation of dependent nodes.
+  Sets values for input nodes in an execution and triggers recomputation of dependent nodes.
 
-  When a value is set, Journey automatically recomputes any dependent computed nodes to ensure
-  consistency across the dependency graph. The operation is idempotent - setting the same value
-  twice has no effect.
+  This function supports three calling patterns:
+  1. Single value: `set_value(execution, :node_name, value)`
+  2. Multiple values via map: `set_value(execution, %{node1: value1, node2: value2})`
+  3. Multiple values via keyword list: `set_value(execution, node1: value1, node2: value2)`
+
+  When values are set, Journey automatically recomputes any dependent computed nodes to ensure
+  consistency across the dependency graph. The operation is idempotent - setting the same values
+  has no effect.
 
   ## Parameters
+
+  **Single value:**
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
   * `node_name` - Atom representing the input node name (must exist in the graph)
   * `value` - The value to set. Supported types: nil, string, number, map, list, boolean. Note that if the map or the list contains atoms, those atoms will be converted to strings.
 
+  **Multiple values:**
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `values` - Map of node names to values (e.g., `%{node1: "value1", node2: 42}`) or keyword list (e.g., `[node1: "value1", node2: 42]`)
+
   ## Returns
-  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value changed)
+  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if any value changed)
 
   ## Errors
-  * Raises `RuntimeError` if the node name does not exist in the execution's graph
-  * Raises `RuntimeError` if attempting to set a compute node (only input nodes can be set)
+  * Raises `RuntimeError` if any node name does not exist in the execution's graph
+  * Raises `RuntimeError` if attempting to set compute nodes (only input nodes can be set)
 
   ## Key Behaviors
-  * **Automatic recomputation** - Setting a value triggers recomputation of all dependent nodes
-  * **Idempotent** - Setting the same value twice has no effect (no revision increment)
+  * **Automatic recomputation** - Setting values triggers recomputation of all dependent nodes
+  * **Idempotent** - Setting the same values has no effect (no revision increment)
   * **Input nodes only** - Only input nodes can be set; compute nodes are read-only
+  * **Atomic updates** - Multiple values are set together in a single transaction (single revision increment)
 
-  ## Quick Example
+  ## Quick Examples
 
   ```elixir
+  # Single value
   execution = Journey.set_value(execution, :name, "Mario")
+
+  # Multiple values via map
+  execution = Journey.set_value(execution, %{name: "Mario", age: 35})
+
+  # Multiple values via keyword list
+  execution = Journey.set_value(execution, name: "Mario", age: 35)
+
   {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
   ```
 
-  Use `get_value/3` to retrieve the set value and `unset_value/2` to remove values.
+  Use `get_value/3` to retrieve values and `unset_value/2` to remove values.
 
   ## Examples
 
@@ -1050,6 +1070,50 @@ defmodule Journey do
   {:ok, "Luigi"}
   ```
 
+  Multiple values via map (atomic operation):
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "set workflow - multiple map example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:first_name),
+  ...>         input(:last_name),
+  ...>         compute(:full_name, [:first_name, :last_name], fn %{first_name: first, last_name: last} ->
+  ...>           {:ok, "\#{first} \#{last}"}
+  ...>         end)
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, %{first_name: "Mario", last_name: "Bros"})
+  iex> Journey.get_value(execution, :first_name)
+  {:ok, "Mario"}
+  iex> Journey.get_value(execution, :last_name)
+  {:ok, "Bros"}
+  iex> Journey.get_value(execution, :full_name, wait_any: true)
+  {:ok, "Mario Bros"}
+  ```
+
+  Multiple values via keyword list (ergonomic syntax):
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "set workflow - keyword example",
+  ...>       "v1.0.0",
+  ...>       [input(:name), input(:age), input(:active)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set_value(execution, name: "Mario", age: 35, active: true)
+  iex> Journey.get_value(execution, :name)
+  {:ok, "Mario"}
+  iex> Journey.get_value(execution, :age)
+  {:ok, 35}
+  iex> Journey.get_value(execution, :active)
+  {:ok, true}
+  ```
+
   """
   def set_value(execution_id, node_name, value)
       when is_binary(execution_id) and is_atom(node_name) and
@@ -1070,125 +1134,14 @@ defmodule Journey do
     Journey.Executions.set_value(execution, node_name, value)
   end
 
-  @doc """
-  Sets multiple values for input nodes in an execution atomically and triggers recomputation of dependent nodes.
-
-  This function allows setting multiple related values in a single atomic operation, ensuring consistency
-  and optimal performance. All values are updated together in a single database transaction with one
-  revision increment. The operation is idempotent - if all provided values are the same as current values,
-  no revision increment occurs.
-
-  ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
-  * `values_map` - Map of node names to values, e.g., `%{node1: "value1", node2: 42}`
-
-  ## Returns
-  * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if any value changed)
-
-  ## Errors
-  * Raises `RuntimeError` if any node name does not exist in the execution's graph
-  * Raises `RuntimeError` if attempting to set compute nodes (only input nodes can be set)
-
-  ## Key Behaviors
-  * **Atomic updates** - All values are set together in a single transaction
-  * **Single revision increment** - One revision bump for all changes
-  * **Optimal performance** - Only values that actually changed are updated
-  * **Complete no-op** - If no values changed, no database operations occur
-  * **Automatic recomputation** - Setting values triggers recomputation of all dependent nodes
-
-  ## Quick Example
-
-  ```elixir
-  execution = Journey.set_values(execution, %{
-    name: "Mario",
-    age: 35,
-    active: true
-  })
-  ```
-
-  Use `set_value/3` for single values and `get_value/3` to retrieve values.
-
-  ## Examples
-
-  Basic multi-value setting with cascading recomputation:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "multi-set workflow example",
-  ...>       "v1.0.0",
-  ...>       [
-  ...>         input(:first_name),
-  ...>         input(:last_name),
-  ...>         compute(:full_name, [:first_name, :last_name], fn %{first_name: first, last_name: last} ->
-  ...>           {:ok, "\#{first} \#{last}"}
-  ...>         end)
-  ...>       ]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
-  iex> execution = Journey.set_values(execution, %{first_name: "Mario", last_name: "Bros"})
-  iex> Journey.get_value(execution, :full_name, wait_any: true)
-  {:ok, "Mario Bros"}
-  ```
-
-  No-op behavior when values unchanged:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "multi-set no-op example",
-  ...>       "v1.0.0",
-  ...>       [input(:name), input(:age)]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
-  iex> execution = Journey.set_values(execution, %{name: "Mario", age: 35})
-  iex> first_revision = execution.revision
-  iex> execution = Journey.set_values(execution, %{name: "Mario", age: 35})
-  iex> execution.revision == first_revision
-  true
-  ```
-
-  Partial updates - only changed values are updated:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "multi-set partial example",
-  ...>       "v1.0.0",
-  ...>       [input(:name), input(:age), input(:active)]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
-  iex> execution = Journey.set_values(execution, %{name: "Mario", age: 35, active: true})
-  iex> first_revision = execution.revision
-  iex> execution = Journey.set_values(execution, %{name: "Luigi", age: 35, active: true})
-  iex> execution.revision > first_revision
-  true
-  ```
-
-  Empty map handling:
-
-  ```elixir
-  iex> import Journey.Node
-  iex> graph = Journey.new_graph(
-  ...>       "multi-set empty example",
-  ...>       "v1.0.0",
-  ...>       [input(:name)]
-  ...>     )
-  iex> execution = graph |> Journey.start_execution()
-  iex> original_revision = execution.revision
-  iex> execution = Journey.set_values(execution, %{})
-  iex> execution.revision == original_revision
-  true
-  ```
-
-  """
-  def set_values(execution_id, values_map)
+  # Multiple values via map
+  def set_value(execution_id, values_map)
       when is_binary(execution_id) and is_map(values_map) do
     execution = Journey.load(execution_id)
-    set_values(execution, values_map)
+    set_value(execution, values_map)
   end
 
-  def set_values(execution, values_map)
+  def set_value(execution, values_map)
       when is_struct(execution, Execution) and is_map(values_map) do
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
@@ -1196,6 +1149,19 @@ defmodule Journey do
     validate_values_map(execution, values_map)
 
     Journey.Executions.set_values(execution, values_map)
+  end
+
+  # Multiple values via keyword list - converts to map
+  def set_value(execution, keyword_list)
+      when (is_struct(execution, Execution) or is_binary(execution)) and is_list(keyword_list) and keyword_list != [] do
+    # Ensure it's a proper keyword list
+    if Keyword.keyword?(keyword_list) do
+      set_value(execution, Map.new(keyword_list))
+    else
+      # If it's not a keyword list, it might be a list value for a single node
+      # This case should fall through to the function clause error
+      raise FunctionClauseError, message: "Expected keyword list for multiple values or valid single value arguments"
+    end
   end
 
   @doc """
