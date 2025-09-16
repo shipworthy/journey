@@ -994,7 +994,7 @@ defmodule Journey do
   {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
   ```
 
-  Use `get_value/3` to retrieve values and `unset_value/2` to remove values.
+  Use `get_value/3` to retrieve values and `unset/2` to remove values.
 
   ## Examples
 
@@ -1199,6 +1199,18 @@ defmodule Journey do
     set(execution, keyword_list)
   end
 
+  @deprecated "Use Journey.unset/2 instead"
+  def unset_value(execution_id, node_name)
+      when is_binary(execution_id) and is_atom(node_name) do
+    unset(execution_id, node_name)
+  end
+
+  @deprecated "Use Journey.unset/2 instead"
+  def unset_value(execution, node_name)
+      when is_struct(execution, Execution) and is_atom(node_name) do
+    unset(execution, node_name)
+  end
+
   @doc """
   Removes the value from an input node in an execution and invalidates all dependent computed nodes.
 
@@ -1209,7 +1221,7 @@ defmodule Journey do
   ## Quick Example
 
   ```elixir
-  execution = Journey.unset_value(execution, :name)
+  execution = Journey.unset(execution, :name)
   {:error, :not_set} = Journey.get_value(execution, :name)
   ```
 
@@ -1253,7 +1265,7 @@ defmodule Journey do
   iex> execution = Journey.set(execution, :name, "Mario")
   iex> Journey.get_value(execution, :greeting, wait_any: true)
   {:ok, "Hello, Mario!"}
-  iex> execution_after_unset = Journey.unset_value(execution, :name)
+  iex> execution_after_unset = Journey.unset(execution, :name)
   iex> Journey.get_value(execution_after_unset, :name)
   {:error, :not_set}
   iex> Journey.get_value(execution_after_unset, :greeting)
@@ -1279,7 +1291,7 @@ defmodule Journey do
   {:ok, "B:value"}
   iex> Journey.get_value(execution, :c, wait_any: true)
   {:ok, "C:B:value"}
-  iex> execution_after_unset = Journey.unset_value(execution, :a)
+  iex> execution_after_unset = Journey.unset(execution, :a)
   iex> Journey.get_value(execution_after_unset, :a)
   {:error, :not_set}
   iex> Journey.get_value(execution_after_unset, :b)
@@ -1299,13 +1311,13 @@ defmodule Journey do
   ...> )
   iex> execution = graph |> Journey.start_execution()
   iex> original_revision = execution.revision
-  iex> execution_after_unset = Journey.unset_value(execution, :name)
+  iex> execution_after_unset = Journey.unset(execution, :name)
   iex> execution_after_unset.revision == original_revision
   true
   ```
 
   """
-  def unset_value(execution_id, node_name)
+  def unset(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
     execution = Journey.Repo.get!(Execution, execution_id)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
@@ -1313,7 +1325,7 @@ defmodule Journey do
     Journey.Executions.unset_value(execution, node_name)
   end
 
-  def unset_value(execution, node_name)
+  def unset(execution, node_name)
       when is_struct(execution, Execution) and is_atom(node_name) do
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)

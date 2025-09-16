@@ -7,7 +7,7 @@ defmodule Journey.JourneyUnsetValueTest do
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
-  describe "unset_value |" do
+  describe "unset |" do
     test "unsetting a previously set value" do
       execution =
         basic_graph(random_string())
@@ -21,7 +21,7 @@ defmodule Journey.JourneyUnsetValueTest do
       original_revision = execution_after_set.revision
 
       # Unset the value
-      execution_after_unset = Journey.unset_value(execution, :first_name)
+      execution_after_unset = Journey.unset(execution, :first_name)
 
       # Value should be not_set after unset
       assert Journey.get_value(execution_after_unset, :first_name) == {:error, :not_set}
@@ -41,7 +41,7 @@ defmodule Journey.JourneyUnsetValueTest do
       original_revision = execution.revision
 
       # Unset a value that was never set
-      execution_after_unset = Journey.unset_value(execution, :first_name)
+      execution_after_unset = Journey.unset(execution, :first_name)
 
       # Value should still be not_set
       assert Journey.get_value(execution_after_unset, :first_name) == {:error, :not_set}
@@ -59,12 +59,12 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
 
       # First unset
-      execution_after_first_unset = Journey.unset_value(execution, :first_name)
+      execution_after_first_unset = Journey.unset(execution, :first_name)
       assert Journey.get_value(execution_after_first_unset, :first_name) == {:error, :not_set}
       first_unset_revision = execution_after_first_unset.revision
 
       # Second unset (should be idempotent)
-      execution_after_second_unset = Journey.unset_value(execution_after_first_unset, :first_name)
+      execution_after_second_unset = Journey.unset(execution_after_first_unset, :first_name)
       assert Journey.get_value(execution_after_second_unset, :first_name) == {:error, :not_set}
 
       # Revision should not change on second unset
@@ -81,7 +81,7 @@ defmodule Journey.JourneyUnsetValueTest do
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
 
       # Unset the value
-      execution_after_unset = Journey.unset_value(execution, :first_name)
+      execution_after_unset = Journey.unset(execution, :first_name)
       assert Journey.get_value(execution_after_unset, :first_name) == {:error, :not_set}
       assert Journey.get_value(execution_after_unset, :greeting) == {:error, :not_set}
 
@@ -103,7 +103,7 @@ defmodule Journey.JourneyUnsetValueTest do
       original_revision = execution.revision
 
       # Unset the value - this should increment revision
-      execution_after_unset = Journey.unset_value(execution, :first_name)
+      execution_after_unset = Journey.unset(execution, :first_name)
 
       # Revision should be incremented
       assert execution_after_unset.revision > original_revision
@@ -125,7 +125,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert_raise RuntimeError,
                    "':last_name' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
                    fn ->
-                     Journey.unset_value(execution, :last_name)
+                     Journey.unset(execution, :last_name)
                    end
     end
 
@@ -137,18 +137,18 @@ defmodule Journey.JourneyUnsetValueTest do
       assert_raise RuntimeError,
                    "':greeting' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
                    fn ->
-                     Journey.unset_value(execution, :greeting)
+                     Journey.unset(execution, :greeting)
                    end
     end
 
-    test "unset_value with execution_id uses hardcoded revision assertion" do
+    test "unset with execution_id uses hardcoded revision assertion" do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
         |> Journey.set(:first_name, "Mario")
 
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
-      execution_after_unset = Journey.unset_value(execution.id, :first_name)
+      execution_after_unset = Journey.unset(execution.id, :first_name)
       # Revision will be higher due to cascading invalidation
       assert execution_after_unset.revision > 4
       assert Journey.get_value(execution_after_unset, :first_name) == {:error, :not_set}
@@ -160,7 +160,7 @@ defmodule Journey.JourneyUnsetValueTest do
       {:ok, "Hello, Peach"} = Journey.get_value(execution_after_reset, :greeting, wait_any: true)
     end
 
-    test "unset_value keeps last_updated_at set (not unset)" do
+    test "unset keeps last_updated_at set (not unset)" do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
@@ -171,7 +171,7 @@ defmodule Journey.JourneyUnsetValueTest do
       values_before = Journey.values_all(execution)
       assert {:set, _timestamp} = values_before.last_updated_at
 
-      execution_after_unset = Journey.unset_value(execution, :first_name)
+      execution_after_unset = Journey.unset(execution, :first_name)
       values_after = Journey.values_all(execution_after_unset)
 
       assert {:set, _new_timestamp} = values_after.last_updated_at
@@ -188,7 +188,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert {:set, _final_timestamp} = values_after_reset.last_updated_at
     end
 
-    test "unset_value updates last_updated_at timestamp" do
+    test "unset updates last_updated_at timestamp" do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
@@ -201,7 +201,7 @@ defmodule Journey.JourneyUnsetValueTest do
 
       Process.sleep(1000)
 
-      execution_after_unset = Journey.unset_value(execution.id, :first_name)
+      execution_after_unset = Journey.unset(execution.id, :first_name)
       values_after = Journey.values_all(execution_after_unset)
 
       {:set, new_timestamp} = values_after.last_updated_at
@@ -246,7 +246,7 @@ defmodule Journey.JourneyUnsetValueTest do
       {:ok, "C:B:value"} = Journey.get_value(execution, :c, wait_any: true)
 
       # Unset :a should cascade to :b and :c
-      execution_after_unset = Journey.unset_value(execution, :a)
+      execution_after_unset = Journey.unset(execution, :a)
 
       assert Journey.get_value(execution_after_unset, :a) == {:error, :not_set}
       assert Journey.get_value(execution_after_unset, :b) == {:error, :not_set}
@@ -283,7 +283,7 @@ defmodule Journey.JourneyUnsetValueTest do
       {:ok, "D:B:val+C:val"} = Journey.get_value(execution, :d, wait_any: true)
 
       # Unset :a should cascade to :b, :c, and :d
-      execution_after_unset = Journey.unset_value(execution, :a)
+      execution_after_unset = Journey.unset(execution, :a)
 
       assert Journey.get_value(execution_after_unset, :a) == {:error, :not_set}
       assert Journey.get_value(execution_after_unset, :b) == {:error, :not_set}
@@ -325,7 +325,7 @@ defmodule Journey.JourneyUnsetValueTest do
       {:ok, "Both:xval+yval"} = Journey.get_value(execution, :from_both, wait_any: true)
 
       # Unset :x should cascade to :from_x and :from_both, but NOT :from_y
-      execution_after_unset = Journey.unset_value(execution, :x)
+      execution_after_unset = Journey.unset(execution, :x)
 
       assert Journey.get_value(execution_after_unset, :x) == {:error, :not_set}
       assert Journey.get_value(execution_after_unset, :from_x) == {:error, :not_set}
