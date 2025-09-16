@@ -34,7 +34,6 @@ Before declaring a change "done", ask yourself the following questions:
 - did I run `make validate`, and fix all issues or raised concerns?
 - did I run `make test-performance` a few times, and assessed the performance impact of the change?
 - can this functionality be implemented in a simpler fashion, or does this change strike a good balance of simplicity and functionality?
- 
 
 ### Quality Standards
 - **Idiomatic Elixir**: Favor Elixir patterns over concepts from other languages
@@ -47,7 +46,7 @@ Before declaring a change "done", ask yourself the following questions:
 
 ### Documentation
 
-The generated documentation for this package lives under `./doc`, and can be rebuild with `make build-docs`:
+The generated documentation for this package lives under `./doc`, and can be rebuilt with `make build-docs`:
 ```
 $ make build-docs
 mix docs --proglang elixir
@@ -83,7 +82,7 @@ Journey.get_value/3      # Retrieve node values
 ```
 
 Please read lib/journey.ex and lib/journey/node.ex for Journey's API functions, their documentation and usage examples.
-Please read MODULES_AND_FUNCTIONS.md for a high level description of modules and functions provided by Journey.
+Please read MODULES_AND_FUNCTIONS.md for a high-level description of modules and functions provided by Journey.
 
 ### Module Organization
 - `Journey` - Main API
