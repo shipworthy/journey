@@ -14,7 +14,14 @@ defmodule Journey.MixProject do
       name: "Journey",
       docs: [
         main: "readme",
-        extras: ["README.md", "LICENSE.md", "CHANGELOG.md", "MIGRATION_STRATEGY.md", "lib/examples/basic.livemd"]
+        extras: [
+          "README.md",
+          "MODULES_AND_FUNCTIONS.md",
+          "LICENSE.md",
+          "CHANGELOG.md",
+          "MIGRATION_STRATEGY.md",
+          "lib/examples/basic.livemd"
+        ]
       ],
       test_coverage: [
         summary: [
