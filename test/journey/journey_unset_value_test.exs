@@ -360,4 +360,154 @@ defmodule Journey.JourneyUnsetValueTest do
       ]
     )
   end
+
+  describe "multiple unset |" do
+    test "unset multiple values atomically" do
+      graph =
+        Journey.new_graph(
+          "multiple unset graph #{__MODULE__} #{random_string()}",
+          "1.0.0",
+          [
+            input(:first_name),
+            input(:last_name),
+            input(:email),
+            compute(:full_name, [:first_name, :last_name], fn %{first_name: first, last_name: last} ->
+              {:ok, "#{first} #{last}"}
+            end)
+          ]
+        )
+
+      execution =
+        graph
+        |> Journey.start_execution()
+        |> Journey.set(:first_name, "Mario")
+        |> Journey.set(:last_name, "Bros")
+        |> Journey.set(:email, "mario@example.com")
+
+      # Wait for computation
+      {:ok, "Mario Bros"} = Journey.get_value(execution, :full_name, wait_any: true)
+
+      original_revision = execution.revision
+
+      # Unset multiple values atomically
+      execution_after_unset = Journey.unset(execution, [:first_name, :last_name])
+
+      # Check values are unset
+      assert Journey.get_value(execution_after_unset, :first_name) == {:error, :not_set}
+      assert Journey.get_value(execution_after_unset, :last_name) == {:error, :not_set}
+      assert Journey.get_value(execution_after_unset, :email) == {:ok, "mario@example.com"}
+      assert Journey.get_value(execution_after_unset, :full_name) == {:error, :not_set}
+
+      # Revision should be incremented (may be more than +1 due to cascading invalidation)
+      assert execution_after_unset.revision > original_revision
+    end
+
+    test "unset multiple values with execution ID" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set(:first_name, "Mario")
+
+      {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
+
+      # Unset using execution ID
+      execution_after_unset = Journey.unset(execution.id, [:first_name])
+
+      assert Journey.get_value(execution_after_unset, :first_name) == {:error, :not_set}
+      assert Journey.get_value(execution_after_unset, :greeting) == {:error, :not_set}
+    end
+
+    test "unset multiple values - idempotent behavior" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set(:first_name, "Mario")
+
+      original_revision = execution.revision
+
+      # Unset value that's already unset
+      execution_after_unset = Journey.unset(execution, [:first_name, :first_name])
+
+      # Revision should be incremented (may be more than +1 due to cascading invalidation)
+      assert execution_after_unset.revision > original_revision
+
+      # Unsetting already unset values should not change revision
+      execution_after_second_unset = Journey.unset(execution_after_unset, [:first_name])
+      assert execution_after_second_unset.revision == execution_after_unset.revision
+    end
+
+    test "unset empty list should be no-op" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set(:first_name, "Mario")
+
+      _original_revision = execution.revision
+
+      # This should raise a function clause error due to the guard `node_names != []`
+      assert_raise FunctionClauseError, fn ->
+        Journey.unset(execution, [])
+      end
+    end
+
+    test "unset with invalid node names" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+
+      # Should raise error for non-existent node
+      assert_raise RuntimeError, ~r/is not a valid input node/, fn ->
+        Journey.unset(execution, [:nonexistent_node])
+      end
+
+      # Should raise error for non-atom node name
+      assert_raise ArgumentError, ~r/All node names must be atoms/, fn ->
+        Journey.unset(execution, ["string_node"])
+      end
+    end
+
+    test "unset multiple values cascades correctly" do
+      # Complex dependency graph
+      graph =
+        Journey.new_graph(
+          "complex cascade graph #{__MODULE__} #{random_string()}",
+          "1.0.0",
+          [
+            input(:a),
+            input(:b),
+            input(:c),
+            compute(:ab, [:a, :b], fn %{a: a, b: b} -> {:ok, "#{a}+#{b}"} end),
+            compute(:bc, [:b, :c], fn %{b: b, c: c} -> {:ok, "#{b}+#{c}"} end),
+            compute(:abc, [:ab, :bc], fn %{ab: ab, bc: bc} -> {:ok, "#{ab}+#{bc}"} end)
+          ]
+        )
+
+      execution =
+        graph
+        |> Journey.start_execution()
+        |> Journey.set(:a, "A")
+        |> Journey.set(:b, "B")
+        |> Journey.set(:c, "C")
+
+      # Wait for all computations
+      {:ok, "A+B"} = Journey.get_value(execution, :ab, wait_any: true)
+      {:ok, "B+C"} = Journey.get_value(execution, :bc, wait_any: true)
+      {:ok, "A+B+B+C"} = Journey.get_value(execution, :abc, wait_any: true)
+
+      # Unset :a and :b should cascade appropriately
+      execution_after_unset = Journey.unset(execution, [:a, :b])
+
+      # Check what's unset
+      assert Journey.get_value(execution_after_unset, :a) == {:error, :not_set}
+      assert Journey.get_value(execution_after_unset, :b) == {:error, :not_set}
+      assert Journey.get_value(execution_after_unset, :c) == {:ok, "C"}
+
+      # :ab should be unset (depends on both :a and :b)
+      assert Journey.get_value(execution_after_unset, :ab) == {:error, :not_set}
+      # :bc should be unset (depends on :b)
+      assert Journey.get_value(execution_after_unset, :bc) == {:error, :not_set}
+      # :abc should be unset (depends on :ab and :bc)
+      assert Journey.get_value(execution_after_unset, :abc) == {:error, :not_set}
+    end
+  end
 end

@@ -74,7 +74,7 @@ Journey.new_graph/3      # Define computation graph
 Journey.start_execution/1 # Execute graph instance
 Journey.load/2           # Load existing execution
 Journey.set/3            # Set node values
-Journey.unset/2          # Unset node values
+Journey.unset/2          # Unset node values (single or multiple)
 Journey.get_value/3      # Retrieve node values
 ```
 

@@ -199,6 +199,82 @@ defmodule Journey.Executions do
     end
   end
 
+  def unset_values(execution, node_names) when is_list(node_names) do
+    prefix = "[#{execution.id}] [#{mf()}]"
+    Logger.debug("#{prefix}: unsetting #{length(node_names)} values: #{inspect(node_names)}")
+
+    # Deduplicate node names to avoid processing the same node multiple times
+    unique_node_names = Enum.uniq(node_names)
+
+    # Filter out nodes that are already unset BEFORE starting transaction
+    nodes_to_unset = filter_nodes_to_unset(execution, unique_node_names)
+
+    if Enum.empty?(nodes_to_unset) do
+      # Complete no-op: nothing to unset, return execution as-is
+      Logger.debug("#{prefix}: no values to unset, skipping update")
+      execution
+    else
+      Logger.debug("#{prefix}: #{length(nodes_to_unset)} values to unset, proceeding with transaction")
+
+      # Proceed with transaction only for nodes that need unsetting
+      result =
+        Journey.Repo.transaction(fn repo ->
+          new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
+          now_seconds = System.system_time(:second)
+
+          # Unset all the nodes in a single transaction
+          unset_nodes_in_transaction(execution.id, nodes_to_unset, new_revision, now_seconds, repo)
+
+          # Update last_updated_at once
+          update_last_updated_at(execution.id, new_revision, now_seconds, repo)
+
+          Journey.load(execution.id)
+        end)
+
+      case result do
+        {:ok, updated_execution} ->
+          Logger.info("#{prefix}: values unset successfully, revision: #{updated_execution.revision}")
+          graph = Journey.Graph.Catalog.fetch(updated_execution.graph_name, updated_execution.graph_version)
+          Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution.id, graph)
+          # Reload to get the updated revision after invalidation
+          updated_execution = Journey.load(updated_execution.id)
+          Journey.Scheduler.advance(updated_execution)
+
+        {:error, reason} ->
+          Logger.error("#{prefix}: values not unset, transaction rolled back, reason: #{inspect(reason)}")
+          Journey.load(execution)
+      end
+    end
+  end
+
+  # Helper function to filter out nodes that are already unset
+  defp filter_nodes_to_unset(execution, node_names) do
+    current_values =
+      from(v in Execution.Value,
+        where: v.execution_id == ^execution.id and v.node_name in ^Enum.map(node_names, &Atom.to_string/1),
+        select: {v.node_name, v.set_time}
+      )
+      |> Journey.Repo.all()
+      |> Map.new()
+
+    # Only include nodes that are currently set (have a set_time)
+    Enum.filter(node_names, fn node_name ->
+      node_name_str = Atom.to_string(node_name)
+      current_values[node_name_str] != nil
+    end)
+  end
+
+  # Helper function to unset multiple nodes in a transaction
+  defp unset_nodes_in_transaction(execution_id, node_names, new_revision, _now_seconds, repo) do
+    node_name_strings = Enum.map(node_names, &Atom.to_string/1)
+
+    # Update all value nodes to unset them
+    from(v in Execution.Value,
+      where: v.execution_id == ^execution_id and v.node_name in ^node_name_strings
+    )
+    |> repo.update_all(set: [set_time: nil, node_value: nil, ex_revision: new_revision])
+  end
+
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution_id, node_name, value) when is_binary(execution_id) do
     prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"

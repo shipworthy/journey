@@ -1211,25 +1211,51 @@ defmodule Journey do
     unset(execution, node_name)
   end
 
+  @deprecated "Use Journey.unset/2 instead"
+  def unset_value(execution_id, node_names)
+      when is_binary(execution_id) and is_list(node_names) and node_names != [] do
+    unset(execution_id, node_names)
+  end
+
+  @deprecated "Use Journey.unset/2 instead"
+  def unset_value(execution, node_names)
+      when is_struct(execution, Execution) and is_list(node_names) and node_names != [] do
+    unset(execution, node_names)
+  end
+
   @doc """
-  Removes the value from an input node in an execution and invalidates all dependent computed nodes.
+  Removes values from input nodes in an execution and invalidates all dependent computed nodes.
 
-  When a value is unset, Journey automatically invalidates (unsets) all computed nodes that depend
-  on the unset input, creating a cascading effect through the dependency graph. This ensures data
-  consistency - no computed values remain that were based on the now-removed input.
+  This function supports two calling patterns:
+  1. Single value: `unset(execution, :node_name)`
+  2. Multiple values via list: `unset(execution, [:node1, :node2, :node3])`
 
-  ## Quick Example
+  When values are unset, Journey automatically invalidates (unsets) all computed nodes that depend
+  on the unset inputs, creating a cascading effect through the dependency graph. This ensures data
+  consistency - no computed values remain that were based on the now-removed inputs.
+
+  ## Quick Examples
 
   ```elixir
+  # Single value
   execution = Journey.unset(execution, :name)
   {:error, :not_set} = Journey.get_value(execution, :name)
+
+  # Multiple values
+  execution = Journey.unset(execution, [:first_name, :last_name, :email])
   ```
 
   Use `set/3` to set values and `get_value/3` to check if values are set.
 
   ## Parameters
+
+  **Single value:**
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
   * `node_name` - Atom representing the input node name (must exist in the graph)
+
+  **Multiple values:**
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+  * `node_names` - List of atoms representing input node names (all must exist in the graph)
 
   ## Returns
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value was set)
@@ -1242,6 +1268,7 @@ defmodule Journey do
   * **Cascading invalidation** - Dependent computed nodes are automatically unset
   * **Idempotent** - Multiple unsets of the same value have no additional effect
   * **Input nodes only** - Only input nodes can be unset; compute nodes cannot be unset
+  * **Atomic updates** - Multiple values are unset together in a single transaction (single revision increment)
 
   ## Examples
 
@@ -1316,6 +1343,37 @@ defmodule Journey do
   true
   ```
 
+  Multiple values atomic operation:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "unset workflow - multiple values example",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:first_name),
+  ...>     input(:last_name),
+  ...>     input(:email),
+  ...>     compute(:full_name, [:first_name, :last_name], fn %{first_name: first_name, last_name: last_name} ->
+  ...>       {:ok, "\#{first_name} \#{last_name}"}
+  ...>     end)
+  ...>   ]
+  ...> )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros", email: "mario@example.com"})
+  iex> Journey.get_value(execution, :full_name, wait_any: true)
+  {:ok, "Mario Bros"}
+  iex> execution_after_unset = Journey.unset(execution, [:first_name, :last_name])
+  iex> Journey.get_value(execution_after_unset, :first_name)
+  {:error, :not_set}
+  iex> Journey.get_value(execution_after_unset, :last_name)
+  {:error, :not_set}
+  iex> Journey.get_value(execution_after_unset, :email)
+  {:ok, "mario@example.com"}
+  iex> Journey.get_value(execution_after_unset, :full_name)
+  {:error, :not_set}
+  ```
+
   """
   def unset(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
@@ -1330,6 +1388,26 @@ defmodule Journey do
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.unset_value(execution, node_name)
+  end
+
+  # Multiple values via list
+  def unset(execution_id, node_names)
+      when is_binary(execution_id) and is_list(node_names) and node_names != [] do
+    execution = Journey.load(execution_id)
+    unset(execution, node_names)
+  end
+
+  def unset(execution, node_names)
+      when is_struct(execution, Execution) and is_list(node_names) and node_names != [] do
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
+
+    # Validate all node names are valid input nodes
+    for node_name <- node_names do
+      unless is_atom(node_name), do: raise(ArgumentError, "All node names must be atoms, got: #{inspect(node_name)}")
+      Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
+    end
+
+    Journey.Executions.unset_values(execution, node_names)
   end
 
   @doc """
