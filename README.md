@@ -3,7 +3,7 @@
 
 <div align="right">
 "Start simple, go far."<br>
-— <a href="https://www.youtube.com/watch?v=JvBT4XBdoUE">Sasa Juric, "The Soul of Elixir and Erlang"</a>
+— <a href="https://www.youtube.com/watch?v=JvBT4XBdoUE">Saša Jurić, "The Soul of Elixir and Erlang"</a>
 </div>
 
 
