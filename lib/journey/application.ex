@@ -18,6 +18,7 @@ defmodule Journey.Application do
       Journey.Repo,
       {Ecto.Migrator, repos: [Journey.Repo]},
       Journey.Graph.Catalog,
+      Journey.Persistence.InMemory,
       {Task, fn -> initialize_graphs() end},
       Journey.Scheduler.Background.Periodic
     ]
