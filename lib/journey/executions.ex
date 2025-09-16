@@ -537,37 +537,55 @@ defmodule Journey.Executions do
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     wait_new = Keyword.get(opts, :wait_new, false)
+    wait_for_revision = Keyword.get(opts, :wait_for_revision, nil)
 
+    log_get_value_start(prefix, timeout_ms, wait_new, wait_for_revision)
+
+    monotonic_time_deadline = calculate_deadline(timeout_ms)
+
+    load_value_with_options(execution, node_name, monotonic_time_deadline, wait_new, wait_for_revision)
+    |> log_get_value_result(prefix)
+  end
+
+  defp log_get_value_start(prefix, timeout_ms, wait_new, wait_for_revision) do
     Logger.debug(
       "#{prefix}: starting." <>
         if(timeout_ms != nil, do: " blocking, timeout: #{timeout_ms}", else: "") <>
-        if(wait_new, do: " (wait_new: true)", else: "")
+        if(wait_new, do: " (wait_new: true)", else: "") <>
+        if(wait_for_revision, do: " (wait_for_revision: #{wait_for_revision})", else: "")
     )
+  end
 
-    monotonic_time_deadline =
-      case timeout_ms do
-        nil ->
-          nil
+  defp calculate_deadline(nil), do: nil
+  defp calculate_deadline(:infinity), do: :infinity
+  defp calculate_deadline(ms), do: System.monotonic_time(:millisecond) + ms
 
-        :infinity ->
-          :infinity
+  defp load_value_with_options(execution, node_name, monotonic_time_deadline, _wait_new, wait_for_revision)
+       when wait_for_revision != nil do
+    # New style: wait for specific revision
+    load_value_internal(execution, node_name, monotonic_time_deadline, 0, wait_for_revision)
+  end
 
-        ms ->
-          System.monotonic_time(:millisecond) + ms
-      end
+  defp load_value_with_options(execution, node_name, monotonic_time_deadline, true, _wait_for_revision) do
+    # Old style or new style :newer: wait for newer revision than current value
+    load_value_wait_new(execution, node_name, monotonic_time_deadline, 0)
+  end
 
-    if wait_new do
-      load_value_wait_new(execution, node_name, monotonic_time_deadline, 0)
-    else
-      load_value(execution, node_name, monotonic_time_deadline, 0)
-    end
-    |> tap(fn
+  defp load_value_with_options(execution, node_name, monotonic_time_deadline, false, nil) do
+    # No waiting
+    load_value(execution, node_name, monotonic_time_deadline, 0)
+  end
+
+  defp log_get_value_result(result, prefix) do
+    case result do
       {:ok, _result} ->
         Logger.debug("#{prefix}: done. success")
 
       {outcome, result} ->
         Logger.info("#{prefix}: done. outcome: '#{inspect(outcome)}', result: '#{inspect(result)}'")
-    end)
+    end
+
+    result
   end
 
   defp check_computation_status(execution, node_name) do

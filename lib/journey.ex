@@ -75,6 +75,8 @@ defmodule Journey do
   alias Journey.Graph
   alias Journey.Persistence.Schema.Execution
 
+  @default_timeout_ms 30_000
+
   @doc group: "Graph Management"
   @doc """
   Creates a new computation graph with the given name, version, and node definitions.
@@ -1438,14 +1440,17 @@ defmodule Journey do
   ## Quick Examples
 
   ```elixir
-  # Basic usage - get a set value
+  # Basic usage - get a set value immediately
   {:ok, value} = Journey.get_value(execution, :name)
 
-  # Wait for a computed value to be available
-  {:ok, result} = Journey.get_value(execution, :computed_field, wait_any: true)
+  # Wait for a computed value to be available (30 second default timeout)
+  {:ok, result} = Journey.get_value(execution, :computed_field, wait: :any)
 
-  # Wait for a new version of the value
-  {:ok, new_value} = Journey.get_value(execution, :name, wait_new: true)
+  # Wait for a new version of the value with custom timeout
+  {:ok, new_value} = Journey.get_value(execution, :name, wait: :newer, timeout: 5000)
+
+  # Wait for a value newer than a specific revision
+  {:ok, fresh_value} = Journey.get_value(execution, :name, wait: {:newer_than, 10})
   ```
 
   Use `set/3` to set input values that trigger computations.
@@ -1462,7 +1467,8 @@ defmodule Journey do
 
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
-  * Raises `ArgumentError` if both `:wait_any` and `:wait_new` options are provided (mutually exclusive)
+  * Raises `ArgumentError` if mixing new style options (`:wait`, `:timeout`) with old style options (`:wait_any`, `:wait_new`)
+  * Raises `ArgumentError` if an invalid `:wait` option is provided
 
   ## Options
   * `:wait_any` – whether or not to wait for the value to be set. This option can have the following values:
@@ -1507,6 +1513,49 @@ defmodule Journey do
   """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
+    # Check for new vs old style options
+    has_new_style = Keyword.has_key?(opts, :wait) or Keyword.has_key?(opts, :timeout)
+    has_old_style = Keyword.has_key?(opts, :wait_any) or Keyword.has_key?(opts, :wait_new)
+
+    if has_new_style and has_old_style do
+      raise ArgumentError,
+            "Cannot mix new style options (:wait, :timeout) with old style options (:wait_any, :wait_new)"
+    end
+
+    if has_new_style do
+      handle_new_style_options(execution, node_name, opts)
+    else
+      handle_old_style_options(execution, node_name, opts)
+    end
+  end
+
+  # Handle new style options: wait: and timeout:
+  defp handle_new_style_options(execution, node_name, opts) do
+    check_options(opts, [:wait, :timeout])
+
+    wait = Keyword.get(opts, :wait, :immediate)
+    timeout = Keyword.get(opts, :timeout, @default_timeout_ms)
+
+    # Parse wait option and determine internal parameters
+    {timeout_ms_or_infinity, wait_new_flag, wait_for_revision} = parse_wait_option(wait, timeout, execution)
+
+    execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
+    Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
+
+    # Call internal function with parsed options
+    internal_opts = []
+    internal_opts = if wait_new_flag, do: Keyword.put(internal_opts, :wait_new, true), else: internal_opts
+
+    internal_opts =
+      if wait_for_revision != nil,
+        do: Keyword.put(internal_opts, :wait_for_revision, wait_for_revision),
+        else: internal_opts
+
+    Executions.get_value(execution, node_name, timeout_ms_or_infinity, internal_opts)
+  end
+
+  # Handle old style options: wait_any: and wait_new: (backwards compatibility)
+  defp handle_old_style_options(execution, node_name, opts) do
     check_options(opts, [:wait_any, :wait_new])
 
     wait_new = Keyword.get(opts, :wait_new, false)
@@ -1522,6 +1571,36 @@ defmodule Journey do
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_node_name(execution, node_name)
     Executions.get_value(execution, node_name, timeout_ms_or_infinity, wait_new: wait_new != false)
+  end
+
+  # Parse the new :wait option into internal representation
+  defp parse_wait_option(:immediate, _timeout, _execution) do
+    {nil, false, nil}
+  end
+
+  defp parse_wait_option(:any, timeout, _execution) do
+    {validate_timeout(timeout), false, nil}
+  end
+
+  defp parse_wait_option(:newer, timeout, _execution) do
+    {validate_timeout(timeout), true, nil}
+  end
+
+  defp parse_wait_option({:newer_than, revision}, timeout, _execution) when is_integer(revision) do
+    {validate_timeout(timeout), true, revision}
+  end
+
+  defp parse_wait_option(invalid_wait, _timeout, _execution) do
+    raise ArgumentError,
+          "Invalid :wait option: #{inspect(invalid_wait)}. Valid options: :immediate, :any, :newer, {:newer_than, revision}"
+  end
+
+  # Validate timeout values
+  defp validate_timeout(timeout) when is_integer(timeout) and timeout > 0, do: timeout
+  defp validate_timeout(:infinity), do: :infinity
+
+  defp validate_timeout(timeout) do
+    raise ArgumentError, "Invalid timeout value: #{inspect(timeout)}. Must be a positive integer or :infinity"
   end
 
   @doc group: "Execution Lifecycle"
@@ -1639,8 +1718,6 @@ defmodule Journey do
     |> Journey.load()
     |> Journey.Scheduler.advance()
   end
-
-  @default_timeout_ms 30_000
 
   defp determine_timeout(false, false), do: nil
   defp determine_timeout(wait_new, false), do: timeout_value(wait_new)
