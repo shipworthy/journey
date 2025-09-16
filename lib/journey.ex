@@ -75,6 +75,7 @@ defmodule Journey do
   alias Journey.Graph
   alias Journey.Persistence.Schema.Execution
 
+  @doc group: "Graph Management"
   @doc """
   Creates a new computation graph with the given name, version, and node definitions.
 
@@ -249,6 +250,7 @@ defmodule Journey do
     |> Graph.Catalog.register()
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Reloads the current state of an execution from the database to get the latest changes.
 
@@ -381,6 +383,7 @@ defmodule Journey do
     load(execution.id, opts)
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Queries and retrieves multiple executions from the database with flexible filtering, sorting, and pagination.
 
@@ -624,6 +627,7 @@ defmodule Journey do
     Journey.Executions.list(graph_name, graph_version, sort_by, filter_by, limit, offset, include_archived)
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Starts a new execution instance of a computation graph, initializing it to accept input values and perform computations.
 
@@ -744,6 +748,7 @@ defmodule Journey do
     |> Journey.Scheduler.advance()
   end
 
+  @doc group: "Data Retrieval"
   @doc """
   Returns a map of all nodes in an execution with their current status, including unset nodes.
 
@@ -803,6 +808,7 @@ defmodule Journey do
     Executions.values(execution)
   end
 
+  @doc group: "Data Retrieval"
   @doc """
   Returns a map of all set node values in an execution, excluding unset nodes.
 
@@ -872,6 +878,7 @@ defmodule Journey do
     |> Enum.into(%{})
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Returns the chronological history of all successful computations and set values for an execution.
 
@@ -943,6 +950,7 @@ defmodule Journey do
     Journey.Executions.history(execution.id)
   end
 
+  @doc group: "Value Operations"
   @doc """
   Sets values for input nodes in an execution and triggers recomputation of dependent nodes.
 
@@ -1125,6 +1133,7 @@ defmodule Journey do
     Journey.Executions.set_value(execution.id, node_name, value)
   end
 
+  @doc group: "Value Operations"
   def set(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
@@ -1134,13 +1143,14 @@ defmodule Journey do
     Journey.Executions.set_value(execution, node_name, value)
   end
 
-  # Multiple values via map
+  @doc group: "Value Operations"
   def set(execution_id, values_map)
       when is_binary(execution_id) and is_map(values_map) do
     execution = Journey.load(execution_id)
     set(execution, values_map)
   end
 
+  @doc group: "Value Operations"
   def set(execution, values_map)
       when is_struct(execution, Execution) and is_map(values_map) do
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
@@ -1152,6 +1162,7 @@ defmodule Journey do
   end
 
   # Multiple values via keyword list - converts to map
+  @doc group: "Value Operations"
   def set(execution, keyword_list)
       when (is_struct(execution, Execution) or is_binary(execution)) and is_list(keyword_list) and keyword_list != [] do
     # Ensure it's a proper keyword list
@@ -1165,6 +1176,7 @@ defmodule Journey do
   end
 
   # Deprecated aliases for backward compatibility
+  @doc group: "Deprecated"
   @deprecated "Use Journey.set/3 instead"
   def set_value(execution_id, node_name, value)
       when is_binary(execution_id) and is_atom(node_name) and
@@ -1173,6 +1185,7 @@ defmodule Journey do
     set(execution_id, node_name, value)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.set/3 instead"
   def set_value(execution, node_name, value)
       when is_struct(execution, Execution) and is_atom(node_name) and
@@ -1181,48 +1194,56 @@ defmodule Journey do
     set(execution, node_name, value)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.set/2 instead"
   def set_value(execution_id, values_map)
       when is_binary(execution_id) and is_map(values_map) do
     set(execution_id, values_map)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.set/2 instead"
   def set_value(execution, values_map)
       when is_struct(execution, Execution) and is_map(values_map) do
     set(execution, values_map)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.set/2 instead"
   def set_value(execution, keyword_list)
       when (is_struct(execution, Execution) or is_binary(execution)) and is_list(keyword_list) and keyword_list != [] do
     set(execution, keyword_list)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.unset/2 instead"
   def unset_value(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
     unset(execution_id, node_name)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.unset/2 instead"
   def unset_value(execution, node_name)
       when is_struct(execution, Execution) and is_atom(node_name) do
     unset(execution, node_name)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.unset/2 instead"
   def unset_value(execution_id, node_names)
       when is_binary(execution_id) and is_list(node_names) and node_names != [] do
     unset(execution_id, node_names)
   end
 
+  @doc group: "Deprecated"
   @deprecated "Use Journey.unset/2 instead"
   def unset_value(execution, node_names)
       when is_struct(execution, Execution) and is_list(node_names) and node_names != [] do
     unset(execution, node_names)
   end
 
+  @doc group: "Value Operations"
   @doc """
   Removes values from input nodes in an execution and invalidates all dependent computed nodes.
 
@@ -1410,6 +1431,7 @@ defmodule Journey do
     Journey.Executions.unset_values(execution, node_names)
   end
 
+  @doc group: "Value Operations"
   @doc """
   Returns the value of a node in an execution. Optionally waits for the value to be set.
 
@@ -1502,6 +1524,7 @@ defmodule Journey do
     Executions.get_value(execution, node_name, timeout_ms_or_infinity, wait_new: wait_new != false)
   end
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Archives an execution, making it invisible and stopping all background processing.
 
@@ -1572,6 +1595,7 @@ defmodule Journey do
   def archive(execution) when is_struct(execution, Journey.Persistence.Schema.Execution),
     do: Journey.archive(execution.id)
 
+  @doc group: "Execution Lifecycle"
   @doc """
   Un-archives the supplied execution, if it is archived.
 

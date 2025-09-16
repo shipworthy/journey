@@ -4,6 +4,8 @@ Please strive to provide factual data based on up-to-date reputable sources (e.g
 
 Choose simplicity, clarity and readability over cleverness.
 
+Read the summary of modules and functions in ./MODULES_AND_FUNCTIONS.md
+
 # CLAUDE.md
 
 *This file provides project context to Claude Code for effective AI-assisted development.*
@@ -57,6 +59,8 @@ View "epub" docs at "doc/Journey.epub"
 
 Please read the documentation to understand what the package is expected to do. Update documentation as needed.
 
+Make sure that the list of public modules and functions in MODULES_AND_FUNCTIONS.md continues to be accurate.
+
 
 ### Graph Components
 ```elixir
@@ -79,6 +83,7 @@ Journey.get_value/3      # Retrieve node values
 ```
 
 Please read lib/journey.ex and lib/journey/node.ex for Journey's API functions, their documentation and usage examples.
+Please read MODULES_AND_FUNCTIONS.md for a high level description of modules and functions provided by Journey.
 
 ### Module Organization
 - `Journey` - Main API

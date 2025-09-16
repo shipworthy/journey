@@ -3,7 +3,7 @@
 
 <div align="right">
 "Start simple, go far."<br>
-— <a href="https://www.youtube.com/watch?v=JvBT4XBdoUE">Sasa Juric, "The Soul of Elixir and Erlang"</a>
+— <a href="https://www.youtube.com/watch?v=JvBT4XBdoUE">Saša Jurić, "The Soul of Elixir and Erlang"</a>
 </div>
 
 
@@ -13,7 +13,7 @@ A persisted, reactive graph package, Journey eliminates the boilerplate code you
 
 For durable processes of any size (a linear, 2-3 step process or a 60 step conditional flow), Journey helps you define your durable process as a simple dependency graph where inputs automatically trigger the right computations in the right order, with retries, on any of your application's replicas, and with everything persisted to PostgreSQL.
 
-You can use Journey for basic 3-steps flows (such as this basic "welcome" flow
+You can use Journey for 3-steps flows (such as this simple "welcome" linear flow
 
 ```elixir
 import Journey.Node
@@ -27,7 +27,7 @@ graph = Journey.new_graph(
    ]
 )
 ```
-), or for complex multi-step conditional flows.
+), or for multi-step conditional flows.
 
 Regardless of the size and nature of the workflow, for BOTH tiny-and-linear AND large-and-conditional durable flows, Journey saves you the work of writing and maintaining tedious boilerplate code (persistence, orchestration, retries, scalability), and lets you focus on the actual functionality of your application.
 
@@ -381,6 +381,16 @@ config :journey, :graphs, [
 
 To get in touch, report an issue, or ask a question, please create a github issue: https://github.com/markmark206/journey/issues
 
+
 ## Full Documentation
 
 Documentation can be found at <https://hexdocs.pm/journey>.
+
+
+## An Example Phoenix Application
+
+For an example Horoscope Phoenix application, see https://github.com/shipworthy/journey-demo
+
+The application uses Journey to track the state of each session.
+
+The application is hosted at https://demo.gojourney.dev/
