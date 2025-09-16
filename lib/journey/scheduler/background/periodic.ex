@@ -47,12 +47,23 @@ defmodule Journey.Scheduler.Background.Periodic do
   def run_sweeps(execution_id) do
     prefix = "#{mf()}[#{inspect(self())}]"
     Logger.debug("#{prefix}: starting sweeps for execution_id: #{inspect(execution_id)}")
-    Abandoned.sweep(execution_id)
-    {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(execution_id)
-    UnblockedBySchedule.sweep(execution_id, sweeper_period_seconds())
-    RegenerateScheduleRecurring.sweep(execution_id)
-    {_kicked_count, _sweep_run_id} = MissedSchedulesCatchall.sweep(execution_id)
-    {_kicked_count, _sweep_run_id} = StalledExecutions.sweep(execution_id)
+
+    # Skip sweeps for in-memory storage backend since they rely on PostgreSQL queries
+    case Application.get_env(:journey, :store, :postgres) do
+      :inmemory ->
+        Logger.debug("#{prefix}: skipping sweeps for in-memory storage backend")
+
+      :postgres ->
+        Abandoned.sweep(execution_id)
+        {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(execution_id)
+        UnblockedBySchedule.sweep(execution_id, sweeper_period_seconds())
+        RegenerateScheduleRecurring.sweep(execution_id)
+        {_kicked_count, _sweep_run_id} = MissedSchedulesCatchall.sweep(execution_id)
+        {_kicked_count, _sweep_run_id} = StalledExecutions.sweep(execution_id)
+
+      backend ->
+        Logger.warning("#{prefix}: unknown storage backend #{inspect(backend)}, skipping sweeps")
+    end
 
     Logger.debug("#{prefix}: done")
   end

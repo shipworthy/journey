@@ -15,6 +15,9 @@ config :journey, Journey.Repo,
 
 config :journey, ecto_repos: [Journey.Repo]
 
+# Storage backend configuration
+config :journey, :store, :postgres
+
 config :logger,
        :console,
        format: "$time [$level] $metadata$message\n",

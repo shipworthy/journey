@@ -8,6 +8,9 @@ config :journey, Journey.Repo,
 
 config :journey, ecto_repos: [Journey.Repo]
 
+# Storage backend configuration
+config :journey, :store, :postgres
+
 # The sweep to pick up scheduled computations that came due while the system was down.
 config :journey, :missed_schedules_catchall,
   enabled: true,
