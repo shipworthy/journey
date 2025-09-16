@@ -253,7 +253,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :trigger, true)
+      execution = Journey.set(execution, :trigger, true)
 
       # Wait for schedules to compute
       {:ok, _} = Journey.get_value(execution, :once_schedule, wait_any: true)
@@ -409,7 +409,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
         )
 
       execution = Journey.start_execution(graph)
-      Journey.set_value(execution, :trigger, true)
+      Journey.set(execution, :trigger, true)
 
       # Spawn multiple concurrent processes that try to run the sweep
       tasks =
@@ -462,14 +462,14 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
         )
 
       good_execution = Journey.start_execution(good_graph)
-      good_execution = Journey.set_value(good_execution, :trigger, true)
+      good_execution = Journey.set(good_execution, :trigger, true)
 
       # Wait for schedule to compute successfully
       {:ok, _} = Journey.get_value(good_execution, :good_schedule, wait_any: true)
 
       # Create a second execution and then archive it to simulate Journey.load() failure
       failing_execution = Journey.start_execution(good_graph)
-      failing_execution = Journey.set_value(failing_execution, :trigger, true)
+      failing_execution = Journey.set(failing_execution, :trigger, true)
       {:ok, _} = Journey.get_value(failing_execution, :good_schedule, wait_any: true)
 
       # Archive the failing execution - this will cause Journey.load() to return nil
@@ -513,7 +513,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
             )
 
           execution = Journey.start_execution(graph)
-          Journey.set_value(execution, :trigger, true)
+          Journey.set(execution, :trigger, true)
         end
 
       # Wait for all schedules to compute

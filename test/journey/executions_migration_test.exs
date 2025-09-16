@@ -19,8 +19,8 @@ defmodule Journey.ExecutionsMigrationTest do
 
       # Start execution with original graph
       execution = Journey.start_execution(original_graph)
-      execution = Journey.set_value(execution, :name, "Alice")
-      execution = Journey.set_value(execution, :age, 30)
+      execution = Journey.set(execution, :name, "Alice")
+      execution = Journey.set(execution, :age, 30)
 
       # Verify initial state
       assert {:ok, "Alice"} == Journey.get_value(execution, :name)
@@ -61,7 +61,7 @@ defmodule Journey.ExecutionsMigrationTest do
       assert {:error, :not_set} == Journey.get_value(migrated_execution, :greeting)
 
       # Verify we can set the new input node
-      migrated_execution = Journey.set_value(migrated_execution, :email, "alice@example.com")
+      migrated_execution = Journey.set(migrated_execution, :email, "alice@example.com")
       assert {:ok, "alice@example.com"} == Journey.get_value(migrated_execution, :email)
 
       # Verify the compute node works (it should compute since :name is already set)
@@ -79,7 +79,7 @@ defmodule Journey.ExecutionsMigrationTest do
 
       # Start execution
       execution = Journey.start_execution(original_graph)
-      execution = Journey.set_value(execution, :a, "value_a")
+      execution = Journey.set(execution, :a, "value_a")
 
       # Create updated graph
       updated_graph =
@@ -136,7 +136,7 @@ defmodule Journey.ExecutionsMigrationTest do
         )
 
       execution = Journey.start_execution(original_graph)
-      execution = Journey.set_value(execution, :user_id, 123)
+      execution = Journey.set(execution, :user_id, 123)
 
       # Updated graph with various node types
       _updated_graph =
@@ -166,7 +166,7 @@ defmodule Journey.ExecutionsMigrationTest do
       assert {:error, :not_set} == Journey.get_value(migrated, :clear_user_id)
 
       # Verify the nodes can be used
-      migrated = Journey.set_value(migrated, :user_name, "Bob")
+      migrated = Journey.set(migrated, :user_name, "Bob")
       assert {:ok, "Welcome, Bob"} == Journey.get_value(migrated, :user_greeting, wait_any: true)
     end
 
@@ -181,8 +181,8 @@ defmodule Journey.ExecutionsMigrationTest do
 
       # Start execution and set some values to increase revision
       execution = Journey.start_execution(original_graph)
-      execution = Journey.set_value(execution, :original_node, "value1")
-      execution = Journey.set_value(execution, :original_node, "value2")
+      execution = Journey.set(execution, :original_node, "value1")
+      execution = Journey.set(execution, :original_node, "value2")
 
       # Verify execution has a higher revision
       assert execution.revision > 0
@@ -224,7 +224,7 @@ defmodule Journey.ExecutionsMigrationTest do
         )
 
       execution = Journey.start_execution(original_graph)
-      execution = Journey.set_value(execution, :base, "base_value")
+      execution = Journey.set(execution, :base, "base_value")
 
       updated_graph =
         Journey.new_graph(
@@ -290,8 +290,8 @@ defmodule Journey.ExecutionsMigrationTest do
 
       # Setup execution with computation
       execution = Journey.start_execution(original_graph)
-      execution = Journey.set_value(execution, :i1, 10)
-      execution = Journey.set_value(execution, :i2, 20)
+      execution = Journey.set(execution, :i1, 10)
+      execution = Journey.set(execution, :i2, 20)
       assert {:ok, 30} = Journey.get_value(execution, :c, wait_any: true)
 
       # Create updated graph (overwrites catalog)
@@ -312,7 +312,7 @@ defmodule Journey.ExecutionsMigrationTest do
         )
 
       # This set_value call will trigger migration automatically
-      execution = Journey.set_value(execution, :i3, 5)
+      execution = Journey.set(execution, :i3, 5)
 
       # Verify original computation still works
       assert {:ok, 30} = Journey.get_value(execution, :c)

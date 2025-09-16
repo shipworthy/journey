@@ -109,7 +109,7 @@ defmodule Journey.Experiments do
       user_onboarding_graph
       |> Journey.start_execution()
 
-    # |> Journey.set_value(:name, "John Doe")
+    # |> Journey.set(:name, "John Doe")
 
     {user_onboarding_graph, execution}
   end
@@ -213,9 +213,9 @@ defmodule Journey.Experiments do
                 reminder_execution =
                   reminders_graph
                   |> Journey.start_execution()
-                  |> Journey.set_value(:name, name)
-                  |> Journey.set_value(:email, email_address)
-                  |> Journey.set_value(:enabled, true)
+                  |> Journey.set(:name, name)
+                  |> Journey.set(:email, email_address)
+                  |> Journey.set(:enabled, true)
 
                 {:ok, reminder_execution.id}
               else
@@ -224,7 +224,7 @@ defmodule Journey.Experiments do
                 else
                   # create_reminder is the id for the corresponding reminder graph's execution
                   reminder_execution = Journey.load(reminder_workflow)
-                  Journey.set_value(reminder_execution, :enabled, false)
+                  Journey.set(reminder_execution, :enabled, false)
                   {:ok, reminder_execution.id}
                 end
               end

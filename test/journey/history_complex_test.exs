@@ -11,7 +11,7 @@ defmodule Journey.HistoryComplexTest do
       execution =
         minimal_complex_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:trigger, "start")
+        |> Journey.set(:trigger, "start")
 
       # Wait for both parallel computations to complete
       {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)
@@ -41,7 +41,7 @@ defmodule Journey.HistoryComplexTest do
       execution =
         minimal_complex_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:trigger, "chain-start")
+        |> Journey.set(:trigger, "chain-start")
 
       # Wait for the full chain to complete
       {:ok, _} = Journey.get_value(execution, :downstream, wait_any: true)
@@ -62,7 +62,7 @@ defmodule Journey.HistoryComplexTest do
       execution =
         minimal_complex_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:data, "mutate-me")
+        |> Journey.set(:data, "mutate-me")
 
       {:ok, _} = Journey.get_value(execution, :mutator, wait_any: true)
 
@@ -100,8 +100,8 @@ defmodule Journey.HistoryComplexTest do
       execution =
         minimal_complex_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:trigger, "t1")
-        |> Journey.set_value(:data, "d1")
+        |> Journey.set(:trigger, "t1")
+        |> Journey.set(:data, "d1")
 
       # Wait for expected computations to complete
       {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)
@@ -123,7 +123,7 @@ defmodule Journey.HistoryComplexTest do
       execution =
         multi_type_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:input_node, "test")
+        |> Journey.set(:input_node, "test")
 
       # Wait for various computations
       {:ok, _} = Journey.get_value(execution, :compute_node, wait_any: true)
@@ -151,12 +151,12 @@ defmodule Journey.HistoryComplexTest do
         |> Journey.start_execution()
 
       # First computation wave
-      execution = Journey.set_value(execution, :trigger, "first")
+      execution = Journey.set(execution, :trigger, "first")
       {:ok, first_a} = Journey.get_value(execution, :parallel_a, wait_any: true)
       assert first_a == "a: first"
 
       # Update trigger again to cause re-computation
-      execution = Journey.set_value(execution, :trigger, "second")
+      execution = Journey.set(execution, :trigger, "second")
       {:ok, second_a} = Journey.get_value(execution, :parallel_a, wait_new: true)
       assert second_a == "a: second"
 
@@ -193,8 +193,8 @@ defmodule Journey.HistoryComplexTest do
         execution =
           minimal_complex_graph(random_string())
           |> Journey.start_execution()
-          |> Journey.set_value(:trigger, "test")
-          |> Journey.set_value(:data, "test-data")
+          |> Journey.set(:trigger, "test")
+          |> Journey.set(:data, "test-data")
 
         # Wait for expected computations to complete
         {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)

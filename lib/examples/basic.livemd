@@ -232,7 +232,7 @@ Journey.values_all(execution)
 The user might start supplying the data:
 
 ```elixir
-execution = Journey.set_value(execution, :x, 12); :ok
+execution = Journey.set(execution, :x, 12); :ok
 ```
 
 <!-- livebook:{"output":true} -->
@@ -387,7 +387,7 @@ reloaded_execution = Journey.load(execution_id)
 The user is supplying the other input:
 
 ```elixir
-reloaded_execution = Journey.set_value(reloaded_execution, :y, 2); :ok
+reloaded_execution = Journey.set(reloaded_execution, :y, 2); :ok
 ```
 
 <!-- livebook:{"output":true} -->
@@ -444,7 +444,7 @@ Journey.get_value(reloaded_execution, :large_value_alert)
 If an input value changes, the downstream nodes get re-evaluated.
 
 ```elixir
-reloaded_execution = Journey.set_value(reloaded_execution, :x, 133); :ok
+reloaded_execution = Journey.set(reloaded_execution, :x, 133); :ok
 ```
 
 <!-- livebook:{"output":true} -->
@@ -478,7 +478,7 @@ Journey.get_value(reloaded_execution, :large_value_alert)
 ```
 
 ```elixir
-reloaded_execution = Journey.set_value(reloaded_execution, :x, 1); :ok
+reloaded_execution = Journey.set(reloaded_execution, :x, 1); :ok
 ```
 
 <!-- livebook:{"output":true} -->

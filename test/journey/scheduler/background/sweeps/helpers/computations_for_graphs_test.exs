@@ -44,9 +44,9 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       exec_c = Journey.start_execution(graph_c)
 
       # Set values to trigger computations
-      Journey.set_value(exec_a, :x, 5)
-      Journey.set_value(exec_b, :a, 3)
-      Journey.set_value(exec_c, :p, 4)
+      Journey.set(exec_a, :x, 5)
+      Journey.set(exec_b, :a, 3)
+      Journey.set(exec_c, :p, 4)
 
       # Wait for computations to complete
       {:ok, _} = Journey.get_value(exec_a, :y, wait_any: true)
@@ -102,7 +102,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
 
       # Start execution
       execution = Journey.start_execution(graph)
-      Journey.set_value(execution, :x, 5)
+      Journey.set(execution, :x, 5)
       {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
 
       # Query with non-existent graph
@@ -140,8 +140,8 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       exec_v1 = Journey.start_execution(graph_v1)
       exec_v2 = Journey.start_execution(graph_v2)
 
-      Journey.set_value(exec_v1, :x, 5)
-      Journey.set_value(exec_v2, :x, 5)
+      Journey.set(exec_v1, :x, 5)
+      Journey.set(exec_v2, :x, 5)
 
       {:ok, _} = Journey.get_value(exec_v1, :y, wait_any: true)
       {:ok, _} = Journey.get_value(exec_v2, :y, wait_any: true)
@@ -177,7 +177,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
 
       # Start execution and trigger computation
       execution = Journey.start_execution(graph)
-      Journey.set_value(execution, :x, 5)
+      Journey.set(execution, :x, 5)
       {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
 
       # Query with empty graph list
@@ -217,8 +217,8 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       exec_b = Journey.start_execution(graph_b)
 
       # Set values to trigger computations
-      Journey.set_value(exec_a, :x, 5)
-      Journey.set_value(exec_b, :a, 3)
+      Journey.set(exec_a, :x, 5)
+      Journey.set(exec_b, :a, 3)
 
       # Wait for computations to complete
       {:ok, _} = Journey.get_value(exec_a, :y, wait_any: true)
@@ -251,7 +251,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
 
       # Start execution and trigger computation
       execution = Journey.start_execution(graph)
-      Journey.set_value(execution, :x, 5)
+      Journey.set(execution, :x, 5)
       {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
 
       # Unregister the graph
@@ -283,7 +283,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
 
       # Start execution and trigger computation
       execution = Journey.start_execution(graph)
-      Journey.set_value(execution, :x, 5)
+      Journey.set(execution, :x, 5)
       {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
 
       # Query with execution_id and empty graph list
@@ -312,8 +312,8 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       exec_2 = Journey.start_execution(graph)
 
       # Trigger computations for both
-      Journey.set_value(exec_1, :x, 5)
-      Journey.set_value(exec_2, :x, 10)
+      Journey.set(exec_1, :x, 5)
+      Journey.set(exec_2, :x, 10)
 
       {:ok, _} = Journey.get_value(exec_1, :z, wait_any: true)
       {:ok, _} = Journey.get_value(exec_2, :z, wait_any: true)
@@ -345,7 +345,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
 
       # Start execution to ensure there are computations in the system
       execution = Journey.start_execution(graph)
-      Journey.set_value(execution, :x, 5)
+      Journey.set(execution, :x, 5)
       {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
 
       # Get registered graphs

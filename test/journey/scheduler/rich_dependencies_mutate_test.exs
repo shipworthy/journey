@@ -46,10 +46,10 @@ defmodule Journey.Scheduler.RichDependenciesMutateTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
       assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait_any: 700)
 
-      execution = execution |> Journey.set_value(:first_name, "Mario")
+      execution = execution |> Journey.set(:first_name, "Mario")
       assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
 
-      execution = execution |> Journey.set_value(:last_name, "Bowser")
+      execution = execution |> Journey.set(:last_name, "Bowser")
       assert execution != nil
       assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
       assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait_any: true)
@@ -87,10 +87,10 @@ defmodule Journey.Scheduler.RichDependenciesMutateTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
       assert {:error, :not_set} == execution |> Journey.get_value(:first_name, wait_any: 700)
 
-      execution = execution |> Journey.set_value(:last_name, "Bowser")
+      execution = execution |> Journey.set(:last_name, "Bowser")
       assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
 
-      execution = execution |> Journey.set_value(:first_name, "Mario")
+      execution = execution |> Journey.set(:first_name, "Mario")
       assert execution != nil
       assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
       assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait_any: true)

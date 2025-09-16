@@ -19,7 +19,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
     execution = graph |> Journey.start_execution()
     background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-    execution = execution |> Journey.set_value(:user_name, "Mario")
+    execution = execution |> Journey.set(:user_name, "Mario")
 
     assert Journey.values_all(execution) |> redact([:last_updated_at]) == %{
              execution_id: {:set, execution.id},
@@ -31,7 +31,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
            }
 
     expected_scheduled_time = System.system_time(:second) + 10
-    execution = execution |> Journey.set_value(:keep_sending_reminders, true)
+    execution = execution |> Journey.set(:keep_sending_reminders, true)
 
     {:ok, original_scheduled_time} = Journey.get_value(execution, :schedule_a_reminder, wait_any: true)
 

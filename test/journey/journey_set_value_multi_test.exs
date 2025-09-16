@@ -10,7 +10,7 @@ defmodule Journey.JourneySetValueMultiTest do
       execution =
         multi_input_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(%{first_name: "Mario", last_name: "Bros"})
+        |> Journey.set(%{first_name: "Mario", last_name: "Bros"})
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
       assert Journey.get_value(execution, :last_name) == {:ok, "Bros"}
@@ -23,7 +23,7 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.start_execution()
 
       original_revision = execution.revision
-      execution = Journey.set_value(execution, %{})
+      execution = Journey.set(execution, %{})
 
       assert execution.revision == original_revision
     end
@@ -34,11 +34,11 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.start_execution()
 
       # Set initial values
-      execution_v2 = Journey.set_value(execution_v1, %{first_name: "Mario", last_name: "Bros"})
+      execution_v2 = Journey.set(execution_v1, %{first_name: "Mario", last_name: "Bros"})
       assert execution_v2.revision > execution_v1.revision
 
       # Set same values again - should be no-op
-      execution_v3 = Journey.set_value(execution_v2, %{first_name: "Mario", last_name: "Bros"})
+      execution_v3 = Journey.set(execution_v2, %{first_name: "Mario", last_name: "Bros"})
       assert execution_v3.revision == execution_v2.revision
     end
 
@@ -48,14 +48,14 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.start_execution()
 
       # Set initial values
-      execution_v2 = Journey.set_value(execution_v1, %{first_name: "Mario", last_name: "Bros"})
+      execution_v2 = Journey.set(execution_v1, %{first_name: "Mario", last_name: "Bros"})
 
       # Wait for computation to complete and get final revision
       {:ok, "Mario Bros"} = Journey.get_value(execution_v2, :full_name, wait_any: true)
       execution_v2_final = Journey.load(execution_v2.id)
 
       # Change only one value, keep one the same
-      execution_v3 = Journey.set_value(execution_v2_final, %{first_name: "Luigi", last_name: "Bros"})
+      execution_v3 = Journey.set(execution_v2_final, %{first_name: "Luigi", last_name: "Bros"})
 
       # Should increment revision exactly once more for the change
       assert execution_v3.revision == execution_v2_final.revision + 1
@@ -67,7 +67,7 @@ defmodule Journey.JourneySetValueMultiTest do
       execution =
         multi_input_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(%{first_name: "Mario", last_name: "Bros", age: 35})
+        |> Journey.set(%{first_name: "Mario", last_name: "Bros", age: 35})
 
       # All values should be set and computed value should be available
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
@@ -80,7 +80,7 @@ defmodule Journey.JourneySetValueMultiTest do
       execution =
         value_types_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(%{
+        |> Journey.set(%{
           text: "hello",
           number: 42,
           flag: true,
@@ -98,7 +98,7 @@ defmodule Journey.JourneySetValueMultiTest do
     test "using execution ID string" do
       execution = basic_graph(random_string()) |> Journey.start_execution()
 
-      updated_execution = Journey.set_value(execution.id, %{first_name: "Mario"})
+      updated_execution = Journey.set(execution.id, %{first_name: "Mario"})
 
       assert Journey.get_value(updated_execution, :first_name) == {:ok, "Mario"}
     end
@@ -107,7 +107,7 @@ defmodule Journey.JourneySetValueMultiTest do
       execution =
         multi_input_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(first_name: "Mario", last_name: "Bros", age: 35)
+        |> Journey.set(first_name: "Mario", last_name: "Bros", age: 35)
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
       assert Journey.get_value(execution, :last_name) == {:ok, "Bros"}
@@ -121,11 +121,11 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.start_execution()
 
       # Set initial values and let computation run
-      execution = Journey.set_value(execution, %{first_name: "Mario", last_name: "Bros"})
+      execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros"})
       {:ok, "Mario Bros"} = Journey.get_value(execution, :full_name, wait_any: true)
 
       # Change values - should invalidate and recompute
-      execution = Journey.set_value(execution, %{first_name: "Luigi", last_name: "Mario"})
+      execution = Journey.set(execution, %{first_name: "Luigi", last_name: "Mario"})
       {:ok, "Luigi Mario"} = Journey.get_value(execution, :full_name, wait_new: true)
     end
 
@@ -136,7 +136,7 @@ defmodule Journey.JourneySetValueMultiTest do
 
       Process.sleep(1200)
 
-      execution = Journey.set_value(execution, %{first_name: "Mario"})
+      execution = Journey.set(execution, %{first_name: "Mario"})
 
       execution = execution |> Journey.load()
 
@@ -154,7 +154,7 @@ defmodule Journey.JourneySetValueMultiTest do
       assert_raise RuntimeError,
                    ~r"':unknown_node' is not a valid input node in execution",
                    fn ->
-                     Journey.set_value(execution, %{unknown_node: "value"})
+                     Journey.set(execution, %{unknown_node: "value"})
                    end
     end
 
@@ -166,7 +166,7 @@ defmodule Journey.JourneySetValueMultiTest do
       assert_raise ArgumentError,
                    ~r"Invalid value type for node first_name:",
                    fn ->
-                     Journey.set_value(execution, %{first_name: {:invalid, :tuple}})
+                     Journey.set(execution, %{first_name: {:invalid, :tuple}})
                    end
     end
 
@@ -178,7 +178,7 @@ defmodule Journey.JourneySetValueMultiTest do
       assert_raise ArgumentError,
                    "Node names must be atoms, got: \"first_name\"",
                    fn ->
-                     Journey.set_value(execution, %{"first_name" => "Mario"})
+                     Journey.set(execution, %{"first_name" => "Mario"})
                    end
     end
 
@@ -191,7 +191,7 @@ defmodule Journey.JourneySetValueMultiTest do
 
       # Set 3 values at once
       execution =
-        Journey.set_value(execution, %{
+        Journey.set(execution, %{
           first_name: "Mario",
           last_name: "Bros",
           age: 35
@@ -206,14 +206,14 @@ defmodule Journey.JourneySetValueMultiTest do
       execution1 =
         multi_input_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(%{first_name: "Mario", last_name: "Bros", age: 35})
+        |> Journey.set(%{first_name: "Mario", last_name: "Bros", age: 35})
 
       execution2 =
         multi_input_graph(execution1.graph_name)
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
-        |> Journey.set_value(:last_name, "Bros")
-        |> Journey.set_value(:age, 35)
+        |> Journey.set(:first_name, "Mario")
+        |> Journey.set(:last_name, "Bros")
+        |> Journey.set(:age, 35)
 
       # Should have same final values
       assert Journey.get_value(execution1, :first_name) == Journey.get_value(execution2, :first_name)

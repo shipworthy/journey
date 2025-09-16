@@ -38,8 +38,8 @@ defmodule Journey.InsightsTest do
       exec3 = Journey.start_execution(graph)
 
       # Set some values to trigger computations
-      exec1 = Journey.set_value(exec1, :name, "Alice")
-      exec2 = Journey.set_value(exec2, :name, "Bob")
+      exec1 = Journey.set(exec1, :name, "Alice")
+      exec2 = Journey.set(exec2, :name, "Bob")
 
       # Archive one execution
       Journey.archive(exec3)
@@ -93,8 +93,8 @@ defmodule Journey.InsightsTest do
       graph2 = computation_heavy_graph("#{test_id}_graph2")
 
       # Create executions for both graphs
-      exec1 = Journey.start_execution(graph1) |> Journey.set_value(:name, "Alice")
-      exec2 = Journey.start_execution(graph2) |> Journey.set_value(:input_value, 10)
+      exec1 = Journey.start_execution(graph1) |> Journey.set(:name, "Alice")
+      exec2 = Journey.start_execution(graph2) |> Journey.set(:input_value, 10)
 
       # Wait for computations
       {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
@@ -143,8 +143,8 @@ defmodule Journey.InsightsTest do
       exec2 = Journey.start_execution(graph)
 
       # Set values to trigger computations - some will succeed, some will fail
-      Journey.set_value(exec1, :should_fail, false)
-      Journey.set_value(exec2, :should_fail, true)
+      Journey.set(exec1, :should_fail, false)
+      Journey.set(exec2, :should_fail, true)
 
       # Wait a bit for computations to process
       Process.sleep(100)
@@ -177,7 +177,7 @@ defmodule Journey.InsightsTest do
 
       # Create and process an execution
       exec = Journey.start_execution(graph)
-      Journey.set_value(exec, :name, "TestUser")
+      Journey.set(exec, :name, "TestUser")
       {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
 
       result = Status.status()
@@ -221,7 +221,7 @@ defmodule Journey.InsightsTest do
       # Create test data
       graph = simple_test_graph(test_id)
       exec = Journey.start_execution(graph)
-      Journey.set_value(exec, :name, "Test")
+      Journey.set(exec, :name, "Test")
       {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
 
       status_data = Status.status()

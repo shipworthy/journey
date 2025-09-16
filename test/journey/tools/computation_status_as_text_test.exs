@@ -74,7 +74,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :user_name, "Alice")
+      execution = Journey.set(execution, :user_name, "Alice")
 
       result = Journey.Tools.computation_status_as_text(execution.id, :greeting)
 
@@ -108,8 +108,8 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :user_name, "Alice")
-      execution = Journey.set_value(execution, :title, "Dr.")
+      execution = Journey.set(execution, :user_name, "Alice")
+      execution = Journey.set(execution, :title, "Dr.")
 
       {:ok, _greeting} = Journey.get_value(execution, :greeting, wait_new: true)
 
@@ -144,7 +144,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :value, "test")
+      execution = Journey.set(execution, :value, "test")
 
       {:error, _} = Journey.get_value(execution, :will_fail, wait_new: true)
 
@@ -182,7 +182,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :original, "test")
+      execution = Journey.set(execution, :original, "test")
 
       {:ok, _} = Journey.get_value(execution, :modifier, wait_new: true)
 
@@ -216,7 +216,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :value, "trigger")
+      execution = Journey.set(execution, :value, "trigger")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
       {:ok, _} = Journey.get_value(execution, :scheduled_task, wait_new: true)
@@ -253,7 +253,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :value, "trigger")
+      execution = Journey.set(execution, :value, "trigger")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 

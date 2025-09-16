@@ -86,8 +86,8 @@ defmodule Journey.ExperimentsScripts do
               reminder_execution =
                 reminders_graph
                 |> Journey.start_execution()
-                |> Journey.set_value(:name, name)
-                |> Journey.set_value(:email, email_address)
+                |> Journey.set(:name, name)
+                |> Journey.set(:email, email_address)
               {:ok, reminder_execution_id}
             else
               # TODO: figure out how to turn off reminders.
@@ -299,9 +299,9 @@ defmodule Journey.ExperimentsScripts do
               reminder_execution =
                 reminders_graph
                 |> Journey.start_execution()
-                |> Journey.set_value(:name, name)
-                |> Journey.set_value(:email, email_address)
-                |> Journey.set_value(:enabled, true)
+                |> Journey.set(:name, name)
+                |> Journey.set(:email, email_address)
+                |> Journey.set(:enabled, true)
 
               {:ok, reminder_execution.id}
             else
@@ -310,7 +310,7 @@ defmodule Journey.ExperimentsScripts do
               else
                 # create_reminder is the id for the corresponding reminder graph's execution
                 reminder_execution = Journey.load(reminder_workflow)
-                Journey.set_value(reminder_execution, :enabled, false)
+                Journey.set(reminder_execution, :enabled, false)
                 {:ok, reminder_execution.id}
               end
             end
@@ -327,11 +327,11 @@ defmodule Journey.ExperimentsScripts do
   advocacy_execution =
     advocacy_graph
     |> Journey.start_execution()
-    |> Journey.set_value(:name, "Mario")
-    |> Journey.set_value(:zip, "12345")
-    |> Journey.set_value(:district, "District 1")
-    |> Journey.set_value(:email_address, "mario@bowser.castle")
-    |> Journey.set_value(:please_remind_me, true)
+    |> Journey.set(:name, "Mario")
+    |> Journey.set(:zip, "12345")
+    |> Journey.set(:district, "District 1")
+    |> Journey.set(:email_address, "mario@bowser.castle")
+    |> Journey.set(:please_remind_me, true)
 
   def approved?(decision), do: decision == :approved
   def declined?(decision), do: decision == :declined

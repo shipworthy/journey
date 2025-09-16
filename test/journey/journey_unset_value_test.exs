@@ -12,7 +12,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
@@ -54,7 +54,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
 
@@ -75,7 +75,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
@@ -86,7 +86,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get_value(execution_after_unset, :greeting) == {:error, :not_set}
 
       # Set a new value
-      execution_after_reset = Journey.set_value(execution_after_unset, :first_name, "Luigi")
+      execution_after_reset = Journey.set(execution_after_unset, :first_name, "Luigi")
       assert Journey.get_value(execution_after_reset, :first_name) == {:ok, "Luigi"}
       {:ok, "Hello, Luigi"} = Journey.get_value(execution_after_reset, :greeting, wait_any: true)
     end
@@ -95,7 +95,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       {:ok, "Mario"} = Journey.get_value(execution, :first_name)
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
@@ -111,7 +111,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get_value(execution_after_unset, :greeting) == {:error, :not_set}
 
       # Set a new value and verify recomputation
-      execution_after_reset = Journey.set_value(execution_after_unset, :first_name, "Bob")
+      execution_after_reset = Journey.set(execution_after_unset, :first_name, "Bob")
       assert execution_after_reset.revision > execution_after_unset.revision
       assert Journey.get_value(execution_after_reset, :first_name) == {:ok, "Bob"}
       {:ok, "Hello, Bob"} = Journey.get_value(execution_after_reset, :greeting, wait_any: true)
@@ -145,7 +145,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
       execution_after_unset = Journey.unset_value(execution.id, :first_name)
@@ -155,7 +155,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get_value(execution_after_unset, :greeting) == {:error, :not_set}
 
       # Set a new value and verify recomputation
-      execution_after_reset = Journey.set_value(execution_after_unset, :first_name, "Peach")
+      execution_after_reset = Journey.set(execution_after_unset, :first_name, "Peach")
       assert Journey.get_value(execution_after_reset, :first_name) == {:ok, "Peach"}
       {:ok, "Hello, Peach"} = Journey.get_value(execution_after_reset, :greeting, wait_any: true)
     end
@@ -164,7 +164,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
 
@@ -179,7 +179,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert values_after.greeting == :not_set
 
       # Set a new value and verify recomputation
-      execution_after_reset = Journey.set_value(execution_after_unset, :first_name, "Toad")
+      execution_after_reset = Journey.set(execution_after_unset, :first_name, "Toad")
       assert Journey.get_value(execution_after_reset, :first_name) == {:ok, "Toad"}
       {:ok, "Hello, Toad"} = Journey.get_value(execution_after_reset, :greeting, wait_any: true)
 
@@ -192,7 +192,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
 
@@ -211,7 +211,7 @@ defmodule Journey.JourneyUnsetValueTest do
       Process.sleep(1000)
 
       # Set a new value and verify recomputation
-      execution_after_reset = Journey.set_value(execution_after_unset, :first_name, "Yoshi")
+      execution_after_reset = Journey.set(execution_after_unset, :first_name, "Yoshi")
       assert Journey.get_value(execution_after_reset, :first_name) == {:ok, "Yoshi"}
       {:ok, "Hello, Yoshi"} = Journey.get_value(execution_after_reset, :greeting, wait_any: true)
 
@@ -239,7 +239,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         graph
         |> Journey.start_execution()
-        |> Journey.set_value(:a, "value")
+        |> Journey.set(:a, "value")
 
       # Wait for all computations
       {:ok, "B:value"} = Journey.get_value(execution, :b, wait_any: true)
@@ -253,7 +253,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get_value(execution_after_unset, :c) == {:error, :not_set}
 
       # Setting :a again should trigger recomputation
-      execution_reset = Journey.set_value(execution_after_unset, :a, "new")
+      execution_reset = Journey.set(execution_after_unset, :a, "new")
       {:ok, "B:new"} = Journey.get_value(execution_reset, :b, wait_any: true)
       {:ok, "C:B:new"} = Journey.get_value(execution_reset, :c, wait_any: true)
     end
@@ -275,7 +275,7 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         graph
         |> Journey.start_execution()
-        |> Journey.set_value(:a, "val")
+        |> Journey.set(:a, "val")
 
       # Wait for all computations
       {:ok, "B:val"} = Journey.get_value(execution, :b, wait_any: true)
@@ -291,7 +291,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get_value(execution_after_unset, :d) == {:error, :not_set}
 
       # Set :a again and verify all computations trigger
-      execution_reset = Journey.set_value(execution_after_unset, :a, "reset")
+      execution_reset = Journey.set(execution_after_unset, :a, "reset")
       assert Journey.get_value(execution_reset, :a) == {:ok, "reset"}
       {:ok, "B:reset"} = Journey.get_value(execution_reset, :b, wait_any: true)
       {:ok, "C:reset"} = Journey.get_value(execution_reset, :c, wait_any: true)
@@ -316,8 +316,8 @@ defmodule Journey.JourneyUnsetValueTest do
       execution =
         graph
         |> Journey.start_execution()
-        |> Journey.set_value(:x, "xval")
-        |> Journey.set_value(:y, "yval")
+        |> Journey.set(:x, "xval")
+        |> Journey.set(:y, "yval")
 
       # Wait for computations
       {:ok, "X:xval"} = Journey.get_value(execution, :from_x, wait_any: true)
@@ -335,7 +335,7 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get_value(execution_after_unset, :y) == {:ok, "yval"}
 
       # Set :x again and verify selective recomputation
-      execution_reset = Journey.set_value(execution_after_unset, :x, "newx")
+      execution_reset = Journey.set(execution_after_unset, :x, "newx")
       assert Journey.get_value(execution_reset, :x) == {:ok, "newx"}
       {:ok, "X:newx"} = Journey.get_value(execution_reset, :from_x, wait_any: true)
       {:ok, "Both:newx+yval"} = Journey.get_value(execution_reset, :from_both, wait_any: true)
