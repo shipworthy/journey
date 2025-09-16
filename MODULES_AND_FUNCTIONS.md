@@ -5,17 +5,23 @@ Here is a brief summary of the modules and functions exposed by Journey.
 ## `Journey` (Main Module)
 The entry point for the Journey library. Provides functions for creating and managing computation graphs, starting and managing executions, and retrieving values from executions.
 
-Functions:
-- `Journey.archive/1` - Archives an execution, making it invisible and stopping all background processing
-- `Journey.get_value/3` - Returns the value of a node in an execution, optionally waits for the value to be set
-- `Journey.history/1` - Returns the chronological history of all successful computations and set values
-- `Journey.list_executions/1` - Queries and retrieves executions with filtering, sorting, and pagination
-- `Journey.load/2` - Loads the current version of an execution from the database
+### Graph Management
 - `Journey.new_graph/4` - Creates a new computation graph with the given name, version, and node definitions
-- `Journey.set/2`, `Journey.set/3` - Sets values for input node(s) in an execution (potentially unblocking downstream computations)
+
+### Execution Lifecycle
 - `Journey.start_execution/1` - Starts a new execution instance of a computation graph
+- `Journey.load/2` - Loads the current version of an execution from the database
+- `Journey.list_executions/1` - Queries and retrieves executions with filtering, sorting, and pagination
+- `Journey.archive/1` - Archives an execution, making it invisible and stopping all background processing
 - `Journey.unarchive/1` - Un-archives the supplied execution if it is archived
+- `Journey.history/1` - Returns the chronological history of all successful computations and set values
+
+### Value Operations
+- `Journey.set/2`, `Journey.set/3` - Sets values for input node(s) in an execution (potentially unblocking downstream computations)
 - `Journey.unset/2` - Removes values from input nodes and invalidates all dependent computed nodes
+- `Journey.get_value/3` - Returns the value of a node in an execution, optionally waits for the value to be set
+
+### Data Retrieval
 - `Journey.values/2` - Returns a map of all set node values in an execution, excluding unset nodes
 - `Journey.values_all/2` - Returns a map of all nodes in an execution with their current status, including unset nodes
 
