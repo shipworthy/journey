@@ -12,7 +12,7 @@ defmodule Journey.JourneySetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
     end
@@ -22,14 +22,14 @@ defmodule Journey.JourneySetValueTest do
         basic_graph(random_string())
         |> Journey.start_execution()
 
-      execution_v1 |> Journey.set_value(:first_name, "Mario")
+      execution_v1 |> Journey.set(:first_name, "Mario")
       {:ok, "Mario"} = Journey.get_value(execution_v1, :first_name, wait_any: true)
       {:ok, "Hello, Mario"} = Journey.get_value(execution_v1, :greeting, wait_any: true)
       execution_after_first_set = execution_v1 |> Journey.load()
 
       assert execution_after_first_set.revision > execution_v1.revision
 
-      execution_v1 |> Journey.set_value(:first_name, "Mario")
+      execution_v1 |> Journey.set(:first_name, "Mario")
       {:ok, "Mario"} = Journey.get_value(execution_v1, :first_name, wait_any: true)
       execution_after_second_set = execution_v1 |> Journey.load()
       assert execution_after_second_set.revision == execution_after_first_set.revision
@@ -40,12 +40,12 @@ defmodule Journey.JourneySetValueTest do
         basic_graph(random_string())
         |> Journey.start_execution()
 
-      execution_v2 = execution_v1 |> Journey.set_value(:first_name, "Mario")
+      execution_v2 = execution_v1 |> Journey.set(:first_name, "Mario")
       {:ok, "Mario"} = Journey.get_value(execution_v1, :first_name, wait_any: true)
       {:ok, "Hello, Mario"} = Journey.get_value(execution_v1, :greeting, wait_any: true)
       assert execution_v2.revision > execution_v1.revision
 
-      execution_v3 = execution_v1 |> Journey.set_value(:first_name, "Luigi")
+      execution_v3 = execution_v1 |> Journey.set(:first_name, "Luigi")
       {:ok, "Luigi"} = Journey.get_value(execution_v3, :first_name)
       {:ok, "Hello, Luigi"} = Journey.get_value(execution_v3, :greeting, wait_new: true)
       assert execution_v3.revision > execution_v2.revision
@@ -60,7 +60,7 @@ defmodule Journey.JourneySetValueTest do
 
       execution =
         execution
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
       {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
@@ -96,7 +96,7 @@ defmodule Journey.JourneySetValueTest do
       assert_raise RuntimeError,
                    "':last_name' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
                    fn ->
-                     Journey.set_value(execution, :last_name, "Bowser")
+                     Journey.set(execution, :last_name, "Bowser")
                    end
     end
 
@@ -108,7 +108,7 @@ defmodule Journey.JourneySetValueTest do
       assert_raise RuntimeError,
                    "':greeting' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
                    fn ->
-                     Journey.set_value(execution, :greeting, "Hello!")
+                     Journey.set(execution, :greeting, "Hello!")
                    end
     end
 
@@ -117,7 +117,7 @@ defmodule Journey.JourneySetValueTest do
         basic_graph(random_string())
         |> Journey.start_execution()
 
-      updated_execution = Journey.set_value(execution.id, :first_name, "Mario")
+      updated_execution = Journey.set(execution.id, :first_name, "Mario")
       assert Journey.get_value(updated_execution, :first_name) == {:ok, "Mario"}
     end
 
@@ -127,11 +127,11 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
 
       assert_raise FunctionClauseError, fn ->
-        Journey.set_value(execution, :first_name, :atom_value)
+        Journey.set(execution, :first_name, :atom_value)
       end
 
       assert_raise FunctionClauseError, fn ->
-        Journey.set_value(execution.id, :first_name, :atom_value)
+        Journey.set(execution.id, :first_name, :atom_value)
       end
     end
   end

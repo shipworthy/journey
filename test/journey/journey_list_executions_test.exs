@@ -10,7 +10,7 @@ defmodule Journey.JourneyListExecutionsTest do
   describe "list_executions" do
     test "sunny day, limit / offset" do
       graph = basic_graph(random_string())
-      for i <- 1..100, do: Journey.start_execution(graph) |> Journey.set_value(:first_name, i)
+      for i <- 1..100, do: Journey.start_execution(graph) |> Journey.set(:first_name, i)
 
       listed_executions = Journey.list_executions(graph_name: graph.name, limit: 20)
       assert Enum.count(listed_executions) == 20
@@ -24,7 +24,7 @@ defmodule Journey.JourneyListExecutionsTest do
 
     test "sunny day, filer by value" do
       graph = basic_graph(random_string())
-      for i <- 1..100, do: Journey.start_execution(graph) |> Journey.set_value(:first_name, i)
+      for i <- 1..100, do: Journey.start_execution(graph) |> Journey.set(:first_name, i)
 
       listed_executions = Journey.list_executions(graph_name: graph.name)
       assert Enum.count(listed_executions) == 100
@@ -97,7 +97,7 @@ defmodule Journey.JourneyListExecutionsTest do
       updated_execution =
         first_id
         |> Journey.load()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       expected_order = remaining_ids ++ [first_id]
       {:ok, "Hello, Mario"} = Journey.get_value(updated_execution, :greeting, wait_any: true)
@@ -127,9 +127,9 @@ defmodule Journey.JourneyListExecutionsTest do
       graph_v1 = Journey.new_graph(graph_name, "v1.0.0", [input(:value)])
       graph_v2 = Journey.new_graph(graph_name, "v2.0.0", [input(:value)])
 
-      Journey.start_execution(graph_v1) |> Journey.set_value(:value, "v1_1")
-      Journey.start_execution(graph_v1) |> Journey.set_value(:value, "v1_2")
-      Journey.start_execution(graph_v2) |> Journey.set_value(:value, "v2_1")
+      Journey.start_execution(graph_v1) |> Journey.set(:value, "v1_1")
+      Journey.start_execution(graph_v1) |> Journey.set(:value, "v1_2")
+      Journey.start_execution(graph_v2) |> Journey.set(:value, "v2_1")
 
       # Test filtering by version with graph_name
       v1_executions = Journey.list_executions(graph_name: graph_name, graph_version: "v1.0.0")
@@ -156,7 +156,7 @@ defmodule Journey.JourneyListExecutionsTest do
       # Create a few executions
       execution_ids =
         Enum.map(1..3, fn i ->
-          execution = Journey.start_execution(graph) |> Journey.set_value(:first_name, "User#{i}")
+          execution = Journey.start_execution(graph) |> Journey.set(:first_name, "User#{i}")
           # Ensure different timestamps (1 second granularity)
           Process.sleep(1100)
           execution.id
@@ -202,9 +202,9 @@ defmodule Journey.JourneyListExecutionsTest do
       # Test that the actual sorting direction is correctly applied
       # Create two executions with a clear time difference in a fresh graph
       specific_graph = basic_graph("#{test_id}_specific")
-      _e1 = Journey.start_execution(specific_graph) |> Journey.set_value(:first_name, "First")
+      _e1 = Journey.start_execution(specific_graph) |> Journey.set(:first_name, "First")
       Process.sleep(1100)
-      _e2 = Journey.start_execution(specific_graph) |> Journey.set_value(:first_name, "Second")
+      _e2 = Journey.start_execution(specific_graph) |> Journey.set(:first_name, "Second")
 
       # Test descending - newer should come first
       desc_specific =
@@ -240,7 +240,7 @@ defmodule Journey.JourneyListExecutionsTest do
       # Create executions
       execution_ids =
         Enum.map(1..3, fn i ->
-          execution = Journey.start_execution(graph) |> Journey.set_value(:first_name, "User#{i}")
+          execution = Journey.start_execution(graph) |> Journey.set(:first_name, "User#{i}")
           Process.sleep(1100)
           execution.id
         end)
@@ -265,7 +265,7 @@ defmodule Journey.JourneyListExecutionsTest do
       # Create executions
       execution_ids =
         Enum.map(1..3, fn i ->
-          execution = Journey.start_execution(graph) |> Journey.set_value(:first_name, "User#{i}")
+          execution = Journey.start_execution(graph) |> Journey.set(:first_name, "User#{i}")
           Process.sleep(1100)
           execution.id
         end)
@@ -315,14 +315,14 @@ defmodule Journey.JourneyListExecutionsTest do
       graph = basic_graph(random_string())
 
       # Create executions with string names
-      exec_alice = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice")
-      exec_bob = Journey.start_execution(graph) |> Journey.set_value(:first_name, "bob")
-      _exec_charlie = Journey.start_execution(graph) |> Journey.set_value(:first_name, "charlie")
+      exec_alice = Journey.start_execution(graph) |> Journey.set(:first_name, "alice")
+      exec_bob = Journey.start_execution(graph) |> Journey.set(:first_name, "bob")
+      _exec_charlie = Journey.start_execution(graph) |> Journey.set(:first_name, "charlie")
 
       # Create executions with integer names
-      _exec_100 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 100)
-      exec_200 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 200)
-      exec_300 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 300)
+      _exec_100 = Journey.start_execution(graph) |> Journey.set(:first_name, 100)
+      exec_200 = Journey.start_execution(graph) |> Journey.set(:first_name, 200)
+      exec_300 = Journey.start_execution(graph) |> Journey.set(:first_name, 300)
 
       # String filtering should only match string values
       string_eq_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, "alice"}])
@@ -369,11 +369,11 @@ defmodule Journey.JourneyListExecutionsTest do
       graph = basic_graph(random_string())
 
       # Create executions with various email addresses
-      exec_gmail_alice = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice@gmail.com")
-      exec_gmail_bob = Journey.start_execution(graph) |> Journey.set_value(:first_name, "bob@gmail.com")
-      exec_yahoo_charlie = Journey.start_execution(graph) |> Journey.set_value(:first_name, "charlie@yahoo.com")
-      _exec_company_dave = Journey.start_execution(graph) |> Journey.set_value(:first_name, "dave@company.org")
-      _exec_integer = Journey.start_execution(graph) |> Journey.set_value(:first_name, 12_345)
+      exec_gmail_alice = Journey.start_execution(graph) |> Journey.set(:first_name, "alice@gmail.com")
+      exec_gmail_bob = Journey.start_execution(graph) |> Journey.set(:first_name, "bob@gmail.com")
+      exec_yahoo_charlie = Journey.start_execution(graph) |> Journey.set(:first_name, "charlie@yahoo.com")
+      _exec_company_dave = Journey.start_execution(graph) |> Journey.set(:first_name, "dave@company.org")
+      _exec_integer = Journey.start_execution(graph) |> Journey.set(:first_name, 12_345)
 
       # Test basic substring matching
       gmail_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "@gmail"}])
@@ -425,11 +425,11 @@ defmodule Journey.JourneyListExecutionsTest do
       graph = basic_graph(random_string())
 
       # Create executions with various email addresses in different cases
-      exec_gmail_alice = Journey.start_execution(graph) |> Journey.set_value(:first_name, "Alice@Gmail.com")
-      exec_gmail_bob = Journey.start_execution(graph) |> Journey.set_value(:first_name, "BOB@gmail.COM")
-      exec_yahoo_charlie = Journey.start_execution(graph) |> Journey.set_value(:first_name, "charlie@YAHOO.com")
-      exec_company_dave = Journey.start_execution(graph) |> Journey.set_value(:first_name, "Dave@Company.ORG")
-      _exec_integer = Journey.start_execution(graph) |> Journey.set_value(:first_name, 12_345)
+      exec_gmail_alice = Journey.start_execution(graph) |> Journey.set(:first_name, "Alice@Gmail.com")
+      exec_gmail_bob = Journey.start_execution(graph) |> Journey.set(:first_name, "BOB@gmail.COM")
+      exec_yahoo_charlie = Journey.start_execution(graph) |> Journey.set(:first_name, "charlie@YAHOO.com")
+      exec_company_dave = Journey.start_execution(graph) |> Journey.set(:first_name, "Dave@Company.ORG")
+      _exec_integer = Journey.start_execution(graph) |> Journey.set(:first_name, 12_345)
 
       # Test case-insensitive substring matching with lowercase pattern
       gmail_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :icontains, "@gmail"}])
@@ -501,11 +501,11 @@ defmodule Journey.JourneyListExecutionsTest do
       graph = basic_graph(random_string())
 
       # Create executions with literal wildcard characters
-      exec_percent = Journey.start_execution(graph) |> Journey.set_value(:first_name, "10% discount")
-      exec_underscore = Journey.start_execution(graph) |> Journey.set_value(:first_name, "user_name")
-      exec_backslash = Journey.start_execution(graph) |> Journey.set_value(:first_name, "path\\file")
-      exec_combined = Journey.start_execution(graph) |> Journey.set_value(:first_name, "50%_off\\today")
-      exec_normal = Journey.start_execution(graph) |> Journey.set_value(:first_name, "normal_text")
+      exec_percent = Journey.start_execution(graph) |> Journey.set(:first_name, "10% discount")
+      exec_underscore = Journey.start_execution(graph) |> Journey.set(:first_name, "user_name")
+      exec_backslash = Journey.start_execution(graph) |> Journey.set(:first_name, "path\\file")
+      exec_combined = Journey.start_execution(graph) |> Journey.set(:first_name, "50%_off\\today")
+      exec_normal = Journey.start_execution(graph) |> Journey.set(:first_name, "normal_text")
 
       # Test searching for literal % (should not match everything)
       percent_results = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "%"}])
@@ -549,11 +549,11 @@ defmodule Journey.JourneyListExecutionsTest do
       graph = list_graph(random_string())
 
       # Create executions with different list values
-      exec_string_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, ["user1", "user2", "admin"])
-      exec_mixed_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, ["user3", 42, "user4"])
-      exec_integer_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, [1, 2, 3, 4])
-      exec_empty_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, [])
-      _exec_non_list = Journey.start_execution(graph) |> Journey.set_value(:recipients, "not_a_list")
+      exec_string_list = Journey.start_execution(graph) |> Journey.set(:recipients, ["user1", "user2", "admin"])
+      exec_mixed_list = Journey.start_execution(graph) |> Journey.set(:recipients, ["user3", 42, "user4"])
+      exec_integer_list = Journey.start_execution(graph) |> Journey.set(:recipients, [1, 2, 3, 4])
+      exec_empty_list = Journey.start_execution(graph) |> Journey.set(:recipients, [])
+      _exec_non_list = Journey.start_execution(graph) |> Journey.set(:recipients, "not_a_list")
       exec_nil_value = Journey.start_execution(graph)
 
       # Test finding string element in list
@@ -654,9 +654,9 @@ defmodule Journey.JourneyListExecutionsTest do
       graph = basic_graph(random_string())
 
       # Create executions with different first_name values
-      exec_3 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 3)
-      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 1)
-      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 2)
+      exec_3 = Journey.start_execution(graph) |> Journey.set(:first_name, 3)
+      exec_1 = Journey.start_execution(graph) |> Journey.set(:first_name, 1)
+      exec_2 = Journey.start_execution(graph) |> Journey.set(:first_name, 2)
 
       # Sort by value field ascending
       asc_results =
@@ -684,11 +684,11 @@ defmodule Journey.JourneyListExecutionsTest do
       graph = basic_graph(test_id)
 
       # Create executions with different values
-      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice")
+      exec_1 = Journey.start_execution(graph) |> Journey.set(:first_name, "alice")
       Process.sleep(1100)
-      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "bob")
+      exec_2 = Journey.start_execution(graph) |> Journey.set(:first_name, "bob")
       Process.sleep(1100)
-      exec_3 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "alice")
+      exec_3 = Journey.start_execution(graph) |> Journey.set(:first_name, "alice")
 
       # Sort by value field first, then by execution field
       results =
@@ -719,10 +719,10 @@ defmodule Journey.JourneyListExecutionsTest do
       # Create executions - some with values, some without
       # No first_name set
       _exec_nil_1 = Journey.start_execution(graph)
-      _exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 2)
+      _exec_2 = Journey.start_execution(graph) |> Journey.set(:first_name, 2)
       # No first_name set
       _exec_nil_2 = Journey.start_execution(graph)
-      _exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 1)
+      _exec_1 = Journey.start_execution(graph) |> Journey.set(:first_name, 1)
 
       # Sort ascending - check the order is correct
       asc_results =
@@ -785,9 +785,9 @@ defmodule Journey.JourneyListExecutionsTest do
     test "order_by_execution_fields still works as alias" do
       graph = basic_graph(random_string())
 
-      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "first")
+      exec_1 = Journey.start_execution(graph) |> Journey.set(:first_name, "first")
       Process.sleep(1100)
-      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, "second")
+      exec_2 = Journey.start_execution(graph) |> Journey.set(:first_name, "second")
 
       # Old parameter should still work
       results =
@@ -803,8 +803,8 @@ defmodule Journey.JourneyListExecutionsTest do
     test "sort_by takes precedence over order_by_execution_fields" do
       graph = basic_graph(random_string())
 
-      exec_1 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 1)
-      exec_2 = Journey.start_execution(graph) |> Journey.set_value(:first_name, 2)
+      exec_1 = Journey.start_execution(graph) |> Journey.set(:first_name, 1)
+      exec_2 = Journey.start_execution(graph) |> Journey.set(:first_name, 2)
 
       # When both are provided, sort_by should win
       results =
@@ -838,21 +838,21 @@ defmodule Journey.JourneyListExecutionsTest do
       # Create test data with combinations that clearly show precedence
       # Priority "high" + names "bob", "alice" (different insertion order to test sorting)
       exec_high_bob =
-        Journey.start_execution(graph) |> Journey.set_value(:priority, "high") |> Journey.set_value(:first_name, "bob")
+        Journey.start_execution(graph) |> Journey.set(:priority, "high") |> Journey.set(:first_name, "bob")
 
       exec_high_alice =
         Journey.start_execution(graph)
-        |> Journey.set_value(:priority, "high")
-        |> Journey.set_value(:first_name, "alice")
+        |> Journey.set(:priority, "high")
+        |> Journey.set(:first_name, "alice")
 
       # Priority "low" + names "charlie", "alice"
       exec_low_charlie =
         Journey.start_execution(graph)
-        |> Journey.set_value(:priority, "low")
-        |> Journey.set_value(:first_name, "charlie")
+        |> Journey.set(:priority, "low")
+        |> Journey.set(:first_name, "charlie")
 
       exec_low_alice =
-        Journey.start_execution(graph) |> Journey.set_value(:priority, "low") |> Journey.set_value(:first_name, "alice")
+        Journey.start_execution(graph) |> Journey.set(:priority, "low") |> Journey.set(:first_name, "alice")
 
       # Test ascending sort: [:priority, :first_name]
       # Should group by priority first ("high", then "low"), then by first_name within each group

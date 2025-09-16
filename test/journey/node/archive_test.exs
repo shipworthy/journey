@@ -30,7 +30,7 @@ defmodule Journey.Node.ArchiveTest do
       assert execution.id in (Journey.list_executions(graph_name: graph_name) |> Enum.map(& &1.id))
 
       assert execution.archived_at == nil
-      execution = Journey.set_value(execution, :user_name, "John Doe")
+      execution = Journey.set(execution, :user_name, "John Doe")
       assert {:ok, "Hello, John Doe"} = Journey.get_value(execution, :greeting, wait_any: true)
       {:ok, _a} = Journey.get_value(execution, :archival, wait_any: true)
 

@@ -78,8 +78,8 @@ iex> graph = Journey.new_graph(
 ...> )
 iex> # Start an execution of this graph, set input values, read computed values.
 iex> execution = Journey.start_execution(graph)
-iex> execution = Journey.set_value(execution, :x, 12)
-iex> execution = Journey.set_value(execution, :y, 2)
+iex> execution = Journey.set(execution, :x, 12)
+iex> execution = Journey.set(execution, :y, 2)
 iex> Journey.get_value(execution, :sum, wait_any: true)
 {:ok, 14}
 iex> Journey.get_value(execution, :large_value_alert)
@@ -89,7 +89,7 @@ iex> # After an outage / redeployment / page reload / long pause, an execution
 iex> # can be reloaded and continue, as if nothing happened.
 iex> execution = Journey.load(eid)
 iex> # An update to :y triggers a re-computation of downstream values.
-iex> execution = Journey.set_value(execution, :y, 37)
+iex> execution = Journey.set(execution, :y, 37)
 iex> Journey.get_value(execution, :large_value_alert, wait_any: true)
 {:ok, "🚨, at 49"}
 iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
@@ -209,9 +209,9 @@ execution = Journey.start_execution(graph)
 and it will populate the execution with the input values (name, birthday) as the customer provides them:
 
 ```elixir
-execution = Journey.set_value(execution, :first_name, "Mario")
-execution = Journey.set_value(execution, :birth_day, 5)
-execution = Journey.set_value(execution, :birth_month, "May")
+execution = Journey.set(execution, :first_name, "Mario")
+execution = Journey.set(execution, :birth_day, 5)
+execution = Journey.set(execution, :birth_month, "May")
 ```
 
 Providing these input values will trigger automatic computations of the customer's zodiac_sign and the horoscope, which can then be read from the execution and rendered on the web page.
@@ -264,14 +264,14 @@ iex> # 2. For every customer visiting your website, start a new execution of the
 iex> e = Journey.start_execution(graph)
 iex>
 iex> # 3. Populate the execution's nodes with the data as provided by the visitor:
-iex> e = Journey.set_value(e, :birth_day, 26)
+iex> e = Journey.set(e, :birth_day, 26)
 iex>
 iex> # As a side note: if the user leaves and comes back later or if everything crashes,
 iex> # you can always reload the execution using its id:
 iex> e = Journey.load(e.id)
 iex>
 iex> # Continuing, as if nothing happened:
-iex> e = Journey.set_value(e, :birth_month, "April")
+iex> e = Journey.set(e, :birth_month, "April")
 iex>
 iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
 iex> Journey.get_value(e, :zodiac_sign, wait_any: true)
@@ -280,7 +280,7 @@ iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
 %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
 iex>
 iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
-iex> e = Journey.set_value(e, :first_name, "Mario")
+iex> e = Journey.set(e, :first_name, "Mario")
 iex> Journey.get_value(e, :horoscope, wait_any: true)
 {:ok, "🍪s await, Taurus Mario!"}
 iex>

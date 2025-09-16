@@ -14,7 +14,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
 
     background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-    execution = execution |> Journey.set_value(:user_name, "Mario")
+    execution = execution |> Journey.set(:user_name, "Mario")
 
     assert Journey.get_value(execution, :greeting, wait_any: true) == {:ok, "Hello, Mario"}
 

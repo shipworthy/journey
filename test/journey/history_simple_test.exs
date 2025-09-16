@@ -38,7 +38,7 @@ defmodule Journey.HistorySimpleTest do
         |> Journey.start_execution()
 
       # Set a value
-      execution = Journey.set_value(execution, :input_a, "test_value")
+      execution = Journey.set(execution, :input_a, "test_value")
 
       history = Journey.history(execution.id)
 
@@ -58,7 +58,7 @@ defmodule Journey.HistorySimpleTest do
       execution =
         simple_history_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:input_a, "test_input")
+        |> Journey.set(:input_a, "test_input")
 
       # Wait for computation to complete
       {:ok, computed_value} = Journey.get_value(execution, :computed_a, wait_any: true)
@@ -82,10 +82,10 @@ defmodule Journey.HistorySimpleTest do
         |> Journey.start_execution()
 
       # Perform multiple operations
-      execution = Journey.set_value(execution, :input_a, "first")
+      execution = Journey.set(execution, :input_a, "first")
       {:ok, _} = Journey.get_value(execution, :computed_a, wait_any: true)
 
-      execution = Journey.set_value(execution, :input_a, "second")
+      execution = Journey.set(execution, :input_a, "second")
       {:ok, _} = Journey.get_value(execution, :computed_a, wait_new: true)
 
       history = Journey.history(execution.id)
@@ -137,7 +137,7 @@ defmodule Journey.HistorySimpleTest do
       execution =
         simple_history_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:input_a, "test")
+        |> Journey.set(:input_a, "test")
 
       # Wait for computation
       {:ok, _} = Journey.get_value(execution, :computed_a, wait_any: true)
@@ -188,13 +188,13 @@ defmodule Journey.HistorySimpleTest do
       execution =
         failing_history_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:will_fail, false)
+        |> Journey.set(:will_fail, false)
 
       # Wait for successful computation
       {:ok, _} = Journey.get_value(execution, :maybe_fails, wait_any: true)
 
       # Now set it to fail to create a failed computation
-      execution = Journey.set_value(execution, :will_fail, true)
+      execution = Journey.set(execution, :will_fail, true)
 
       # Wait for the computation to re-run and fail permanently (after max_retries: 1)
       {:error, :computation_failed} = Journey.get_value(execution, :maybe_fails, wait_new: true)

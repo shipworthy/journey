@@ -20,7 +20,7 @@ defmodule Journey.JourneyGetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
     end
@@ -29,7 +29,7 @@ defmodule Journey.JourneyGetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.get_value(execution, :greeting, wait_any: true) == {:ok, "Hello, Mario"}
     end
@@ -38,7 +38,7 @@ defmodule Journey.JourneyGetValueTest do
       execution =
         basic_graph(random_string())
         |> Journey.start_execution()
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:first_name, "Mario")
 
       assert_raise RuntimeError,
                    "':no_such_node' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: [:execution_id, :first_name, :greeting, :last_updated_at].",

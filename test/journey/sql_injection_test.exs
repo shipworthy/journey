@@ -13,8 +13,8 @@ defmodule Journey.SqlInjectionTest do
         )
 
       # Create some legitimate data
-      _exec1 = Journey.start_execution(graph) |> Journey.set_value(:test_field, 42) |> Journey.set_value(:name, "alice")
-      _exec2 = Journey.start_execution(graph) |> Journey.set_value(:test_field, 100) |> Journey.set_value(:name, "bob")
+      _exec1 = Journey.start_execution(graph) |> Journey.set(:test_field, 42) |> Journey.set(:name, "alice")
+      _exec2 = Journey.start_execution(graph) |> Journey.set(:test_field, 100) |> Journey.set(:name, "bob")
 
       # Test various SQL injection attempts as filter values
       malicious_payloads = [
@@ -66,7 +66,7 @@ defmodule Journey.SqlInjectionTest do
           [input(:legitimate_field)]
         )
 
-      _exec = Journey.start_execution(graph) |> Journey.set_value(:legitimate_field, "test_value")
+      _exec = Journey.start_execution(graph) |> Journey.set(:legitimate_field, "test_value")
 
       # Test malicious node names - these should raise validation errors, not cause SQL injection
       malicious_node_names = [
@@ -111,9 +111,9 @@ defmodule Journey.SqlInjectionTest do
       # Create legitimate data
       _exec =
         Journey.start_execution(graph)
-        |> Journey.set_value(:num_field, 50)
-        |> Journey.set_value(:str_field, "normal_string")
-        |> Journey.set_value(:bool_field, true)
+        |> Journey.set(:num_field, 50)
+        |> Journey.set(:str_field, "normal_string")
+        |> Journey.set(:bool_field, true)
 
       # Test multiple filters with malicious content - should be safely handled
       result =
@@ -167,7 +167,7 @@ defmodule Journey.SqlInjectionTest do
         )
 
       # Create some data
-      exec1 = Journey.start_execution(graph) |> Journey.set_value(:test_field, "before_injection")
+      exec1 = Journey.start_execution(graph) |> Journey.set(:test_field, "before_injection")
 
       # Count records before injection attempts
       initial_executions = Journey.list_executions(graph_name: graph.name)
@@ -187,7 +187,7 @@ defmodule Journey.SqlInjectionTest do
       end
 
       # Create more data after injection attempts
-      _exec2 = Journey.start_execution(graph) |> Journey.set_value(:test_field, "after_injection")
+      _exec2 = Journey.start_execution(graph) |> Journey.set(:test_field, "after_injection")
 
       # Verify database integrity - should have original + new data
       final_executions = Journey.list_executions(graph_name: graph.name)
@@ -219,7 +219,7 @@ defmodule Journey.SqlInjectionTest do
 
       # Create executions with special characters
       for value <- special_values do
-        _exec = Journey.start_execution(graph) |> Journey.set_value(:text_field, value)
+        _exec = Journey.start_execution(graph) |> Journey.set(:text_field, value)
       end
 
       # Verify we can filter by these values safely
@@ -245,9 +245,9 @@ defmodule Journey.SqlInjectionTest do
         )
 
       # Create legitimate data
-      _exec1 = Journey.start_execution(graph) |> Journey.set_value(:search_field, "user@example.com")
-      _exec2 = Journey.start_execution(graph) |> Journey.set_value(:search_field, "admin@test.org")
-      _exec3 = Journey.start_execution(graph) |> Journey.set_value(:search_field, 12_345)
+      _exec1 = Journey.start_execution(graph) |> Journey.set(:search_field, "user@example.com")
+      _exec2 = Journey.start_execution(graph) |> Journey.set(:search_field, "admin@test.org")
+      _exec3 = Journey.start_execution(graph) |> Journey.set(:search_field, 12_345)
 
       # Test SQL injection attempts with :contains operator
       malicious_contains_payloads = [
@@ -315,7 +315,7 @@ defmodule Journey.SqlInjectionTest do
 
       # Create executions with wildcard characters
       for value <- wildcard_values do
-        _exec = Journey.start_execution(graph) |> Journey.set_value(:content, value)
+        _exec = Journey.start_execution(graph) |> Journey.set(:content, value)
       end
 
       # Test that we can search for literal % characters (should not act as wildcard)

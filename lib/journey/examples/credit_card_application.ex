@@ -16,10 +16,10 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> # This is only needed in a test, to perform background processing that happens automatically outside of tests.
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex>
-  iex> execution = execution |> Journey.set_value(:full_name, "Mario")
-  iex> execution = execution |> Journey.set_value(:birth_date, "10/11/1981")
-  iex> execution = execution |> Journey.set_value(:ssn, "123-45-6789")
-  iex> execution = execution |> Journey.set_value(:email_address, "mario@example.com")
+  iex> execution = execution |> Journey.set(:full_name, "Mario")
+  iex> execution = execution |> Journey.set(:birth_date, "10/11/1981")
+  iex> execution = execution |> Journey.set(:ssn, "123-45-6789")
+  iex> execution = execution |> Journey.set(:email_address, "mario@example.com")
   iex>
   iex> # This kicks off the pre-approval process, which eventually completes.
   iex> execution |> Journey.get_value(:preapproval_process_completed, wait_any: true)
@@ -29,7 +29,7 @@ defmodule Journey.Examples.CreditCardApplication do
   {:ok, true}
   iex>
   iex> # Reminded, the customer requests an actual credit card.
-  iex> _execution = execution |> Journey.set_value(:credit_card_requested, true)
+  iex> _execution = execution |> Journey.set(:credit_card_requested, true)
   iex> # ... which triggers issuing the card.
   iex>
   iex> execution |> Journey.get_value(:initiate_credit_card_issuance, wait_any: true)
@@ -54,7 +54,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex>
   iex> # Eventually, the fulfillment department marks the credit card as mailed.
   iex> # Which triggers an email notifying the customer that the card has been mailed.
-  iex> execution = execution |> Journey.set_value(:credit_card_mailed, true)
+  iex> execution = execution |> Journey.set(:credit_card_mailed, true)
   iex> execution |> Journey.get_value(:credit_card_mailed_notification, wait_any: true)
   {:ok, true}
   iex> {:ok, _} = execution |> Journey.get_value(:archive, wait_any: true)
@@ -300,10 +300,10 @@ defmodule Journey.Examples.CreditCardApplication do
     e =
       g
       |> Journey.start_execution()
-      |> Journey.set_value(:full_name, "Mario")
-      |> Journey.set_value(:birth_date, "10/11/1981")
-      |> Journey.set_value(:ssn, "123-45-6789")
-      |> Journey.set_value(:email_address, "mario@example.com")
+      |> Journey.set(:full_name, "Mario")
+      |> Journey.set(:birth_date, "10/11/1981")
+      |> Journey.set(:ssn, "123-45-6789")
+      |> Journey.set(:email_address, "mario@example.com")
 
     {g, e}
   end

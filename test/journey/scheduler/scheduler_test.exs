@@ -18,7 +18,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution =
         create_graph(:success)
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
+        |> Journey.set(:birth_day, 26)
 
       updated_execution = Scheduler.advance(execution)
       assert updated_execution == execution
@@ -29,8 +29,8 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution =
         create_graph(:failure)
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
-        |> Journey.set_value(:birth_month, "April")
+        |> Journey.set(:birth_day, 26)
+        |> Journey.set(:birth_month, "April")
 
       {:error, :computation_failed} =
         Journey.get_value(execution, :astrological_sign, wait_any: true)
@@ -44,8 +44,8 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution =
         create_graph(:failure)
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
-        |> Journey.set_value(:birth_month, "April")
+        |> Journey.set(:birth_day, 26)
+        |> Journey.set(:birth_month, "April")
 
       # Should return immediately once retries exhausted, even with wait_new
       {:error, :computation_failed} =
@@ -60,8 +60,8 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution =
         create_graph(:failure)
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
-        |> Journey.set_value(:birth_month, "April")
+        |> Journey.set(:birth_day, 26)
+        |> Journey.set(:birth_month, "April")
 
       # Start background sweeps to enable computations
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
@@ -85,10 +85,10 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution =
         create_graph(:timeout)
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
+        |> Journey.set(:birth_day, 26)
 
       assert 0 == Abandoned.sweep(execution.id)
-      execution = Journey.set_value(execution, :birth_month, "April")
+      execution = Journey.set(execution, :birth_month, "April")
 
       assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
                astrological_sign: :not_set,
@@ -116,8 +116,8 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution =
         create_graph(:timeout)
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
-        |> Journey.set_value(:birth_month, "April")
+        |> Journey.set(:birth_day, 26)
+        |> Journey.set(:birth_month, "April")
 
       assert 0 == Abandoned.sweep(execution.id)
       assert 1 == count_computations(execution.id, :astrological_sign, :computing)
@@ -143,8 +143,8 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution =
         create_graph(:timeout)
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
-        |> Journey.set_value(:birth_month, "April")
+        |> Journey.set(:birth_day, 26)
+        |> Journey.set(:birth_month, "April")
 
       assert 0 == Abandoned.sweep(execution.id)
 
@@ -168,8 +168,8 @@ defmodule Journey.Scheduler.SchedulerTest do
         for _ <- 1..10 do
           create_graph(:timeout)
           |> Journey.start_execution()
-          |> Journey.set_value(:birth_day, 26)
-          |> Journey.set_value(:birth_month, "April")
+          |> Journey.set(:birth_day, 26)
+          |> Journey.set(:birth_month, "April")
         end
         |> ids_of()
         |> MapSet.new()
@@ -215,7 +215,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       execution_ids =
         for i <- 1..count do
           Journey.start_execution(graph)
-          |> Journey.set_value(:name, "Mario #{i}")
+          |> Journey.set(:name, "Mario #{i}")
         end
         |> Enum.map(fn e -> e.id end)
 

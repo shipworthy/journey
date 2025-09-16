@@ -44,7 +44,7 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:first_name)
       assert {:error, :not_set} == execution |> Journey.get_value(:last_name)
 
-      execution = execution |> Journey.set_value(:first_name, "Mario")
+      execution = execution |> Journey.set(:first_name, "Mario")
       assert execution != nil
       assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait_any: true)
     end
@@ -81,7 +81,7 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:first_name)
       assert {:error, :not_set} == execution |> Journey.get_value(:last_name)
 
-      execution = execution |> Journey.set_value(:last_name, "Bowser")
+      execution = execution |> Journey.set(:last_name, "Bowser")
       assert execution != nil
       assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait_any: true)
     end
@@ -126,11 +126,11 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       assert execution != nil
       assert {:error, :not_set} == execution |> Journey.get_value(:one_of_each_group, wait_any: 700)
 
-      execution = execution |> Journey.set_value(:g1_a, "g1_a set")
-      execution = execution |> Journey.set_value(:g1_b, "g1_b set")
+      execution = execution |> Journey.set(:g1_a, "g1_a set")
+      execution = execution |> Journey.set(:g1_b, "g1_b set")
       assert {:error, :not_set} == execution |> Journey.get_value(:one_of_each_group, wait_any: 700)
 
-      execution = execution |> Journey.set_value(:g2_a, "g2_a set")
+      execution = execution |> Journey.set(:g2_a, "g2_a set")
       assert {:ok, "name set"} == execution |> Journey.get_value(:one_of_each_group, wait_any: true)
     end
 
@@ -171,8 +171,8 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
 
       assert graph.name == graph_name
       execution = graph |> Journey.start_execution()
-      execution = execution |> Journey.set_value(:g1_a, "g1_a set")
-      execution = execution |> Journey.set_value(:g2_a, "g2_a set")
+      execution = execution |> Journey.set(:g1_a, "g1_a set")
+      execution = execution |> Journey.set(:g2_a, "g2_a set")
 
       assert {:ok,
               "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"} ==
@@ -181,7 +181,7 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       execution = execution |> Journey.load()
       assert execution.revision == 4
 
-      execution = execution |> Journey.set_value(:g1_a, "g1_a set, v2")
+      execution = execution |> Journey.set(:g1_a, "g1_a set, v2")
       assert execution.revision == 6
 
       # Fetch and verify the recomputed value when it is available.

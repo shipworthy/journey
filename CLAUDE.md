@@ -73,7 +73,8 @@ schedule_recurring/3  # Recurring execution
 Journey.new_graph/3      # Define computation graph
 Journey.start_execution/1 # Execute graph instance
 Journey.load/2           # Load existing execution
-Journey.set_value/3      # Set node values
+Journey.set/3            # Set node values
+Journey.unset/2          # Unset node values (single or multiple)
 Journey.get_value/3      # Retrieve node values
 ```
 

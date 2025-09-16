@@ -31,8 +31,8 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
             )
 
           execution = Journey.start_execution(graph)
-          execution = Journey.set_value(execution, :x, 5)
-          execution = Journey.set_value(execution, :y, 3)
+          execution = Journey.set(execution, :x, 5)
+          execution = Journey.set(execution, :y, 3)
 
           assert Journey.get_value(execution, :sum, wait_any: true) == {:ok, 8}
           assert Journey.get_value(execution, :product, wait_any: true) == {:ok, 15}
@@ -81,7 +81,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
             )
 
           execution = Journey.start_execution(graph)
-          execution = Journey.set_value(execution, :name, "Alice")
+          execution = Journey.set(execution, :name, "Alice")
 
           assert Journey.get_value(execution, :greeting, wait_any: true) == {:ok, "Hello, Alice"}
           assert Journey.get_value(execution, :uppercase, wait_any: true) == {:ok, "ALICE"}
@@ -124,7 +124,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
             )
 
           execution = Journey.start_execution(graph)
-          execution = Journey.set_value(execution, :sensitive_data, "SSN: 123-45-6789")
+          execution = Journey.set(execution, :sensitive_data, "SSN: 123-45-6789")
 
           assert Journey.get_value(execution, :redact_data, wait_any: true) == {:ok, "updated :sensitive_data"}
           assert Journey.get_value(execution, :sensitive_data, wait_any: true) == {:ok, "[REDACTED]"}
@@ -156,7 +156,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
             )
 
           execution = Journey.start_execution(graph)
-          execution = Journey.set_value(execution, :value, 10)
+          execution = Journey.set(execution, :value, 10)
 
           # Computation should succeed despite callback error
           assert Journey.get_value(execution, :double, wait_any: true) == {:ok, 20}
@@ -189,7 +189,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :input_value, "test")
+      execution = Journey.set(execution, :input_value, "test")
 
       assert Journey.get_value(execution, :compute_node, wait_any: true) == {:ok, "computed: test"}
 
@@ -218,7 +218,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
             )
 
           execution = Journey.start_execution(graph)
-          execution = Journey.set_value(execution, :test_input, "value")
+          execution = Journey.set(execution, :test_input, "value")
 
           assert Journey.get_value(execution, :test_compute, wait_any: true) == {:ok, "value"}
 
@@ -260,7 +260,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
             )
 
           execution = Journey.start_execution(graph)
-          execution = Journey.set_value(execution, :trigger, true)
+          execution = Journey.set(execution, :trigger, true)
 
           # Get the scheduled time
           {:ok, _scheduled_time} = Journey.get_value(execution, :scheduled_task, wait_any: true)
@@ -291,7 +291,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
         )
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :x, 5)
+      execution = Journey.set(execution, :x, 5)
 
       assert Journey.get_value(execution, :double, wait_any: true) == {:ok, 10}
     end

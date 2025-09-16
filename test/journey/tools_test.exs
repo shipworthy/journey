@@ -46,7 +46,7 @@ defmodule Journey.ToolsTest do
 
       execution =
         Journey.start_execution(graph)
-        |> Journey.set_value(:user_name, "John Doe")
+        |> Journey.set(:user_name, "John Doe")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
@@ -140,7 +140,7 @@ defmodule Journey.ToolsTest do
 
       execution =
         Journey.start_execution(graph)
-        |> Journey.set_value(:user_name, "John Doe")
+        |> Journey.set(:user_name, "John Doe")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
@@ -239,7 +239,7 @@ defmodule Journey.ToolsTest do
       assert summary_initial_text =~ "🛑 :value | &provided?/1"
 
       # Set value to trigger computations
-      execution = Journey.set_value(execution, :value, 10)
+      execution = Journey.set(execution, :value, 10)
 
       # Start background sweeps to process computations
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
@@ -566,7 +566,7 @@ defmodule Journey.ToolsTest do
 
       execution =
         Journey.start_execution(graph)
-        |> Journey.set_value(:user_name, "John Doe")
+        |> Journey.set(:user_name, "John Doe")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
@@ -612,7 +612,7 @@ defmodule Journey.ToolsTest do
 
       execution =
         execution
-        |> Journey.set_value(:user_name, "John Doe")
+        |> Journey.set(:user_name, "John Doe")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
@@ -643,7 +643,7 @@ defmodule Journey.ToolsTest do
         ])
 
       execution = Journey.start_execution(graph)
-      execution = Journey.set_value(execution, :trigger, "start")
+      execution = Journey.set(execution, :trigger, "start")
 
       # Start background sweeps to process computations
       background_sweeps_task = start_background_sweeps_in_test(execution.id)

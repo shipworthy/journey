@@ -12,7 +12,7 @@ defmodule Journey.Node do
   alias Journey.Graph
 
   @doc """
-  Creates a graph input node. The value of an input node is set with `Journey.set_value/3`. The name of the node must be an atom.
+  Creates a graph input node. The value of an input node is set with `Journey.set/3`. The name of the node must be an atom.
 
   ## Examples:
 
@@ -27,7 +27,7 @@ defmodule Journey.Node do
   ...>         input(:zip_code)
   ...>        ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:first_name, "Mario")
+  iex> execution = graph |> Journey.start_execution() |> Journey.set(:first_name, "Mario")
   iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
   %{first_name: "Mario", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
@@ -90,7 +90,7 @@ defmodule Journey.Node do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution() |> Journey.set_value(:name, "Alice")
+  iex> execution = graph |> Journey.start_execution() |> Journey.set(:name, "Alice")
   iex> execution |> Journey.get_value(:pig_latin_ish_name, wait_any: true)
   {:ok, "Alice-ay"}
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
@@ -117,10 +117,10 @@ defmodule Journey.Node do
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
-  iex> execution = Journey.set_value(execution, :temperature, 25)
+  iex> execution = Journey.set(execution, :temperature, 25)
   iex> Journey.get_value(execution, :high_temp_alert)
   {:error, :not_set}
-  iex> execution = Journey.set_value(execution, :temperature, 35)
+  iex> execution = Journey.set(execution, :temperature, 35)
   iex> Journey.get_value(execution, :high_temp_alert, wait_any: true)
   {:ok, "High temperature alert: 35°C"}
   ```
@@ -169,7 +169,7 @@ defmodule Journey.Node do
   iex> execution =
   ...>     graph
   ...>     |> Journey.start_execution()
-  ...>     |> Journey.set_value(:name, "Mario")
+  ...>     |> Journey.set(:name, "Mario")
   iex> execution |> Journey.get_value(:remove_pii, wait_any: true)
   {:ok, "updated :name"}
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
@@ -213,7 +213,7 @@ defmodule Journey.Node do
   iex> execution = graph |> Journey.start_execution()
   iex> execution.archived_at == nil
   true
-  iex> execution = Journey.set_value(execution, :name, "Mario")
+  iex> execution = Journey.set(execution, :name, "Mario")
   iex> {:ok, _} = Journey.get_value(execution, :archive, wait_any: true)
   iex> Journey.load(execution)
   nil
@@ -277,7 +277,7 @@ defmodule Journey.Node do
   iex> execution =
   ...>     graph
   ...>     |> Journey.start_execution()
-  ...>     |> Journey.set_value(:name, "Mario")
+  ...>     |> Journey.set(:name, "Mario")
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
@@ -344,7 +344,7 @@ defmodule Journey.Node do
   iex> execution =
   ...>     graph
   ...>     |> Journey.start_execution()
-  ...>     |> Journey.set_value(:name, "Mario")
+  ...>     |> Journey.set(:name, "Mario")
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.

@@ -31,22 +31,22 @@ defmodule Journey.Scheduler.ConditionalClearingTest do
       execution = Journey.start_execution(graph)
 
       # Set initial values where sum is small (12 + 9 = 21)
-      execution = Journey.set_value(execution, :x, 12)
-      execution = Journey.set_value(execution, :y, 9)
+      execution = Journey.set(execution, :x, 12)
+      execution = Journey.set(execution, :y, 9)
 
       # Verify sum is computed but alert is not triggered
       assert {:ok, 21} = Journey.get_value(execution, :sum, wait_any: true)
       assert {:error, :not_set} = Journey.get_value(execution, :large_value_alert)
 
       # Increase y so sum exceeds threshold (12 + 100 = 112)
-      execution = Journey.set_value(execution, :y, 100)
+      execution = Journey.set(execution, :y, 100)
 
       # Wait for sum to be recomputed and verify both sum and alert are set
       assert {:ok, 112} = Journey.get_value(execution, :sum, wait_new: true)
       assert {:ok, "🚨"} = Journey.get_value(execution, :large_value_alert, wait_any: true)
 
       # Decrease y so sum is below threshold again (12 + 1 = 13)
-      execution = Journey.set_value(execution, :y, 1)
+      execution = Journey.set(execution, :y, 1)
 
       # Wait for sum to be recomputed
       assert {:ok, 13} = Journey.get_value(execution, :sum, wait_new: true)
@@ -85,12 +85,12 @@ defmodule Journey.Scheduler.ConditionalClearingTest do
       execution = Journey.start_execution(graph)
 
       # Set weather to rainy (true)
-      execution = Journey.set_value(execution, :weather, true)
+      execution = Journey.set(execution, :weather, true)
       assert {:ok, "☂️"} = Journey.get_value(execution, :bring_umbrella, wait_any: true)
       assert {:error, :not_set} = Journey.get_value(execution, :bring_sunglasses)
 
       # Change weather to sunny (false)
-      execution = Journey.set_value(execution, :weather, false)
+      execution = Journey.set(execution, :weather, false)
       assert {:ok, "🕶️"} = Journey.get_value(execution, :bring_sunglasses, wait_any: true)
 
       # CRITICAL: Umbrella should now be cleared

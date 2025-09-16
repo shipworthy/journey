@@ -13,7 +13,7 @@ defmodule UselessMachine do
   {:error, :not_set}
   iex> Journey.get_value(execution, :paw)
   {:error, :not_set}
-  iex> Journey.set_value(execution, :switch, "on")
+  iex> Journey.set(execution, :switch, "on")
   iex> # updating switch triggers :paw
   iex> Journey.get_value(execution, :paw, wait_any: true)
   {:ok, "updated :switch"}

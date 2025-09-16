@@ -171,7 +171,7 @@ defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesOptimizationTest do
     graph = CreditCardApplication.graph()
     execution = Journey.start_execution(graph)
     # Set values to create schedule computations in not_set state
-    Journey.set_value(execution, :full_name, "Test User #{:rand.uniform(1000)}")
+    Journey.set(execution, :full_name, "Test User #{:rand.uniform(1000)}")
     execution
   end
 

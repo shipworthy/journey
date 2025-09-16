@@ -59,9 +59,9 @@ defmodule Flows.HoroscopeTest do
       execution =
         Flows.Test.HoroscopeGraph.create_graph()
         |> Journey.start_execution()
-        |> Journey.set_value(:birth_day, 26)
-        |> Journey.set_value(:birth_month, "April")
-        |> Journey.set_value(:first_name, "Mario")
+        |> Journey.set(:birth_day, 26)
+        |> Journey.set(:birth_month, "April")
+        |> Journey.set(:first_name, "Mario")
 
       assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
                astrological_sign: :not_set,

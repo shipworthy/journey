@@ -13,16 +13,16 @@ defmodule Journey.Scheduler.Scheduler.MutateTest do
       assert Journey.get_value(execution, :switch_position) == {:error, :not_set}
       assert Journey.Executions.find_value_by_name(execution, :switch_position).ex_revision == 0
 
-      execution = execution |> Journey.set_value(:switch_position, "on")
+      execution = execution |> Journey.set(:switch_position, "on")
       wait_for_switch_to_be_turned_back_off(execution, 1)
 
-      execution = execution |> Journey.set_value(:switch_position, "on")
+      execution = execution |> Journey.set(:switch_position, "on")
       wait_for_switch_to_be_turned_back_off(execution, 4)
 
-      execution = execution |> Journey.set_value(:switch_position, "on")
+      execution = execution |> Journey.set(:switch_position, "on")
       wait_for_switch_to_be_turned_back_off(execution, 7)
 
-      execution = execution |> Journey.set_value(:switch_position, "on")
+      execution = execution |> Journey.set(:switch_position, "on")
       wait_for_switch_to_be_turned_back_off(execution, 10)
 
       Journey.Tools.summarize_as_text(execution.id) |> IO.puts()

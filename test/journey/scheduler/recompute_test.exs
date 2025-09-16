@@ -8,8 +8,8 @@ defmodule Journey.Scheduler.Scheduler.RecomputeTest do
 
     execution = graph |> Journey.start_execution()
 
-    execution = execution |> Journey.set_value(:user_name, "Mario")
-    execution = execution |> Journey.set_value(:actual_name, "Bowser")
+    execution = execution |> Journey.set(:user_name, "Mario")
+    execution = execution |> Journey.set(:actual_name, "Bowser")
     assert Journey.get_value(execution, :greeting, wait_any: true) == {:ok, "Hello, Mario"}
 
     assert Journey.values(execution) |> redact([:execution_id, :last_updated_at]) == %{
@@ -21,7 +21,7 @@ defmodule Journey.Scheduler.Scheduler.RecomputeTest do
            }
 
     # Updating an "upstream" value.
-    execution = execution |> Journey.set_value(:user_name, "Toad")
+    execution = execution |> Journey.set(:user_name, "Toad")
 
     # The graph is recomputed.
     assert Journey.get_value(execution, :greeting, wait_new: true) == {:ok, "Hello, Toad"}

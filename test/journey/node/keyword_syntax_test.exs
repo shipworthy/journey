@@ -42,15 +42,15 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec2 = Journey.start_execution(graph2)
 
       # Value below threshold - alert should not trigger
-      exec1 = Journey.set_value(exec1, :value, 30)
-      exec2 = Journey.set_value(exec2, :value, 30)
+      exec1 = Journey.set(exec1, :value, 30)
+      exec2 = Journey.set(exec2, :value, 30)
 
       assert Journey.get_value(exec1, :alert) == {:error, :not_set}
       assert Journey.get_value(exec2, :alert) == {:error, :not_set}
 
       # Value above threshold - alert should trigger
-      exec1 = Journey.set_value(exec1, :value, 50)
-      exec2 = Journey.set_value(exec2, :value, 50)
+      exec1 = Journey.set(exec1, :value, 50)
+      exec2 = Journey.set(exec2, :value, 50)
 
       assert {:ok, "alert!"} = Journey.get_value(exec1, :alert, wait_any: true)
       assert {:ok, "alert!"} = Journey.get_value(exec2, :alert, wait_any: true)
@@ -78,11 +78,11 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec = Journey.start_execution(graph)
 
       # Set x and y but threshold below limit
-      exec = exec |> Journey.set_value(:x, 5) |> Journey.set_value(:y, 7) |> Journey.set_value(:threshold, 8)
+      exec = exec |> Journey.set(:x, 5) |> Journey.set(:y, 7) |> Journey.set(:threshold, 8)
       assert Journey.get_value(exec, :result) == {:error, :not_set}
 
       # Set threshold above limit - now should compute
-      exec = Journey.set_value(exec, :threshold, 15)
+      exec = Journey.set(exec, :threshold, 15)
       assert {:ok, "x=5, y=7, threshold=15"} = Journey.get_value(exec, :result, wait_any: true)
     end
 
@@ -108,15 +108,15 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec = Journey.start_execution(graph)
 
       # Only a meets condition
-      exec = exec |> Journey.set_value(:a, 7) |> Journey.set_value(:b, 15)
+      exec = exec |> Journey.set(:a, 7) |> Journey.set(:b, 15)
       assert Journey.get_value(exec, :result) == {:error, :not_set}
 
       # Only b meets condition
-      exec = exec |> Journey.set_value(:a, 3) |> Journey.set_value(:b, 8)
+      exec = exec |> Journey.set(:a, 3) |> Journey.set(:b, 8)
       assert Journey.get_value(exec, :result) == {:error, :not_set}
 
       # Both meet conditions
-      exec = exec |> Journey.set_value(:a, 7) |> Journey.set_value(:b, 8)
+      exec = exec |> Journey.set(:a, 7) |> Journey.set(:b, 8)
       assert {:ok, "a=7, b=8"} = Journey.get_value(exec, :result, wait_any: true)
     end
 
@@ -138,14 +138,14 @@ defmodule Journey.Node.KeywordSyntaxTest do
         )
 
       exec = Journey.start_execution(graph)
-      exec = Journey.set_value(exec, :value, "sensitive data")
+      exec = Journey.set(exec, :value, "sensitive data")
 
       # Set should_clear to false - mutation should not happen
-      exec = Journey.set_value(exec, :should_clear, false)
+      exec = Journey.set(exec, :should_clear, false)
       assert Journey.get_value(exec, :value) == {:ok, "sensitive data"}
 
       # Set should_clear to true - mutation should happen
-      exec = Journey.set_value(exec, :should_clear, true)
+      exec = Journey.set(exec, :should_clear, true)
       assert {:ok, _} = Journey.get_value(exec, :clear_value, wait_any: true)
       exec = Journey.load(exec)
       assert Journey.get_value(exec, :value) == {:ok, nil}
@@ -177,11 +177,11 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec = Journey.start_execution(graph)
 
       # Set enabled to false - schedule should not activate
-      exec = Journey.set_value(exec, :enabled, false)
+      exec = Journey.set(exec, :enabled, false)
       assert Journey.get_value(exec, :scheduled_task) == {:error, :not_set}
 
       # Set enabled to true - schedule should activate
-      exec = Journey.set_value(exec, :enabled, true)
+      exec = Journey.set(exec, :enabled, true)
 
       # Start background sweeps for test
       background_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(exec.id)
@@ -214,11 +214,11 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec = Journey.start_execution(graph)
 
       # Set temperature above threshold
-      exec = Journey.set_value(exec, :temperature, 35)
+      exec = Journey.set(exec, :temperature, 35)
       assert {:ok, "Heat warning: 35°C"} = Journey.get_value(exec, :heat_warning, wait_any: true)
 
       # Lower temperature below threshold - heat_warning should be cleared
-      exec = Journey.set_value(exec, :temperature, 25)
+      exec = Journey.set(exec, :temperature, 25)
       assert Journey.get_value(exec, :heat_warning) == {:error, :not_set}
 
       # Verify with values_all that it's really cleared
@@ -226,7 +226,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
       assert values.heat_warning == :not_set
 
       # Raise temperature again - should recompute
-      exec = Journey.set_value(exec, :temperature, 40)
+      exec = Journey.set(exec, :temperature, 40)
       assert {:ok, "Heat warning: 40°C"} = Journey.get_value(exec, :heat_warning, wait_any: true)
     end
 
@@ -253,13 +253,13 @@ defmodule Journey.Node.KeywordSyntaxTest do
       # Set all values with value above threshold
       exec =
         exec
-        |> Journey.set_value(:enabled, true)
-        |> Journey.set_value(:value, 150)
+        |> Journey.set(:enabled, true)
+        |> Journey.set(:value, 150)
 
       assert {:ok, "Alert: value is 150"} = Journey.get_value(exec, :alert, wait_any: true)
 
       # Lower value below threshold - alert should be cleared even though :enabled is still set
-      exec = Journey.set_value(exec, :value, 50)
+      exec = Journey.set(exec, :value, 50)
       assert Journey.get_value(exec, :alert) == {:error, :not_set}
 
       # Verify enabled is still set but alert is cleared
@@ -268,7 +268,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
       assert values.alert == :not_set
 
       # Raise value again - should recompute
-      exec = Journey.set_value(exec, :value, 200)
+      exec = Journey.set(exec, :value, 200)
       assert {:ok, "Alert: value is 200"} = Journey.get_value(exec, :alert, wait_any: true)
     end
 
@@ -311,8 +311,8 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec2 = Journey.start_execution(graph2)
 
       # Set values that create large sum
-      exec1 = exec1 |> Journey.set_value(:x, 30) |> Journey.set_value(:y, 30)
-      exec2 = exec2 |> Journey.set_value(:x, 30) |> Journey.set_value(:y, 30)
+      exec1 = exec1 |> Journey.set(:x, 30) |> Journey.set(:y, 30)
+      exec2 = exec2 |> Journey.set(:x, 30) |> Journey.set(:y, 30)
 
       # Both should compute alert
       assert {:ok, 60} = Journey.get_value(exec1, :sum, wait_any: true)
@@ -321,8 +321,8 @@ defmodule Journey.Node.KeywordSyntaxTest do
       assert {:ok, "Large sum: 60"} = Journey.get_value(exec2, :large_sum_alert, wait_any: true)
 
       # Lower values to create small sum
-      exec1 = exec1 |> Journey.set_value(:x, 10) |> Journey.set_value(:y, 10)
-      exec2 = exec2 |> Journey.set_value(:x, 10) |> Journey.set_value(:y, 10)
+      exec1 = exec1 |> Journey.set(:x, 10) |> Journey.set(:y, 10)
+      exec2 = exec2 |> Journey.set(:x, 10) |> Journey.set(:y, 10)
 
       # Wait for sum recomputation
       assert {:ok, 20} = Journey.get_value(exec1, :sum, wait_new: true)
@@ -363,25 +363,25 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec = Journey.start_execution(graph)
 
       # Set both above thresholds
-      exec = exec |> Journey.set_value(:temp, 40) |> Journey.set_value(:humidity, 90)
+      exec = exec |> Journey.set(:temp, 40) |> Journey.set(:humidity, 90)
 
       assert {:ok, "Extreme weather: 40°C, 90% humidity"} =
                Journey.get_value(exec, :extreme_weather_alert, wait_any: true)
 
       # Lower temperature below threshold - alert should clear
-      exec = Journey.set_value(exec, :temp, 30)
+      exec = Journey.set(exec, :temp, 30)
       assert Journey.get_value(exec, :extreme_weather_alert) == {:error, :not_set}
 
       # Lower humidity while temp is still low - alert should remain cleared
-      exec = Journey.set_value(exec, :humidity, 70)
+      exec = Journey.set(exec, :humidity, 70)
       assert Journey.get_value(exec, :extreme_weather_alert) == {:error, :not_set}
 
       # Raise temp back up, but humidity is now too low - alert should remain cleared
-      exec = Journey.set_value(exec, :temp, 40)
+      exec = Journey.set(exec, :temp, 40)
       assert Journey.get_value(exec, :extreme_weather_alert) == {:error, :not_set}
 
       # Both above thresholds again - should recompute
-      exec = Journey.set_value(exec, :humidity, 85)
+      exec = Journey.set(exec, :humidity, 85)
 
       assert {:ok, "Extreme weather: 40°C, 85% humidity"} =
                Journey.get_value(exec, :extreme_weather_alert, wait_any: true)

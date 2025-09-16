@@ -195,23 +195,23 @@ defmodule LoadTest.PerformanceBenchmark do
               :basic_info ->
                 # Set some inputs
                 execution
-                |> Journey.set_value(:full_name, "Test User #{scenario}")
-                |> Journey.set_value(:birth_date, "01/01/1990")
+                |> Journey.set(:full_name, "Test User #{scenario}")
+                |> Journey.set(:birth_date, "01/01/1990")
 
               :with_ssn ->
                 # Complete more steps
                 execution
-                |> Journey.set_value(:full_name, "Test User #{scenario}")
-                |> Journey.set_value(:birth_date, "01/01/1990")
-                |> Journey.set_value(:ssn, "111-22-3333")
+                |> Journey.set(:full_name, "Test User #{scenario}")
+                |> Journey.set(:birth_date, "01/01/1990")
+                |> Journey.set(:ssn, "111-22-3333")
 
               :nearly_complete ->
                 # Nearly complete
                 execution
-                |> Journey.set_value(:full_name, "Test User #{scenario}")
-                |> Journey.set_value(:birth_date, "01/01/1990")
-                |> Journey.set_value(:ssn, "111-22-3333")
-                |> Journey.set_value(:email_address, "test@example.com")
+                |> Journey.set(:full_name, "Test User #{scenario}")
+                |> Journey.set(:birth_date, "01/01/1990")
+                |> Journey.set(:ssn, "111-22-3333")
+                |> Journey.set(:email_address, "test@example.com")
             end
           end)
         end)
@@ -263,10 +263,10 @@ defmodule LoadTest.PerformanceBenchmark do
 
             # Rapidly update different node values
             case rem(i, 4) do
-              0 -> Journey.set_value(execution, :full_name, "Updated #{worker_id}-#{i}")
-              1 -> Journey.set_value(execution, :birth_date, "#{rem(i, 12) + 1}/#{rem(i, 28) + 1}/#{1990 + rem(i, 30)}")
-              2 -> Journey.set_value(execution, :email_address, "user#{worker_id}.#{i}@example.com")
-              3 -> Journey.set_value(execution, :ssn, "#{100 + rem(i, 899)}-#{10 + rem(i, 89)}-#{1000 + rem(i, 8999)}")
+              0 -> Journey.set(execution, :full_name, "Updated #{worker_id}-#{i}")
+              1 -> Journey.set(execution, :birth_date, "#{rem(i, 12) + 1}/#{rem(i, 28) + 1}/#{1990 + rem(i, 30)}")
+              2 -> Journey.set(execution, :email_address, "user#{worker_id}.#{i}@example.com")
+              3 -> Journey.set(execution, :ssn, "#{100 + rem(i, 899)}-#{10 + rem(i, 89)}-#{1000 + rem(i, 8999)}")
             end
           end)
         end)
@@ -291,7 +291,7 @@ defmodule LoadTest.PerformanceBenchmark do
 
         # Stagger the value setting times slightly
         if rem(i, 5) == 0, do: Process.sleep(1)
-        execution |> Journey.set_value(:full_name, "Time Test #{i}")
+        execution |> Journey.set(:full_name, "Time Test #{i}")
 
         execution
       end)
@@ -373,10 +373,10 @@ defmodule LoadTest.PerformanceBenchmark do
 
         # Complete enough steps to trigger scheduled computations
         execution
-        |> Journey.set_value(:full_name, "Scheduled Test")
-        |> Journey.set_value(:birth_date, "01/01/1990")
-        |> Journey.set_value(:ssn, "111-22-3333")
-        |> Journey.set_value(:email_address, "scheduled@example.com")
+        |> Journey.set(:full_name, "Scheduled Test")
+        |> Journey.set(:birth_date, "01/01/1990")
+        |> Journey.set(:ssn, "111-22-3333")
+        |> Journey.set(:email_address, "scheduled@example.com")
       end)
 
     # Let computations process briefly
