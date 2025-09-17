@@ -1,4 +1,4 @@
-defmodule Journey.GraphHashTest do
+defmodule Journey.NewGraphHashTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
