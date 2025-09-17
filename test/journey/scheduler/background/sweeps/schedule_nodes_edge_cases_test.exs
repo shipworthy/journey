@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.BackgroundSweeps.ScheduleNodesEdgeCasesTest do
+defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesEdgeCasesTest do
   use ExUnit.Case, async: true
 
   alias Journey.Persistence.Schema.SweepRun

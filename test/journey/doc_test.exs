@@ -1,4 +1,4 @@
-defmodule Journey.JourneyDocTest do
+defmodule Journey.DocTest do
   use ExUnit.Case, async: true
   doctest Journey
 end

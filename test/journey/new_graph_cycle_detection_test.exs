@@ -1,4 +1,4 @@
-defmodule Journey.GraphCycleDetectionTest do
+defmodule Journey.NewGraphCycleDetectionTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
