@@ -1,4 +1,12 @@
 defmodule Journey.ExecutionsMigrationTest do
+  @moduledoc """
+  Tests for `Journey.Executions.migrate_to_current_graph_if_needed/1`.
+
+  Verifies that existing executions can be seamlessly migrated when their graph
+  definitions are updated with new nodes, preserving existing data while making
+  new nodes available for use.
+  """
+
   use ExUnit.Case, async: true
 
   import Journey.Node
