@@ -243,14 +243,13 @@ defmodule Journey.Node do
   end
 
   @doc """
-  Creates a history-tracking node that maintains a chronological log of changes to another node.
+  EXPERIMENTAL: Creates a history-tracking node that maintains a chronological log of changes to another node.
 
   `name` is an atom uniquely identifying this history node.
 
-  `gated_by` should typically be the single node being tracked to ensure atomicity.
+  `gated_by` is a single-item list containing the node name to track.
 
   ## Options
-  - `:tracks` (required) - The atom name of the node whose changes to track
   - `:max_entries` (optional) - Maximum number of history entries to keep (FIFO).
     Defaults to 1000. Set to `nil` for unlimited history.
 
@@ -263,7 +262,7 @@ defmodule Journey.Node do
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:content),
-  ...>         historian(:content_history, [:content], tracks: :content)
+  ...>         historian(:content_history, [:content])
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
@@ -271,12 +270,12 @@ defmodule Journey.Node do
   iex> {:ok, history1} = Journey.get_value(execution, :content_history, wait_any: true)
   iex> length(history1)
   1
-  iex> [%{"value" => "First version", "timestamp" => _ts}] = history1
+  iex> [%{"value" => "First version", "node" => "content", "timestamp" => _ts}] = history1
   iex> execution = Journey.set(execution, :content, "Second version")
   iex> {:ok, history2} = Journey.get_value(execution, :content_history, wait: :newer)
   iex> length(history2)
   2
-  iex> [_, %{"value" => "Second version", "timestamp" => _ts}] = history2
+  iex> [_, %{"value" => "Second version", "node" => "content", "timestamp" => _ts}] = history2
   ```
 
   With custom max_entries limit:
@@ -288,7 +287,7 @@ defmodule Journey.Node do
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:status),
-  ...>         historian(:status_history, [:status], tracks: :status, max_entries: 2)
+  ...>         historian(:status_history, [:status], max_entries: 2)
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
@@ -298,7 +297,9 @@ defmodule Journey.Node do
   iex> {:ok, history} = Journey.get_value(execution, :status_history, wait: :newer)
   iex> length(history)
   2
-  iex> [%{"value" => "active"}, %{"value" => "completed"}] = Enum.map(history, &Map.take(&1, ["value"]))
+  iex> # Should keep the last 2 entries due to max_entries: 2
+  iex> Enum.map(history, fn entry -> entry["value"] end)
+  ["active", "completed"]
   ```
 
   With unlimited history:
@@ -311,7 +312,7 @@ defmodule Journey.Node do
   ...>       [
   ...>         input(:audit_event),
   ...>         # Explicitly opt-in to unlimited history for audit trail
-  ...>         historian(:audit_log, [:audit_event], tracks: :audit_event, max_entries: nil)
+  ...>         historian(:audit_log, [:audit_event], max_entries: nil)
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution()
@@ -319,17 +320,33 @@ defmodule Journey.Node do
   iex> {:ok, history} = Journey.get_value(execution, :audit_log, wait_any: true)
   iex> length(history)
   1
+  iex> [%{"value" => "login", "node" => "audit_event", "timestamp" => _ts}] = history
   ```
 
   """
   def historian(name, gated_by, opts \\ []) when is_atom(name) do
-    tracked_field = Keyword.fetch!(opts, :tracks)
+    tracked_field =
+      case gated_by do
+        [atom] when is_atom(atom) ->
+          atom
+
+        [] ->
+          raise ArgumentError, "historian/3 requires a single tracked node. Got empty list: #{inspect(gated_by)}"
+
+        [_ | _] ->
+          raise ArgumentError,
+                "historian/3 currently only supports a single tracked node. Got multiple nodes: #{inspect(gated_by)}"
+
+        _ ->
+          raise ArgumentError, "historian/3 requires a single-item list. Got: #{inspect(gated_by)}"
+      end
+
     max_entries = Keyword.get(opts, :max_entries, 1000)
 
     %Graph.Step{
       name: name,
       type: :compute,
-      gated_by: normalize_gated_by(gated_by),
+      gated_by: normalize_gated_by([tracked_field]),
       f_compute: build_historian_function(name, tracked_field, max_entries),
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
@@ -339,15 +356,26 @@ defmodule Journey.Node do
 
   defp build_historian_function(history_node_name, tracked_field, max_entries) do
     fn inputs ->
-      current_value = Map.get(inputs, tracked_field)
       existing_history = Map.get(inputs, history_node_name, [])
 
-      new_entry = %{
-        "value" => current_value,
-        "timestamp" => System.system_time(:second)
-      }
+      # Always include node field for consistency
+      new_entry =
+        if Map.has_key?(inputs, tracked_field) do
+          %{
+            "value" => Map.get(inputs, tracked_field),
+            "node" => to_string(tracked_field),
+            "timestamp" => System.system_time(:second)
+          }
+        else
+          nil
+        end
 
-      updated_history = existing_history ++ [new_entry]
+      updated_history =
+        if new_entry do
+          existing_history ++ [new_entry]
+        else
+          existing_history
+        end
 
       final_history =
         case max_entries do

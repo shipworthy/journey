@@ -14,7 +14,7 @@ defmodule Journey.Node.HistorianTest do
           "1.0.0",
           [
             input(:content),
-            historian(:content_history, [:content], tracks: :content)
+            historian(:content_history, [:content])
           ]
         )
 
@@ -25,7 +25,7 @@ defmodule Journey.Node.HistorianTest do
       {:ok, history1} = Journey.get_value(execution, :content_history, wait_any: true)
 
       assert length(history1) == 1
-      assert [%{"value" => "First version", "timestamp" => ts1}] = history1
+      assert [%{"value" => "First version", "node" => "content", "timestamp" => ts1}] = history1
       assert is_integer(ts1)
 
       # Second value
@@ -35,7 +35,9 @@ defmodule Journey.Node.HistorianTest do
       assert length(history2) == 2
       [entry1, entry2] = history2
       assert entry1["value"] == "First version"
+      assert entry1["node"] == "content"
       assert entry2["value"] == "Second version"
+      assert entry2["node"] == "content"
       assert entry2["timestamp"] >= entry1["timestamp"]
     end
 
@@ -48,7 +50,7 @@ defmodule Journey.Node.HistorianTest do
           "1.0.0",
           [
             input(:status),
-            historian(:status_history, [:status], tracks: :status, max_entries: 20)
+            historian(:status_history, [:status], max_entries: 20)
           ]
         )
 
@@ -101,7 +103,7 @@ defmodule Journey.Node.HistorianTest do
           "1.0.0",
           [
             input(:event),
-            historian(:event_log, [:event], tracks: :event, max_entries: nil)
+            historian(:event_log, [:event], max_entries: nil)
           ]
         )
 
@@ -113,7 +115,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Should keep the entry with unlimited history
       assert length(history) == 1
-      assert [%{"value" => "single_event", "timestamp" => _ts}] = history
+      assert [%{"value" => "single_event", "node" => "event", "timestamp" => _ts}] = history
     end
 
     test "schema agnostic - works with any data type" do
@@ -125,7 +127,7 @@ defmodule Journey.Node.HistorianTest do
           "1.0.0",
           [
             input(:data),
-            historian(:data_history, [:data], tracks: :data)
+            historian(:data_history, [:data])
           ]
         )
 
@@ -138,7 +140,7 @@ defmodule Journey.Node.HistorianTest do
       {:ok, history} = Journey.get_value(execution, :data_history, wait: :any)
 
       assert length(history) == 1
-      assert [%{"value" => recorded_value, "timestamp" => _ts}] = history
+      assert [%{"value" => recorded_value, "node" => "data", "timestamp" => _ts}] = history
       assert recorded_value == test_value
     end
 
@@ -151,7 +153,7 @@ defmodule Journey.Node.HistorianTest do
           "1.0.0",
           [
             input(:counter),
-            historian(:counter_history, [:counter], tracks: :counter)
+            historian(:counter_history, [:counter])
           ]
         )
 
@@ -163,7 +165,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Should have the entry and work normally
       assert length(history) == 1
-      assert [%{"value" => 1, "timestamp" => _ts}] = history
+      assert [%{"value" => 1, "node" => "counter", "timestamp" => _ts}] = history
 
       # Verify the historian works with subsequent updates (proving it has some limit, not unlimited)
       execution = Journey.set(execution, :counter, 2)
@@ -181,7 +183,7 @@ defmodule Journey.Node.HistorianTest do
           "1.0.0",
           [
             input(:counter),
-            historian(:counter_history, [:counter], tracks: :counter)
+            historian(:counter_history, [:counter])
           ]
         )
 
@@ -236,7 +238,7 @@ defmodule Journey.Node.HistorianTest do
           "1.0.0",
           [
             input(:value),
-            historian(:value_history, [:value], tracks: :value)
+            historian(:value_history, [:value])
           ]
         )
 
@@ -257,7 +259,9 @@ defmodule Journey.Node.HistorianTest do
 
       [entry1, entry2] = history2
       assert entry1["value"] == "first"
+      assert entry1["node"] == "value"
       assert entry2["value"] == "second"
+      assert entry2["node"] == "value"
 
       # Verify timestamps are in order and are integers
       assert is_integer(entry1["timestamp"])
