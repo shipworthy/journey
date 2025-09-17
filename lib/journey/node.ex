@@ -5,6 +5,7 @@ defmodule Journey.Node do
   * `input/1` – a node that takes input from the user.
   * `compute/4` – a node that computes a value based on its upstream nodes.
   * `mutate/4` – a node that mutates the value of another node.
+  * `historian/3` – a node that tracks the history of changes to another node.
   * `schedule_once/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule.
   * `schedule_recurring/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.
   """
@@ -239,6 +240,126 @@ defmodule Journey.Node do
   defp archive_graph(e) do
     archived_at = Journey.Executions.archive_execution(e.execution_id)
     {:ok, archived_at}
+  end
+
+  @doc """
+  Creates a history-tracking node that maintains a chronological log of changes to another node.
+
+  `name` is an atom uniquely identifying this history node.
+
+  `gated_by` should typically be the single node being tracked to ensure atomicity.
+
+  ## Options
+  - `:tracks` (required) - The atom name of the node whose changes to track
+  - `:max_entries` (optional) - Maximum number of history entries to keep (FIFO).
+    Defaults to 1000. Set to `nil` for unlimited history.
+
+  ## Examples:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "`historian()` doctest graph (tracks content changes)",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:content),
+  ...>         historian(:content_history, [:content], tracks: :content)
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :content, "First version")
+  iex> {:ok, history1} = Journey.get_value(execution, :content_history, wait_any: true)
+  iex> length(history1)
+  1
+  iex> [%{"value" => "First version", "timestamp" => _ts}] = history1
+  iex> execution = Journey.set(execution, :content, "Second version")
+  iex> {:ok, history2} = Journey.get_value(execution, :content_history, wait: :newer)
+  iex> length(history2)
+  2
+  iex> [_, %{"value" => "Second version", "timestamp" => _ts}] = history2
+  ```
+
+  With custom max_entries limit:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "historian with max_entries",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:status),
+  ...>         historian(:status_history, [:status], tracks: :status, max_entries: 2)
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :status, "pending")
+  iex> execution = Journey.set(execution, :status, "active")
+  iex> execution = Journey.set(execution, :status, "completed")
+  iex> {:ok, history} = Journey.get_value(execution, :status_history, wait: :newer)
+  iex> length(history)
+  2
+  iex> [%{"value" => "active"}, %{"value" => "completed"}] = Enum.map(history, &Map.take(&1, ["value"]))
+  ```
+
+  With unlimited history:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "historian with unlimited history",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:audit_event),
+  ...>         # Explicitly opt-in to unlimited history for audit trail
+  ...>         historian(:audit_log, [:audit_event], tracks: :audit_event, max_entries: nil)
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :audit_event, "login")
+  iex> {:ok, history} = Journey.get_value(execution, :audit_log, wait_any: true)
+  iex> length(history)
+  1
+  ```
+
+  """
+  def historian(name, gated_by, opts \\ []) when is_atom(name) do
+    tracked_field = Keyword.fetch!(opts, :tracks)
+    max_entries = Keyword.get(opts, :max_entries, 1000)
+
+    %Graph.Step{
+      name: name,
+      type: :compute,
+      gated_by: normalize_gated_by(gated_by),
+      f_compute: build_historian_function(name, tracked_field, max_entries),
+      f_on_save: Keyword.get(opts, :f_on_save, nil),
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+    }
+  end
+
+  defp build_historian_function(history_node_name, tracked_field, max_entries) do
+    fn inputs ->
+      current_value = Map.get(inputs, tracked_field)
+      existing_history = Map.get(inputs, history_node_name, [])
+
+      new_entry = %{
+        "value" => current_value,
+        "timestamp" => System.system_time(:second)
+      }
+
+      updated_history = existing_history ++ [new_entry]
+
+      final_history =
+        case max_entries do
+          nil ->
+            updated_history
+
+          max when is_integer(max) and max > 0 ->
+            Enum.take(updated_history, -max)
+        end
+
+      {:ok, final_history}
+    end
   end
 
   @doc """
