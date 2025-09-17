@@ -29,9 +29,10 @@ The entry point for the Journey library. Provides functions for creating and man
 Functions for creating various types of nodes in a graph.
 
 Functions:
-- `Journey.Node.input/1` - Creates a graph input node whose value is set with `Journey.set/3` or `Journey.set/2` 
+- `Journey.Node.input/1` - Creates a graph input node whose value is set with `Journey.set/3` or `Journey.set/2`
 - `Journey.Node.compute/4` - Creates a self-computing node that calculates its value based on upstream dependencies, when unblocked
 - `Journey.Node.mutate/4` - Creates a graph node that mutates the value of another node, when unblocked
+- `Journey.Node.historian/3` - Creates a history-tracking node that maintains a chronological log of changes to another node (default limit: 1000 entries)
 - `Journey.Node.archive/3` - Creates a graph node that archives data when unblocked
 - `Journey.Node.schedule_once/4` - Creates a graph node that declares its readiness at a specific time, once
 - `Journey.Node.schedule_recurring/4` - Creates a graph node that declares its readiness at specific times, repeatedly
