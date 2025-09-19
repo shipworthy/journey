@@ -50,14 +50,14 @@ defmodule Journey do
   iex> e = Journey.set(e, :birth_month, "April")
   iex>
   iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
-  iex> Journey.get_value(e, :zodiac_sign, wait_any: true)
+  iex> Journey.get_value(e, :zodiac_sign, wait: :any)
   {:ok, "Taurus"}
   iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
   %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
   iex>
   iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
   iex> e = Journey.set(e, :first_name, "Mario")
-  iex> Journey.get_value(e, :horoscope, wait_any: true)
+  iex> Journey.get_value(e, :horoscope, wait: :any)
   {:ok, "🍪s await, Taurus Mario!"}
   iex>
   iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
@@ -146,7 +146,7 @@ defmodule Journey do
   "greeting workflow"
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :name, "Alice")
-  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  iex> Journey.get_value(execution, :greeting, wait: :any)
   {:ok, "Hello, Alice!"}
   ```
 
@@ -212,10 +212,10 @@ defmodule Journey do
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :birth_day, 15)
   iex> execution = Journey.set(execution, :birth_month, "May")
-  iex> Journey.get_value(execution, :zodiac_sign, wait_any: true)
+  iex> Journey.get_value(execution, :zodiac_sign, wait: :any)
   {:ok, "Taurus"}
   iex> execution = Journey.set(execution, :first_name, "Bob")
-  iex> Journey.get_value(execution, :horoscope, wait_any: true)
+  iex> Journey.get_value(execution, :horoscope, wait: :any)
   {:ok, "🍪s await, Taurus Bob!"}
   ```
 
@@ -238,9 +238,9 @@ defmodule Journey do
   ...> )
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :raw_data, "hello world")
-  iex> Journey.get_value(execution, :upper_case, wait_any: true)
+  iex> Journey.get_value(execution, :upper_case, wait: :any)
   {:ok, "HELLO WORLD"}
-  iex> Journey.get_value(execution, :suffix, wait_any: true)
+  iex> Journey.get_value(execution, :suffix, wait: :any)
   {:ok, "HELLO WORLD omg yay"}
   ```
 
@@ -263,7 +263,7 @@ defmodule Journey do
   ```elixir
   execution = Journey.set(execution, :name, "Mario")
   execution = Journey.load(execution)  # Get updated state with new revision
-  {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, greeting} = Journey.get_value(execution, :greeting, wait: :any)
   ```
 
   Use `set/3` and `get_value/3` to modify and read execution values.
@@ -307,7 +307,7 @@ defmodule Journey do
   iex> execution = Journey.set(execution, :name, "Alice")
   iex> execution.revision > 0
   true
-  iex> {:ok, "Hello, Alice!"} = Journey.get_value(execution, :greeting, wait_any: true)
+  iex> {:ok, "Hello, Alice!"} = Journey.get_value(execution, :greeting, wait: :any)
   iex> reloaded = Journey.load(execution)
   iex> reloaded.revision >= execution.revision
   true
@@ -641,7 +641,7 @@ defmodule Journey do
   ```elixir
   execution = Journey.start_execution(graph)
   execution = Journey.set(execution, :name, "Mario")
-  {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, greeting} = Journey.get_value(execution, :greeting, wait: :any)
   ```
 
   Use `set/3` to provide input values and `get_value/3` to retrieve computed results.
@@ -714,7 +714,7 @@ defmodule Journey do
   %{}
   iex> execution = Journey.set(execution, :x, 10)
   iex> execution = Journey.set(execution, :y, 20)
-  iex> Journey.get_value(execution, :sum, wait_any: true)
+  iex> Journey.get_value(execution, :sum, wait: :any)
   {:ok, 30}
   ```
 
@@ -924,7 +924,7 @@ defmodule Journey do
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :x, 10)
   iex> execution = Journey.set(execution, :y, 20)
-  iex> Journey.get_value(execution, :sum, wait_any: true)
+  iex> Journey.get_value(execution, :sum, wait: :any)
   {:ok, 30}
   iex> Journey.history(execution) |> Enum.map(fn entry ->
   ...>   case entry.node_name do
@@ -1001,7 +1001,7 @@ defmodule Journey do
   # Multiple values via keyword list
   execution = Journey.set(execution, name: "Mario", age: 35)
 
-  {:ok, greeting} = Journey.get_value(execution, :greeting, wait_any: true)
+  {:ok, greeting} = Journey.get_value(execution, :greeting, wait: :any)
   ```
 
   Use `get_value/3` to retrieve values and `unset/2` to remove values.
@@ -1022,10 +1022,10 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  iex> Journey.get_value(execution, :greeting, wait: :any)
   {:ok, "Hello, Mario!"}
   iex> execution = Journey.set(execution, :name, "Luigi")
-  iex> Journey.get_value(execution, :greeting, wait_new: true)
+  iex> Journey.get_value(execution, :greeting, wait: :newer)
   {:ok, "Hello, Luigi!"}
   ```
 
@@ -1101,7 +1101,7 @@ defmodule Journey do
   {:ok, "Mario"}
   iex> Journey.get_value(execution, :last_name)
   {:ok, "Bros"}
-  iex> Journey.get_value(execution, :full_name, wait_any: true)
+  iex> Journey.get_value(execution, :full_name, wait: :any)
   {:ok, "Mario Bros"}
   ```
 
@@ -1313,7 +1313,7 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> Journey.get_value(execution, :greeting, wait_any: true)
+  iex> Journey.get_value(execution, :greeting, wait: :any)
   {:ok, "Hello, Mario!"}
   iex> execution_after_unset = Journey.unset(execution, :name)
   iex> Journey.get_value(execution_after_unset, :name)
@@ -1337,9 +1337,9 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :a, "value")
-  iex> Journey.get_value(execution, :b, wait_any: true)
+  iex> Journey.get_value(execution, :b, wait: :any)
   {:ok, "B:value"}
-  iex> Journey.get_value(execution, :c, wait_any: true)
+  iex> Journey.get_value(execution, :c, wait: :any)
   {:ok, "C:B:value"}
   iex> execution_after_unset = Journey.unset(execution, :a)
   iex> Journey.get_value(execution_after_unset, :a)
@@ -1384,7 +1384,7 @@ defmodule Journey do
   ...> )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros", email: "mario@example.com"})
-  iex> Journey.get_value(execution, :full_name, wait_any: true)
+  iex> Journey.get_value(execution, :full_name, wait: :any)
   {:ok, "Mario Bros"}
   iex> execution_after_unset = Journey.unset(execution, [:first_name, :last_name])
   iex> Journey.get_value(execution_after_unset, :first_name)
@@ -1467,23 +1467,15 @@ defmodule Journey do
 
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
-  * Raises `ArgumentError` if mixing new style options (`:wait`, `:timeout`) with old style options (`:wait_any`, `:wait_new`)
   * Raises `ArgumentError` if an invalid `:wait` option is provided
 
   ## Options
-  * `:wait_any` – whether or not to wait for the value to be set. This option can have the following values:
-    * `false` or `0` – return immediately without waiting (default)
-    * `true` – wait until the value is available, or until timeout
-    * a positive integer – wait for the supplied number of milliseconds (default: 30_000)
-    * `:infinity` – wait indefinitely
-    This is useful for self-computing nodes, where the value is computed asynchronously.
-  * `:wait_new` – whether to wait for a new revision of the value, compared to the version in the supplied execution. This option can have the following values:
-    * `false` – do not wait for a new revision (default)
-    * `true` – wait for a value with a higher revision than the current one, or the first value if none exists yet, or until timeout
-    * a positive integer – wait for the supplied number of milliseconds for a new revision
-    This is useful for when want a new version of the value, and are waiting for it to get computed.
-
-  **Note:** `:wait_any` and `:wait_new` are mutually exclusive.
+  * `:wait` – Controls waiting behavior:
+    * `:immediate` (default) – Return immediately without waiting
+    * `:any` – Wait until the value is available or timeout
+    * `:newer` – Wait for a newer revision than current execution
+    * `{:newer_than, revision}` – Wait for value newer than specific revision
+  * `:timeout` – Timeout in milliseconds (default: 30,000) or `:infinity`
 
   ## Examples
 
@@ -1501,12 +1493,12 @@ defmodule Journey do
     iex> execution = Journey.set(execution, :birth_month, "April")
     iex> Journey.get_value(execution, :astrological_sign)
     {:error, :not_set}
-    iex> Journey.get_value(execution, :astrological_sign, wait_any: true)
+    iex> Journey.get_value(execution, :astrological_sign, wait: :any)
     {:ok, "Taurus"}
-    iex> Journey.get_value(execution, :horoscope, wait_any: 2_000)
+    iex> Journey.get_value(execution, :horoscope, wait: :any, timeout: 2_000)
     {:error, :not_set}
     iex> execution = Journey.set(execution, :first_name, "Mario")
-    iex> Journey.get_value(execution, :horoscope, wait_any: true)
+    iex> Journey.get_value(execution, :horoscope, wait: :any)
     {:ok, "🍪s await, Taurus Mario!"}
     ```
 

@@ -405,7 +405,7 @@ Now that both `:x` and `:y` have been supplied, `:sum` gets computed. Here is th
 (Note: since `:sum` is "small",  `:large_value_alert` does not get set (thanks to the condition we defined in the graph for this node.)
 
 ```elixir
-Journey.get_value(reloaded_execution, :sum, wait_any: true)
+Journey.get_value(reloaded_execution, :sum, wait: :any)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -458,7 +458,7 @@ reloaded_execution = Journey.set(reloaded_execution, :x, 133); :ok
 "no worries, here is the updated sum"
 
 ```elixir
-Journey.get_value(reloaded_execution, :sum, wait_new: true)
+Journey.get_value(reloaded_execution, :sum, wait: :newer)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -490,7 +490,7 @@ reloaded_execution = Journey.set(reloaded_execution, :x, 1); :ok
 ```
 
 ```elixir
-Journey.get_value(reloaded_execution, :sum, wait_new: true)
+Journey.get_value(reloaded_execution, :sum, wait: :newer)
 ```
 
 <!-- livebook:{"output":true} -->
