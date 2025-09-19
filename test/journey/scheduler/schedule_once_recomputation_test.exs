@@ -18,7 +18,6 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
     {:ok, execution: execution, graph: graph}
   end
 
-  @tag timeout: 60_000
   test "schedule_once recomputes when upstream dependency changes", %{execution: execution} do
     initial_due_time = System.system_time(:second) + 100_000
     execution = Journey.set(execution, :due_date, initial_due_time)
@@ -53,7 +52,6 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
     end
   end
 
-  @tag timeout: 60_000
   test "downstream nodes work correctly with rescheduled times", %{execution: execution} do
     initial_due_time = System.system_time(:second) + 100_000
     execution = Journey.set(execution, :due_date, initial_due_time)
@@ -72,7 +70,6 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
     end
   end
 
-  @tag timeout: 30_000
   test "multiple upstream changes create multiple recomputations", %{execution: execution} do
     initial_due_time = System.system_time(:second) + 100_000
     execution = Journey.set(execution, :due_date, initial_due_time)
