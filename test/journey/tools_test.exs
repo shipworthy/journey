@@ -242,9 +242,9 @@ defmodule Journey.ToolsTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       # Get values to trigger computations
-      {:ok, _} = Journey.get_value(execution, :success_node, wait_new: true)
+      {:ok, _} = Journey.get_value(execution, :success_node, wait: :any)
       # The fail_node will fail
-      {:error, _} = Journey.get_value(execution, :fail_node, wait_new: true)
+      {:error, _} = Journey.get_value(execution, :fail_node, wait: :newer)
 
       # Check that completed states use emoji format
       _execution_after = Journey.load(execution.id)

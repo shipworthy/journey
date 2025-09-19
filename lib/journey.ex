@@ -466,7 +466,7 @@ defmodule Journey do
 
   ```elixir
   iex> import Journey.Node
-  iex> graph_name = "version example #{Journey.Helpers.Random.random_string()}"
+  iex> graph_name = "version example #{Journey.Helpers.Random.random_string()}{#{System.system_time(:millisecond)}}"
   iex> graph_v1 = Journey.new_graph(
   ...>   graph_name,
   ...>   "v1.0.0",
