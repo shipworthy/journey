@@ -13,7 +13,7 @@ defmodule Journey.JourneyGetValueTest do
         basic_graph(random_string())
         |> Journey.start_execution()
 
-      assert Journey.get_value(execution, :first_name) == {:error, :not_set}
+      assert Journey.get(execution, :first_name) == {:error, :not_set}
     end
 
     test "sunny day, input, set, non-blocking" do
@@ -22,7 +22,7 @@ defmodule Journey.JourneyGetValueTest do
         |> Journey.start_execution()
         |> Journey.set(:first_name, "Mario")
 
-      assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
+      {:ok, "Mario", _} = Journey.get(execution, :first_name)
     end
 
     test "sunny day, computation, set, blocking" do
@@ -31,7 +31,7 @@ defmodule Journey.JourneyGetValueTest do
         |> Journey.start_execution()
         |> Journey.set(:first_name, "Mario")
 
-      assert Journey.get_value(execution, :greeting, wait_any: true) == {:ok, "Hello, Mario"}
+      {:ok, "Hello, Mario", _} = Journey.get(execution, :greeting, wait: :any)
     end
 
     test "no such node" do
@@ -43,7 +43,7 @@ defmodule Journey.JourneyGetValueTest do
       assert_raise RuntimeError,
                    "':no_such_node' is not a known node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid node names: [:execution_id, :first_name, :greeting, :last_updated_at].",
                    fn ->
-                     Journey.get_value(execution, :no_such_node, wait_any: true) == {:ok, "Hello, Mario"}
+                     Journey.get(execution, :no_such_node, wait: :any)
                    end
     end
   end

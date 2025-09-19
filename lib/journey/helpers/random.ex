@@ -14,6 +14,11 @@ defmodule Journey.Helpers.Random do
     Nanoid.generate(length, dictionary)
   end
 
+  def random_string_w_time(length \\ 12, dictionary \\ any_char_or_digit())
+      when is_number(length) and is_binary(dictionary) do
+    random_string(length, dictionary) <> "#{System.system_time(:microsecond)}"
+  end
+
   def object_id(prefix) when is_binary(prefix) do
     prefix <> random_string(20, digits() <> uppercase())
   end

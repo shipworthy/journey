@@ -20,9 +20,9 @@ defmodule LoadTest.SunnyDay do
             e = lifetime_success_flow(e)
 
             e
-            |> Journey.get_value(:archive)
+            |> Journey.get(:archive)
             |> case do
-              {:ok, _} ->
+              {:ok, _, _} ->
                 Logger.debug("#{e.id}: execution completed successfully.")
 
               _huh ->
@@ -72,15 +72,15 @@ defmodule LoadTest.SunnyDay do
 
     Process.sleep(4_000)
 
-    {:ok, _credit_score} = e |> Journey.get_value(:credit_score, wait_any: 45_000)
-    {:ok, _decision} = e |> Journey.get_value(:preapproval_decision, wait_any: 45_000)
-    {:ok, true} = e |> Journey.get_value(:preapproval_process_completed, wait_any: 45_000)
-    {:ok, true} = e |> Journey.get_value(:send_preapproval_reminder, wait_any: 45_000)
+    {:ok, _credit_score, _} = e |> Journey.get(:credit_score, wait: :any, timeout: 45_000)
+    {:ok, _decision, _} = e |> Journey.get(:preapproval_decision, wait: :any, timeout: 45_000)
+    {:ok, true, _} = e |> Journey.get(:preapproval_process_completed, wait: :any, timeout: 45_000)
+    {:ok, true, _} = e |> Journey.get(:send_preapproval_reminder, wait: :any, timeout: 45_000)
     e = e |> Journey.set(:credit_card_requested, true)
-    {:ok, true} = e |> Journey.get_value(:initiate_credit_card_issuance, wait_any: 45_000)
+    {:ok, true, _} = e |> Journey.get(:initiate_credit_card_issuance, wait: :any, timeout: 45_000)
     e = e |> Journey.set(:credit_card_mailed, true)
-    {:ok, true} = e |> Journey.get_value(:credit_card_mailed_notification, wait_any: 45_000)
-    {:ok, _} = e |> Journey.get_value(:archive, wait_any: 45_000)
+    {:ok, true, _} = e |> Journey.get(:credit_card_mailed_notification, wait: :any, timeout: 45_000)
+    {:ok, _, _} = e |> Journey.get(:archive, wait: :any, timeout: 45_000)
     Logger.info("lifetime_success_flow[#{e.id}]: completed")
 
     e

@@ -100,7 +100,7 @@ defmodule Journey.JourneyListExecutionsTest do
         |> Journey.set(:first_name, "Mario")
 
       expected_order = remaining_ids ++ [first_id]
-      {:ok, "Hello, Mario"} = Journey.get_value(updated_execution, :greeting, wait_any: true)
+      {:ok, "Hello, Mario", _} = Journey.get(updated_execution, :greeting, wait: :any)
 
       listed_execution_ids =
         Journey.list_executions(graph_name: basic_graph(test_id).name, order_by_execution_fields: [:updated_at])
