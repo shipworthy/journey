@@ -535,6 +535,13 @@ defmodule Journey.Executions do
   end
 
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
+    case get_value_node(execution, node_name, timeout_ms, opts) do
+      {:ok, value_node} -> {:ok, value_node.node_value}
+      error -> error
+    end
+  end
+
+  def get_value_node(execution, node_name, timeout_ms, opts \\ []) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     wait_new = Keyword.get(opts, :wait_new, false)
     wait_for_revision = Keyword.get(opts, :wait_for_revision, nil)
@@ -695,7 +702,7 @@ defmodule Journey.Executions do
   end
 
   defp process_loaded_value(
-         %{set_time: set_time, ex_revision: revision, node_value: value} = value_node,
+         %{set_time: set_time, ex_revision: revision, node_value: _value} = value_node,
          execution,
          node_name,
          monotonic_time_deadline,
@@ -707,12 +714,12 @@ defmodule Journey.Executions do
       # For wait_new: check if we have a newer revision
       wait_for_revision != nil and set_time != nil and revision > wait_for_revision ->
         Logger.debug("#{prefix}: found newer revision #{revision}")
-        {:ok, value}
+        {:ok, value_node}
 
       # For regular load_value: return if value is set
       wait_for_revision == nil and set_time != nil ->
         Logger.info("#{prefix}: have value, returning.")
-        {:ok, value}
+        {:ok, value_node}
 
       # Value not set (or not new enough for wait_new)
       true ->

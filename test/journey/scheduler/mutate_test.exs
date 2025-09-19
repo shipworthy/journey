@@ -10,7 +10,7 @@ defmodule Journey.Scheduler.Scheduler.MutateTest do
       graph = graph_v0()
       execution = graph |> Journey.start_execution()
 
-      assert Journey.get_value(execution, :switch_position) == {:error, :not_set}
+      assert Journey.get(execution, :switch_position) == {:error, :not_set}
       assert Journey.Executions.find_value_by_name(execution, :switch_position).ex_revision == 0
 
       execution = execution |> Journey.set(:switch_position, "on")
@@ -55,6 +55,11 @@ defmodule Journey.Scheduler.Scheduler.MutateTest do
              expected_next_revision == Journey.Executions.find_value_by_name(execution, :switch_position).ex_revision
            end)
 
-    assert wait_for(fn -> {:ok, "off"} == Journey.get_value(execution, :switch_position) end)
+    assert wait_for(fn ->
+             case Journey.get(execution, :switch_position) do
+               {:ok, "off", _} -> true
+               _ -> false
+             end
+           end)
   end
 end
