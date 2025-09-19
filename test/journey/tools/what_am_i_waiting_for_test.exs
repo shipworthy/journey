@@ -10,7 +10,7 @@ defmodule Journey.Tools.WhatAmIWaitingForTest do
       execution = Journey.start_execution(graph)
 
       result = Journey.Tools.what_am_i_waiting_for(execution.id, :reminder)
-      assert result == "🛑 :greeting | &provided?/1\n🛑 :time_to_issue_reminder_schedule | &provided?/1"
+      assert result == "🛑 :time_to_issue_reminder_schedule | &provided?/1"
 
       execution = Journey.set(execution, :user_name, "Bowser")
 
@@ -18,13 +18,13 @@ defmodule Journey.Tools.WhatAmIWaitingForTest do
       {:ok, _reminder_scheduled} = Journey.get_value(execution, :time_to_issue_reminder_schedule, wait_any: true)
 
       result = Journey.Tools.what_am_i_waiting_for(execution.id, :reminder)
-      assert result == "✅ :greeting | &provided?/1 | rev 3\n🛑 :time_to_issue_reminder_schedule | &provided?/1"
+      assert result == "🛑 :time_to_issue_reminder_schedule | &provided?/1"
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
       {:ok, _reminder_value} = Journey.get_value(execution, :reminder, wait_any: true)
 
       result = Journey.Tools.what_am_i_waiting_for(execution.id, :reminder)
-      assert result == "✅ :greeting | &provided?/1 | rev 3\n✅ :time_to_issue_reminder_schedule | &provided?/1 | rev 5\n"
+      assert result == "✅ :time_to_issue_reminder_schedule | &provided?/1 | rev 5\n"
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end

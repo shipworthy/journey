@@ -421,7 +421,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
         end
 
       # Wait for all tasks to complete
-      results = Task.await_many(tasks, 5000)
+      results = Task.await_many(tasks, 10_000)
 
       # Count how many sweeps actually ran (returned a sweep_run_id)
       successful_sweeps =

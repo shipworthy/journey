@@ -125,9 +125,7 @@ defmodule Journey.ToolsTest do
         - time_to_issue_reminder_schedule: ⬜ :not_set (not yet attempted) | :schedule_once
              🛑 :greeting | &provided?/1
         - reminder: ⬜ :not_set (not yet attempted) | :compute
-             :and
-              ├─ 🛑 :greeting | &provided?/1
-              └─ 🛑 :time_to_issue_reminder_schedule | &provided?/1
+             🛑 :time_to_issue_reminder_schedule | &provided?/1
         - greeting: ⬜ :not_set (not yet attempted) | :compute
              🛑 :user_name | &provided?/1
       """
@@ -205,7 +203,6 @@ defmodule Journey.ToolsTest do
       - Completed:
         - :reminder (CMPREDACTED): ✅ :success | :compute | rev 7
           inputs used: 
-             :greeting (rev 3)
              :time_to_issue_reminder_schedule (rev 5)
         - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :schedule_once | rev 5
           inputs used: 
@@ -245,9 +242,9 @@ defmodule Journey.ToolsTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       # Get values to trigger computations
-      {:ok, _} = Journey.get_value(execution, :success_node, wait_new: true)
+      {:ok, _} = Journey.get_value(execution, :success_node, wait: :any)
       # The fail_node will fail
-      {:error, _} = Journey.get_value(execution, :fail_node, wait_new: true)
+      {:error, _} = Journey.get_value(execution, :fail_node, wait: :newer)
 
       # Check that completed states use emoji format
       _execution_after = Journey.load(execution.id)
@@ -466,7 +463,7 @@ defmodule Journey.ToolsTest do
         |> Enum.join("\n")
 
       assert mermaid_graph ==
-               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[\"greeting<br/>(anonymous fn)\"]\n        time_to_issue_reminder_schedule[\"time_to_issue_reminder_schedule<br/>(anonymous fn)<br/>schedule_once node\"]\n        reminder[\"reminder<br/>(anonymous fn)\"]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        greeting -->  reminder\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Legend\n    subgraph Legend[\"📖 Legend\"]\n        LegendInput[\"Input Node<br/>User-provided data\"]\n        LegendCompute[\"Compute Node<br/>Self-computing value\"]\n        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]\n        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000\n    classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000\n    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000\n    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000\n\n    %% Apply styles to legend nodes\n    class LegendInput inputNode\n    class LegendCompute computeNode\n    class LegendSchedule scheduleNode\n    class LegendMutate mutateNode\n\n    %% Apply styles to actual nodes\n    class user_name,last_updated_at,execution_id inputNode\n    class reminder,greeting computeNode\n    class time_to_issue_reminder_schedule scheduleNode"
+               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[\"greeting<br/>(anonymous fn)\"]\n        time_to_issue_reminder_schedule[\"time_to_issue_reminder_schedule<br/>(anonymous fn)<br/>schedule_once node\"]\n        reminder[\"reminder<br/>(anonymous fn)\"]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Legend\n    subgraph Legend[\"📖 Legend\"]\n        LegendInput[\"Input Node<br/>User-provided data\"]\n        LegendCompute[\"Compute Node<br/>Self-computing value\"]\n        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]\n        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000\n    classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000\n    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000\n    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000\n\n    %% Apply styles to legend nodes\n    class LegendInput inputNode\n    class LegendCompute computeNode\n    class LegendSchedule scheduleNode\n    class LegendMutate mutateNode\n\n    %% Apply styles to actual nodes\n    class user_name,last_updated_at,execution_id inputNode\n    class reminder,greeting computeNode\n    class time_to_issue_reminder_schedule scheduleNode"
     end
 
     test "default - flow only (no legend, no timestamp)" do
@@ -572,12 +569,18 @@ defmodule Journey.ToolsTest do
 
       {:ok, _} = Journey.get_value(execution, :reminder, wait_any: true)
       execution = execution |> Journey.load()
+
+      reminder_revision_1 =
+        execution.values
+        |> Enum.find(fn n -> n.node_name == :reminder end)
+        |> Map.get(:ex_revision)
+
       assert execution.revision == 7
 
       Journey.Tools.increment_revision(execution.id, :user_name)
-      {:ok, _} = Journey.get_value(execution, :reminder, wait_new: true)
+      {:ok, _} = Journey.get_value(execution, :reminder, wait: {:newer_than, reminder_revision_1})
       execution = execution |> Journey.load()
-      assert execution.revision == 12
+      assert execution.revision == 14
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
@@ -601,7 +604,7 @@ defmodule Journey.ToolsTest do
           :reminder ->
             assert computation.state == :not_set
             assert oc.conditions_met == []
-            assert Enum.count(oc.conditions_not_met) == 2
+            assert Enum.count(oc.conditions_not_met) == 1
 
           :time_to_issue_reminder_schedule ->
             assert computation.state == :not_set

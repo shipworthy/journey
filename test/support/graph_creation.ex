@@ -19,7 +19,7 @@ defmodule Journey.Test.Support do
         ),
         compute(
           :reminder,
-          [:greeting, :time_to_issue_reminder_schedule],
+          [:time_to_issue_reminder_schedule],
           &f_compose_reminder/1
         )
       ]
