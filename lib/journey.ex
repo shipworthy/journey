@@ -809,10 +809,11 @@ defmodule Journey do
 
   @doc group: "Data Retrieval"
   @doc """
-  Returns a map of all set node values in an execution, excluding unset nodes.
+  Returns a map of node values in an execution.
 
-  This function filters the execution to only include nodes that have been populated with data.
-  Unset nodes are excluded from the result. Always includes `:execution_id` and `:last_updated_at` metadata.
+  By default, only returns nodes that have been set, excluding unset nodes.
+  With `include_unset_as_nil: true`, returns all nodes with unset ones as `nil`.
+  Always includes `:execution_id` and `:last_updated_at` metadata.
 
   ## Quick Example
 
@@ -820,17 +821,24 @@ defmodule Journey do
   execution = Journey.set(execution, :name, "Alice")
   values = Journey.values(execution)
   # %{name: "Alice", execution_id: "EXEC...", last_updated_at: 1234567890}
+
+  # Include unset nodes as nil
+  all_values = Journey.values(execution, include_unset_as_nil: true)
+  # %{name: "Alice", age: nil, execution_id: "EXEC...", last_updated_at: 1234567890}
   ```
 
-  Use `values_all/1` to see all nodes including unset ones, or `get_value/3` for individual values.
+  Use `values_all/1` to see all nodes with their status tuples, or `get_value/3` for individual values.
 
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
-  * `opts` - Keyword list of options (`:reload` - see `values_all/1` for details)
+  * `opts` - Keyword list of options:
+    * `:reload` - Reload execution from database (default: `true`)
+    * `:include_unset_as_nil` - Include unset nodes as `nil` values (default: `false`)
 
   ## Returns
   * Map with node names as keys and their current values as values
-  * Only includes nodes that have been set (excludes `:not_set` nodes)
+  * When `include_unset_as_nil: false` (default): Only includes set nodes
+  * When `include_unset_as_nil: true`: Includes all nodes, with unset ones as `nil`
 
   ## Examples
 
@@ -847,15 +855,28 @@ defmodule Journey do
   %{name: "Alice", execution_id: "...", last_updated_at: 1234567890}
   ```
 
+  Including unset nodes:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph("example", "v1.0.0", [input(:name), input(:age)])
+  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.set(execution, :name, "Alice")
+  iex> Journey.values(execution, include_unset_as_nil: true) |> redact([:execution_id, :last_updated_at])
+  %{name: "Alice", age: nil, execution_id: "...", last_updated_at: 1234567890}
+  ```
+
   """
   def values(execution, opts \\ []) when is_struct(execution, Execution) and is_list(opts) do
     opts_schema = [
-      reload: [is: :boolean]
+      reload: [is: :boolean],
+      include_unset_as_nil: [is: :boolean]
     ]
 
     KeywordValidator.validate!(opts, opts_schema)
 
     reload? = Keyword.get(opts, :reload, true)
+    include_unset_as_nil? = Keyword.get(opts, :include_unset_as_nil, false)
 
     execution =
       if reload? do
@@ -864,15 +885,29 @@ defmodule Journey do
         execution
       end
 
-    execution
-    |> values_all()
-    |> Enum.filter(fn {_k, v} ->
-      v
-      |> case do
-        {:set, _} -> true
-        _ -> false
+    all_values = values_all(execution, reload: false)
+
+    if include_unset_as_nil? do
+      transform_all_values(all_values)
+    else
+      transform_set_values_only(all_values)
+    end
+  end
+
+  defp transform_all_values(all_values) do
+    all_values
+    |> Enum.map(fn {k, v} ->
+      case v do
+        {:set, value} -> {k, value}
+        :not_set -> {k, nil}
       end
     end)
+    |> Enum.into(%{})
+  end
+
+  defp transform_set_values_only(all_values) do
+    all_values
+    |> Enum.filter(fn {_k, v} -> match?({:set, _}, v) end)
     |> Enum.map(fn {k, {:set, v}} -> {k, v} end)
     |> Enum.into(%{})
   end
