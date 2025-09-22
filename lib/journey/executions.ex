@@ -554,19 +554,6 @@ defmodule Journey.Executions do
     |> log_get_value_result(prefix)
   end
 
-  def get_value_node_by_id(execution_id, node_name, timeout_ms, opts \\ []) do
-    prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"
-    wait_new = Keyword.get(opts, :wait_new, false)
-    wait_for_revision = Keyword.get(opts, :wait_for_revision, nil)
-
-    log_get_value_start(prefix, timeout_ms, wait_new, wait_for_revision)
-
-    monotonic_time_deadline = calculate_deadline(timeout_ms)
-
-    load_value_by_id_with_options(execution_id, node_name, monotonic_time_deadline, wait_new, wait_for_revision)
-    |> log_get_value_result(prefix)
-  end
-
   defp log_get_value_start(prefix, timeout_ms, wait_new, wait_for_revision) do
     Logger.debug(
       "#{prefix}: starting." <>
@@ -594,23 +581,6 @@ defmodule Journey.Executions do
   defp load_value_with_options(execution, node_name, monotonic_time_deadline, false, nil) do
     # No waiting
     load_value(execution, node_name, monotonic_time_deadline, 0)
-  end
-
-  # Load value by execution_id variants (optimized for direct database queries)
-  defp load_value_by_id_with_options(execution_id, node_name, monotonic_time_deadline, _wait_new, wait_for_revision)
-       when wait_for_revision != nil do
-    # Wait for specific revision
-    load_value_by_id_internal(execution_id, node_name, monotonic_time_deadline, 0, wait_for_revision)
-  end
-
-  defp load_value_by_id_with_options(execution_id, node_name, monotonic_time_deadline, true, _wait_for_revision) do
-    # Wait for newer revision than current value
-    load_value_by_id_wait_new(execution_id, node_name, monotonic_time_deadline, 0)
-  end
-
-  defp load_value_by_id_with_options(execution_id, node_name, monotonic_time_deadline, false, nil) do
-    # No waiting - direct lookup
-    load_value_by_id(execution_id, node_name, monotonic_time_deadline, 0)
   end
 
   defp log_get_value_result(result, prefix) do
@@ -839,126 +809,6 @@ defmodule Journey.Executions do
     starting_revision = if starting_value, do: starting_value.ex_revision, else: 0
 
     load_value_internal(execution, node_name, monotonic_time_deadline, call_count, starting_revision)
-  end
-
-  # Load value by execution_id variants (optimized, no execution struct needed)
-  defp load_value_by_id(execution_id, node_name, monotonic_time_deadline, call_count) do
-    load_value_by_id_internal(execution_id, node_name, monotonic_time_deadline, call_count, nil)
-  end
-
-  defp load_value_by_id_internal(execution_id, node_name, monotonic_time_deadline, call_count, wait_for_revision) do
-    wait_new = wait_for_revision != nil
-
-    prefix =
-      "[#{execution_id}][#{node_name}][#{mf()}][#{call_count}]" <>
-        if(wait_new, do: " wait_new", else: "")
-
-    if wait_new do
-      Logger.debug("#{prefix}: waiting for revision > #{wait_for_revision}")
-    end
-
-    current_value = load_current_value(execution_id, node_name)
-
-    # Handle the different cases
-    process_loaded_value_by_id(
-      current_value,
-      execution_id,
-      node_name,
-      monotonic_time_deadline,
-      call_count,
-      wait_for_revision,
-      prefix
-    )
-  end
-
-  defp load_value_by_id_wait_new(execution_id, node_name, monotonic_time_deadline, call_count) do
-    current_value = load_current_value(execution_id, node_name)
-    current_revision = if current_value, do: current_value.ex_revision, else: 0
-    load_value_by_id_internal(execution_id, node_name, monotonic_time_deadline, call_count, current_revision)
-  end
-
-  defp process_loaded_value_by_id(
-         nil = _value_node,
-         execution_id,
-         node_name,
-         monotonic_time_deadline,
-         call_count,
-         wait_for_revision,
-         prefix
-       ) do
-    if monotonic_time_deadline == nil do
-      Logger.warning("#{prefix}: value not found.")
-      {:error, :not_set}
-    else
-      # Wait for the Value node to be created or updated
-      handle_value_not_ready_by_id(
-        execution_id,
-        node_name,
-        monotonic_time_deadline,
-        call_count,
-        wait_for_revision,
-        nil,
-        prefix
-      )
-    end
-  end
-
-  defp process_loaded_value_by_id(
-         %{set_time: set_time, ex_revision: revision, node_value: _value} = value_node,
-         execution_id,
-         node_name,
-         monotonic_time_deadline,
-         call_count,
-         wait_for_revision,
-         prefix
-       ) do
-    cond do
-      # For wait_new: check if we have a newer revision
-      wait_for_revision != nil and set_time != nil and revision > wait_for_revision ->
-        Logger.debug("#{prefix}: found newer revision #{revision}")
-        {:ok, value_node}
-
-      # For regular load_value: return if value is set
-      wait_for_revision == nil and set_time != nil ->
-        Logger.debug("#{prefix}: value found. revision: #{revision}")
-        {:ok, value_node}
-
-      # Value exists but not set yet, or not newer than required revision
-      monotonic_time_deadline == nil ->
-        Logger.warning("#{prefix}: value not ready. set_time: #{set_time}, revision: #{revision}")
-        {:error, :not_set}
-
-      true ->
-        # Wait for the value to be set or updated
-        handle_value_not_ready_by_id(
-          execution_id,
-          node_name,
-          monotonic_time_deadline,
-          call_count,
-          wait_for_revision,
-          revision,
-          prefix
-        )
-    end
-  end
-
-  defp handle_value_not_ready_by_id(
-         execution_id,
-         node_name,
-         monotonic_time_deadline,
-         call_count,
-         wait_for_revision,
-         current_revision,
-         prefix
-       ) do
-    if deadline_exceeded?(monotonic_time_deadline) do
-      Logger.warning("#{prefix}: deadline exceeded. current_revision: #{current_revision}")
-      {:error, :not_set}
-    else
-      Logger.debug("#{prefix}: sleeping. current_revision: #{current_revision}")
-      Process.sleep(50)
-      load_value_by_id_internal(execution_id, node_name, monotonic_time_deadline, call_count + 1, wait_for_revision)
-    end
   end
 
   defp load_current_value(execution_id, node_name) do
