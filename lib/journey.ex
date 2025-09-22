@@ -1462,74 +1462,56 @@ defmodule Journey do
 
   @doc group: "Value Operations"
   @doc """
-  Returns the value and revision of a node in an execution. Optionally waits for the value to be set.
+  Returns the value and revision of a node in an execution, optionally waiting for the value to be provided or to reach a specific revision.
 
-  This function atomically returns both the node value and its revision number, eliminating
-  race conditions when you need to track which revision of a value you received.
+  Accepts either an execution struct or execution ID string for optimized performance.
 
-  ## Quick Examples
+  ## Usage
 
-  ```elixir
-  # Basic usage - get a set value and its revision immediately
-  {:ok, value, revision} = Journey.get(execution, :name)
+  `Journey.get(execution_or_id, node_name, opts \\ [])`
 
-  # Wait for a computed value to be available (30 second default timeout)
-  {:ok, result, revision} = Journey.get(execution, :computed_field, wait: :any)
+  **Returns:** `{:ok, value, revision}`, `{:error, :not_set}`, or `{:error, :computation_failed}`
 
-  # Wait for a new version of the value with custom timeout
-  {:ok, new_value, new_revision} = Journey.get(execution, :name, wait: :newer, timeout: 5000)
-
-  # Wait for a value newer than a specific revision
-  {:ok, fresh_value, fresh_revision} = Journey.get(execution, :name, wait: {:newer_than, 10})
-  ```
-
-  Use `set/3` to set input values that trigger computations.
-
-  ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
-  * `node_name` - Atom representing the node name (must exist in the graph)
-  * `opts` - Keyword list of options (see Options section below)
-
-  ## Returns
-  * `{:ok, value, revision}` – the value is set, with its revision number
-  * `{:error, :not_set}` – the value is not yet set
-  * `{:error, :computation_failed}` – the computation permanently failed
-
-  ## Errors
-  * Raises `RuntimeError` if the node name does not exist in the execution's graph
-  * Raises `ArgumentError` if an invalid `:wait` option is provided
+  **Errors:** Invalid node names or wait options raise `ArgumentError` or `RuntimeError`
 
   ## Options
-  * `:wait` – Controls waiting behavior:
-    * `:immediate` (default) – Return immediately without waiting
-    * `:any` – Wait until the value is available or timeout
-    * `:newer` – Wait for a newer revision than current execution
-    * `{:newer_than, revision}` – Wait for value newer than specific revision
-  * `:timeout` – Timeout in milliseconds (default: 30,000) or `:infinity`
+
+  * `:wait` – When to return:
+    * `:immediate` (default) – Return immediately
+    * `:any` – Wait until value is available
+    * `:newer` – Wait for newer revision (execution struct only)
+    * `{:newer_than, revision}` – Wait for revision newer than specified
+  * `:timeout` – Milliseconds to wait (default: 30,000) or `:infinity`
 
   ## Examples
-    ```elixir
-    iex> execution =
-    ...>    Journey.Examples.Horoscope.graph() |>
-    ...>    Journey.start_execution() |>
-    ...>    Journey.set(:birth_day, 26)
-    iex> {:ok, 26, _revision} = Journey.get(execution, :birth_day)
-    iex> Journey.get(execution, :birth_month)
-    {:error, :not_set}
-    iex> Journey.get(execution, :astrological_sign)
-    {:error, :not_set}
-    iex> execution = Journey.set(execution, :birth_month, "April")
-    iex> Journey.get(execution, :astrological_sign)
-    {:error, :not_set}
-    iex> {:ok, "Taurus", _revision} = Journey.get(execution, :astrological_sign, wait: :any)
-    iex> Journey.get(execution, :horoscope, wait: :any, timeout: 2_000)
-    {:error, :not_set}
-    iex> execution = Journey.set(execution, :first_name, "Mario")
-    iex> {:ok, "🍪s await, Taurus Mario!", _revision} = Journey.get(execution, :horoscope, wait: :any)
-    ```
+
+  ```elixir
+  # Basic usage
+  {:ok, value, revision} = Journey.get(execution, :name)
+  {:ok, value, revision} = Journey.get(execution.id, :name)
+
+  # Wait for computed values
+  {:ok, result, revision} = Journey.get(execution, :computed_field, wait: :any)
+
+  # Wait for newer revisions
+  {:ok, new_value, new_revision} = Journey.get(execution, :name, wait: :newer)
+  {:ok, fresh_value, fresh_revision} = Journey.get(execution_id, :name, wait: {:newer_than, 10})
+
+  # Horoscope example
+  iex> execution = Journey.Examples.Horoscope.graph() |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :birth_day, 26)
+  iex> {:ok, 26, _revision} = Journey.get(execution, :birth_day)
+  iex> {:ok, 26, _revision} = Journey.get(execution.id, :birth_day)
+  iex> Journey.get(execution, :birth_month)
+  {:error, :not_set}
+  iex> execution = Journey.set(execution, :birth_month, "April")
+  iex> {:ok, "Taurus", _revision} = Journey.get(execution, :astrological_sign, wait: :any)
+  ```
 
   """
-  def get(execution, node_name, opts \\ [])
+  def get(execution_or_id, node_name, opts \\ [])
+
+  def get(execution, node_name, opts)
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
     check_options(opts, [:wait, :timeout])
     wait = Keyword.get(opts, :wait, :immediate)
@@ -1551,6 +1533,32 @@ defmodule Journey do
         else: internal_opts
 
     result = Executions.get_value_node(execution, node_name, timeout_ms_or_infinity, internal_opts)
+
+    case result do
+      {:ok, value_node} -> {:ok, value_node.node_value, value_node.ex_revision}
+      error -> error
+    end
+  end
+
+  def get(execution_id, node_name, opts)
+      when is_binary(execution_id) and is_atom(node_name) and is_list(opts) do
+    check_options(opts, [:wait, :timeout])
+    wait = Keyword.get(opts, :wait, :immediate)
+    timeout = Keyword.get(opts, :timeout, @default_timeout_ms)
+
+    # Parse wait option and determine internal parameters
+    {timeout_ms_or_infinity, wait_new_flag, wait_for_revision} = parse_wait_option_for_execution_id(wait, timeout)
+
+    # Call internal function with parsed options
+    internal_opts = []
+    internal_opts = if wait_new_flag, do: Keyword.put(internal_opts, :wait_new, true), else: internal_opts
+
+    internal_opts =
+      if wait_for_revision != nil,
+        do: Keyword.put(internal_opts, :wait_for_revision, wait_for_revision),
+        else: internal_opts
+
+    result = Executions.get_value_node_by_id(execution_id, node_name, timeout_ms_or_infinity, internal_opts)
 
     case result do
       {:ok, value_node} -> {:ok, value_node.node_value, value_node.ex_revision}
@@ -1640,6 +1648,29 @@ defmodule Journey do
   defp parse_wait_option(invalid_wait, _timeout, _execution) do
     raise ArgumentError,
           "Invalid :wait option: #{inspect(invalid_wait)}. Valid options: :immediate, :any, :newer, {:newer_than, revision}"
+  end
+
+  # Parse wait options for execution_id variant (restricted set)
+  defp parse_wait_option_for_execution_id(:immediate, _timeout) do
+    {nil, false, nil}
+  end
+
+  defp parse_wait_option_for_execution_id(:any, timeout) do
+    {validate_timeout(timeout), false, nil}
+  end
+
+  defp parse_wait_option_for_execution_id({:newer_than, revision}, timeout) when is_integer(revision) do
+    {validate_timeout(timeout), true, revision}
+  end
+
+  defp parse_wait_option_for_execution_id(:newer, _timeout) do
+    raise ArgumentError,
+          "Invalid :wait option :newer for execution_id. Use {:newer_than, revision} or load the execution first with Journey.load/1"
+  end
+
+  defp parse_wait_option_for_execution_id(invalid_wait, _timeout) do
+    raise ArgumentError,
+          "Invalid :wait option: #{inspect(invalid_wait)}. Valid options for execution_id: :immediate, :any, {:newer_than, revision}"
   end
 
   # Validate timeout values
