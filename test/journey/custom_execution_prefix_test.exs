@@ -8,7 +8,8 @@ defmodule Journey.CustomExecutionPrefixTest do
       execution = Journey.start_execution(graph)
 
       assert String.starts_with?(execution.id, "MYGRAPH")
-      assert String.length(execution.id) == 27 # "MYGRAPH" (7) + 20 random chars
+      # "MYGRAPH" (7) + 20 random chars
+      assert String.length(execution.id) == 27
     end
 
     test "uses default EXEC prefix when not specified" do
@@ -16,7 +17,8 @@ defmodule Journey.CustomExecutionPrefixTest do
       execution = Journey.start_execution(graph)
 
       assert String.starts_with?(execution.id, "EXEC")
-      assert String.length(execution.id) == 24 # "EXEC" (4) + 20 random chars
+      # "EXEC" (4) + 20 random chars
+      assert String.length(execution.id) == 24
     end
 
     test "prefix is normalized to uppercase" do

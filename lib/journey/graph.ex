@@ -26,8 +26,7 @@ defmodule Journey.Graph do
       execution_id_prefix: [
         is: :binary,
         required: false,
-        doc:
-          "Custom prefix for execution IDs. Will be normalized to uppercase. Defaults to 'EXEC'."
+        doc: "Custom prefix for execution IDs. Will be normalized to uppercase. Defaults to 'EXEC'."
       ]
     ]
 
