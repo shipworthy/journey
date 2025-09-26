@@ -20,6 +20,6 @@ defmodule Journey.Helpers.Random do
   end
 
   def object_id(prefix) when is_binary(prefix) do
-    prefix <> random_string(20, digits() <> uppercase())
+    String.upcase(prefix) <> random_string(20, digits() <> uppercase())
   end
 end

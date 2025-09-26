@@ -3,14 +3,15 @@ defmodule Journey.Graph do
 
   import Journey.Node, only: [input: 1]
 
-  defstruct [:name, :version, :nodes, :f_on_save, :hash]
+  defstruct [:name, :version, :nodes, :f_on_save, :hash, :execution_id_prefix]
 
   @type t :: %__MODULE__{
           name: String.t(),
           version: String.t(),
           nodes: list,
           f_on_save: function() | nil,
-          hash: String.t()
+          hash: String.t(),
+          execution_id_prefix: String.t()
         }
 
   def new(name, version, nodes, opts \\ [])
@@ -21,6 +22,12 @@ defmodule Journey.Graph do
         required: false,
         doc:
           "Graph-wide callback invoked after any node computation succeeds. Receives (execution_id, node_name, result)."
+      ],
+      execution_id_prefix: [
+        is: :binary,
+        required: false,
+        doc:
+          "Custom prefix for execution IDs. Will be normalized to uppercase. Defaults to 'EXEC'."
       ]
     ]
 
@@ -33,6 +40,7 @@ defmodule Journey.Graph do
       version: version,
       nodes: all_nodes,
       f_on_save: Keyword.get(opts, :f_on_save),
+      execution_id_prefix: Keyword.get(opts, :execution_id_prefix, "EXEC"),
       hash: compute_hash(all_nodes)
     }
   end
