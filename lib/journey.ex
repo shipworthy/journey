@@ -111,6 +111,9 @@ defmodule Journey do
     * `:f_on_save` - Graph-wide callback function invoked after any node computation succeeds.
       Receives `(execution_id, node_name, result)` where result is `{:ok, value}` or `{:error, reason}`.
       This callback is called after any node-specific `f_on_save` callbacks.
+    * `:execution_id_prefix` - Custom prefix for execution IDs created from this graph.
+      Will be normalized to uppercase. Defaults to "EXEC" if not specified.
+      Example: "mygraph" becomes "MYGRAPH1A2B3D4E5G6H7J8L9M"
 
   ## Returns
   * `%Journey.Graph{}` struct representing the validated and registered computation graph
@@ -240,6 +243,29 @@ defmodule Journey do
   {:ok, "HELLO WORLD", 3}
   iex> Journey.get(execution, :suffix, wait: :any)
   {:ok, "HELLO WORLD omg yay", 5}
+  ```
+
+  Custom execution ID prefix for easier debugging:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "user onboarding",
+  ...>   "v1.0.0",
+  ...>   [
+  ...>     input(:email),
+  ...>     compute(:welcome_message, [:email], fn %{email: email} ->
+  ...>       {:ok, "Welcome \#{email}!"}
+  ...>     end)
+  ...>   ],
+  ...>   execution_id_prefix: "onboard"
+  ...> )
+  iex> execution = Journey.start_execution(graph)
+  iex> String.starts_with?(execution.id, "ONBOARD")
+  true
+  iex> execution = Journey.set(execution, :email, "user@example.com")
+  iex> Journey.get(execution, :welcome_message, wait: :any)
+  {:ok, "Welcome user@example.com!", 3}
   ```
 
   """
@@ -742,7 +768,8 @@ defmodule Journey do
       graph.name,
       graph.version,
       graph.nodes,
-      graph.hash
+      graph.hash,
+      graph.execution_id_prefix
     )
     |> Journey.Scheduler.advance()
   end

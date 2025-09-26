@@ -1,10 +1,11 @@
 defmodule Journey.Persistence.Schema.Execution do
   @moduledoc false
 
-  use Journey.Persistence.Schema.Base
+  use Ecto.Schema
+  @timestamps_opts [type: :integer, autogenerate: {System, :os_time, [:second]}]
+  @foreign_key_type :string
 
-  @primary_key {:id, :string, autogenerate: {Journey.Helpers.Random, :object_id, ["EXEC"]}}
-
+  @primary_key {:id, :string, autogenerate: false}
   schema "executions" do
     field(:graph_name, :string)
     field(:graph_version, :string)

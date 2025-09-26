@@ -9,11 +9,14 @@ defmodule Journey.Executions do
   # Namespace for PostgreSQL advisory locks used in graph migrations
   @migration_lock_namespace 12_345
 
-  def create_new(graph_name, graph_version, nodes, graph_hash) do
+  def create_new(graph_name, graph_version, nodes, graph_hash, execution_id_prefix) do
+    Logger.info("[#{mf()}]: graph '#{graph_name}' (version '#{graph_version}'), id prefix [#{execution_id_prefix}]")
+
     {:ok, execution} =
       Journey.Repo.transaction(fn repo ->
         execution =
           %Execution{
+            id: Journey.Helpers.Random.object_id(execution_id_prefix),
             graph_name: graph_name,
             graph_version: graph_version,
             graph_hash: graph_hash,
