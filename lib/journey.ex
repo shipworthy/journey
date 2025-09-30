@@ -1179,51 +1179,56 @@ defmodule Journey do
   ```
 
   """
-  def set(execution_id, node_name, value)
+  def set(execution_or_id, node_name_or_map, value_or_opts \\ [], opts \\ [])
+
+  def set(execution_id, node_name, value, opts)
       when is_binary(execution_id) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
+    metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Repo.get!(Execution, execution_id)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
-    Journey.Executions.set_value(execution.id, node_name, value)
+    Journey.Executions.set_value(execution.id, node_name, value, metadata)
   end
 
   @doc group: "Value Operations"
-  def set(execution, node_name, value)
+  def set(execution, node_name, value, opts)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
+    metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
-    Journey.Executions.set_value(execution, node_name, value)
+    Journey.Executions.set_value(execution, node_name, value, metadata)
   end
 
   @doc group: "Value Operations"
-  def set(execution_id, values_map)
+  def set(execution_id, values_map, opts, _unused)
       when is_binary(execution_id) and is_map(values_map) do
     execution = Journey.load(execution_id)
-    set(execution, values_map)
+    set(execution, values_map, opts, [])
   end
 
   @doc group: "Value Operations"
-  def set(execution, values_map)
+  def set(execution, values_map, opts, _unused)
       when is_struct(execution, Execution) and is_map(values_map) do
+    metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
     # Validate all node names and values first
     validate_values_map(execution, values_map)
 
-    Journey.Executions.set_values(execution, values_map)
+    Journey.Executions.set_values(execution, values_map, metadata)
   end
 
   # Multiple values via keyword list - converts to map
   @doc group: "Value Operations"
-  def set(execution, keyword_list)
+  def set(execution, keyword_list, opts, _unused)
       when (is_struct(execution, Execution) or is_binary(execution)) and is_list(keyword_list) and keyword_list != [] do
     # Ensure it's a proper keyword list
     if Keyword.keyword?(keyword_list) do
-      set(execution, Map.new(keyword_list))
+      set(execution, Map.new(keyword_list), opts, [])
     else
       # If it's not a keyword list, it might be a list value for a single node
       # This case should fall through to the function clause error
@@ -1580,7 +1585,7 @@ defmodule Journey do
     result = Executions.get_value_node(execution, node_name, timeout_ms_or_infinity, internal_opts)
 
     case result do
-      {:ok, value_node} -> {:ok, value_node.node_value, value_node.ex_revision}
+      {:ok, value_node} -> {:ok, {value_node.node_value, value_node.metadata, value_node.ex_revision}}
       error -> error
     end
   end

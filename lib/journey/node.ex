@@ -360,7 +360,7 @@ defmodule Journey.Node do
   end
 
   defp build_historian_function(history_node_name, tracked_field, max_entries) do
-    fn inputs ->
+    fn inputs, metadata_map ->
       existing_history = Map.get(inputs, history_node_name, [])
 
       # Always include node field for consistency
@@ -369,7 +369,8 @@ defmodule Journey.Node do
           %{
             "value" => Map.get(inputs, tracked_field),
             "node" => to_string(tracked_field),
-            "timestamp" => System.system_time(:second)
+            "timestamp" => System.system_time(:second),
+            "metadata" => Map.get(metadata_map, tracked_field)
           }
         else
           nil

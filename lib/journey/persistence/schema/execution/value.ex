@@ -27,6 +27,7 @@ defmodule Journey.Persistence.Schema.Execution.Value do
     field(:node_name, :string)
     field(:node_type, Ecto.Enum, values: [:input | ComputationType.values()])
     field(:node_value, Journey.Persistence.Schema.Execution.Value.JsonbScalar, default: nil)
+    field(:metadata, Journey.Persistence.Schema.Execution.Value.JsonbScalar, default: nil)
     field(:set_time, :integer, default: nil)
     field(:ex_revision, :integer, default: nil)
     timestamps()

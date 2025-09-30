@@ -279,7 +279,9 @@ defmodule Journey.Executions do
   end
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
-  def set_value(execution_id, node_name, value) when is_binary(execution_id) do
+  def set_value(execution_id_or_execution, node_name, value, metadata \\ nil)
+
+  def set_value(execution_id, node_name, value, metadata) when is_binary(execution_id) do
     prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"
     Logger.debug("#{prefix}: setting value, #{inspect(value)}")
 
@@ -311,6 +313,7 @@ defmodule Journey.Executions do
           set: [
             ex_revision: new_revision,
             node_value: value,
+            metadata: metadata,
             updated_at: now_seconds,
             set_time: now_seconds
           ]
@@ -360,7 +363,7 @@ defmodule Journey.Executions do
   end
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
-  def set_value(execution, node_name, value) do
+  def set_value(execution, node_name, value, metadata) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     Logger.debug("#{prefix}: setting value, #{inspect(value)}")
 
@@ -390,6 +393,7 @@ defmodule Journey.Executions do
           set: [
             ex_revision: new_revision,
             node_value: value,
+            metadata: metadata,
             updated_at: now_seconds,
             set_time: now_seconds
           ]
@@ -440,7 +444,9 @@ defmodule Journey.Executions do
   end
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
-  def set_values(execution, values_map) when is_map(values_map) do
+  def set_values(execution, values_map, metadata \\ nil)
+
+  def set_values(execution, values_map, metadata) when is_map(values_map) do
     prefix = "[#{execution.id}] [#{mf()}]"
     Logger.debug("#{prefix}: setting #{map_size(values_map)} values: #{inspect(Map.keys(values_map))}")
 
@@ -461,7 +467,7 @@ defmodule Journey.Executions do
           now_seconds = System.system_time(:second)
 
           # Update only the changed values
-          update_changed_values_in_transaction(execution.id, changed_values, new_revision, now_seconds, repo)
+          update_changed_values_in_transaction(execution.id, changed_values, new_revision, now_seconds, repo, metadata)
 
           # Update last_updated_at once
           update_last_updated_at(execution.id, new_revision, now_seconds, repo)
@@ -502,13 +508,13 @@ defmodule Journey.Executions do
     |> Map.new()
   end
 
-  defp update_changed_values_in_transaction(execution_id, changed_values, revision, now_seconds, repo) do
+  defp update_changed_values_in_transaction(execution_id, changed_values, revision, now_seconds, repo, metadata) do
     Enum.each(changed_values, fn {node_name, value} ->
-      update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo)
+      update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo, metadata)
     end)
   end
 
-  defp update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo) do
+  defp update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo, metadata) do
     {1, _} =
       from(v in Execution.Value,
         where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
@@ -517,6 +523,7 @@ defmodule Journey.Executions do
         set: [
           ex_revision: revision,
           node_value: value,
+          metadata: metadata,
           updated_at: now_seconds,
           set_time: now_seconds
         ]
@@ -539,7 +546,7 @@ defmodule Journey.Executions do
 
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
     case get_value_node(execution, node_name, timeout_ms, opts) do
-      {:ok, value_node} -> {:ok, value_node.node_value}
+      {:ok, value_node} -> {:ok, {value_node.node_value, value_node.metadata, value_node.ex_revision}}
       error -> error
     end
   end
