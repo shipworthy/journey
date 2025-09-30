@@ -62,7 +62,7 @@ defmodule Journey.MetadataTest do
             :title_with_author,
             [:title],
             fn %{title: title}, metadata_map ->
-              author = get_in(metadata_map, [:title, "author_id"]) || "unknown"
+              author = get_in(metadata_map, [:title, "author_id"])
               {:ok, "#{title} by #{author}"}
             end
           )

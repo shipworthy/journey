@@ -52,9 +52,16 @@ defmodule Journey.Node do
       allowing for logical operators (`:and`, `:or`) and custom value predicates (e.g. `unblocked_when({:and, [{:a, &provided?/1}, {:b, &provided?/1}]})`).
 
   `f_compute` is the function that computes the value of the node, once the upstream dependencies are satisfied.
-  The function is provided a map of the upstream nodes and their values as its argument and returns a tuple:
+  The function can accept either one or two arguments:
+   - **Arity 1**: `fn values_map -> ... end` - Receives a map of upstream node names to their values
+   - **Arity 2**: `fn values_map, metadata_map -> ... end` - Additionally receives metadata from upstream nodes
+
+  The function must return a tuple:
    - `{:ok, value}` or
    - `{:error, reason}`.
+
+  The `metadata_map` (when using arity-2) contains the metadata for each upstream dependency, keyed by node name, set by `Journey.set/3`.
+  This is useful for accessing contextual information like author IDs, timestamps, or data provenance.
   The function is called when the upstream nodes are set, and the value is set to the result of the function.
 
   Note that return values are JSON-serialized for storage. If the returned `value` or `reason` contains atoms 
@@ -122,6 +129,36 @@ defmodule Journey.Node do
   {:error, :not_set}
   iex> execution = Journey.set(execution, :temperature, 35)
   iex> {:ok, %{value: "High temperature alert: 35°C", revision: 4}} = Journey.get(execution, :high_temp_alert, wait: :any)
+  ```
+
+  ## Using Metadata in Compute Functions
+
+  Metadata can be accessed by defining an arity-2 compute function. This is useful for accessing
+  contextual information like author IDs, timestamps, or data provenance from upstream nodes.
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "compute with metadata example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:title),
+  ...>         compute(
+  ...>           :title_with_author,
+  ...>           [:title],
+  ...>           # Arity-2 function receives metadata from dependencies
+  ...>           fn %{title: title}, metadata_map ->
+  ...>             author = get_in(metadata_map, [:title, "author_id"]) || "unknown"
+  ...>             {:ok, "\#{title} by \#{author}"}
+  ...>           end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :title, "Hello", metadata: %{"author_id" => "user123"})
+  iex> {:ok, %{value: result}} = Journey.get(execution, :title_with_author, wait: :any)
+  iex> result
+  "Hello by user123"
   ```
 
   ## Return Values
