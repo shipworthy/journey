@@ -12,7 +12,7 @@ defmodule Journey.MetadataTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :title, "Hello", metadata: %{"author_id" => "user123"})
 
-      {:ok, {value, metadata, _revision}} = Journey.get(execution, :title)
+      {:ok, %{value: value, metadata: metadata}} = Journey.get(execution, :title)
       assert value == "Hello"
       assert metadata == %{"author_id" => "user123"}
     end
@@ -22,7 +22,7 @@ defmodule Journey.MetadataTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :title, "Hello")
 
-      {:ok, {_value, metadata, _revision}} = Journey.get(execution, :title)
+      {:ok, %{metadata: metadata}} = Journey.get(execution, :title)
       assert metadata == nil
     end
 
@@ -45,8 +45,8 @@ defmodule Journey.MetadataTest do
           metadata: %{"author_id" => "user123"}
         )
 
-      {:ok, {_, title_meta, _}} = Journey.get(execution, :title)
-      {:ok, {_, desc_meta, _}} = Journey.get(execution, :description)
+      {:ok, %{metadata: title_meta}} = Journey.get(execution, :title)
+      {:ok, %{metadata: desc_meta}} = Journey.get(execution, :description)
 
       assert title_meta == %{"author_id" => "user123"}
       assert desc_meta == %{"author_id" => "user123"}
@@ -71,7 +71,7 @@ defmodule Journey.MetadataTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :title, "Hello", metadata: %{"author_id" => "user123"})
 
-      {:ok, {result, _, _}} = Journey.get(execution, :title_with_author, wait: :any)
+      {:ok, %{value: result}} = Journey.get(execution, :title_with_author, wait: :any)
       assert result == "Hello by user123"
     end
 
@@ -85,7 +85,7 @@ defmodule Journey.MetadataTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :name, "Alice", metadata: %{"author_id" => "user123"})
 
-      {:ok, {result, _, _}} = Journey.get(execution, :greeting, wait: :any)
+      {:ok, %{value: result}} = Journey.get(execution, :greeting, wait: :any)
       assert result == "Hello Alice"
     end
 
@@ -109,7 +109,7 @@ defmodule Journey.MetadataTest do
       execution = Journey.set(execution, :first_name, "John", metadata: %{"author_id" => "user1"})
       execution = Journey.set(execution, :last_name, "Doe", metadata: %{"author_id" => "user2"})
 
-      {:ok, {result, _, _}} = Journey.get(execution, :full_name_with_authors, wait: :any)
+      {:ok, %{value: result}} = Journey.get(execution, :full_name_with_authors, wait: :any)
       assert result == "John Doe (first by user1, last by user2)"
     end
   end
@@ -126,7 +126,7 @@ defmodule Journey.MetadataTest do
 
       # First change
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user123"})
-      {:ok, {history1, _, _}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, %{value: history1}} = Journey.get(execution, :content_history, wait: :any)
 
       assert length(history1) == 1
       assert hd(history1)["value"] == "v1"
@@ -134,7 +134,7 @@ defmodule Journey.MetadataTest do
 
       # Second change
       execution = Journey.set(execution, :content, "v2", metadata: %{"author_id" => "user456"})
-      {:ok, {history2, _, _}} = Journey.get(execution, :content_history, wait: :newer)
+      {:ok, %{value: history2}} = Journey.get(execution, :content_history, wait: :newer)
 
       assert length(history2) == 2
       assert Enum.at(history2, 1)["value"] == "v2"
@@ -152,7 +152,7 @@ defmodule Journey.MetadataTest do
 
       # Change without metadata
       execution = Journey.set(execution, :content, "v1")
-      {:ok, {history, _, _}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, %{value: history}} = Journey.get(execution, :content_history, wait: :any)
 
       assert length(history) == 1
       assert hd(history)["value"] == "v1"
@@ -173,8 +173,8 @@ defmodule Journey.MetadataTest do
       execution =
         Journey.set(execution, [name: "Alice", age: 30], metadata: %{"author_id" => "admin"})
 
-      {:ok, {_, name_meta, _}} = Journey.get(execution, :name)
-      {:ok, {_, age_meta, _}} = Journey.get(execution, :age)
+      {:ok, %{metadata: name_meta}} = Journey.get(execution, :name)
+      {:ok, %{metadata: age_meta}} = Journey.get(execution, :age)
 
       assert name_meta == %{"author_id" => "admin"}
       assert age_meta == %{"author_id" => "admin"}
@@ -194,7 +194,7 @@ defmodule Journey.MetadataTest do
       # Reload execution
       reloaded = Journey.load(execution.id)
 
-      {:ok, {value, metadata, _revision}} = Journey.get(reloaded, :title)
+      {:ok, %{value: value, metadata: metadata}} = Journey.get(reloaded, :title)
       assert value == "Persistent"
       assert metadata == %{"source" => "api"}
     end
