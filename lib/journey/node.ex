@@ -92,8 +92,7 @@ defmodule Journey.Node do
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution() |> Journey.set(:name, "Alice")
-  iex> execution |> Journey.get(:pig_latin_ish_name, wait: :any)
-  {:ok, "Alice-ay", 3}
+  iex> {:ok, %{value: "Alice-ay", revision: 3}} = execution |> Journey.get(:pig_latin_ish_name, wait: :any)
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
@@ -122,8 +121,7 @@ defmodule Journey.Node do
   iex> Journey.get(execution, :high_temp_alert)
   {:error, :not_set}
   iex> execution = Journey.set(execution, :temperature, 35)
-  iex> Journey.get(execution, :high_temp_alert, wait: :any)
-  {:ok, "High temperature alert: 35°C", 4}
+  iex> {:ok, %{value: "High temperature alert: 35°C", revision: 4}} = Journey.get(execution, :high_temp_alert, wait: :any)
   ```
 
   ## Return Values
@@ -171,8 +169,7 @@ defmodule Journey.Node do
   ...>     graph
   ...>     |> Journey.start_execution()
   ...>     |> Journey.set(:name, "Mario")
-  iex> execution |> Journey.get(:remove_pii, wait: :any)
-  {:ok, "updated :name", 3}
+  iex> {:ok, %{value: "updated :name", revision: 3}} = execution |> Journey.get(:remove_pii, wait: :any)
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "redacted", remove_pii: "updated :name",  execution_id: "...", last_updated_at: 1_234_567_890}
   ```
@@ -215,7 +212,7 @@ defmodule Journey.Node do
   iex> execution.archived_at == nil
   true
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> {:ok, _, _} = Journey.get(execution, :archive, wait: :any)
+  iex> {:ok, %{value: _, revision: _}} = Journey.get(execution, :archive, wait: :any)
   iex> Journey.load(execution)
   nil
   iex> execution = Journey.load(execution, include_archived: true)
@@ -267,12 +264,12 @@ defmodule Journey.Node do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :content, "First version")
-  iex> {:ok, history1, _} = Journey.get(execution, :content_history, wait: :any)
+  iex> {:ok, %{value: history1, revision: _}} = Journey.get(execution, :content_history, wait: :any)
   iex> length(history1)
   1
   iex> [%{"value" => "First version", "node" => "content", "timestamp" => _ts}] = history1
   iex> execution = Journey.set(execution, :content, "Second version")
-  iex> {:ok, history2, _} = Journey.get(execution, :content_history, wait: :newer)
+  iex> {:ok, %{value: history2, revision: _}} = Journey.get(execution, :content_history, wait: :newer)
   iex> length(history2)
   2
   iex> [_, %{"value" => "Second version", "node" => "content", "timestamp" => _ts}] = history2
@@ -292,15 +289,15 @@ defmodule Journey.Node do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :status, "pending")
-  iex> {:ok, history, rev1} = Journey.get(execution, :status_history, wait: :any)
+  iex> {:ok, %{value: history, revision: rev1}} = Journey.get(execution, :status_history, wait: :any)
   iex> Enum.map(history, fn entry -> entry["value"] end)
   ["pending"]
   iex> execution = Journey.set(execution, :status, "active")
-  iex> {:ok, history, rev2} = Journey.get(execution, :status_history, wait: {:newer_than, rev1})
+  iex> {:ok, %{value: history, revision: rev2}} = Journey.get(execution, :status_history, wait: {:newer_than, rev1})
   iex> Enum.map(history, fn entry -> entry["value"] end)
   ["pending", "active"]
   iex> execution = Journey.set(execution, :status, "completed")
-  iex> {:ok, history, _rev} = Journey.get(execution, :status_history, wait: {:newer_than, rev2})
+  iex> {:ok, %{value: history, revision: _rev}} = Journey.get(execution, :status_history, wait: {:newer_than, rev2})
   iex> # Since status_history is limited to `max_entries: 2`, we'll only see the 2 latest values.
   iex> Enum.map(history, fn entry -> entry["value"] end)
   ["active", "completed"]
@@ -322,7 +319,7 @@ defmodule Journey.Node do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :audit_event, "login")
-  iex> {:ok, history, _} = Journey.get(execution, :audit_log, wait: :any)
+  iex> {:ok, %{value: history, revision: _}} = Journey.get(execution, :audit_log, wait: :any)
   iex> length(history)
   1
   iex> [%{"value" => "login", "node" => "audit_event", "timestamp" => _ts}] = history
@@ -437,7 +434,7 @@ defmodule Journey.Node do
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
-  iex> {:ok, "It's time to take a nap, Mario!", _revision} = execution |> Journey.get(:nap_time, wait: :any)
+  iex> {:ok, %{value: "It's time to take a nap, Mario!"}} = execution |> Journey.get(:nap_time, wait: :any)
   iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```
@@ -504,16 +501,16 @@ defmodule Journey.Node do
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex> # Wait for initial reminders
-  iex> {:ok, count1, _} = Journey.get(execution, :send_a_reminder, wait: :any)
+  iex> {:ok, %{value: count1, revision: _}} = Journey.get(execution, :send_a_reminder, wait: :any)
   iex> count1 >= 1
   true
   iex> # Wait for more reminders to verify recurring behavior
   iex> execution = Journey.load(execution)
-  iex> {:ok, count2, _} = Journey.get(execution, :send_a_reminder, wait: :newer)
+  iex> {:ok, %{value: count2, revision: _}} = Journey.get(execution, :send_a_reminder, wait: :newer)
   iex> count2 > count1
   true
   iex> execution = Journey.load(execution)
-  iex> {:ok, count3, _} = Journey.get(execution, :send_a_reminder, wait: :newer)
+  iex> {:ok, %{value: count3, revision: _}} = Journey.get(execution, :send_a_reminder, wait: :newer)
   iex> count3 > count2
   true
   iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)

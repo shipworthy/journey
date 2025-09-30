@@ -42,7 +42,7 @@ defmodule Journey.Tools.ComputationStateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :user_name, "Alice")
 
-      {:ok, _greeting} = Journey.get_value(execution, :greeting, wait_new: true)
+      {:ok, %{value: _greeting}} = Journey.get_value(execution, :greeting, wait_new: true)
 
       assert Journey.Tools.computation_state(execution.id, :greeting) == :success
       assert Journey.Tools.computation_state_to_text(:success) == "✅ :success"
@@ -106,7 +106,7 @@ defmodule Journey.Tools.ComputationStateTest do
       execution = Journey.set(execution, :value, "trigger")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
-      {:ok, _} = Journey.get_value(execution, :scheduled_task, wait_new: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :scheduled_task, wait_new: true)
 
       assert Journey.Tools.computation_state(execution.id, :scheduled_task) == :success
 
@@ -132,7 +132,7 @@ defmodule Journey.Tools.ComputationStateTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, _schedule_time} = Journey.get_value(execution, :recurring_task, wait_new: true)
+      {:ok, %{value: _schedule_time}} = Journey.get_value(execution, :recurring_task, wait_new: true)
       Process.sleep(1000)
 
       reloaded = Journey.load(execution.id)
@@ -231,7 +231,7 @@ defmodule Journey.Tools.ComputationStateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :original, "test")
 
-      {:ok, _} = Journey.get_value(execution, :modifier, wait_new: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :modifier, wait_new: true)
 
       assert Journey.Tools.computation_state(execution.id, :modifier) == :success
       assert Journey.Tools.computation_state_to_text(:success) == "✅ :success"

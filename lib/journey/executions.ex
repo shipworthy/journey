@@ -281,6 +281,7 @@ defmodule Journey.Executions do
   # Validate that map keys are strings (JSONB requires string keys)
   # Raises ArgumentError if atom keys are found
   defp validate_jsonb_map(nil), do: nil
+
   defp validate_jsonb_map(value) when is_map(value) do
     atom_keys = value |> Map.keys() |> Enum.filter(&is_atom/1)
 
@@ -291,6 +292,7 @@ defmodule Journey.Executions do
 
     value
   end
+
   defp validate_jsonb_map(value), do: value
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
@@ -579,8 +581,7 @@ defmodule Journey.Executions do
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
     case get_value_node(execution, node_name, timeout_ms, opts) do
       {:ok, value_node} ->
-        {:ok,
-         %{value: value_node.node_value, metadata: value_node.metadata, revision: value_node.ex_revision}}
+        {:ok, %{value: value_node.node_value, metadata: value_node.metadata, revision: value_node.ex_revision}}
 
       error ->
         error

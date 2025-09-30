@@ -52,8 +52,8 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec1 = Journey.set(exec1, :value, 50)
       exec2 = Journey.set(exec2, :value, 50)
 
-      assert {:ok, "alert!"} = Journey.get_value(exec1, :alert, wait_any: true)
-      assert {:ok, "alert!"} = Journey.get_value(exec2, :alert, wait_any: true)
+      assert {:ok, %{value: "alert!"}} = Journey.get_value(exec1, :alert, wait_any: true)
+      assert {:ok, %{value: "alert!"}} = Journey.get_value(exec2, :alert, wait_any: true)
     end
 
     test "mixed list with atoms and keyword conditions" do
@@ -83,7 +83,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
 
       # Set threshold above limit - now should compute
       exec = Journey.set(exec, :threshold, 15)
-      assert {:ok, "x=5, y=7, threshold=15"} = Journey.get_value(exec, :result, wait_any: true)
+      assert {:ok, %{value: "x=5, y=7, threshold=15"}} = Journey.get_value(exec, :result, wait_any: true)
     end
 
     test "multiple keyword conditions create AND logic" do
@@ -117,7 +117,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
 
       # Both meet conditions
       exec = exec |> Journey.set(:a, 7) |> Journey.set(:b, 8)
-      assert {:ok, "a=7, b=8"} = Journey.get_value(exec, :result, wait_any: true)
+      assert {:ok, %{value: "a=7, b=8"}} = Journey.get_value(exec, :result, wait_any: true)
     end
 
     test "keyword syntax works with mutate nodes" do
@@ -142,13 +142,13 @@ defmodule Journey.Node.KeywordSyntaxTest do
 
       # Set should_clear to false - mutation should not happen
       exec = Journey.set(exec, :should_clear, false)
-      assert Journey.get_value(exec, :value) == {:ok, "sensitive data"}
+      assert {:ok, %{value: "sensitive data"}} = Journey.get_value(exec, :value)
 
       # Set should_clear to true - mutation should happen
       exec = Journey.set(exec, :should_clear, true)
-      assert {:ok, _} = Journey.get_value(exec, :clear_value, wait_any: true)
+      assert {:ok, %{value: _}} = Journey.get_value(exec, :clear_value, wait_any: true)
       exec = Journey.load(exec)
-      assert Journey.get_value(exec, :value) == {:ok, nil}
+      assert {:ok, %{value: nil}} = Journey.get_value(exec, :value)
     end
 
     test "keyword syntax works with schedule_once nodes" do
@@ -186,8 +186,8 @@ defmodule Journey.Node.KeywordSyntaxTest do
       # Start background sweeps for test
       background_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(exec.id)
 
-      assert {:ok, _time} = Journey.get_value(exec, :scheduled_task, wait_any: true)
-      assert {:ok, "task completed"} = Journey.get_value(exec, :task_result, wait_any: true)
+      assert {:ok, %{value: _time}} = Journey.get_value(exec, :scheduled_task, wait_any: true)
+      assert {:ok, %{value: "task completed"}} = Journey.get_value(exec, :task_result, wait_any: true)
 
       Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_task)
     end
@@ -215,7 +215,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
 
       # Set temperature above threshold
       exec = Journey.set(exec, :temperature, 35)
-      assert {:ok, "Heat warning: 35°C"} = Journey.get_value(exec, :heat_warning, wait_any: true)
+      assert {:ok, %{value: "Heat warning: 35°C"}} = Journey.get_value(exec, :heat_warning, wait_any: true)
 
       # Lower temperature below threshold - heat_warning should be cleared
       exec = Journey.set(exec, :temperature, 25)
@@ -227,7 +227,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
 
       # Raise temperature again - should recompute
       exec = Journey.set(exec, :temperature, 40)
-      assert {:ok, "Heat warning: 40°C"} = Journey.get_value(exec, :heat_warning, wait_any: true)
+      assert {:ok, %{value: "Heat warning: 40°C"}} = Journey.get_value(exec, :heat_warning, wait_any: true)
     end
 
     test "mixed list clears when keyword condition becomes false" do
@@ -256,20 +256,20 @@ defmodule Journey.Node.KeywordSyntaxTest do
         |> Journey.set(:enabled, true)
         |> Journey.set(:value, 150)
 
-      assert {:ok, "Alert: value is 150"} = Journey.get_value(exec, :alert, wait_any: true)
+      assert {:ok, %{value: "Alert: value is 150"}} = Journey.get_value(exec, :alert, wait_any: true)
 
       # Lower value below threshold - alert should be cleared even though :enabled is still set
       exec = Journey.set(exec, :value, 50)
       assert Journey.get_value(exec, :alert) == {:error, :not_set}
 
       # Verify enabled is still set but alert is cleared
-      assert Journey.get_value(exec, :enabled) == {:ok, true}
+      assert {:ok, %{value: true}} = Journey.get_value(exec, :enabled)
       values = Journey.values_all(exec)
       assert values.alert == :not_set
 
       # Raise value again - should recompute
       exec = Journey.set(exec, :value, 200)
-      assert {:ok, "Alert: value is 200"} = Journey.get_value(exec, :alert, wait_any: true)
+      assert {:ok, %{value: "Alert: value is 200"}} = Journey.get_value(exec, :alert, wait_any: true)
     end
 
     test "keyword syntax and unblocked_when have identical clearing behavior" do
@@ -315,18 +315,18 @@ defmodule Journey.Node.KeywordSyntaxTest do
       exec2 = exec2 |> Journey.set(:x, 30) |> Journey.set(:y, 30)
 
       # Both should compute alert
-      assert {:ok, 60} = Journey.get_value(exec1, :sum, wait_any: true)
-      assert {:ok, 60} = Journey.get_value(exec2, :sum, wait_any: true)
-      assert {:ok, "Large sum: 60"} = Journey.get_value(exec1, :large_sum_alert, wait_any: true)
-      assert {:ok, "Large sum: 60"} = Journey.get_value(exec2, :large_sum_alert, wait_any: true)
+      assert {:ok, %{value: 60}} = Journey.get_value(exec1, :sum, wait_any: true)
+      assert {:ok, %{value: 60}} = Journey.get_value(exec2, :sum, wait_any: true)
+      assert {:ok, %{value: "Large sum: 60"}} = Journey.get_value(exec1, :large_sum_alert, wait_any: true)
+      assert {:ok, %{value: "Large sum: 60"}} = Journey.get_value(exec2, :large_sum_alert, wait_any: true)
 
       # Lower values to create small sum
       exec1 = exec1 |> Journey.set(:x, 10) |> Journey.set(:y, 10)
       exec2 = exec2 |> Journey.set(:x, 10) |> Journey.set(:y, 10)
 
       # Wait for sum recomputation
-      assert {:ok, 20} = Journey.get_value(exec1, :sum, wait_new: true)
-      assert {:ok, 20} = Journey.get_value(exec2, :sum, wait_new: true)
+      assert {:ok, %{value: 20}} = Journey.get_value(exec1, :sum, wait_new: true)
+      assert {:ok, %{value: 20}} = Journey.get_value(exec2, :sum, wait_new: true)
 
       # Both should have cleared the alert
       assert Journey.get_value(exec1, :large_sum_alert) == {:error, :not_set}
@@ -365,7 +365,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
       # Set both above thresholds
       exec = exec |> Journey.set(:temp, 40) |> Journey.set(:humidity, 90)
 
-      assert {:ok, "Extreme weather: 40°C, 90% humidity"} =
+      assert {:ok, %{value: "Extreme weather: 40°C, 90% humidity"}} =
                Journey.get_value(exec, :extreme_weather_alert, wait_any: true)
 
       # Lower temperature below threshold - alert should clear
@@ -383,7 +383,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
       # Both above thresholds again - should recompute
       exec = Journey.set(exec, :humidity, 85)
 
-      assert {:ok, "Extreme weather: 40°C, 85% humidity"} =
+      assert {:ok, %{value: "Extreme weather: 40°C, 85% humidity"}} =
                Journey.get_value(exec, :extreme_weather_alert, wait_any: true)
     end
   end

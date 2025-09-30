@@ -22,7 +22,7 @@ defmodule Journey.JourneyGetValueTest do
         |> Journey.start_execution()
         |> Journey.set(:first_name, "Mario")
 
-      {:ok, "Mario", _} = Journey.get(execution, :first_name)
+      {:ok, %{value: "Mario"}} = Journey.get(execution, :first_name)
     end
 
     test "sunny day, computation, set, blocking" do
@@ -31,7 +31,7 @@ defmodule Journey.JourneyGetValueTest do
         |> Journey.start_execution()
         |> Journey.set(:first_name, "Mario")
 
-      {:ok, "Hello, Mario", _} = Journey.get(execution, :greeting, wait: :any)
+      {:ok, %{value: "Hello, Mario"}} = Journey.get(execution, :greeting, wait: :any)
     end
 
     test "no such node" do

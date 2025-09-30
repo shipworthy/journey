@@ -111,7 +111,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
       execution = Journey.set(execution, :user_name, "Alice")
       execution = Journey.set(execution, :title, "Dr.")
 
-      {:ok, _greeting} = Journey.get_value(execution, :greeting, wait_new: true)
+      {:ok, %{value: _greeting}} = Journey.get_value(execution, :greeting, wait_new: true)
 
       result = Journey.Tools.computation_status_as_text(execution.id, :greeting)
 
@@ -184,7 +184,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :original, "test")
 
-      {:ok, _} = Journey.get_value(execution, :modifier, wait_new: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :modifier, wait_new: true)
 
       result = Journey.Tools.computation_status_as_text(execution.id, :modifier)
 
@@ -219,7 +219,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
       execution = Journey.set(execution, :value, "trigger")
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
-      {:ok, _} = Journey.get_value(execution, :scheduled_task, wait_new: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :scheduled_task, wait_new: true)
 
       result = Journey.Tools.computation_status_as_text(execution.id, :scheduled_task)
 
@@ -257,9 +257,9 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, _schedule_time} = Journey.get_value(execution, :recurring_task, wait_new: true)
+      {:ok, %{value: _schedule_time}} = Journey.get_value(execution, :recurring_task, wait_new: true)
       execution = Journey.load(execution)
-      {:ok, _schedule_time} = Journey.get_value(execution, :recurring_task, wait_new: true)
+      {:ok, %{value: _schedule_time}} = Journey.get_value(execution, :recurring_task, wait_new: true)
 
       result = Journey.Tools.computation_status_as_text(execution.id, :recurring_task)
 
@@ -331,7 +331,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
 
       execution = Journey.start_execution(graph)
 
-      {:ok, _} = Journey.get_value(execution, :no_deps, wait_new: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :no_deps, wait_new: true)
 
       result = Journey.Tools.computation_status_as_text(execution.id, :no_deps)
 

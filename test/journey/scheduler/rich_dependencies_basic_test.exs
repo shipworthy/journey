@@ -42,8 +42,11 @@ defmodule Journey.Scheduler.RichDependenciesBasicTest do
 
       execution = execution |> Journey.set(:first_name, "Mario")
       assert execution != nil
-      assert {:ok, "updated :first_name"} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
-      assert {:ok, "redacted"} == execution |> Journey.get_value(:first_name, wait_any: true)
+
+      assert {:ok, %{value: "updated :first_name"}} =
+               execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
+
+      assert {:ok, %{value: "redacted"}} = execution |> Journey.get_value(:first_name, wait_any: true)
     end
 
     test "bad unblocked_when", %{test: test_name} do

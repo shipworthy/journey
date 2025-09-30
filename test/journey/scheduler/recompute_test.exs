@@ -10,7 +10,7 @@ defmodule Journey.Scheduler.Scheduler.RecomputeTest do
 
     execution = execution |> Journey.set(:user_name, "Mario")
     execution = execution |> Journey.set(:actual_name, "Bowser")
-    {:ok, "Hello, Mario", _} = Journey.get(execution, :greeting, wait: :any)
+    {:ok, %{value: "Hello, Mario"}} = Journey.get(execution, :greeting, wait: :any)
 
     assert Journey.values(execution) |> redact([:execution_id, :last_updated_at]) == %{
              greeting: "Hello, Mario",
@@ -24,7 +24,7 @@ defmodule Journey.Scheduler.Scheduler.RecomputeTest do
     execution = execution |> Journey.set(:user_name, "Toad")
 
     # The graph is recomputed.
-    {:ok, "Hello, Toad", _} = Journey.get(execution, :greeting, wait: :newer)
+    {:ok, %{value: "Hello, Toad"}} = Journey.get(execution, :greeting, wait: :newer)
 
     assert Journey.values(execution) |> redact([:execution_id, :last_updated_at]) == %{
              user_name: "Toad",

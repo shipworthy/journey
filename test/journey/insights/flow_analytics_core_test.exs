@@ -27,8 +27,8 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       # Leave exec3 without setting name
 
       # Wait for computations
-      {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
-      {:ok, _} = Journey.get_value(exec2, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec1, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec2, :greeting, wait_any: true)
 
       # Archive one execution
       Journey.archive(exec3)
@@ -101,8 +101,8 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       exec2 = Journey.set(exec2, :name, "Bob")
 
       # Wait for computations
-      {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
-      {:ok, _} = Journey.get_value(exec2, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec1, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec2, :greeting, wait_any: true)
 
       # Archive one execution
       Journey.archive(exec3)
@@ -156,7 +156,7 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
 
       # Wait for computations to complete
       for exec <- set_executions do
-        {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
+        {:ok, %{value: _}} = Journey.get_value(exec, :greeting, wait_any: true)
       end
 
       result = Insights.flow_analytics(graph.name, graph.version)
@@ -188,8 +188,8 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       Journey.set(exec2, :name, "Bob")
 
       # Wait for computations
-      {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
-      {:ok, _} = Journey.get_value(exec2, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec1, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec2, :greeting, wait_any: true)
 
       # Test with very long flow_ends_here_after (should show no flow endings)
       result_long = Insights.flow_analytics(graph.name, graph.version, flow_ends_here_after: 86_400)
@@ -227,7 +227,7 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
 
       exec_v1 = Journey.start_execution(graph_v1)
       exec_v1 = Journey.set(exec_v1, :name, "Alice")
-      {:ok, _} = Journey.get_value(exec_v1, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_v1, :greeting, wait_any: true)
 
       # Now create and process v2.0.0
       graph_v2 =
@@ -250,7 +250,7 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       exec_v2 = Journey.start_execution(graph_v2)
       exec_v2 = Journey.set(exec_v2, :name, "Bob")
       exec_v2 = Journey.set(exec_v2, :title, "Dr.")
-      {:ok, _} = Journey.get_value(exec_v2, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_v2, :greeting, wait_any: true)
 
       # Test v1.0.0
       result_v1 = Insights.flow_analytics(graph_name, "1.0.0")
@@ -271,7 +271,7 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
 
       exec = Journey.start_execution(graph)
       Journey.set(exec, :name, "TestUser")
-      {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec, :greeting, wait_any: true)
 
       result = Insights.flow_analytics(graph.name, graph.version)
 

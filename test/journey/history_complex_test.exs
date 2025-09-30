@@ -14,8 +14,8 @@ defmodule Journey.HistoryComplexTest do
         |> Journey.set(:trigger, "start")
 
       # Wait for both parallel computations to complete
-      {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)
-      {:ok, _} = Journey.get_value(execution, :parallel_b, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :parallel_a, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :parallel_b, wait_any: true)
 
       history = Journey.history(execution.id)
 
@@ -44,7 +44,7 @@ defmodule Journey.HistoryComplexTest do
         |> Journey.set(:trigger, "chain-start")
 
       # Wait for the full chain to complete
-      {:ok, _} = Journey.get_value(execution, :downstream, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :downstream, wait_any: true)
 
       history = Journey.history(execution.id)
 
@@ -64,10 +64,10 @@ defmodule Journey.HistoryComplexTest do
         |> Journey.start_execution()
         |> Journey.set(:data, "mutate-me")
 
-      {:ok, _} = Journey.get_value(execution, :mutator, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :mutator, wait_any: true)
 
       # The mutation should trigger re-computation of parallel nodes
-      {:ok, val_a} = Journey.get_value(execution, :parallel_a, wait_any: true)
+      {:ok, %{value: val_a}} = Journey.get_value(execution, :parallel_a, wait_any: true)
       assert val_a == "a: mutated: mutate-me"
 
       history = Journey.history(execution.id)
@@ -104,9 +104,9 @@ defmodule Journey.HistoryComplexTest do
         |> Journey.set(:data, "d1")
 
       # Wait for expected computations to complete
-      {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)
-      {:ok, _} = Journey.get_value(execution, :parallel_b, wait_any: true)
-      {:ok, _} = Journey.get_value(execution, :mutator, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :parallel_a, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :parallel_b, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :mutator, wait_any: true)
 
       history = Journey.history(execution.id)
 
@@ -126,8 +126,8 @@ defmodule Journey.HistoryComplexTest do
         |> Journey.set(:input_node, "test")
 
       # Wait for various computations
-      {:ok, _} = Journey.get_value(execution, :compute_node, wait_any: true)
-      {:ok, _} = Journey.get_value(execution, :mutate_node, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :compute_node, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :mutate_node, wait_any: true)
 
       history = Journey.history(execution.id)
 
@@ -152,12 +152,12 @@ defmodule Journey.HistoryComplexTest do
 
       # First computation wave
       execution = Journey.set(execution, :trigger, "first")
-      {:ok, first_a} = Journey.get_value(execution, :parallel_a, wait_any: true)
+      {:ok, %{value: first_a}} = Journey.get_value(execution, :parallel_a, wait_any: true)
       assert first_a == "a: first"
 
       # Update trigger again to cause re-computation
       execution = Journey.set(execution, :trigger, "second")
-      {:ok, second_a} = Journey.get_value(execution, :parallel_a, wait_new: true)
+      {:ok, %{value: second_a}} = Journey.get_value(execution, :parallel_a, wait_new: true)
       assert second_a == "a: second"
 
       history = Journey.history(execution.id)
@@ -197,11 +197,11 @@ defmodule Journey.HistoryComplexTest do
           |> Journey.set(:data, "test-data")
 
         # Wait for expected computations to complete
-        {:ok, _} = Journey.get_value(execution, :parallel_a, wait_any: true)
-        {:ok, _} = Journey.get_value(execution, :parallel_b, wait_any: true)
-        {:ok, _} = Journey.get_value(execution, :mutator, wait_any: true)
+        {:ok, %{value: _}} = Journey.get_value(execution, :parallel_a, wait_any: true)
+        {:ok, %{value: _}} = Journey.get_value(execution, :parallel_b, wait_any: true)
+        {:ok, %{value: _}} = Journey.get_value(execution, :mutator, wait_any: true)
         # downstream depends on parallel_a so should also complete
-        {:ok, _} = Journey.get_value(execution, :downstream, wait_any: true)
+        {:ok, %{value: _}} = Journey.get_value(execution, :downstream, wait_any: true)
 
         history = Journey.history(execution.id)
 

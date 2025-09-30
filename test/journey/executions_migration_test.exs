@@ -31,8 +31,8 @@ defmodule Journey.ExecutionsMigrationTest do
       execution = Journey.set(execution, :age, 30)
 
       # Verify initial state
-      assert {:ok, "Alice"} == Journey.get_value(execution, :name)
-      assert {:ok, 30} == Journey.get_value(execution, :age)
+      assert {:ok, %{value: "Alice"}} = Journey.get_value(execution, :name)
+      assert {:ok, %{value: 30}} = Journey.get_value(execution, :age)
       original_hash = execution.graph_hash
 
       # Create updated graph with additional nodes
@@ -59,8 +59,8 @@ defmodule Journey.ExecutionsMigrationTest do
       assert migrated_execution.graph_hash == updated_graph.hash
 
       # Original values should be preserved
-      assert {:ok, "Alice"} == Journey.get_value(migrated_execution, :name)
-      assert {:ok, 30} == Journey.get_value(migrated_execution, :age)
+      assert {:ok, %{value: "Alice"}} = Journey.get_value(migrated_execution, :name)
+      assert {:ok, %{value: 30}} = Journey.get_value(migrated_execution, :age)
 
       # New input node should exist but be unset
       assert {:error, :not_set} == Journey.get_value(migrated_execution, :email)
@@ -70,10 +70,10 @@ defmodule Journey.ExecutionsMigrationTest do
 
       # Verify we can set the new input node
       migrated_execution = Journey.set(migrated_execution, :email, "alice@example.com")
-      assert {:ok, "alice@example.com"} == Journey.get_value(migrated_execution, :email)
+      assert {:ok, %{value: "alice@example.com"}} = Journey.get_value(migrated_execution, :email)
 
       # Verify the compute node works (it should compute since :name is already set)
-      assert {:ok, "Hello, Alice!"} == Journey.get_value(migrated_execution, :greeting, wait_any: true)
+      assert {:ok, %{value: "Hello, Alice!"}} = Journey.get_value(migrated_execution, :greeting, wait_any: true)
     end
 
     test "migration is idempotent" do
@@ -107,7 +107,7 @@ defmodule Journey.ExecutionsMigrationTest do
       assert migrated_twice.id == migrated_once.id
 
       # Values should remain the same
-      assert {:ok, "value_a"} == Journey.get_value(migrated_twice, :a)
+      assert {:ok, %{value: "value_a"}} = Journey.get_value(migrated_twice, :a)
       assert {:error, :not_set} == Journey.get_value(migrated_twice, :b)
     end
 
@@ -168,14 +168,14 @@ defmodule Journey.ExecutionsMigrationTest do
       migrated = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
       # Check all nodes exist
-      assert {:ok, 123} == Journey.get_value(migrated, :user_id)
+      assert {:ok, %{value: 123}} = Journey.get_value(migrated, :user_id)
       assert {:error, :not_set} == Journey.get_value(migrated, :user_name)
       assert {:error, :not_set} == Journey.get_value(migrated, :user_greeting)
       assert {:error, :not_set} == Journey.get_value(migrated, :clear_user_id)
 
       # Verify the nodes can be used
       migrated = Journey.set(migrated, :user_name, "Bob")
-      assert {:ok, "Welcome, Bob"} == Journey.get_value(migrated, :user_greeting, wait_any: true)
+      assert {:ok, %{value: "Welcome, Bob"}} = Journey.get_value(migrated, :user_greeting, wait_any: true)
     end
 
     test "new nodes start with ex_revision 0" do
@@ -257,7 +257,7 @@ defmodule Journey.ExecutionsMigrationTest do
       for result <- results do
         assert result.id == first_result.id
         assert result.graph_hash == updated_graph.hash
-        assert {:ok, "base_value"} == Journey.get_value(result, :base)
+        assert {:ok, %{value: "base_value"}} = Journey.get_value(result, :base)
         assert {:error, :not_set} == Journey.get_value(result, :new1)
         assert {:error, :not_set} == Journey.get_value(result, :new2)
       end
@@ -300,7 +300,7 @@ defmodule Journey.ExecutionsMigrationTest do
       execution = Journey.start_execution(original_graph)
       execution = Journey.set(execution, :i1, 10)
       execution = Journey.set(execution, :i2, 20)
-      assert {:ok, 30} = Journey.get_value(execution, :c, wait_any: true)
+      assert {:ok, %{value: 30}} = Journey.get_value(execution, :c, wait_any: true)
 
       # Create updated graph (overwrites catalog)
       updated_graph =
@@ -323,11 +323,11 @@ defmodule Journey.ExecutionsMigrationTest do
       execution = Journey.set(execution, :i3, 5)
 
       # Verify original computation still works
-      assert {:ok, 30} = Journey.get_value(execution, :c)
+      assert {:ok, %{value: 30}} = Journey.get_value(execution, :c)
 
       # Verify new computation executes correctly
       # 10 * 20 * 5 = 1000
-      assert {:ok, 1000} = Journey.get_value(execution, :c2, wait_any: true)
+      assert {:ok, %{value: 1000}} = Journey.get_value(execution, :c2, wait_any: true)
 
       # Verify migration occurred
       assert execution.graph_hash == updated_graph.hash

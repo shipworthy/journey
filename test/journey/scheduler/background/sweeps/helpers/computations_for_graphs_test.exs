@@ -49,9 +49,9 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       Journey.set(exec_c, :p, 4)
 
       # Wait for computations to complete
-      {:ok, _} = Journey.get_value(exec_a, :y, wait_any: true)
-      {:ok, _} = Journey.get_value(exec_b, :b, wait_any: true)
-      {:ok, _} = Journey.get_value(exec_c, :q, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_a, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_b, :b, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_c, :q, wait_any: true)
 
       # Get all registered graphs before unregistering
       all_graphs = Catalog.list()
@@ -103,7 +103,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       # Start execution
       execution = Journey.start_execution(graph)
       Journey.set(execution, :x, 5)
-      {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :y, wait_any: true)
 
       # Query with non-existent graph
       query = Helpers.computations_for_graphs(nil, [{"non_existent", "1.0"}])
@@ -143,8 +143,8 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       Journey.set(exec_v1, :x, 5)
       Journey.set(exec_v2, :x, 5)
 
-      {:ok, _} = Journey.get_value(exec_v1, :y, wait_any: true)
-      {:ok, _} = Journey.get_value(exec_v2, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_v1, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_v2, :y, wait_any: true)
 
       # Unregister v1.0
       :ok = Catalog.unregister(graph_name, "1.0")
@@ -178,7 +178,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       # Start execution and trigger computation
       execution = Journey.start_execution(graph)
       Journey.set(execution, :x, 5)
-      {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :y, wait_any: true)
 
       # Query with empty graph list
       query = Helpers.computations_for_graphs(nil, [])
@@ -221,8 +221,8 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       Journey.set(exec_b, :a, 3)
 
       # Wait for computations to complete
-      {:ok, _} = Journey.get_value(exec_a, :y, wait_any: true)
-      {:ok, _} = Journey.get_value(exec_b, :b, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_a, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_b, :b, wait_any: true)
 
       # Get all registered graphs
       registered_graphs = Catalog.list()
@@ -252,7 +252,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       # Start execution and trigger computation
       execution = Journey.start_execution(graph)
       Journey.set(execution, :x, 5)
-      {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :y, wait_any: true)
 
       # Unregister the graph
       :ok = Catalog.unregister(graph.name, graph.version)
@@ -284,7 +284,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       # Start execution and trigger computation
       execution = Journey.start_execution(graph)
       Journey.set(execution, :x, 5)
-      {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :y, wait_any: true)
 
       # Query with execution_id and empty graph list
       query = Helpers.computations_for_graphs(execution.id, [])
@@ -315,8 +315,8 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       Journey.set(exec_1, :x, 5)
       Journey.set(exec_2, :x, 10)
 
-      {:ok, _} = Journey.get_value(exec_1, :z, wait_any: true)
-      {:ok, _} = Journey.get_value(exec_2, :z, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_1, :z, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(exec_2, :z, wait_any: true)
 
       # Get registered graphs
       registered_graphs = Catalog.list()
@@ -346,7 +346,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       # Start execution to ensure there are computations in the system
       execution = Journey.start_execution(graph)
       Journey.set(execution, :x, 5)
-      {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :y, wait_any: true)
 
       # Get registered graphs
       registered_graphs = Catalog.list()

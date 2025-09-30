@@ -13,14 +13,14 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set initial value with metadata
       execution = Journey.set(execution, :title, "Constant Title", metadata: %{"author_id" => "user1"})
-      {:ok, {value1, metadata1, revision1}} = Journey.get(execution, :title)
+      {:ok, %{value: value1, metadata: metadata1, revision: revision1}} = Journey.get(execution, :title)
 
       assert value1 == "Constant Title"
       assert metadata1 == %{"author_id" => "user1"}
 
       # Update metadata only (same value)
       execution = Journey.set(execution, :title, "Constant Title", metadata: %{"author_id" => "user2"})
-      {:ok, {value2, metadata2, revision2}} = Journey.get(execution, :title)
+      {:ok, %{value: value2, metadata: metadata2, revision: revision2}} = Journey.get(execution, :title)
 
       # Value should be unchanged
       assert value2 == "Constant Title"
@@ -42,11 +42,11 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set initial value with metadata
       execution = Journey.set(execution, :title, "Title", metadata: %{"author_id" => "user1"})
-      {:ok, {_value1, _metadata1, revision1}} = Journey.get(execution, :title)
+      {:ok, %{value: _value1, metadata: _metadata1, revision: revision1}} = Journey.get(execution, :title)
 
       # Set same value and same metadata (should be no-op)
       execution = Journey.set(execution, :title, "Title", metadata: %{"author_id" => "user1"})
-      {:ok, {_value2, _metadata2, revision2}} = Journey.get(execution, :title)
+      {:ok, %{value: _value2, metadata: _metadata2, revision: revision2}} = Journey.get(execution, :title)
 
       # Revision should NOT increment
       assert revision2 == revision1
@@ -69,8 +69,8 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user1"}
         )
 
-      {:ok, {_title1, title_meta1, title_rev1}} = Journey.get(execution, :title)
-      {:ok, {_desc1, desc_meta1, _desc_rev1}} = Journey.get(execution, :description)
+      {:ok, %{value: _title1, metadata: title_meta1, revision: title_rev1}} = Journey.get(execution, :title)
+      {:ok, %{value: _desc1, metadata: desc_meta1, revision: _desc_rev1}} = Journey.get(execution, :description)
 
       assert title_meta1 == %{"author_id" => "user1"}
       assert desc_meta1 == %{"author_id" => "user1"}
@@ -83,8 +83,8 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user2"}
         )
 
-      {:ok, {title2, title_meta2, title_rev2}} = Journey.get(execution, :title)
-      {:ok, {desc2, desc_meta2, _desc_rev2}} = Journey.get(execution, :description)
+      {:ok, %{value: title2, metadata: title_meta2, revision: title_rev2}} = Journey.get(execution, :title)
+      {:ok, %{value: desc2, metadata: desc_meta2, revision: _desc_rev2}} = Journey.get(execution, :description)
 
       # Values should be unchanged
       assert title2 == "Title"
@@ -115,7 +115,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user1"}
         )
 
-      {:ok, {_title1, _title_meta1, title_rev1}} = Journey.get(execution, :title)
+      {:ok, %{value: _title1, metadata: _title_meta1, revision: title_rev1}} = Journey.get(execution, :title)
 
       # Change title value AND metadata
       execution =
@@ -125,8 +125,8 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user2"}
         )
 
-      {:ok, {title2, title_meta2, title_rev2}} = Journey.get(execution, :title)
-      {:ok, {desc2, desc_meta2, _desc_rev2}} = Journey.get(execution, :description)
+      {:ok, %{value: title2, metadata: title_meta2, revision: title_rev2}} = Journey.get(execution, :title)
+      {:ok, %{value: desc2, metadata: desc_meta2, revision: _desc_rev2}} = Journey.get(execution, :description)
 
       # Title value changed
       assert title2 == "Title v2"
@@ -153,7 +153,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # First change
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user1"})
-      {:ok, {history1, _, _}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, %{value: history1, metadata: _, revision: _}} = Journey.get(execution, :content_history, wait: :any)
 
       assert length(history1) == 1
       assert hd(history1)["value"] == "v1"
@@ -161,7 +161,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Metadata-only change (same value)
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user2"})
-      {:ok, {history2, _, _}} = Journey.get(execution, :content_history, wait: :newer)
+      {:ok, %{value: history2, metadata: _, revision: _}} = Journey.get(execution, :content_history, wait: :newer)
 
       # Should have TWO entries now
       assert length(history2) == 2
@@ -182,7 +182,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # First change
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user1"})
-      {:ok, {history1, _, _}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, %{value: history1, metadata: _, revision: _}} = Journey.get(execution, :content_history, wait: :any)
 
       assert length(history1) == 1
 
@@ -192,7 +192,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       # Wait a bit to ensure no computation triggered
       Process.sleep(100)
 
-      {:ok, {history2, _, _}} = Journey.get(execution, :content_history)
+      {:ok, %{value: history2, metadata: _, revision: _}} = Journey.get(execution, :content_history)
 
       # Should still have only ONE entry
       assert length(history2) == 1
@@ -210,13 +210,13 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set value without metadata
       execution = Journey.set(execution, :field, "value")
-      {:ok, {_v1, meta1, rev1}} = Journey.get(execution, :field)
+      {:ok, %{value: _v1, metadata: meta1, revision: rev1}} = Journey.get(execution, :field)
 
       assert meta1 == nil
 
       # Add metadata (same value)
       execution = Journey.set(execution, :field, "value", metadata: %{"added" => "later"})
-      {:ok, {v2, meta2, rev2}} = Journey.get(execution, :field)
+      {:ok, %{value: v2, metadata: meta2, revision: rev2}} = Journey.get(execution, :field)
 
       assert v2 == "value"
       assert meta2 == %{"added" => "later"}
@@ -233,13 +233,13 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set value with metadata
       execution = Journey.set(execution, :field, "value", metadata: %{"author" => "user1"})
-      {:ok, {_v1, meta1, rev1}} = Journey.get(execution, :field)
+      {:ok, %{value: _v1, metadata: meta1, revision: rev1}} = Journey.get(execution, :field)
 
       assert meta1 == %{"author" => "user1"}
 
       # Remove metadata (same value)
       execution = Journey.set(execution, :field, "value")
-      {:ok, {v2, meta2, rev2}} = Journey.get(execution, :field)
+      {:ok, %{value: v2, metadata: meta2, revision: rev2}} = Journey.get(execution, :field)
 
       assert v2 == "value"
       assert meta2 == nil
@@ -257,7 +257,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: "simple string")
 
-      {:ok, {value, metadata, _revision}} = Journey.get(execution, :field)
+      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
       assert value == "value"
       assert metadata == "simple string"
     end
@@ -271,7 +271,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: 42)
 
-      {:ok, {value, metadata, _revision}} = Journey.get(execution, :field)
+      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
       assert value == "value"
       assert metadata == 42
     end
@@ -285,7 +285,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: true)
 
-      {:ok, {value, metadata, _revision}} = Journey.get(execution, :field)
+      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
       assert value == "value"
       assert metadata == true
     end
@@ -299,7 +299,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: ["item1", "item2", "item3"])
 
-      {:ok, {value, metadata, _revision}} = Journey.get(execution, :field)
+      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
       assert value == "value"
       assert metadata == ["item1", "item2", "item3"]
     end
@@ -312,13 +312,13 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: "version1")
-      {:ok, {_v1, meta1, rev1}} = Journey.get(execution, :field)
+      {:ok, %{value: _v1, metadata: meta1, revision: rev1}} = Journey.get(execution, :field)
 
       assert meta1 == "version1"
 
       # Update only metadata
       execution = Journey.set(execution, :field, "value", metadata: "version2")
-      {:ok, {v2, meta2, rev2}} = Journey.get(execution, :field)
+      {:ok, %{value: v2, metadata: meta2, revision: rev2}} = Journey.get(execution, :field)
 
       assert v2 == "value"
       assert meta2 == "version2"
@@ -362,7 +362,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :config, %{"retry_count" => 3})
 
-      {:ok, {value, _metadata, _revision}} = Journey.get(execution, :config)
+      {:ok, %{value: value, metadata: _metadata, revision: _revision}} = Journey.get(execution, :config)
       assert value == %{"retry_count" => 3}
     end
 
@@ -375,7 +375,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: %{"author_id" => "user1"})
 
-      {:ok, {_value, metadata, _revision}} = Journey.get(execution, :field)
+      {:ok, %{value: _value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
       assert metadata == %{"author_id" => "user1"}
     end
   end

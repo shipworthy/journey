@@ -22,7 +22,7 @@ defmodule Journey.Node.HistorianTest do
 
       # First value
       execution = Journey.set(execution, :content, "First version")
-      {:ok, history1} = Journey.get_value(execution, :content_history, wait_any: true)
+      {:ok, %{value: history1}} = Journey.get_value(execution, :content_history, wait_any: true)
 
       assert length(history1) == 1
       assert [%{"value" => "First version", "node" => "content", "timestamp" => ts1}] = history1
@@ -30,7 +30,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Second value
       execution = Journey.set(execution, :content, "Second version")
-      {:ok, history2} = Journey.get_value(execution, :content_history, wait: :newer)
+      {:ok, %{value: history2}} = Journey.get_value(execution, :content_history, wait: :newer)
 
       assert length(history2) == 2
       [entry1, entry2] = history2
@@ -67,7 +67,8 @@ defmodule Journey.Node.HistorianTest do
             Process.sleep(100)
 
             # Wait for computation newer than last revision
-            {:ok, _history} = Journey.get_value(new_execution, :status_history, wait: {:newer_than, last_revision})
+            {:ok, %{value: _history}} =
+              Journey.get_value(new_execution, :status_history, wait: {:newer_than, last_revision})
 
             ex = Journey.load(execution)
             value = ex.values |> Enum.find(fn e -> e.node_name == :status end)
@@ -79,7 +80,9 @@ defmodule Journey.Node.HistorianTest do
           end)
 
         Process.sleep(100)
-        {:ok, final_history} = Journey.get_value(execution, :status_history, wait: {:newer_than, last_revision})
+
+        {:ok, %{value: final_history}} =
+          Journey.get_value(execution, :status_history, wait: {:newer_than, last_revision})
 
         # Due to Journey's scheduling optimizations, we get fewer than 1001 entries
         values = Enum.map(final_history, & &1["value"])
@@ -111,7 +114,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Add a single value to verify unlimited works
       execution = Journey.set(execution, :event, "single_event")
-      {:ok, history} = Journey.get_value(execution, :event_log, wait: :any)
+      {:ok, %{value: history}} = Journey.get_value(execution, :event_log, wait: :any)
 
       # Should keep the entry with unlimited history
       assert length(history) == 1
@@ -137,7 +140,7 @@ defmodule Journey.Node.HistorianTest do
       test_value = %{"key" => "value", "nested" => %{"data" => true, "count" => 42}}
 
       execution = Journey.set(execution, :data, test_value)
-      {:ok, history} = Journey.get_value(execution, :data_history, wait: :any)
+      {:ok, %{value: history}} = Journey.get_value(execution, :data_history, wait: :any)
 
       assert length(history) == 1
       assert [%{"value" => recorded_value, "node" => "data", "timestamp" => _ts}] = history
@@ -161,7 +164,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Just test that the default max_entries behavior exists by setting a single value
       execution = Journey.set(execution, :counter, 1)
-      {:ok, history} = Journey.get_value(execution, :counter_history, wait: :any)
+      {:ok, %{value: history}} = Journey.get_value(execution, :counter_history, wait: :any)
 
       # Should have the entry and work normally
       assert length(history) == 1
@@ -169,7 +172,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Verify the historian works with subsequent updates (proving it has some limit, not unlimited)
       execution = Journey.set(execution, :counter, 2)
-      {:ok, history2} = Journey.get_value(execution, :counter_history, wait: :newer)
+      {:ok, %{value: history2}} = Journey.get_value(execution, :counter_history, wait: :newer)
       # Would be unlimited if max_entries was nil, but we have a default limit
       assert length(history2) == 2
     end
@@ -200,7 +203,8 @@ defmodule Journey.Node.HistorianTest do
             Process.sleep(100)
 
             # Wait for computation newer than last revision
-            {:ok, _history} = Journey.get_value(new_execution, :counter_history, wait: {:newer_than, last_revision})
+            {:ok, %{value: _history}} =
+              Journey.get_value(new_execution, :counter_history, wait: {:newer_than, last_revision})
 
             ex = Journey.load(execution)
             value = ex.values |> Enum.find(fn e -> e.node_name == :counter end)
@@ -213,7 +217,10 @@ defmodule Journey.Node.HistorianTest do
           end)
 
         Process.sleep(100)
-        {:ok, final_history} = Journey.get_value(execution, :counter_history, wait: {:newer_than, last_revision})
+
+        {:ok, %{value: final_history}} =
+          Journey.get_value(execution, :counter_history, wait: {:newer_than, last_revision})
+
         # final_history |> Enum.count() |> IO.inspect(label: :chickens)
 
         # Due to Journey's scheduling optimizations, we get fewer than 1001 entries
@@ -246,13 +253,13 @@ defmodule Journey.Node.HistorianTest do
 
       # Set initial value
       execution = Journey.set(execution, :value, "first")
-      {:ok, history1} = Journey.get_value(execution, :value_history, wait: :any)
+      {:ok, %{value: history1}} = Journey.get_value(execution, :value_history, wait: :any)
 
       # Set second value after a short delay
       # Ensure different timestamp
       Process.sleep(10)
       execution = Journey.set(execution, :value, "second")
-      {:ok, history2} = Journey.get_value(execution, :value_history, wait: :newer)
+      {:ok, %{value: history2}} = Journey.get_value(execution, :value_history, wait: :newer)
 
       assert length(history1) == 1
       assert length(history2) == 2

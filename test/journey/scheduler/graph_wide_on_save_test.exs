@@ -34,8 +34,8 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
           execution = Journey.set(execution, :x, 5)
           execution = Journey.set(execution, :y, 3)
 
-          assert Journey.get_value(execution, :sum, wait_any: true) == {:ok, 8}
-          assert Journey.get_value(execution, :product, wait_any: true) == {:ok, 15}
+          assert {:ok, %{value: 8}} = Journey.get_value(execution, :sum, wait_any: true)
+          assert {:ok, %{value: 15}} = Journey.get_value(execution, :product, wait_any: true)
 
           # Wait for async callbacks to complete
           Process.sleep(2000)
@@ -83,8 +83,8 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
           execution = Journey.start_execution(graph)
           execution = Journey.set(execution, :name, "Alice")
 
-          assert Journey.get_value(execution, :greeting, wait_any: true) == {:ok, "Hello, Alice"}
-          assert Journey.get_value(execution, :uppercase, wait_any: true) == {:ok, "ALICE"}
+          assert {:ok, %{value: "Hello, Alice"}} = Journey.get_value(execution, :greeting, wait_any: true)
+          assert {:ok, %{value: "ALICE"}} = Journey.get_value(execution, :uppercase, wait_any: true)
 
           # Wait for async callbacks to complete
           Process.sleep(2000)
@@ -126,8 +126,10 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
           execution = Journey.start_execution(graph)
           execution = Journey.set(execution, :sensitive_data, "SSN: 123-45-6789")
 
-          assert Journey.get_value(execution, :redact_data, wait_any: true) == {:ok, "updated :sensitive_data"}
-          assert Journey.get_value(execution, :sensitive_data, wait_any: true) == {:ok, "[REDACTED]"}
+          assert {:ok, %{value: "updated :sensitive_data"}} =
+                   Journey.get_value(execution, :redact_data, wait_any: true)
+
+          assert {:ok, %{value: "[REDACTED]"}} = Journey.get_value(execution, :sensitive_data, wait_any: true)
 
           # Wait for async callbacks to complete
           Process.sleep(2000)
@@ -159,7 +161,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
           execution = Journey.set(execution, :value, 10)
 
           # Computation should succeed despite callback error
-          assert Journey.get_value(execution, :double, wait_any: true) == {:ok, 20}
+          assert {:ok, %{value: 20}} = Journey.get_value(execution, :double, wait_any: true)
 
           # Wait for async callbacks to complete
           Process.sleep(2000)
@@ -191,7 +193,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :input_value, "test")
 
-      assert Journey.get_value(execution, :compute_node, wait_any: true) == {:ok, "computed: test"}
+      assert {:ok, %{value: "computed: test"}} = Journey.get_value(execution, :compute_node, wait_any: true)
 
       # Wait for the callback message
       assert_receive {:callback_called, exec_id, :compute_node, {:ok, "computed: test"}}, 3000
@@ -220,7 +222,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
           execution = Journey.start_execution(graph)
           execution = Journey.set(execution, :test_input, "value")
 
-          assert Journey.get_value(execution, :test_compute, wait_any: true) == {:ok, "value"}
+          assert {:ok, %{value: "value"}} = Journey.get_value(execution, :test_compute, wait_any: true)
 
           # Wait for async callbacks to complete
           Process.sleep(2000)
@@ -263,7 +265,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
           execution = Journey.set(execution, :trigger, true)
 
           # Get the scheduled time
-          {:ok, _scheduled_time} = Journey.get_value(execution, :scheduled_task, wait_any: true)
+          {:ok, %{value: _scheduled_time}} = Journey.get_value(execution, :scheduled_task, wait_any: true)
 
           # Wait for async callbacks to complete
           Process.sleep(2000)
@@ -293,7 +295,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :x, 5)
 
-      assert Journey.get_value(execution, :double, wait_any: true) == {:ok, 10}
+      assert {:ok, %{value: 10}} = Journey.get_value(execution, :double, wait_any: true)
     end
   end
 end

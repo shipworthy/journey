@@ -14,7 +14,7 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
         |> Journey.set(:first_name, "Mario")
 
-      {:ok, "Mario", _} = Journey.get(execution, :first_name)
+      {:ok, %{value: "Mario"}} = Journey.get(execution, :first_name)
     end
 
     test "setting value to the same value" do
@@ -23,14 +23,14 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
 
       execution_v1 |> Journey.set(:first_name, "Mario")
-      {:ok, "Mario", _} = Journey.get(execution_v1, :first_name, wait: :any)
-      {:ok, "Hello, Mario", _} = Journey.get(execution_v1, :greeting, wait: :any)
+      {:ok, %{value: "Mario"}} = Journey.get(execution_v1, :first_name, wait: :any)
+      {:ok, %{value: "Hello, Mario"}} = Journey.get(execution_v1, :greeting, wait: :any)
       execution_after_first_set = execution_v1 |> Journey.load()
 
       assert execution_after_first_set.revision > execution_v1.revision
 
       execution_v1 |> Journey.set(:first_name, "Mario")
-      {:ok, "Mario", _} = Journey.get(execution_v1, :first_name, wait: :any)
+      {:ok, %{value: "Mario"}} = Journey.get(execution_v1, :first_name, wait: :any)
       execution_after_second_set = execution_v1 |> Journey.load()
       assert execution_after_second_set.revision == execution_after_first_set.revision
     end
@@ -41,13 +41,13 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
 
       execution_v2 = execution_v1 |> Journey.set(:first_name, "Mario")
-      {:ok, "Mario", _} = Journey.get(execution_v1, :first_name, wait: :any)
-      {:ok, "Hello, Mario", _} = Journey.get(execution_v1, :greeting, wait: :any)
+      {:ok, %{value: "Mario"}} = Journey.get(execution_v1, :first_name, wait: :any)
+      {:ok, %{value: "Hello, Mario"}} = Journey.get(execution_v1, :greeting, wait: :any)
       assert execution_v2.revision > execution_v1.revision
 
       execution_v3 = execution_v1 |> Journey.set(:first_name, "Luigi")
-      {:ok, "Luigi", _} = Journey.get(execution_v3, :first_name)
-      {:ok, "Hello, Luigi", _} = Journey.get(execution_v3, :greeting, wait: :newer)
+      {:ok, %{value: "Luigi"}} = Journey.get(execution_v3, :first_name)
+      {:ok, %{value: "Hello, Luigi"}} = Journey.get(execution_v3, :greeting, wait: :newer)
       assert execution_v3.revision > execution_v2.revision
     end
 
@@ -62,8 +62,8 @@ defmodule Journey.JourneySetValueTest do
         execution
         |> Journey.set(:first_name, "Mario")
 
-      {:ok, "Mario", _} = Journey.get(execution, :first_name)
-      {:ok, greeting, _} = Journey.get(execution, :greeting, wait: :any)
+      {:ok, %{value: "Mario"}} = Journey.get(execution, :first_name)
+      {:ok, %{value: greeting}} = Journey.get(execution, :greeting, wait: :any)
       assert greeting == "Hello, Mario"
 
       execution = execution |> Journey.load()
@@ -118,7 +118,7 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
 
       updated_execution = Journey.set(execution.id, :first_name, "Mario")
-      {:ok, "Mario", _} = Journey.get(updated_execution, :first_name)
+      {:ok, %{value: "Mario"}} = Journey.get(updated_execution, :first_name)
     end
 
     test "atom values are rejected" do

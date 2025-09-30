@@ -61,7 +61,7 @@ defmodule Journey.HistorySimpleTest do
         |> Journey.set(:input_a, "test_input")
 
       # Wait for computation to complete
-      {:ok, computed_value} = Journey.get_value(execution, :computed_a, wait_any: true)
+      {:ok, %{value: computed_value}} = Journey.get_value(execution, :computed_a, wait_any: true)
       assert computed_value == "computed: test_input"
 
       history = Journey.history(execution.id)
@@ -83,10 +83,10 @@ defmodule Journey.HistorySimpleTest do
 
       # Perform multiple operations
       execution = Journey.set(execution, :input_a, "first")
-      {:ok, _} = Journey.get_value(execution, :computed_a, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :computed_a, wait_any: true)
 
       execution = Journey.set(execution, :input_a, "second")
-      {:ok, _} = Journey.get_value(execution, :computed_a, wait_new: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :computed_a, wait_new: true)
 
       history = Journey.history(execution.id)
 
@@ -140,7 +140,7 @@ defmodule Journey.HistorySimpleTest do
         |> Journey.set(:input_a, "test")
 
       # Wait for computation
-      {:ok, _} = Journey.get_value(execution, :computed_a, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :computed_a, wait_any: true)
 
       history = Journey.history(execution.id)
 
@@ -191,7 +191,7 @@ defmodule Journey.HistorySimpleTest do
         |> Journey.set(:will_fail, false)
 
       # Wait for successful computation
-      {:ok, _} = Journey.get_value(execution, :maybe_fails, wait_any: true)
+      {:ok, %{value: _}} = Journey.get_value(execution, :maybe_fails, wait_any: true)
 
       # Now set it to fail to create a failed computation
       execution = Journey.set(execution, :will_fail, true)
