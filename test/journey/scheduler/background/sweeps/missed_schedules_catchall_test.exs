@@ -119,7 +119,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       assert sweep_run_id != nil
 
       # Wait for async computation to complete and verify the missed schedule was recovered
-      {:ok, %{value: result}} = Journey.get_value(execution, :recovered_result, wait_any: true)
+      {:ok, result} = Journey.get_value(execution, :recovered_result, wait_any: true)
       assert result == "schedule recovered!"
     end
 
@@ -230,7 +230,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       assert count == 1
 
       # Verify downstream computation ran
-      {:ok, %{value: result}} = Journey.get_value(execution, :should_run, wait_any: true)
+      {:ok, result} = Journey.get_value(execution, :should_run, wait_any: true)
       assert result == "executed in valid window"
     end
 
@@ -256,16 +256,16 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       execution = Journey.set(execution, :trigger, true)
 
       # Wait for schedules to compute
-      {:ok, %{value: _}} = Journey.get_value(execution, :once_schedule, wait_any: true)
-      {:ok, %{value: _}} = Journey.get_value(execution, :recurring_schedule, wait_any: true)
+      {:ok, _} = Journey.get_value(execution, :once_schedule, wait_any: true)
+      {:ok, _} = Journey.get_value(execution, :recurring_schedule, wait_any: true)
 
       # Run sweep
       {count, _} = MissedSchedulesCatchall.sweep(execution.id)
       assert count >= 0
 
       # Verify both schedule types triggered their computations
-      {:ok, %{value: once_result}} = Journey.get_value(execution, :once_result, wait_any: true)
-      {:ok, %{value: recurring_result}} = Journey.get_value(execution, :recurring_result, wait_any: true)
+      {:ok, once_result} = Journey.get_value(execution, :once_result, wait_any: true)
+      {:ok, recurring_result} = Journey.get_value(execution, :recurring_result, wait_any: true)
       assert once_result == "once recovered"
       assert recurring_result == "recurring recovered"
     end
@@ -465,12 +465,12 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       good_execution = Journey.set(good_execution, :trigger, true)
 
       # Wait for schedule to compute successfully
-      {:ok, %{value: _}} = Journey.get_value(good_execution, :good_schedule, wait_any: true)
+      {:ok, _} = Journey.get_value(good_execution, :good_schedule, wait_any: true)
 
       # Create a second execution and then archive it to simulate Journey.load() failure
       failing_execution = Journey.start_execution(good_graph)
       failing_execution = Journey.set(failing_execution, :trigger, true)
-      {:ok, %{value: _}} = Journey.get_value(failing_execution, :good_schedule, wait_any: true)
+      {:ok, _} = Journey.get_value(failing_execution, :good_schedule, wait_any: true)
 
       # Archive the failing execution - this will cause Journey.load() to return nil
       Journey.archive(failing_execution)
@@ -490,7 +490,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       assert count >= 0
 
       # Verify good execution completed successfully
-      {:ok, %{value: result}} = Journey.get_value(good_execution, :good_result, wait_any: true)
+      {:ok, result} = Journey.get_value(good_execution, :good_result, wait_any: true)
       assert result == "success"
     end
 
@@ -518,7 +518,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
 
       # Wait for all schedules to compute
       for execution <- executions do
-        {:ok, %{value: _}} = Journey.get_value(execution, :batch_schedule, wait_any: true)
+        {:ok, _} = Journey.get_value(execution, :batch_schedule, wait_any: true)
       end
 
       # Run global sweep (not execution-specific) to test batch processing
@@ -529,7 +529,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
 
       # Verify all our executions were processed
       for execution <- executions do
-        {:ok, %{value: result}} = Journey.get_value(execution, :batch_result, wait_any: true)
+        {:ok, result} = Journey.get_value(execution, :batch_result, wait_any: true)
         assert String.starts_with?(result, "batch-")
       end
     end

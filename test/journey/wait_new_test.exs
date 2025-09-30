@@ -17,11 +17,11 @@ defmodule Journey.JourneyWaitNewTest do
     test "wait_new waits for new revision when value exists", %{execution: execution} do
       # Set initial value
       execution = execution |> Journey.set(:first_name, "Mario")
-      {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait_any: true)
+      {:ok, "Mario"} = Journey.get_value(execution, :first_name, wait_any: true)
 
       # Set new value and use wait_new to get the updated value
       _execution_v2 = execution |> Journey.set(:first_name, "Luigi")
-      {:ok, %{value: "Luigi"}} = Journey.get_value(execution, :first_name, wait_new: true)
+      {:ok, "Luigi"} = Journey.get_value(execution, :first_name, wait_new: true)
     end
 
     test "wait_new waits for first value when no value exists", %{execution: execution} do
@@ -35,7 +35,7 @@ defmodule Journey.JourneyWaitNewTest do
       end)
 
       # This should wait for the first value to be set
-      {:ok, %{value: "Delayed Mario"}} = Journey.get_value(execution, :first_name, wait_new: true)
+      {:ok, "Delayed Mario"} = Journey.get_value(execution, :first_name, wait_new: true)
 
       # Verify the task completed
       assert_receive {:value_set, _}, 1000
@@ -44,7 +44,7 @@ defmodule Journey.JourneyWaitNewTest do
     test "wait_new timeout behavior", %{execution: execution} do
       # Set initial value
       execution = execution |> Journey.set(:first_name, "Mario")
-      {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait_any: true)
+      {:ok, "Mario"} = Journey.get_value(execution, :first_name, wait_any: true)
 
       # Try to wait for new revision with short timeout - should timeout
       {:error, :not_set} = Journey.get_value(execution, :first_name, wait_new: 100)
@@ -53,7 +53,7 @@ defmodule Journey.JourneyWaitNewTest do
     test "wait_new with concurrent updates", %{execution: execution} do
       # Set initial value
       execution = execution |> Journey.set(:first_name, "Mario")
-      {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait_any: true)
+      {:ok, "Mario"} = Journey.get_value(execution, :first_name, wait_any: true)
 
       test_pid = self()
 
@@ -67,7 +67,7 @@ defmodule Journey.JourneyWaitNewTest do
       end
 
       # wait_new should get one of the updates
-      {:ok, %{value: value}} = Journey.get_value(execution, :first_name, wait_new: true)
+      {:ok, value} = Journey.get_value(execution, :first_name, wait_new: true)
       assert String.starts_with?(value, "Update")
 
       # Wait for all tasks to complete
@@ -89,11 +89,11 @@ defmodule Journey.JourneyWaitNewTest do
     test "wait_new works with dependent computations", %{execution: execution} do
       # Set initial first_name to trigger greeting computation
       execution = execution |> Journey.set(:first_name, "Mario")
-      {:ok, %{value: "Hello, Mario"}} = Journey.get_value(execution, :greeting, wait_any: true)
+      {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
 
       # Change first_name and wait for new greeting computation
       execution_v2 = execution |> Journey.set(:first_name, "Luigi")
-      {:ok, %{value: "Hello, Luigi"}} = Journey.get_value(execution_v2, :greeting, wait_new: true)
+      {:ok, "Hello, Luigi"} = Journey.get_value(execution_v2, :greeting, wait_new: true)
     end
   end
 

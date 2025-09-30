@@ -22,7 +22,7 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
     initial_due_time = System.system_time(:second) + 100_000
     execution = Journey.set(execution, :due_date, initial_due_time)
 
-    {:ok, %{value: initial_reminder_time}} = Journey.get_value(execution, :reminder_schedule, wait_any: true)
+    {:ok, initial_reminder_time} = Journey.get_value(execution, :reminder_schedule, wait_any: true)
     initial_computation_count = count_computations_for(execution, :reminder_schedule)
 
     future_timestamp = System.system_time(:second) + 200_000
@@ -30,7 +30,7 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
     execution = Journey.Scheduler.advance(execution)
 
     case Journey.get_value(execution, :reminder_schedule, wait_new: 5000) do
-      {:ok, %{value: updated_reminder_time}} ->
+      {:ok, updated_reminder_time} ->
         assert updated_reminder_time != initial_reminder_time
         expected_new_time = future_timestamp - 86_400
         assert updated_reminder_time == expected_new_time
@@ -56,13 +56,13 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
     initial_due_time = System.system_time(:second) + 100_000
     execution = Journey.set(execution, :due_date, initial_due_time)
 
-    {:ok, %{value: _initial_time}} = Journey.get_value(execution, :reminder_schedule, wait_any: true)
+    {:ok, _initial_time} = Journey.get_value(execution, :reminder_schedule, wait_any: true)
 
     near_future = System.system_time(:second) + 2
     execution = Journey.set(execution, :due_date, near_future)
 
     case Journey.get_value(execution, :send_reminder, wait_any: 15_000) do
-      {:ok, %{value: reminder_message}} ->
+      {:ok, reminder_message} ->
         assert String.contains?(reminder_message, "Reminder")
 
       {:error, :not_set} ->
@@ -73,7 +73,7 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
   test "multiple upstream changes create multiple recomputations", %{execution: execution} do
     initial_due_time = System.system_time(:second) + 100_000
     execution = Journey.set(execution, :due_date, initial_due_time)
-    {:ok, %{value: _}} = Journey.get_value(execution, :reminder_schedule, wait_any: true)
+    {:ok, _} = Journey.get_value(execution, :reminder_schedule, wait_any: true)
 
     initial_count = count_computations_for(execution, :reminder_schedule)
 

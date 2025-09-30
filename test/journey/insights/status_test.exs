@@ -45,8 +45,8 @@ defmodule Journey.InsightsTest do
       Journey.archive(exec3)
 
       # Wait for computations to complete
-      {:ok, %{value: _}} = Journey.get_value(exec1, :greeting, wait_any: true)
-      {:ok, %{value: _}} = Journey.get_value(exec2, :greeting, wait_any: true)
+      {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
+      {:ok, _} = Journey.get_value(exec2, :greeting, wait_any: true)
 
       result = Status.status()
 
@@ -97,8 +97,8 @@ defmodule Journey.InsightsTest do
       exec2 = Journey.start_execution(graph2) |> Journey.set(:input_value, 10)
 
       # Wait for computations
-      {:ok, %{value: _}} = Journey.get_value(exec1, :greeting, wait_any: true)
-      {:ok, %{value: _}} = Journey.get_value(exec2, :final_result, wait_any: true)
+      {:ok, _} = Journey.get_value(exec1, :greeting, wait_any: true)
+      {:ok, _} = Journey.get_value(exec2, :final_result, wait_any: true)
 
       result = Status.status()
 
@@ -178,7 +178,7 @@ defmodule Journey.InsightsTest do
       # Create and process an execution
       exec = Journey.start_execution(graph)
       Journey.set(exec, :name, "TestUser")
-      {:ok, %{value: _}} = Journey.get_value(exec, :greeting, wait_any: true)
+      {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
 
       result = Status.status()
 
@@ -222,7 +222,7 @@ defmodule Journey.InsightsTest do
       graph = simple_test_graph(test_id)
       exec = Journey.start_execution(graph)
       Journey.set(exec, :name, "Test")
-      {:ok, %{value: _}} = Journey.get_value(exec, :greeting, wait_any: true)
+      {:ok, _} = Journey.get_value(exec, :greeting, wait_any: true)
 
       status_data = Status.status()
       text_output = Status.to_text(status_data)

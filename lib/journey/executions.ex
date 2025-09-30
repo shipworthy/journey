@@ -581,7 +581,7 @@ defmodule Journey.Executions do
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
     case get_value_node(execution, node_name, timeout_ms, opts) do
       {:ok, value_node} ->
-        {:ok, %{value: value_node.node_value, metadata: value_node.metadata, revision: value_node.ex_revision}}
+        {:ok, value_node.node_value}
 
       error ->
         error

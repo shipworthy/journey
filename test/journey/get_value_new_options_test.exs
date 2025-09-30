@@ -28,7 +28,7 @@ defmodule Journey.JourneyGetValueNewOptionsTest do
       end)
 
       # Should wait for the value
-      assert {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait: :any)
+      assert Journey.get_value(execution, :first_name, wait: :any) == {:ok, "Mario"}
     end
 
     test "wait: :any with custom timeout", %{execution: execution} do
@@ -44,13 +44,13 @@ defmodule Journey.JourneyGetValueNewOptionsTest do
       end)
 
       # Should wait indefinitely and get the value
-      assert {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait: :any, timeout: :infinity)
+      assert Journey.get_value(execution, :first_name, wait: :any, timeout: :infinity) == {:ok, "Mario"}
     end
 
     test "wait: :newer waits for newer revision than current execution", %{execution: execution} do
       # Set initial value
       execution = execution |> Journey.set(:first_name, "Mario")
-      assert {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name)
+      assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
 
       # Update value in background task
       Task.async(fn ->
@@ -58,7 +58,7 @@ defmodule Journey.JourneyGetValueNewOptionsTest do
       end)
 
       # Should wait for newer revision and get updated value
-      assert {:ok, %{value: "Luigi"}} = Journey.get_value(execution, :first_name, wait: :newer)
+      assert Journey.get_value(execution, :first_name, wait: :newer) == {:ok, "Luigi"}
     end
 
     test "wait: {:newer_than, revision} waits for specific revision", %{execution: execution} do
@@ -66,7 +66,7 @@ defmodule Journey.JourneyGetValueNewOptionsTest do
       execution = execution |> Journey.set(:first_name, "Mario")
 
       # Should return immediately since current revision (1) is already > 0
-      assert {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait: {:newer_than, 0})
+      assert Journey.get_value(execution, :first_name, wait: {:newer_than, 0}) == {:ok, "Mario"}
 
       # Should timeout since no revision > 10 exists
       assert Journey.get_value(execution, :first_name, wait: {:newer_than, 10}, timeout: 100) == {:error, :not_set}
@@ -79,7 +79,7 @@ defmodule Journey.JourneyGetValueNewOptionsTest do
       end)
 
       # Should wait for first value to be set
-      assert {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait: :newer)
+      assert Journey.get_value(execution, :first_name, wait: :newer) == {:ok, "Mario"}
     end
 
     test "computed node with wait: :any", %{execution: execution} do
@@ -87,7 +87,7 @@ defmodule Journey.JourneyGetValueNewOptionsTest do
       execution = execution |> Journey.set(:first_name, "Mario")
 
       # Should wait for computation to complete
-      assert {:ok, %{value: "Hello, Mario"}} = Journey.get_value(execution, :greeting, wait: :any)
+      assert Journey.get_value(execution, :greeting, wait: :any) == {:ok, "Hello, Mario"}
     end
 
     test "invalid wait option raises error", %{execution: execution} do
@@ -120,7 +120,7 @@ defmodule Journey.JourneyGetValueNewOptionsTest do
         Journey.set(execution, :first_name, "Mario")
       end)
 
-      assert {:ok, %{value: "Mario"}} = Journey.get_value(execution, :first_name, wait_any: true)
+      assert Journey.get_value(execution, :first_name, wait_any: true) == {:ok, "Mario"}
     end
 
     test "timeout option only works with wait option", %{execution: execution} do

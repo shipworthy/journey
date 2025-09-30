@@ -195,7 +195,7 @@ defmodule Journey.SqlInjectionTest do
 
       # Verify our original data is still intact
       reloaded_exec1 = Journey.load(exec1)
-      assert {:ok, %{value: "before_injection"}} = Journey.get_value(reloaded_exec1, :test_field)
+      assert {:ok, "before_injection"} = Journey.get_value(reloaded_exec1, :test_field)
     end
 
     test "edge cases with special PostgreSQL characters" do
@@ -228,7 +228,7 @@ defmodule Journey.SqlInjectionTest do
         assert length(result) == 1
 
         found_exec = hd(result)
-        assert {:ok, %{value: ^value}} = Journey.get_value(found_exec, :text_field)
+        assert {:ok, ^value} = Journey.get_value(found_exec, :text_field)
       end
 
       # Test string comparisons with special characters
@@ -326,7 +326,7 @@ defmodule Journey.SqlInjectionTest do
       result_values =
         result
         |> Enum.map(fn exec ->
-          {:ok, %{value: val}} = Journey.get_value(exec, :content)
+          {:ok, val} = Journey.get_value(exec, :content)
           val
         end)
         |> Enum.sort()
@@ -341,7 +341,7 @@ defmodule Journey.SqlInjectionTest do
       result_values =
         result
         |> Enum.map(fn exec ->
-          {:ok, %{value: val}} = Journey.get_value(exec, :content)
+          {:ok, val} = Journey.get_value(exec, :content)
           val
         end)
         |> Enum.sort()
@@ -356,7 +356,7 @@ defmodule Journey.SqlInjectionTest do
       result_values =
         result
         |> Enum.map(fn exec ->
-          {:ok, %{value: val}} = Journey.get_value(exec, :content)
+          {:ok, val} = Journey.get_value(exec, :content)
           val
         end)
         |> Enum.sort()
@@ -366,12 +366,12 @@ defmodule Journey.SqlInjectionTest do
       # Test case-insensitive matching with :icontains
       result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :icontains, "USER_"}])
       assert length(result) == 1
-      assert {:ok, %{value: "user_name_field"}} = Journey.get_value(hd(result), :content)
+      assert {:ok, "user_name_field"} = Journey.get_value(hd(result), :content)
 
       # Test combination of wildcards
       result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :contains, "%_"}])
       assert length(result) == 1
-      assert {:ok, %{value: "50%_discount"}} = Journey.get_value(hd(result), :content)
+      assert {:ok, "50%_discount"} = Journey.get_value(hd(result), :content)
     end
   end
 end
