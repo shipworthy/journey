@@ -54,14 +54,20 @@ defmodule Journey.Node do
   `f_compute` is the function that computes the value of the node, once the upstream dependencies are satisfied.
   The function can accept either one or two arguments:
    - **Arity 1**: `fn values_map -> ... end` - Receives a map of upstream node names to their values
-   - **Arity 2**: `fn values_map, metadata_map -> ... end` - Additionally receives metadata from upstream nodes
+   - **Arity 2**: `fn values_map, value_nodes_map -> ... end` - Additionally receives value node data from upstream nodes
 
   The function must return a tuple:
    - `{:ok, value}` or
    - `{:error, reason}`.
 
-  The `metadata_map` (when using arity-2) contains the metadata for each upstream dependency, keyed by node name, set by `Journey.set/3`.
-  This is useful for accessing contextual information like author IDs, timestamps, or data provenance.
+  The `value_nodes_map` (when using arity-2) contains detailed information for each upstream dependency, keyed by node name.
+  Each entry is a map with the following fields:
+   - `:node_value` - The current value of the node
+   - `:metadata` - Metadata set via `Journey.set/3`
+   - `:revision` - The revision number when this value was set
+   - `:set_time` - Unix timestamp when the value was set
+
+  This is useful for accessing contextual information like author IDs, timestamps, revision tracking, or data provenance.
   The function is called when the upstream nodes are set, and the value is set to the result of the function.
 
   Note that return values are JSON-serialized for storage. If the returned `value` or `reason` contains atoms 
@@ -131,24 +137,24 @@ defmodule Journey.Node do
   iex> {:ok, %{value: "High temperature alert: 35°C", revision: 4}} = Journey.get(execution, :high_temp_alert, wait: :any)
   ```
 
-  ## Using Metadata in Compute Functions
+  ## Using Value Node Data in Compute Functions
 
-  Metadata can be accessed by defining an arity-2 compute function. This is useful for accessing
-  contextual information like author IDs, timestamps, or data provenance from upstream nodes.
+  Value node data can be accessed by defining an arity-2 compute function. This is useful for accessing
+  contextual information like author IDs, timestamps, revisions, or data provenance from upstream nodes.
 
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "compute with metadata example",
+  ...>       "compute with value node data example",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:title),
   ...>         compute(
   ...>           :title_with_author,
   ...>           [:title],
-  ...>           # Arity-2 function receives metadata from dependencies
-  ...>           fn %{title: title}, metadata_map ->
-  ...>             author = get_in(metadata_map, [:title, "author_id"]) || "unknown"
+  ...>           # Arity-2 function receives value node data from dependencies
+  ...>           fn %{title: title}, value_nodes_map ->
+  ...>             author = get_in(value_nodes_map, [:title, :metadata, "author_id"]) || "unknown"
   ...>             {:ok, "\#{title} by \#{author}"}
   ...>           end
   ...>         )
@@ -394,7 +400,7 @@ defmodule Journey.Node do
   end
 
   defp build_historian_function(history_node_name, tracked_field, max_entries) do
-    fn inputs, metadata_map ->
+    fn inputs, value_nodes_map ->
       existing_history = Map.get(inputs, history_node_name, [])
 
       # Always include node field for consistency
@@ -404,7 +410,8 @@ defmodule Journey.Node do
             "value" => Map.get(inputs, tracked_field),
             "node" => to_string(tracked_field),
             "timestamp" => System.system_time(:second),
-            "metadata" => Map.get(metadata_map, tracked_field)
+            "metadata" => get_in(value_nodes_map, [tracked_field, :metadata]),
+            "revision" => get_in(value_nodes_map, [tracked_field, :revision])
           }
         else
           nil

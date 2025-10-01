@@ -25,8 +25,9 @@ defmodule Journey.Node.HistorianTest do
       {:ok, history1} = Journey.get_value(execution, :content_history, wait_any: true)
 
       assert length(history1) == 1
-      assert [%{"value" => "First version", "node" => "content", "timestamp" => ts1}] = history1
+      assert [%{"value" => "First version", "node" => "content", "timestamp" => ts1, "revision" => rev1}] = history1
       assert is_integer(ts1)
+      assert is_integer(rev1)
 
       # Second value
       execution = Journey.set(execution, :content, "Second version")
@@ -36,9 +37,12 @@ defmodule Journey.Node.HistorianTest do
       [entry1, entry2] = history2
       assert entry1["value"] == "First version"
       assert entry1["node"] == "content"
+      assert is_integer(entry1["revision"])
       assert entry2["value"] == "Second version"
       assert entry2["node"] == "content"
+      assert is_integer(entry2["revision"])
       assert entry2["timestamp"] >= entry1["timestamp"]
+      assert entry2["revision"] > entry1["revision"]
     end
 
     test "max_entries limits history size" do
@@ -118,7 +122,8 @@ defmodule Journey.Node.HistorianTest do
 
       # Should keep the entry with unlimited history
       assert length(history) == 1
-      assert [%{"value" => "single_event", "node" => "event", "timestamp" => _ts}] = history
+      assert [%{"value" => "single_event", "node" => "event", "timestamp" => _ts, "revision" => rev}] = history
+      assert is_integer(rev)
     end
 
     test "schema agnostic - works with any data type" do
@@ -143,8 +148,9 @@ defmodule Journey.Node.HistorianTest do
       {:ok, history} = Journey.get_value(execution, :data_history, wait: :any)
 
       assert length(history) == 1
-      assert [%{"value" => recorded_value, "node" => "data", "timestamp" => _ts}] = history
+      assert [%{"value" => recorded_value, "node" => "data", "timestamp" => _ts, "revision" => rev}] = history
       assert recorded_value == test_value
+      assert is_integer(rev)
     end
 
     test "works with default options (has max_entries limit, not unlimited)" do
@@ -168,7 +174,8 @@ defmodule Journey.Node.HistorianTest do
 
       # Should have the entry and work normally
       assert length(history) == 1
-      assert [%{"value" => 1, "node" => "counter", "timestamp" => _ts}] = history
+      assert [%{"value" => 1, "node" => "counter", "timestamp" => _ts, "revision" => rev}] = history
+      assert is_integer(rev)
 
       # Verify the historian works with subsequent updates (proving it has some limit, not unlimited)
       execution = Journey.set(execution, :counter, 2)

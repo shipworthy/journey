@@ -53,16 +53,16 @@ defmodule Journey.MetadataTest do
     end
   end
 
-  describe "f_compute/2 receives metadata" do
-    test "f_compute/2 receives metadata from upstream nodes" do
+  describe "f_compute/2 receives value node data" do
+    test "f_compute/2 receives value node data from upstream nodes" do
       graph =
-        Journey.new_graph("metadata test - compute with metadata", "v1.0.0", [
+        Journey.new_graph("metadata test - compute with value nodes", "v1.0.0", [
           input(:title),
           compute(
             :title_with_author,
             [:title],
-            fn %{title: title}, metadata_map ->
-              author = get_in(metadata_map, [:title, "author_id"])
+            fn %{title: title}, value_nodes_map ->
+              author = get_in(value_nodes_map, [:title, :metadata, "author_id"])
               {:ok, "#{title} by #{author}"}
             end
           )
@@ -75,9 +75,9 @@ defmodule Journey.MetadataTest do
       assert result == "Hello by user123"
     end
 
-    test "f_compute/1 still works without metadata (backward compatibility)" do
+    test "f_compute/1 still works without value node data (backward compatibility)" do
       graph =
-        Journey.new_graph("metadata test - compute without metadata", "v1.0.0", [
+        Journey.new_graph("metadata test - compute without value nodes", "v1.0.0", [
           input(:name),
           compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello #{name}"} end)
         ])
@@ -89,7 +89,7 @@ defmodule Journey.MetadataTest do
       assert result == "Hello Alice"
     end
 
-    test "f_compute/2 with multiple upstream nodes receives all metadata" do
+    test "f_compute/2 with multiple upstream nodes receives all value node data" do
       graph =
         Journey.new_graph("metadata test - multiple upstream", "v1.0.0", [
           input(:first_name),
@@ -97,9 +97,9 @@ defmodule Journey.MetadataTest do
           compute(
             :full_name_with_authors,
             [:first_name, :last_name],
-            fn %{first_name: first, last_name: last}, metadata_map ->
-              first_author = get_in(metadata_map, [:first_name, "author_id"]) || "unknown"
-              last_author = get_in(metadata_map, [:last_name, "author_id"]) || "unknown"
+            fn %{first_name: first, last_name: last}, value_nodes_map ->
+              first_author = get_in(value_nodes_map, [:first_name, :metadata, "author_id"]) || "unknown"
+              last_author = get_in(value_nodes_map, [:last_name, :metadata, "author_id"]) || "unknown"
               {:ok, "#{first} #{last} (first by #{first_author}, last by #{last_author})"}
             end
           )

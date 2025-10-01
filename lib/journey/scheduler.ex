@@ -72,8 +72,8 @@ defmodule Journey.Scheduler do
 
       r =
         try do
-          # Build metadata map from upstream nodes
-          metadata_map = build_metadata_map(conditions_fulfilled)
+          # Build value nodes map from upstream nodes
+          value_nodes_map = build_value_nodes_map(conditions_fulfilled)
 
           # Introspect arity and call accordingly
           case Function.info(graph_node.f_compute)[:arity] do
@@ -81,7 +81,7 @@ defmodule Journey.Scheduler do
               graph_node.f_compute.(computation_params)
 
             2 ->
-              graph_node.f_compute.(computation_params, metadata_map)
+              graph_node.f_compute.(computation_params, value_nodes_map)
 
             arity ->
               raise ArgumentError,
@@ -172,10 +172,16 @@ defmodule Journey.Scheduler do
   defp requires_invalidation_check?({:ok, _result}, graph_node), do: graph_node.type == :compute
   defp requires_invalidation_check?(_other_result, _graph_node), do: false
 
-  defp build_metadata_map(conditions_fulfilled) do
+  defp build_value_nodes_map(conditions_fulfilled) do
     conditions_fulfilled
     |> Enum.map(fn %{upstream_node: value_node} ->
-      {value_node.node_name, value_node.metadata}
+      {value_node.node_name,
+       %{
+         node_value: value_node.node_value,
+         metadata: value_node.metadata,
+         revision: value_node.ex_revision,
+         set_time: value_node.set_time
+       }}
     end)
     |> Enum.into(%{})
   end
