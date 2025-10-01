@@ -158,6 +158,35 @@ defmodule Journey.MetadataTest do
       assert hd(history)["value"] == "v1"
       assert hd(history)["metadata"] == nil
     end
+
+    test "historian tracks bulk set with metadata" do
+      graph =
+        Journey.new_graph("metadata test - historian bulk set", "v1.0.0", [
+          input(:name),
+          input(:age),
+          historian(:name_history, [:name]),
+          historian(:age_history, [:age])
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Bulk set with metadata
+      execution = Journey.set(execution, %{name: "Mark", age: 120}, metadata: %{"author_id" => "user789"})
+
+      # Verify name history
+      {:ok, %{value: name_history}} = Journey.get(execution, :name_history, wait: :any)
+      assert length(name_history) == 1
+      assert hd(name_history)["value"] == "Mark"
+      assert hd(name_history)["metadata"] == %{"author_id" => "user789"}
+      assert is_integer(hd(name_history)["revision"])
+
+      # Verify age history
+      {:ok, %{value: age_history}} = Journey.get(execution, :age_history, wait: :any)
+      assert length(age_history) == 1
+      assert hd(age_history)["value"] == 120
+      assert hd(age_history)["metadata"] == %{"author_id" => "user789"}
+      assert is_integer(hd(age_history)["revision"])
+    end
   end
 
   describe "metadata with keyword list syntax" do
