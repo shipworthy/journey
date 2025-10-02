@@ -4,6 +4,13 @@ defmodule Journey.Node.HistorianTest do
 
   import Journey.Helpers.Random, only: [random_string: 0]
 
+  # Helper to redact timestamps for deterministic assertions
+  defp redact_timestamps(history) do
+    Enum.map(history, fn %{"timestamp" => ts} = entry when is_integer(ts) ->
+      Map.put(entry, "timestamp", 1_234_567_890)
+    end)
+  end
+
   describe "historian() |" do
     test "basic history tracking" do
       graph_name = "historian test graph #{__MODULE__}-#{random_string()}"
@@ -24,25 +31,36 @@ defmodule Journey.Node.HistorianTest do
       execution = Journey.set(execution, :content, "First version")
       {:ok, history1} = Journey.get_value(execution, :content_history, wait_any: true)
 
-      assert length(history1) == 1
-      assert [%{"value" => "First version", "node" => "content", "timestamp" => ts1, "revision" => rev1}] = history1
-      assert is_integer(ts1)
-      assert is_integer(rev1)
+      assert redact_timestamps(history1) == [
+               %{
+                 "metadata" => nil,
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "First version"
+               }
+             ]
 
       # Second value
       execution = Journey.set(execution, :content, "Second version")
       {:ok, history2} = Journey.get_value(execution, :content_history, wait: :newer)
 
-      assert length(history2) == 2
-      [entry1, entry2] = history2
-      assert entry1["value"] == "First version"
-      assert entry1["node"] == "content"
-      assert is_integer(entry1["revision"])
-      assert entry2["value"] == "Second version"
-      assert entry2["node"] == "content"
-      assert is_integer(entry2["revision"])
-      assert entry2["timestamp"] >= entry1["timestamp"]
-      assert entry2["revision"] > entry1["revision"]
+      assert redact_timestamps(history2) == [
+               %{
+                 "metadata" => nil,
+                 "node" => "content",
+                 "revision" => 4,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "Second version"
+               },
+               %{
+                 "metadata" => nil,
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "First version"
+               }
+             ]
     end
 
     test "max_entries limits history size" do
@@ -91,11 +109,12 @@ defmodule Journey.Node.HistorianTest do
         # Due to Journey's scheduling optimizations, we get fewer than 1001 entries
         values = Enum.map(final_history, & &1["value"])
 
-        last_entry = List.last(final_history)
-        assert last_entry["value"] == 22
-        assert List.first(values) == 3
+        # Newest first ordering
+        first_entry = List.first(final_history)
+        assert first_entry["value"] == 22
+        assert List.last(values) == 3
         assert length(final_history) == 20
-        assert Enum.all?(Enum.chunk_every(values, 2, 1, :discard), fn [a, b] -> b == a + 1 end)
+        assert Enum.all?(Enum.chunk_every(values, 2, 1, :discard), fn [a, b] -> b == a - 1 end)
       after
         Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_task)
       end
@@ -120,10 +139,15 @@ defmodule Journey.Node.HistorianTest do
       execution = Journey.set(execution, :event, "single_event")
       {:ok, history} = Journey.get_value(execution, :event_log, wait: :any)
 
-      # Should keep the entry with unlimited history
-      assert length(history) == 1
-      assert [%{"value" => "single_event", "node" => "event", "timestamp" => _ts, "revision" => rev}] = history
-      assert is_integer(rev)
+      assert redact_timestamps(history) == [
+               %{
+                 "metadata" => nil,
+                 "node" => "event",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "single_event"
+               }
+             ]
     end
 
     test "schema agnostic - works with any data type" do
@@ -147,10 +171,15 @@ defmodule Journey.Node.HistorianTest do
       execution = Journey.set(execution, :data, test_value)
       {:ok, history} = Journey.get_value(execution, :data_history, wait: :any)
 
-      assert length(history) == 1
-      assert [%{"value" => recorded_value, "node" => "data", "timestamp" => _ts, "revision" => rev}] = history
-      assert recorded_value == test_value
-      assert is_integer(rev)
+      assert redact_timestamps(history) == [
+               %{
+                 "metadata" => nil,
+                 "node" => "data",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => %{"key" => "value", "nested" => %{"count" => 42, "data" => true}}
+               }
+             ]
     end
 
     test "works with default options (has max_entries limit, not unlimited)" do
@@ -172,16 +201,18 @@ defmodule Journey.Node.HistorianTest do
       execution = Journey.set(execution, :counter, 1)
       {:ok, history} = Journey.get_value(execution, :counter_history, wait: :any)
 
-      # Should have the entry and work normally
-      assert length(history) == 1
-      assert [%{"value" => 1, "node" => "counter", "timestamp" => _ts, "revision" => rev}] = history
-      assert is_integer(rev)
+      assert redact_timestamps(history) == [
+               %{"metadata" => nil, "node" => "counter", "revision" => 1, "timestamp" => 1_234_567_890, "value" => 1}
+             ]
 
       # Verify the historian works with subsequent updates (proving it has some limit, not unlimited)
       execution = Journey.set(execution, :counter, 2)
       {:ok, history2} = Journey.get_value(execution, :counter_history, wait: :newer)
-      # Would be unlimited if max_entries was nil, but we have a default limit
-      assert length(history2) == 2
+
+      assert redact_timestamps(history2) == [
+               %{"metadata" => nil, "node" => "counter", "revision" => 4, "timestamp" => 1_234_567_890, "value" => 2},
+               %{"metadata" => nil, "node" => "counter", "revision" => 1, "timestamp" => 1_234_567_890, "value" => 1}
+             ]
     end
 
     test "a bunch of records" do
@@ -233,11 +264,12 @@ defmodule Journey.Node.HistorianTest do
         # Due to Journey's scheduling optimizations, we get fewer than 1001 entries
         values = Enum.map(final_history, & &1["value"])
 
-        last_entry = List.last(final_history)
-        assert last_entry["value"] == 101
-        assert List.first(values) == 1
+        # Newest first ordering
+        first_entry = List.first(final_history)
+        assert first_entry["value"] == 101
+        assert List.last(values) == 1
         assert length(final_history) == 101
-        assert Enum.all?(Enum.chunk_every(values, 2, 1, :discard), fn [a, b] -> b == a + 1 end)
+        assert Enum.all?(Enum.chunk_every(values, 2, 1, :discard), fn [a, b] -> b == a - 1 end)
       after
         Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_task)
       end
@@ -262,25 +294,38 @@ defmodule Journey.Node.HistorianTest do
       execution = Journey.set(execution, :value, "first")
       {:ok, history1} = Journey.get_value(execution, :value_history, wait: :any)
 
+      assert redact_timestamps(history1) == [
+               %{
+                 "metadata" => nil,
+                 "node" => "value",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "first"
+               }
+             ]
+
       # Set second value after a short delay
       # Ensure different timestamp
       Process.sleep(10)
       execution = Journey.set(execution, :value, "second")
       {:ok, history2} = Journey.get_value(execution, :value_history, wait: :newer)
 
-      assert length(history1) == 1
-      assert length(history2) == 2
-
-      [entry1, entry2] = history2
-      assert entry1["value"] == "first"
-      assert entry1["node"] == "value"
-      assert entry2["value"] == "second"
-      assert entry2["node"] == "value"
-
-      # Verify timestamps are in order and are integers
-      assert is_integer(entry1["timestamp"])
-      assert is_integer(entry2["timestamp"])
-      assert entry2["timestamp"] >= entry1["timestamp"]
+      assert redact_timestamps(history2) == [
+               %{
+                 "metadata" => nil,
+                 "node" => "value",
+                 "revision" => 4,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "second"
+               },
+               %{
+                 "metadata" => nil,
+                 "node" => "value",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "first"
+               }
+             ]
     end
   end
 end
