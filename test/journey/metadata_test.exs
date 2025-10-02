@@ -2,6 +2,13 @@ defmodule Journey.MetadataTest do
   use ExUnit.Case, async: true
   import Journey.Node
 
+  # Helper to redact timestamps for deterministic assertions
+  defp redact_timestamps(history) do
+    Enum.map(history, fn %{"timestamp" => ts} = entry when is_integer(ts) ->
+      Map.put(entry, "timestamp", 1_234_567_890)
+    end)
+  end
+
   describe "basic metadata functionality" do
     test "set and get value with metadata" do
       graph =
@@ -126,19 +133,39 @@ defmodule Journey.MetadataTest do
 
       # First change
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user123"})
-      {:ok, %{value: history1}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, %{value: history1, revision: rev1}} = Journey.get(execution, :content_history, wait: :any)
 
-      assert length(history1) == 1
-      assert hd(history1)["value"] == "v1"
-      assert hd(history1)["metadata"] == %{"author_id" => "user123"}
+      assert redact_timestamps(history1) == [
+               %{
+                 "metadata" => %{"author_id" => "user123"},
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               }
+             ]
 
       # Second change
       execution = Journey.set(execution, :content, "v2", metadata: %{"author_id" => "user456"})
-      {:ok, %{value: history2}} = Journey.get(execution, :content_history, wait: :newer)
+      {:ok, %{value: history2, revision: _rev2}} = Journey.get(execution, :content_history, wait: {:newer_than, rev1})
 
-      assert length(history2) == 2
-      assert Enum.at(history2, 1)["value"] == "v2"
-      assert Enum.at(history2, 1)["metadata"] == %{"author_id" => "user456"}
+      # Newest first: v2, then v1
+      assert redact_timestamps(history2) == [
+               %{
+                 "metadata" => %{"author_id" => "user456"},
+                 "node" => "content",
+                 "revision" => 4,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v2"
+               },
+               %{
+                 "metadata" => %{"author_id" => "user123"},
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               }
+             ]
     end
 
     test "historian handles nil metadata" do
@@ -154,9 +181,15 @@ defmodule Journey.MetadataTest do
       execution = Journey.set(execution, :content, "v1")
       {:ok, %{value: history}} = Journey.get(execution, :content_history, wait: :any)
 
-      assert length(history) == 1
-      assert hd(history)["value"] == "v1"
-      assert hd(history)["metadata"] == nil
+      assert redact_timestamps(history) == [
+               %{
+                 "metadata" => nil,
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               }
+             ]
     end
 
     test "historian tracks bulk set with metadata" do
@@ -175,17 +208,29 @@ defmodule Journey.MetadataTest do
 
       # Verify name history
       {:ok, %{value: name_history}} = Journey.get(execution, :name_history, wait: :any)
-      assert length(name_history) == 1
-      assert hd(name_history)["value"] == "Mark"
-      assert hd(name_history)["metadata"] == %{"author_id" => "user789"}
-      assert is_integer(hd(name_history)["revision"])
+
+      assert redact_timestamps(name_history) == [
+               %{
+                 "metadata" => %{"author_id" => "user789"},
+                 "node" => "name",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "Mark"
+               }
+             ]
 
       # Verify age history
       {:ok, %{value: age_history}} = Journey.get(execution, :age_history, wait: :any)
-      assert length(age_history) == 1
-      assert hd(age_history)["value"] == 120
-      assert hd(age_history)["metadata"] == %{"author_id" => "user789"}
-      assert is_integer(hd(age_history)["revision"])
+
+      assert redact_timestamps(age_history) == [
+               %{
+                 "metadata" => %{"author_id" => "user789"},
+                 "node" => "age",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => 120
+               }
+             ]
     end
   end
 

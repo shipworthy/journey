@@ -2,6 +2,13 @@ defmodule Journey.MetadataOnlyUpdateTest do
   use ExUnit.Case, async: true
   import Journey.Node
 
+  # Helper to redact timestamps for deterministic assertions
+  defp redact_timestamps(history) do
+    Enum.map(history, fn %{"timestamp" => ts} = entry when is_integer(ts) ->
+      Map.put(entry, "timestamp", 1_234_567_890)
+    end)
+  end
+
   describe "metadata-only updates (value unchanged)" do
     test "single value: updating metadata without changing value triggers update" do
       graph =
@@ -153,22 +160,41 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # First change
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user1"})
-      {:ok, %{value: history1, metadata: _, revision: _}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, %{value: history1, metadata: _, revision: rev1}} = Journey.get(execution, :content_history, wait: :any)
 
-      assert length(history1) == 1
-      assert hd(history1)["value"] == "v1"
-      assert hd(history1)["metadata"] == %{"author_id" => "user1"}
+      assert redact_timestamps(history1) == [
+               %{
+                 "metadata" => %{"author_id" => "user1"},
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               }
+             ]
 
       # Metadata-only change (same value)
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user2"})
-      {:ok, %{value: history2, metadata: _, revision: _}} = Journey.get(execution, :content_history, wait: :newer)
 
-      # Should have TWO entries now
-      assert length(history2) == 2
-      assert Enum.at(history2, 0)["value"] == "v1"
-      assert Enum.at(history2, 0)["metadata"] == %{"author_id" => "user1"}
-      assert Enum.at(history2, 1)["value"] == "v1"
-      assert Enum.at(history2, 1)["metadata"] == %{"author_id" => "user2"}
+      {:ok, %{value: history2, metadata: _, revision: _rev2}} =
+        Journey.get(execution, :content_history, wait: {:newer_than, rev1})
+
+      # Should have TWO entries now (newest first: user2, then user1)
+      assert redact_timestamps(history2) == [
+               %{
+                 "metadata" => %{"author_id" => "user2"},
+                 "node" => "content",
+                 "revision" => 4,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               },
+               %{
+                 "metadata" => %{"author_id" => "user1"},
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               }
+             ]
     end
 
     test "historian does not create duplicate entry when value and metadata unchanged" do
@@ -184,7 +210,15 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user1"})
       {:ok, %{value: history1, metadata: _, revision: _}} = Journey.get(execution, :content_history, wait: :any)
 
-      assert length(history1) == 1
+      assert redact_timestamps(history1) == [
+               %{
+                 "metadata" => %{"author_id" => "user1"},
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               }
+             ]
 
       # Set same value and metadata (no-op)
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user1"})
@@ -194,8 +228,16 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       {:ok, %{value: history2, metadata: _, revision: _}} = Journey.get(execution, :content_history)
 
-      # Should still have only ONE entry
-      assert length(history2) == 1
+      # Should still have only ONE entry (no new revision)
+      assert redact_timestamps(history2) == [
+               %{
+                 "metadata" => %{"author_id" => "user1"},
+                 "node" => "content",
+                 "revision" => 1,
+                 "timestamp" => 1_234_567_890,
+                 "value" => "v1"
+               }
+             ]
     end
   end
 
