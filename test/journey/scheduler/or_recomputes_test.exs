@@ -37,18 +37,9 @@ defmodule Journey.Scheduler.OrRecomputeTest do
       e = Journey.load(e)
 
       Journey.set(e, :b, "b")
-      Process.sleep(1_000)
+      {:ok, ab, _} = Journey.get(e, :a_or_b, wait: :newer)
 
-      {:ok, ab, _} = Journey.get(e, :a_or_b)
       assert ab == "ab"
-
-      #      ab =
-      #        Journey.get(
-      #          e,
-      #          :a_or_b
-      # , wait: :new
-      #        )
-      #        |> IO.inspect(label: :after_b_and_wait)
     end
   end
 end
