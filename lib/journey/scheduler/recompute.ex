@@ -22,7 +22,7 @@ defmodule Journey.Scheduler.Recompute do
           from(c in Computation,
             where:
               c.execution_id == ^execution.id and
-                c.computation_type in [:compute, :mutate, :schedule_once] and c.state != ^:not_set,
+                c.computation_type in [:compute, :mutate, :schedule_once] and c.state == ^:success,
             order_by: [desc: c.ex_revision_at_start],
             distinct: c.node_name,
             select: c.id
