@@ -28,9 +28,11 @@ defmodule Journey.Scheduler.OrRecomputeTest do
           )
         ])
 
-      e = Journey.start_execution(g)
+      e =
+        g
+        |> Journey.start_execution()
+        |> Journey.set(:a, "a")
 
-      e = Journey.set(e, :a, "a")
       {:ok, ab, _} = Journey.get(e, :a_or_b, wait: :any)
       assert ab == "a_"
 
