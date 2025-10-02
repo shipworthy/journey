@@ -8,7 +8,10 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
     async: true,
     parameterize:
       for(
-        timeout_type <- [:timeout, :failure_after_timeout],
+        timeout_type <- [
+          :timeout,
+          :failure_after_timeout
+        ],
         do: %{timeout_type: timeout_type}
       )
 

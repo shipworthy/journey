@@ -22,7 +22,7 @@ defmodule Journey.Scheduler.Recompute do
           from(c in Computation,
             where:
               c.execution_id == ^execution.id and
-                c.computation_type in [:compute, :mutate, :schedule_once] and c.state != ^:not_set,
+                c.computation_type in [:compute, :mutate, :schedule_once] and c.state == ^:success,
             order_by: [desc: c.ex_revision_at_start],
             distinct: c.node_name,
             select: c.id
@@ -76,39 +76,53 @@ defmodule Journey.Scheduler.Recompute do
   end
 
   defp an_upstream_node_has_a_newer_version?(computation, graph, all_values) do
-    gated_by =
-      graph
-      |> Graph.find_node_by_name(computation.node_name)
-      |> Map.get(:gated_by)
-      |> Journey.Node.UpstreamDependencies.Computations.list_all_node_names()
+    graph_node = Graph.find_node_by_name(graph, computation.node_name)
 
-    current_node_revisions =
-      all_values
-      |> Enum.filter(fn %{node_name: node_name} -> node_name in gated_by end)
-      |> Enum.map(fn %{node_name: node_name} = node -> {node_name, node.ex_revision} end)
-      |> Enum.into(%{})
+    # Evaluate which conditions are currently met
+    readiness_result =
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        all_values,
+        graph_node.gated_by
+      )
 
-    computed_with_node_revisions =
-      computation.computed_with
-      |> case do
-        nil ->
-          %{}
+    if readiness_result.ready? do
+      # Extract nodes whose conditions are currently satisfied
+      current_node_revisions =
+        readiness_result.conditions_met
+        |> Enum.map(fn condition_data ->
+          {condition_data.upstream_node.node_name, condition_data.upstream_node.ex_revision}
+        end)
+        |> Enum.into(%{})
 
-        node_and_revisions ->
-          node_and_revisions
-          |> Enum.map(fn {k, v} ->
-            {String.to_atom(k), v}
-          end)
-          |> Enum.into(%{})
-      end
+      # Compute nodes used to compute the previous value, if any
+      computed_with_node_revisions = atomize_map_keys(computation.computed_with)
 
-    any_new_versions? =
-      computed_with_node_revisions
-      |> Enum.any?(fn {upstream_node_name, computed_with_revision} ->
-        current_node_revisions[upstream_node_name] != nil and
-          current_node_revisions[upstream_node_name] > computed_with_revision
-      end)
+      # Do any nodes used for previous computation have a newer revision?
+      any_updated_versions? =
+        computed_with_node_revisions
+        |> Enum.any?(fn {upstream_node_name, computed_with_revision} ->
+          current_node_revisions[upstream_node_name] != nil and
+            current_node_revisions[upstream_node_name] > computed_with_revision
+        end)
 
-    any_new_versions?
+      # Are there any newly met upstream dependencies?
+      any_new_nodes? =
+        current_node_revisions
+        |> Enum.any?(fn {upstream_node_name, _revision} ->
+          not Map.has_key?(computed_with_node_revisions, upstream_node_name)
+        end)
+
+      any_updated_versions? or any_new_nodes?
+    else
+      false
+    end
+  end
+
+  defp atomize_map_keys(nil), do: %{}
+
+  defp atomize_map_keys(m) when is_map(m) do
+    m
+    |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
+    |> Enum.into(%{})
   end
 end
