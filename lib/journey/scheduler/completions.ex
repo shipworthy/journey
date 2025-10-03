@@ -15,9 +15,28 @@ defmodule Journey.Scheduler.Completions do
     Logger.debug("#{prefix}] starting.")
 
     {:ok, _} =
-      Journey.Repo.transaction(fn repo ->
-        record_success_in_transaction(repo, computation, inputs_to_capture, result)
-      end)
+      Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
+        fn repo ->
+          record_success_in_transaction(repo, computation, inputs_to_capture, result)
+        end,
+        prefix
+      )
+      |> case do
+        {:ok, result} ->
+          {:ok, result}
+
+        {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
+          Logger.warning(
+            "#{prefix}: Failed after retries due to deadlock, " <>
+              "computation will be retried by abandoned sweeper"
+          )
+
+          {:ok, nil}
+
+        {:error, other} ->
+          Logger.error("#{prefix}: Transaction failed with error: #{inspect(other)}")
+          raise other
+      end
       |> tap(fn _ -> Logger.debug("#{prefix}: done.") end)
   end
 
@@ -26,38 +45,57 @@ defmodule Journey.Scheduler.Completions do
     Logger.info("#{prefix}: marking as completed. starting.")
 
     {:ok, _} =
-      Journey.Repo.transaction(fn repo ->
-        Logger.info("#{prefix}: marking as completed. transaction starting.")
+      Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
+        fn repo ->
+          Logger.info("#{prefix}: marking as completed. transaction starting.")
 
-        current_computation =
-          from(c in Computation, where: c.id == ^computation.id)
-          |> repo.one!()
+          current_computation =
+            from(c in Computation, where: c.id == ^computation.id)
+            |> repo.one!()
 
-        if current_computation.state == :computing do
-          new_revision =
-            Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
+          if current_computation.state == :computing do
+            new_revision =
+              Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
 
-          # Mark the computation as "failed".
-          now_seconds = System.system_time(:second)
+            # Mark the computation as "failed".
+            now_seconds = System.system_time(:second)
 
-          computation
-          |> Ecto.Changeset.change(%{
-            error_details: "#{inspect(error_details)}" |> String.trim() |> String.slice(0, 1000),
-            completion_time: now_seconds,
-            updated_at: now_seconds,
-            state: :failed,
-            ex_revision_at_completion: new_revision
-          })
-          |> repo.update!()
-          |> Journey.Scheduler.Retry.maybe_schedule_a_retry(repo)
+            computation
+            |> Ecto.Changeset.change(%{
+              error_details: "#{inspect(error_details)}" |> String.trim() |> String.slice(0, 1000),
+              completion_time: now_seconds,
+              updated_at: now_seconds,
+              state: :failed,
+              ex_revision_at_completion: new_revision
+            })
+            |> repo.update!()
+            |> Journey.Scheduler.Retry.maybe_schedule_a_retry(repo)
 
-          Logger.info("#{prefix}: marking as completed. transaction done.")
-        else
+            Logger.info("#{prefix}: marking as completed. transaction done.")
+          else
+            Logger.warning(
+              "#{prefix}: computation completed, but it is no longer :computing. (#{current_computation.state})"
+            )
+          end
+        end,
+        prefix
+      )
+      |> case do
+        {:ok, result} ->
+          {:ok, result}
+
+        {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
           Logger.warning(
-            "#{prefix}: computation completed, but it is no longer :computing. (#{current_computation.state})"
+            "#{prefix}: Failed after retries due to deadlock, " <>
+              "computation will be retried by abandoned sweeper"
           )
-        end
-      end)
+
+          {:ok, nil}
+
+        {:error, other} ->
+          Logger.error("#{prefix}: Transaction failed with error: #{inspect(other)}")
+          raise other
+      end
 
     Logger.info("#{prefix}: marking as completed. done.")
   end
