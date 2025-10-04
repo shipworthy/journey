@@ -1026,6 +1026,15 @@ defmodule Journey do
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
   * `values` - Map of node names to values (e.g., `%{node1: "value1", node2: 42}`) or keyword list (e.g., `[node1: "value1", node2: 42]`)
 
+  ## Options
+  * `metadata:` - Optional contextual information to attach to the value(s).
+    Accepts any JSON-compatible type: `nil`, string, number, boolean, list, or map.
+    If using a map, **keys must be strings** (not atoms) for JSONB storage.
+    Useful for audit trails, tracking authors, timestamps, IP addresses, or other provenance data.
+    For bulk operations (map/keyword list), the same metadata applies to all values.
+    Metadata is stored with the value and flows to historians and compute functions but is not exposed via `Journey.get()`.
+    Default: `nil`
+
   ## Returns
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if any value changed)
 
@@ -1038,6 +1047,7 @@ defmodule Journey do
   * **Idempotent** - Setting the same values has no effect (no revision increment)
   * **Input nodes only** - Only input nodes can be set; compute nodes are read-only
   * **Atomic updates** - Multiple values are set together in a single transaction (single revision increment)
+  * **Metadata tracking** - Optional metadata flows to historians and arity-2 compute functions for audit trails
 
   ## Quick Examples
 
@@ -1161,6 +1171,52 @@ defmodule Journey do
   iex> {:ok, "Mario", 1} = Journey.get(execution, :name)
   iex> {:ok, 35, 1} = Journey.get(execution, :age)
   iex> {:ok, true, 1} = Journey.get(execution, :active)
+  ```
+
+  Setting values with metadata for audit trails:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "audit trail example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:document_title),
+  ...>         historian(:title_history, [:document_title])
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :document_title, "Draft v1", metadata: %{"author_id" => "user123"})
+  iex> {:ok, history1, _} = Journey.get(execution, :title_history, wait: :any)
+  iex> length(history1)
+  1
+  iex> execution = Journey.set(execution, :document_title, "Draft v2", metadata: %{"author_id" => "user456"})
+  iex> {:ok, history2, _} = Journey.get(execution, :title_history, wait: :newer)
+  iex> length(history2)
+  2
+  iex> # History entries include metadata for audit trail (newest first)
+  iex> [%{"value" => "Draft v2", "metadata" => %{"author_id" => "user456"}}, %{"value" => "Draft v1", "metadata" => %{"author_id" => "user123"}}] = history2
+  ```
+
+  Metadata with different types:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "metadata types example",
+  ...>       "v1.0.0",
+  ...>       [input(:field)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> # String metadata
+  iex> execution = Journey.set(execution, :field, "value1", metadata: "version-1")
+  iex> # Map metadata (keys must be strings, not atoms)
+  iex> execution = Journey.set(execution, :field, "value2", metadata: %{"author_id" => "user789", "ip" => "192.168.1.1"})
+  iex> # Number metadata
+  iex> execution = Journey.set(execution, :field, "value3", metadata: 42)
+  iex> # List metadata
+  iex> execution = Journey.set(execution, :field, "value4", metadata: ["tag1", "tag2"])
+  iex> {:ok, "value4", _} = Journey.get(execution, :field)
   ```
 
   """
