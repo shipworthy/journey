@@ -76,6 +76,7 @@ Journey.set(execution, [title: "New", description: "Updated"], metadata: %{autho
 - Pass metadata down to `Executions.set_value()` and `Executions.set_values()`
 
 ### Journey.get() - Return Metadata (BREAKING)
+Note: there is no plan to implement this breaking change.
 
 **Old signature:**
 ```elixir
