@@ -13,7 +13,7 @@ defmodule Journey.Scheduler.Scheduler.OnSaveTest do
     {_result, log} =
       with_log(fn ->
         execution = execution |> Journey.set(:user_name, "Mario")
-        {:ok, %{value: "Hello, Mario"}} = Journey.get(execution, :greeting, wait: :any)
+        {:ok, "Hello, Mario", _} = Journey.get(execution, :greeting, wait: :any)
         Process.sleep(2000)
       end)
 

@@ -50,7 +50,7 @@ defmodule Journey.ToolsTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, %{}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, _, _} = Journey.get(execution, :reminder, wait: :any)
 
       summary_data = Journey.Tools.summarize_as_data(execution.id)
 
@@ -142,7 +142,7 @@ defmodule Journey.ToolsTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, %{}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, _, _} = Journey.get(execution, :reminder, wait: :any)
 
       result = Journey.Tools.summarize_as_text(execution.id)
 
@@ -242,7 +242,7 @@ defmodule Journey.ToolsTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       # Get values to trigger computations
-      {:ok, %{}} = Journey.get(execution, :success_node, wait: :any)
+      {:ok, _, _} = Journey.get(execution, :success_node, wait: :any)
       # The fail_node will fail
       {:error, _error} = Journey.get(execution, :fail_node, wait: :newer)
 
@@ -331,8 +331,8 @@ defmodule Journey.ToolsTest do
 
       # Wait for the immediately unblocked computations to complete
       # This ensures deterministic test output
-      {:ok, %{}} = Journey.get(execution, :send_reminder, wait: :any)
-      {:ok, %{}} = Journey.get(execution, :send_follow_up, wait: :any)
+      {:ok, _, _} = Journey.get(execution, :send_reminder, wait: :any)
+      {:ok, _, _} = Journey.get(execution, :send_follow_up, wait: :any)
 
       result = Journey.Tools.summarize_as_text(execution.id)
 
@@ -639,13 +639,13 @@ defmodule Journey.ToolsTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, %{revision: reminder_revision_1}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, _, reminder_revision_1} = Journey.get(execution, :reminder, wait: :any)
       execution = execution |> Journey.load()
 
       assert execution.revision == 7
 
       Journey.Tools.increment_revision(execution.id, :user_name)
-      {:ok, %{}} = Journey.get(execution, :reminder, wait: {:newer_than, reminder_revision_1})
+      {:ok, _, _} = Journey.get(execution, :reminder, wait: {:newer_than, reminder_revision_1})
       execution = execution |> Journey.load()
       assert execution.revision == 14
 
@@ -686,7 +686,7 @@ defmodule Journey.ToolsTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, %{}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, _, _} = Journey.get(execution, :reminder, wait: :any)
 
       ocs = Journey.Tools.outstanding_computations(execution.id)
       assert ocs == []

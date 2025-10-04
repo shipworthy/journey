@@ -20,22 +20,18 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set initial value with metadata
       execution = Journey.set(execution, :title, "Constant Title", metadata: %{"author_id" => "user1"})
-      {:ok, %{value: value1, metadata: metadata1, revision: revision1}} = Journey.get(execution, :title)
+      {:ok, value1, revision1} = Journey.get(execution, :title)
 
       assert value1 == "Constant Title"
-      assert metadata1 == %{"author_id" => "user1"}
 
       # Update metadata only (same value)
       execution = Journey.set(execution, :title, "Constant Title", metadata: %{"author_id" => "user2"})
-      {:ok, %{value: value2, metadata: metadata2, revision: revision2}} = Journey.get(execution, :title)
+      {:ok, value2, revision2} = Journey.get(execution, :title)
 
       # Value should be unchanged
       assert value2 == "Constant Title"
 
-      # Metadata should be updated
-      assert metadata2 == %{"author_id" => "user2"}
-
-      # Revision should have incremented
+      # Revision should have incremented (metadata-only update)
       assert revision2 > revision1
     end
 
@@ -49,11 +45,11 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set initial value with metadata
       execution = Journey.set(execution, :title, "Title", metadata: %{"author_id" => "user1"})
-      {:ok, %{value: _value1, metadata: _metadata1, revision: revision1}} = Journey.get(execution, :title)
+      {:ok, _value1, revision1} = Journey.get(execution, :title)
 
       # Set same value and same metadata (should be no-op)
       execution = Journey.set(execution, :title, "Title", metadata: %{"author_id" => "user1"})
-      {:ok, %{value: _value2, metadata: _metadata2, revision: revision2}} = Journey.get(execution, :title)
+      {:ok, _value2, revision2} = Journey.get(execution, :title)
 
       # Revision should NOT increment
       assert revision2 == revision1
@@ -76,11 +72,8 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user1"}
         )
 
-      {:ok, %{value: _title1, metadata: title_meta1, revision: title_rev1}} = Journey.get(execution, :title)
-      {:ok, %{value: _desc1, metadata: desc_meta1, revision: _desc_rev1}} = Journey.get(execution, :description)
-
-      assert title_meta1 == %{"author_id" => "user1"}
-      assert desc_meta1 == %{"author_id" => "user1"}
+      {:ok, _title1, title_rev1} = Journey.get(execution, :title)
+      {:ok, _desc1, _desc_rev1} = Journey.get(execution, :description)
 
       # Update metadata only (same values)
       execution =
@@ -90,18 +83,14 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user2"}
         )
 
-      {:ok, %{value: title2, metadata: title_meta2, revision: title_rev2}} = Journey.get(execution, :title)
-      {:ok, %{value: desc2, metadata: desc_meta2, revision: _desc_rev2}} = Journey.get(execution, :description)
+      {:ok, title2, title_rev2} = Journey.get(execution, :title)
+      {:ok, desc2, _desc_rev2} = Journey.get(execution, :description)
 
       # Values should be unchanged
       assert title2 == "Title"
       assert desc2 == "Desc"
 
-      # Metadata should be updated
-      assert title_meta2 == %{"author_id" => "user2"}
-      assert desc_meta2 == %{"author_id" => "user2"}
-
-      # Revision should have incremented
+      # Revision should have incremented (metadata-only update)
       assert title_rev2 > title_rev1
     end
 
@@ -122,7 +111,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user1"}
         )
 
-      {:ok, %{value: _title1, metadata: _title_meta1, revision: title_rev1}} = Journey.get(execution, :title)
+      {:ok, _title1, title_rev1} = Journey.get(execution, :title)
 
       # Change title value AND metadata
       execution =
@@ -132,16 +121,14 @@ defmodule Journey.MetadataOnlyUpdateTest do
           metadata: %{"author_id" => "user2"}
         )
 
-      {:ok, %{value: title2, metadata: title_meta2, revision: title_rev2}} = Journey.get(execution, :title)
-      {:ok, %{value: desc2, metadata: desc_meta2, revision: _desc_rev2}} = Journey.get(execution, :description)
+      {:ok, title2, title_rev2} = Journey.get(execution, :title)
+      {:ok, desc2, _desc_rev2} = Journey.get(execution, :description)
 
       # Title value changed
       assert title2 == "Title v2"
-      assert title_meta2 == %{"author_id" => "user2"}
 
-      # Description value unchanged but metadata changed
+      # Description value unchanged
       assert desc2 == "Desc"
-      assert desc_meta2 == %{"author_id" => "user2"}
 
       # Revision incremented
       assert title_rev2 > title_rev1
@@ -160,7 +147,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # First change
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user1"})
-      {:ok, %{value: history1, metadata: _, revision: rev1}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, history1, rev1} = Journey.get(execution, :content_history, wait: :any)
 
       assert redact_timestamps(history1) == [
                %{
@@ -175,8 +162,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       # Metadata-only change (same value)
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user2"})
 
-      {:ok, %{value: history2, metadata: _, revision: _rev2}} =
-        Journey.get(execution, :content_history, wait: {:newer_than, rev1})
+      {:ok, history2, _rev2} = Journey.get(execution, :content_history, wait: {:newer_than, rev1})
 
       # Should have TWO entries now (newest first: user2, then user1)
       assert redact_timestamps(history2) == [
@@ -208,7 +194,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # First change
       execution = Journey.set(execution, :content, "v1", metadata: %{"author_id" => "user1"})
-      {:ok, %{value: history1, metadata: _, revision: _}} = Journey.get(execution, :content_history, wait: :any)
+      {:ok, history1, _} = Journey.get(execution, :content_history, wait: :any)
 
       assert redact_timestamps(history1) == [
                %{
@@ -226,7 +212,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       # Wait a bit to ensure no computation triggered
       Process.sleep(100)
 
-      {:ok, %{value: history2, metadata: _, revision: _}} = Journey.get(execution, :content_history)
+      {:ok, history2, _} = Journey.get(execution, :content_history)
 
       # Should still have only ONE entry (no new revision)
       assert redact_timestamps(history2) == [
@@ -252,16 +238,14 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set value without metadata
       execution = Journey.set(execution, :field, "value")
-      {:ok, %{value: _v1, metadata: meta1, revision: rev1}} = Journey.get(execution, :field)
-
-      assert meta1 == nil
+      {:ok, _v1, rev1} = Journey.get(execution, :field)
 
       # Add metadata (same value)
       execution = Journey.set(execution, :field, "value", metadata: %{"added" => "later"})
-      {:ok, %{value: v2, metadata: meta2, revision: rev2}} = Journey.get(execution, :field)
+      {:ok, v2, rev2} = Journey.get(execution, :field)
 
       assert v2 == "value"
-      assert meta2 == %{"added" => "later"}
+      # Revision incremented (metadata added)
       assert rev2 > rev1
     end
 
@@ -275,16 +259,14 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       # Set value with metadata
       execution = Journey.set(execution, :field, "value", metadata: %{"author" => "user1"})
-      {:ok, %{value: _v1, metadata: meta1, revision: rev1}} = Journey.get(execution, :field)
-
-      assert meta1 == %{"author" => "user1"}
+      {:ok, _v1, rev1} = Journey.get(execution, :field)
 
       # Remove metadata (same value)
       execution = Journey.set(execution, :field, "value")
-      {:ok, %{value: v2, metadata: meta2, revision: rev2}} = Journey.get(execution, :field)
+      {:ok, v2, rev2} = Journey.get(execution, :field)
 
       assert v2 == "value"
-      assert meta2 == nil
+      # Revision incremented (metadata removed)
       assert rev2 > rev1
     end
   end
@@ -299,9 +281,9 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: "simple string")
 
-      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
+      {:ok, value, _revision} = Journey.get(execution, :field)
       assert value == "value"
-      assert metadata == "simple string"
+      # Note: metadata is stored internally but not exposed via Journey.get()
     end
 
     test "number metadata works" do
@@ -313,9 +295,9 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: 42)
 
-      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
+      {:ok, value, _revision} = Journey.get(execution, :field)
       assert value == "value"
-      assert metadata == 42
+      # Note: metadata is stored internally but not exposed via Journey.get()
     end
 
     test "boolean metadata works" do
@@ -327,9 +309,9 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: true)
 
-      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
+      {:ok, value, _revision} = Journey.get(execution, :field)
       assert value == "value"
-      assert metadata == true
+      # Note: metadata is stored internally but not exposed via Journey.get()
     end
 
     test "list metadata works" do
@@ -341,9 +323,9 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: ["item1", "item2", "item3"])
 
-      {:ok, %{value: value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
+      {:ok, value, _revision} = Journey.get(execution, :field)
       assert value == "value"
-      assert metadata == ["item1", "item2", "item3"]
+      # Note: metadata is stored internally but not exposed via Journey.get()
     end
 
     test "string metadata-only update triggers revision" do
@@ -354,16 +336,14 @@ defmodule Journey.MetadataOnlyUpdateTest do
 
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: "version1")
-      {:ok, %{value: _v1, metadata: meta1, revision: rev1}} = Journey.get(execution, :field)
-
-      assert meta1 == "version1"
+      {:ok, _v1, rev1} = Journey.get(execution, :field)
 
       # Update only metadata
       execution = Journey.set(execution, :field, "value", metadata: "version2")
-      {:ok, %{value: v2, metadata: meta2, revision: rev2}} = Journey.get(execution, :field)
+      {:ok, v2, rev2} = Journey.get(execution, :field)
 
       assert v2 == "value"
-      assert meta2 == "version2"
+      # Revision incremented (metadata-only update)
       assert rev2 > rev1
     end
   end
@@ -404,7 +384,7 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :config, %{"retry_count" => 3})
 
-      {:ok, %{value: value, metadata: _metadata, revision: _revision}} = Journey.get(execution, :config)
+      {:ok, value, _revision} = Journey.get(execution, :config)
       assert value == %{"retry_count" => 3}
     end
 
@@ -417,8 +397,9 @@ defmodule Journey.MetadataOnlyUpdateTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :field, "value", metadata: %{"author_id" => "user1"})
 
-      {:ok, %{value: _value, metadata: metadata, revision: _revision}} = Journey.get(execution, :field)
-      assert metadata == %{"author_id" => "user1"}
+      {:ok, value, _revision} = Journey.get(execution, :field)
+      assert value == "value"
+      # Note: metadata is stored internally but not exposed via Journey.get()
     end
   end
 end

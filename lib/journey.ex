@@ -50,13 +50,13 @@ defmodule Journey do
   iex> e = Journey.set(e, :birth_month, "April")
   iex>
   iex> # 4. Now that we have :birth_month and :birth_day, :zodiac_sign will compute itself:
-  iex> {:ok, %{value: "Taurus", revision: _revision}} = Journey.get(e, :zodiac_sign, wait: :any)
+  iex> {:ok, "Taurus", _revision} = Journey.get(e, :zodiac_sign, wait: :any)
   iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
   %{birth_day: 26, birth_month: "April", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
   iex>
   iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
   iex> e = Journey.set(e, :first_name, "Mario")
-  iex> {:ok, %{value: "🍪s await, Taurus Mario!", revision: 7}} = Journey.get(e, :horoscope, wait: :any)
+  iex> {:ok, "🍪s await, Taurus Mario!", 7} = Journey.get(e, :horoscope, wait: :any)
   iex>
   iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
   %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
@@ -147,7 +147,7 @@ defmodule Journey do
   "greeting workflow"
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :name, "Alice")
-  iex> {:ok, %{value: "Hello, Alice!", revision: 3}} = Journey.get(execution, :greeting, wait: :any)
+  iex> {:ok, "Hello, Alice!", 3} = Journey.get(execution, :greeting, wait: :any)
   ```
 
   Graph with a graph-wide `f_on_save` callback:
@@ -212,9 +212,9 @@ defmodule Journey do
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :birth_day, 15)
   iex> execution = Journey.set(execution, :birth_month, "May")
-  iex> {:ok, %{value: "Taurus", revision: _revision}} = Journey.get(execution, :zodiac_sign, wait: :any)
+  iex> {:ok, "Taurus", _revision} = Journey.get(execution, :zodiac_sign, wait: :any)
   iex> execution = Journey.set(execution, :first_name, "Bob")
-  iex> {:ok, %{value: "🍪s await, Taurus Bob!", revision: 7}} = Journey.get(execution, :horoscope, wait: :any)
+  iex> {:ok, "🍪s await, Taurus Bob!", 7} = Journey.get(execution, :horoscope, wait: :any)
   ```
 
   Multiple node types in a workflow:
@@ -236,8 +236,8 @@ defmodule Journey do
   ...> )
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :raw_data, "hello world")
-  iex> {:ok, %{value: "HELLO WORLD", revision: 3}} = Journey.get(execution, :upper_case, wait: :any)
-  iex> {:ok, %{value: "HELLO WORLD omg yay", revision: 5}} = Journey.get(execution, :suffix, wait: :any)
+  iex> {:ok, "HELLO WORLD", 3} = Journey.get(execution, :upper_case, wait: :any)
+  iex> {:ok, "HELLO WORLD omg yay", 5} = Journey.get(execution, :suffix, wait: :any)
   ```
 
   Custom execution ID prefix for easier debugging:
@@ -259,7 +259,7 @@ defmodule Journey do
   iex> String.starts_with?(execution.id, "ONBOARD")
   true
   iex> execution = Journey.set(execution, :email, "user@example.com")
-  iex> {:ok, %{value: "Welcome user@example.com!", revision: 3}} = Journey.get(execution, :welcome_message, wait: :any)
+  iex> {:ok, "Welcome user@example.com!", 3} = Journey.get(execution, :welcome_message, wait: :any)
   ```
 
   """
@@ -281,7 +281,7 @@ defmodule Journey do
   ```elixir
   execution = Journey.set(execution, :name, "Mario")
   execution = Journey.load(execution)  # Get updated state with new revision
-  {:ok, %{value: greeting, revision: _}} = Journey.get(execution, :greeting, wait: :any)
+  {:ok, greeting, _} = Journey.get(execution, :greeting, wait: :any)
   ```
 
   Use `set/3` and `get_value/3` to modify and read execution values.
@@ -325,7 +325,7 @@ defmodule Journey do
   iex> execution = Journey.set(execution, :name, "Alice")
   iex> execution.revision > 0
   true
-  iex> {:ok, %{value: "Hello, Alice!", revision: _}} = Journey.get(execution, :greeting, wait: :any)
+  iex> {:ok, "Hello, Alice!", _} = Journey.get(execution, :greeting, wait: :any)
   iex> reloaded = Journey.load(execution)
   iex> reloaded.revision >= execution.revision
   true
@@ -659,7 +659,7 @@ defmodule Journey do
   ```elixir
   execution = Journey.start_execution(graph)
   execution = Journey.set(execution, :name, "Mario")
-  {:ok, %{value: greeting, revision: _}} = Journey.get(execution, :greeting, wait: :any)
+  {:ok, greeting, _} = Journey.get(execution, :greeting, wait: :any)
   ```
 
   Use `set/3` to provide input values and `get_value/3` to retrieve computed results.
@@ -732,7 +732,7 @@ defmodule Journey do
   %{}
   iex> execution = Journey.set(execution, :x, 10)
   iex> execution = Journey.set(execution, :y, 20)
-  iex> {:ok, %{value: 30, revision: _revision}} = Journey.get(execution, :sum, wait: :any)
+  iex> {:ok, 30, _revision} = Journey.get(execution, :sum, wait: :any)
   ```
 
   Multiple independent executions:
@@ -750,8 +750,8 @@ defmodule Journey do
   true
   iex> execution1 = Journey.set(execution1, :count, 1)
   iex> execution2 = Journey.set(execution2, :count, 2)
-  iex> {:ok, %{value: 1, revision: 1}} = Journey.get(execution1, :count)
-  iex> {:ok, %{value: 2, revision: 1}} = Journey.get(execution2, :count)
+  iex> {:ok, 1, 1} = Journey.get(execution1, :count)
+  iex> {:ok, 2, 1} = Journey.get(execution2, :count)
   ```
 
   """
@@ -975,7 +975,7 @@ defmodule Journey do
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :x, 10)
   iex> execution = Journey.set(execution, :y, 20)
-  iex> {:ok, %{value: 30, revision: _revision}} = Journey.get(execution, :sum, wait: :any)
+  iex> {:ok, 30, _revision} = Journey.get(execution, :sum, wait: :any)
   iex> Journey.history(execution) |> Enum.map(fn entry ->
   ...>   case entry.node_name do
   ...>     :execution_id -> %{entry | value: "..."}
@@ -1051,7 +1051,7 @@ defmodule Journey do
   # Multiple values via keyword list
   execution = Journey.set(execution, name: "Mario", age: 35)
 
-  {:ok, %{value: greeting, revision: _}} = Journey.get(execution, :greeting, wait: :any)
+  {:ok, greeting, _} = Journey.get(execution, :greeting, wait: :any)
   ```
 
   Use `get_value/3` to retrieve values and `unset/2` to remove values.
@@ -1072,9 +1072,9 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> {:ok, %{value: "Hello, Mario!", revision: 3}} = Journey.get(execution, :greeting, wait: :any)
+  iex> {:ok, "Hello, Mario!", 3} = Journey.get(execution, :greeting, wait: :any)
   iex> execution = Journey.set(execution, :name, "Luigi")
-  iex> {:ok, %{value: "Hello, Luigi!", revision: _revision}} = Journey.get(execution, :greeting, wait: :newer)
+  iex> {:ok, "Hello, Luigi!", _revision} = Journey.get(execution, :greeting, wait: :newer)
   ```
 
   Idempotent behavior - same value doesn't change revision:
@@ -1107,8 +1107,8 @@ defmodule Journey do
   iex> execution = Journey.set(execution, :number, 42)
   iex> execution = Journey.set(execution, :flag, true)
   iex> execution = Journey.set(execution, :data, %{"key" => "value"})
-  iex> {:ok, %{value: 42, revision: _revision}} = Journey.get(execution, :number)
-  iex> {:ok, %{value: true, revision: _revision}} = Journey.get(execution, :flag)
+  iex> {:ok, 42, _revision} = Journey.get(execution, :number)
+  iex> {:ok, true, _revision} = Journey.get(execution, :flag)
   ```
 
   Using an execution ID:
@@ -1122,7 +1122,7 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> updated_execution = Journey.set(execution.id, :name, "Luigi")
-  iex> {:ok, %{value: "Luigi", revision: _revision}} = Journey.get(updated_execution, :name)
+  iex> {:ok, "Luigi", _revision} = Journey.get(updated_execution, :name)
   ```
 
   Multiple values via map (atomic operation):
@@ -1142,9 +1142,9 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros"})
-  iex> {:ok, %{value: "Mario", revision: 1}} = Journey.get(execution, :first_name)
-  iex> {:ok, %{value: "Bros", revision: 1}} = Journey.get(execution, :last_name)
-  iex> {:ok, %{value: "Mario Bros", revision: 3}} = Journey.get(execution, :full_name, wait: :any)
+  iex> {:ok, "Mario", 1} = Journey.get(execution, :first_name)
+  iex> {:ok, "Bros", 1} = Journey.get(execution, :last_name)
+  iex> {:ok, "Mario Bros", 3} = Journey.get(execution, :full_name, wait: :any)
   ```
 
   Multiple values via keyword list (ergonomic syntax):
@@ -1158,9 +1158,9 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, name: "Mario", age: 35, active: true)
-  iex> {:ok, %{value: "Mario", revision: 1}} = Journey.get(execution, :name)
-  iex> {:ok, %{value: 35, revision: 1}} = Journey.get(execution, :age)
-  iex> {:ok, %{value: true, revision: 1}} = Journey.get(execution, :active)
+  iex> {:ok, "Mario", 1} = Journey.get(execution, :name)
+  iex> {:ok, 35, 1} = Journey.get(execution, :age)
+  iex> {:ok, true, 1} = Journey.get(execution, :active)
   ```
 
   """
@@ -1357,7 +1357,7 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> {:ok, %{value: "Hello, Mario!", revision: 3}} = Journey.get(execution, :greeting, wait: :any)
+  iex> {:ok, "Hello, Mario!", 3} = Journey.get(execution, :greeting, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, :name)
   iex> Journey.get(execution_after_unset, :name)
   {:error, :not_set}
@@ -1380,8 +1380,8 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :a, "value")
-  iex> {:ok, %{value: "B:value", revision: 3}} = Journey.get(execution, :b, wait: :any)
-  iex> {:ok, %{value: "C:B:value", revision: 5}} = Journey.get(execution, :c, wait: :any)
+  iex> {:ok, "B:value", 3} = Journey.get(execution, :b, wait: :any)
+  iex> {:ok, "C:B:value", 5} = Journey.get(execution, :c, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, :a)
   iex> Journey.get(execution_after_unset, :a)
   {:error, :not_set}
@@ -1425,13 +1425,13 @@ defmodule Journey do
   ...> )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros", email: "mario@example.com"})
-  iex> {:ok, %{value: "Mario Bros", revision: 3}} = Journey.get(execution, :full_name, wait: :any)
+  iex> {:ok, "Mario Bros", 3} = Journey.get(execution, :full_name, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, [:first_name, :last_name])
   iex> Journey.get(execution_after_unset, :first_name)
   {:error, :not_set}
   iex> Journey.get(execution_after_unset, :last_name)
   {:error, :not_set}
-  iex> {:ok, %{value: "mario@example.com", revision: 1}} = Journey.get(execution_after_unset, :email)
+  iex> {:ok, "mario@example.com", 1} = Journey.get(execution_after_unset, :email)
   iex> Journey.get(execution_after_unset, :full_name)
   {:error, :not_set}
   ```
@@ -1483,16 +1483,16 @@ defmodule Journey do
 
   ```elixir
   # Basic usage - get a set value and its revision immediately
-  {:ok, %{value: value, revision: revision}} = Journey.get(execution, :name)
+  {:ok, value, revision} = Journey.get(execution, :name)
 
   # Wait for a computed value to be available (30 second default timeout)
-  {:ok, %{value: result, revision: revision}} = Journey.get(execution, :computed_field, wait: :any)
+  {:ok, result, revision} = Journey.get(execution, :computed_field, wait: :any)
 
   # Wait for a new version of the value with custom timeout
-  {:ok, %{value: new_value, revision: new_revision}} = Journey.get(execution, :name, wait: :newer, timeout: 5000)
+  {:ok, new_value, new_revision} = Journey.get(execution, :name, wait: :newer, timeout: 5000)
 
   # Wait for a value newer than a specific revision
-  {:ok, %{value: fresh_value, revision: fresh_revision}} = Journey.get(execution, :name, wait: {:newer_than, 10})
+  {:ok, fresh_value, fresh_revision} = Journey.get(execution, :name, wait: {:newer_than, 10})
   ```
 
   Use `set/3` to set input values that trigger computations.
@@ -1503,7 +1503,7 @@ defmodule Journey do
   * `opts` - Keyword list of options (see Options section below)
 
   ## Returns
-  * `{:ok, %{value: value, metadata: metadata, revision: revision}}` – the value is set, with its metadata and revision number
+  * `{:ok, value, revision}` – the value is set, with its revision number
   * `{:error, :not_set}` – the value is not yet set
   * `{:error, :computation_failed}` – the computation permanently failed
 
@@ -1525,7 +1525,7 @@ defmodule Journey do
     ...>    Journey.Examples.Horoscope.graph() |>
     ...>    Journey.start_execution() |>
     ...>    Journey.set(:birth_day, 26)
-    iex> {:ok, %{value: 26, revision: _revision}} = Journey.get(execution, :birth_day)
+    iex> {:ok, 26, _revision} = Journey.get(execution, :birth_day)
     iex> Journey.get(execution, :birth_month)
     {:error, :not_set}
     iex> Journey.get(execution, :astrological_sign)
@@ -1533,11 +1533,11 @@ defmodule Journey do
     iex> execution = Journey.set(execution, :birth_month, "April")
     iex> Journey.get(execution, :astrological_sign)
     {:error, :not_set}
-    iex> {:ok, %{value: "Taurus", revision: _revision}} = Journey.get(execution, :astrological_sign, wait: :any)
+    iex> {:ok, "Taurus", _revision} = Journey.get(execution, :astrological_sign, wait: :any)
     iex> Journey.get(execution, :horoscope, wait: :any, timeout: 2_000)
     {:error, :not_set}
     iex> execution = Journey.set(execution, :first_name, "Mario")
-    iex> {:ok, %{value: "🍪s await, Taurus Mario!", revision: _revision}} = Journey.get(execution, :horoscope, wait: :any)
+    iex> {:ok, "🍪s await, Taurus Mario!", _revision} = Journey.get(execution, :horoscope, wait: :any)
     ```
 
   """
@@ -1566,7 +1566,7 @@ defmodule Journey do
 
     case result do
       {:ok, value_node} ->
-        {:ok, %{value: value_node.node_value, metadata: value_node.metadata, revision: value_node.ex_revision}}
+        {:ok, value_node.node_value, value_node.ex_revision}
 
       error ->
         error

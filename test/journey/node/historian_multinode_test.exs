@@ -41,7 +41,7 @@ defmodule Journey.Node.HistorianMultinodeTest do
 
       # Set a - historian should record it
       e = Journey.set(e, :a, "a")
-      {:ok, %{value: history1, revision: rev1}} = Journey.get(e, :abc_history, wait: :any)
+      {:ok, history1, rev1} = Journey.get(e, :abc_history, wait: :any)
 
       # Assert exact structure with redacted timestamps
       assert redact_timestamps(history1) == [
@@ -50,7 +50,7 @@ defmodule Journey.Node.HistorianMultinodeTest do
 
       # Set b - historian should record it
       Journey.set(e, :b, "b")
-      {:ok, %{value: history2, revision: rev2}} = Journey.get(e, :abc_history, wait: {:newer_than, rev1})
+      {:ok, history2, rev2} = Journey.get(e, :abc_history, wait: {:newer_than, rev1})
 
       assert redact_timestamps(history2) == [
                %{"metadata" => nil, "node" => "b", "revision" => 4, "timestamp" => 1_234_567_890, "value" => "b"},
@@ -59,7 +59,7 @@ defmodule Journey.Node.HistorianMultinodeTest do
 
       # Set c - historian should record it
       Journey.set(e, :c, "c")
-      {:ok, %{value: history3, revision: rev3}} = Journey.get(e, :abc_history, wait: {:newer_than, rev2})
+      {:ok, history3, rev3} = Journey.get(e, :abc_history, wait: {:newer_than, rev2})
 
       assert redact_timestamps(history3) == [
                %{"metadata" => nil, "node" => "c", "revision" => 7, "timestamp" => 1_234_567_890, "value" => "c"},
@@ -69,7 +69,7 @@ defmodule Journey.Node.HistorianMultinodeTest do
 
       # Set another b - historian should record it
       Journey.set(e, :b, "b1")
-      {:ok, %{value: history4, revision: _rev4}} = Journey.get(e, :abc_history, wait: {:newer_than, rev3})
+      {:ok, history4, _rev4} = Journey.get(e, :abc_history, wait: {:newer_than, rev3})
 
       assert redact_timestamps(history4) == [
                %{"metadata" => nil, "node" => "b", "revision" => 10, "timestamp" => 1_234_567_890, "value" => "b1"},

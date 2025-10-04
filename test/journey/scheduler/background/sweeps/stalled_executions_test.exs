@@ -141,7 +141,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutionsTest do
         assert sweep_run_id != nil
 
         # Wait for computation to complete using wait_any
-        {:ok, %{value: result}} = Journey.get(execution, :computed_result, wait: :any)
+        {:ok, result, _} = Journey.get(execution, :computed_result, wait: :any)
         assert result == "computed: test_input"
       after
         Application.put_env(:journey, :stalled_executions_sweep, original_config)

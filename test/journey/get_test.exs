@@ -14,7 +14,7 @@ defmodule Journey.GetTest do
         Journey.start_execution(graph)
         |> Journey.set(:user_name, "Alice")
 
-      {:ok, %{value: value, revision: revision}} = Journey.get(execution, :user_name)
+      {:ok, value, revision} = Journey.get(execution, :user_name)
       assert value == "Alice"
       assert is_integer(revision)
       assert revision > 0
@@ -36,7 +36,7 @@ defmodule Journey.GetTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, %{value: value, revision: revision}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, value, revision} = Journey.get(execution, :reminder, wait: :any)
       assert value =~ "Bob"
       assert is_integer(revision)
       assert revision > 0
@@ -54,7 +54,7 @@ defmodule Journey.GetTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       # Get initial value and revision
-      {:ok, %{value: initial_value, revision: initial_revision}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, initial_value, initial_revision} = Journey.get(execution, :reminder, wait: :any)
       assert initial_value =~ "Carol"
       assert is_integer(initial_revision)
 
@@ -62,7 +62,7 @@ defmodule Journey.GetTest do
       execution = Journey.set(execution, :user_name, "Dave")
 
       # Wait for newer revision
-      {:ok, %{value: new_value, revision: new_revision}} =
+      {:ok, new_value, new_revision} =
         Journey.get(execution, :reminder, wait: {:newer_than, initial_revision})
 
       assert new_value =~ "Dave"
@@ -81,13 +81,13 @@ defmodule Journey.GetTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       # Get initial value
-      {:ok, %{revision: initial_revision}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, _, initial_revision} = Journey.get(execution, :reminder, wait: :any)
 
       # Update the input to trigger recomputation
       execution = Journey.set(execution, :user_name, "Frank")
 
       # Wait for newer revision
-      {:ok, %{value: new_value, revision: new_revision}} = Journey.get(execution, :reminder, wait: :newer)
+      {:ok, new_value, new_revision} = Journey.get(execution, :reminder, wait: :newer)
       assert new_value =~ "Frank"
       assert new_revision > initial_revision
 
@@ -111,7 +111,7 @@ defmodule Journey.GetTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, %{value: value, revision: revision}} = Journey.get(execution, :reminder, wait: :any, timeout: :infinity)
+      {:ok, value, revision} = Journey.get(execution, :reminder, wait: :any, timeout: :infinity)
       assert value =~ "Grace"
       assert is_integer(revision)
 
@@ -149,7 +149,7 @@ defmodule Journey.GetTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       # Get value and revision atomically
-      {:ok, %{value: value, revision: revision}} = Journey.get(execution, :reminder, wait: :any)
+      {:ok, value, revision} = Journey.get(execution, :reminder, wait: :any)
 
       # Reload execution and verify the revision matches the value we got
       reloaded = Journey.load(execution.id)
@@ -187,36 +187,36 @@ defmodule Journey.GetTest do
 
       # Test string value
       execution = Journey.set(execution, :string_val, "hello world")
-      {:ok, %{value: "hello world", revision: rev1}} = Journey.get(execution, :string_val)
+      {:ok, "hello world", rev1} = Journey.get(execution, :string_val)
       assert is_integer(rev1) and rev1 > 0
 
       # Test number value
       execution = Journey.set(execution, :number_val, 42)
-      {:ok, %{value: 42, revision: rev2}} = Journey.get(execution, :number_val)
+      {:ok, 42, rev2} = Journey.get(execution, :number_val)
       assert rev2 > rev1
 
       # Test boolean value
       execution = Journey.set(execution, :bool_val, true)
-      {:ok, %{value: true, revision: rev3}} = Journey.get(execution, :bool_val)
+      {:ok, true, rev3} = Journey.get(execution, :bool_val)
       assert rev3 > rev2
 
       # Test map value (note: atom keys get converted to strings)
       map_val = %{"key" => "value", "count" => 5}
       execution = Journey.set(execution, :map_val, map_val)
-      {:ok, %{value: returned_map, revision: rev4}} = Journey.get(execution, :map_val)
+      {:ok, returned_map, rev4} = Journey.get(execution, :map_val)
       assert returned_map == map_val
       assert rev4 > rev3
 
       # Test list value (note: maps in lists also get atom keys converted)
       list_val = [1, 2, "three", %{"four" => 4}]
       execution = Journey.set(execution, :list_val, list_val)
-      {:ok, %{value: returned_list, revision: rev5}} = Journey.get(execution, :list_val)
+      {:ok, returned_list, rev5} = Journey.get(execution, :list_val)
       assert returned_list == list_val
       assert rev5 > rev4
 
       # Test nil value
       execution = Journey.set(execution, :nil_val, nil)
-      {:ok, %{value: nil, revision: rev6}} = Journey.get(execution, :nil_val)
+      {:ok, nil, rev6} = Journey.get(execution, :nil_val)
       assert rev6 > rev5
     end
   end
@@ -289,7 +289,7 @@ defmodule Journey.GetTest do
 
       # Set node - immediate return
       execution = Journey.set(execution, :user_name, "Alice")
-      {:ok, %{value: "Alice"}} = Journey.get(execution, :user_name, wait: :immediate)
+      {:ok, "Alice", _} = Journey.get(execution, :user_name, wait: :immediate)
     end
 
     test "wait: :any with different timeout values" do
@@ -305,7 +305,7 @@ defmodule Journey.GetTest do
         Journey.set(execution, :user_name, "Bob")
       end)
 
-      {:ok, %{value: "Bob"}} = Journey.get(execution, :user_name, wait: :any, timeout: 500)
+      {:ok, "Bob", _} = Journey.get(execution, :user_name, wait: :any, timeout: 500)
     end
 
     test "wait: :newer works correctly for immediate updates" do
@@ -319,7 +319,7 @@ defmodule Journey.GetTest do
         Journey.set(execution, :user_name, "Bob")
       end)
 
-      {:ok, %{value: "Bob"}} = Journey.get(execution, :user_name, wait: :newer, timeout: 300)
+      {:ok, "Bob", _} = Journey.get(execution, :user_name, wait: :newer, timeout: 300)
     end
 
     test "wait: {:newer_than, revision} with specific revision numbers" do
@@ -327,15 +327,15 @@ defmodule Journey.GetTest do
       execution = Journey.start_execution(graph)
 
       execution = Journey.set(execution, :user_name, "Alice")
-      {:ok, %{revision: rev1}} = Journey.get(execution, :user_name)
+      {:ok, _, rev1} = Journey.get(execution, :user_name)
 
       execution = Journey.set(execution, :user_name, "Bob")
-      {:ok, %{revision: _rev2}} = Journey.get(execution, :user_name)
+      {:ok, _, _rev2} = Journey.get(execution, :user_name)
 
       execution = Journey.set(execution, :user_name, "Carol")
 
       # Should get Carol since revision will be > rev1
-      {:ok, %{value: "Carol", revision: rev3}} = Journey.get(execution, :user_name, wait: {:newer_than, rev1})
+      {:ok, "Carol", rev3} = Journey.get(execution, :user_name, wait: {:newer_than, rev1})
       assert rev3 > rev1
 
       # Should timeout since no revision > rev3 exists
@@ -349,9 +349,9 @@ defmodule Journey.GetTest do
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :user_name, "Alice")
 
-      {:ok, %{value: "Alice", revision: rev1}} = Journey.get(execution, :user_name)
-      {:ok, %{value: "Alice", revision: rev2}} = Journey.get(execution, :user_name)
-      {:ok, %{value: "Alice", revision: rev3}} = Journey.get(execution, :user_name)
+      {:ok, "Alice", rev1} = Journey.get(execution, :user_name)
+      {:ok, "Alice", rev2} = Journey.get(execution, :user_name)
+      {:ok, "Alice", rev3} = Journey.get(execution, :user_name)
 
       assert rev1 == rev2
       assert rev2 == rev3
@@ -362,13 +362,13 @@ defmodule Journey.GetTest do
       execution = Journey.start_execution(graph)
 
       execution = Journey.set(execution, :user_name, "Alice")
-      {:ok, %{value: "Alice", revision: rev1}} = Journey.get(execution, :user_name)
+      {:ok, "Alice", rev1} = Journey.get(execution, :user_name)
 
       execution = Journey.set(execution, :user_name, "Bob")
-      {:ok, %{value: "Bob", revision: rev2}} = Journey.get(execution, :user_name)
+      {:ok, "Bob", rev2} = Journey.get(execution, :user_name)
 
       execution = Journey.set(execution, :user_name, "Carol")
-      {:ok, %{value: "Carol", revision: rev3}} = Journey.get(execution, :user_name)
+      {:ok, "Carol", rev3} = Journey.get(execution, :user_name)
 
       assert rev2 > rev1
       assert rev3 > rev2
@@ -381,8 +381,8 @@ defmodule Journey.GetTest do
 
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
-      {:ok, %{value: greeting_value, revision: greeting_rev}} = Journey.get(execution, :greeting, wait: :any)
-      {:ok, %{revision: user_rev}} = Journey.get(execution, :user_name)
+      {:ok, greeting_value, greeting_rev} = Journey.get(execution, :greeting, wait: :any)
+      {:ok, _, user_rev} = Journey.get(execution, :user_name)
 
       assert greeting_value == "Hello, Alice"
       assert is_integer(greeting_rev)

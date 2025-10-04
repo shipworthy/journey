@@ -27,11 +27,11 @@ defmodule Journey.Node.ConditionsTest do
 
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :it_will_rain_tomorrow, false)
-      {:ok, %{value: "prepare my bike!"}} = Journey.get(execution, :prepare_bike, wait: :any)
+      {:ok, "prepare my bike!", _} = Journey.get(execution, :prepare_bike, wait: :any)
       assert Journey.values(execution) |> redact() == %{it_will_rain_tomorrow: false, prepare_bike: "prepare my bike!"}
 
       execution = Journey.set(execution, :it_will_rain_tomorrow, true)
-      {:ok, %{value: "prepare my umbrella!"}} = Journey.get(execution, :prepare_umbrella, wait: :any)
+      {:ok, "prepare my umbrella!", _} = Journey.get(execution, :prepare_umbrella, wait: :any)
 
       assert Journey.values(execution) |> redact() == %{
                it_will_rain_tomorrow: true,

@@ -31,12 +31,12 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set first input - should compute with placeholder for b
       e = Journey.set(e, :a, "a")
-      {:ok, %{value: result}} = Journey.get(e, :a_or_b, wait: :any)
+      {:ok, result, _} = Journey.get(e, :a_or_b, wait: :any)
       assert result == "a_"
 
       # Set second input - should recompute with both values
       e = Journey.set(e, :b, "b")
-      {:ok, %{value: result}} = Journey.get(e, :a_or_b, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :a_or_b, wait: :newer)
       assert result == "ab"
     end
 
@@ -66,17 +66,17 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set first input
       e = Journey.set(e, :a, "a")
-      {:ok, %{value: result}} = Journey.get(e, :a_or_b_or_c, wait: :any)
+      {:ok, result, _} = Journey.get(e, :a_or_b_or_c, wait: :any)
       assert result == "a__"
 
       # Set second input - should recompute
       e = Journey.set(e, :b, "b")
-      {:ok, %{value: result}} = Journey.get(e, :a_or_b_or_c, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :a_or_b_or_c, wait: :newer)
       assert result == "ab_"
 
       # Set third input - should recompute again
       e = Journey.set(e, :c, "c")
-      {:ok, %{value: result}} = Journey.get(e, :a_or_b_or_c, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :a_or_b_or_c, wait: :newer)
       assert result == "abc"
     end
 
@@ -103,16 +103,16 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
       # Execution 1: set x then y
       e1 = Journey.start_execution(g)
       e1 = Journey.set(e1, :x, "X")
-      {:ok, _} = Journey.get(e1, :x_or_y, wait: :any)
+      {:ok, _, _} = Journey.get(e1, :x_or_y, wait: :any)
       e1 = Journey.set(e1, :y, "Y")
-      {:ok, %{value: result1}} = Journey.get(e1, :x_or_y, wait: :newer)
+      {:ok, result1, _} = Journey.get(e1, :x_or_y, wait: :newer)
 
       # Execution 2: set y then x
       e2 = Journey.start_execution(g)
       e2 = Journey.set(e2, :y, "Y")
-      {:ok, _} = Journey.get(e2, :x_or_y, wait: :any)
+      {:ok, _, _} = Journey.get(e2, :x_or_y, wait: :any)
       e2 = Journey.set(e2, :x, "X")
-      {:ok, %{value: result2}} = Journey.get(e2, :x_or_y, wait: :newer)
+      {:ok, result2, _} = Journey.get(e2, :x_or_y, wait: :newer)
 
       # Both should have the same final result
       assert result1 == "XY"
@@ -143,12 +143,12 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set second input - should compute now
       e = Journey.set(e, :q, "Q")
-      {:ok, %{value: result}} = Journey.get(e, :p_and_q, wait: :any)
+      {:ok, result, _} = Journey.get(e, :p_and_q, wait: :any)
       assert result == "P-Q"
 
       # Update first input - should recompute
       e = Journey.set(e, :p, "P2")
-      {:ok, %{value: result}} = Journey.get(e, :p_and_q, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :p_and_q, wait: :newer)
       assert result == "P2-Q"
     end
   end
@@ -188,12 +188,12 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set c (satisfies the AND)
       e = Journey.set(e, :c, "C")
-      {:ok, %{value: result}} = Journey.get(e, :nested, wait: :any)
+      {:ok, result, _} = Journey.get(e, :nested, wait: :any)
       assert result == "A-_-C"
 
       # Set b (should recompute - OR has new satisfied branch)
       e = Journey.set(e, :b, "B")
-      {:ok, %{value: result}} = Journey.get(e, :nested, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :nested, wait: :newer)
       assert result == "A-B-C"
     end
 
@@ -228,17 +228,17 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set z - satisfies OR immediately
       e = Journey.set(e, :z, "Z")
-      {:ok, %{value: result}} = Journey.get(e, :nested, wait: :any)
+      {:ok, result, _} = Journey.get(e, :nested, wait: :any)
       assert result == "__Z"
 
       # Set x - should recompute
       e = Journey.set(e, :x, "X")
-      {:ok, %{value: result}} = Journey.get(e, :nested, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :nested, wait: :newer)
       assert result == "X_Z"
 
       # Set y - should recompute again (AND branch now fully satisfied)
       e = Journey.set(e, :y, "Y")
-      {:ok, %{value: result}} = Journey.get(e, :nested, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :nested, wait: :newer)
       assert result == "XYZ"
     end
   end
@@ -263,7 +263,7 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
       e = Journey.start_execution(g)
 
       # Initially, flag is not set - should compute
-      {:ok, %{value: result}} = Journey.get(e, :not_flag, wait: :any)
+      {:ok, result, _} = Journey.get(e, :not_flag, wait: :any)
       assert result == "flag_not_set"
 
       # Set flag - should become unblocked (NOT is no longer satisfied)
@@ -295,7 +295,7 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set enabled to false - NOT should be satisfied
       e = Journey.set(e, :enabled, false)
-      {:ok, %{value: result}} = Journey.get(e, :when_disabled, wait: :any)
+      {:ok, result, _} = Journey.get(e, :when_disabled, wait: :any)
       assert result == "disabled"
 
       # Change enabled to true - NOT is no longer satisfied
@@ -331,7 +331,7 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set both at once using map form
       e = Journey.set(e, %{a: "A", b: "B"})
-      {:ok, %{value: result}} = Journey.get(e, :result, wait: :any)
+      {:ok, result, _} = Journey.get(e, :result, wait: :any)
       assert result == "A+B"
     end
 
@@ -359,17 +359,17 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # Set m
       e = Journey.set(e, :m, "1")
-      {:ok, %{value: result}} = Journey.get(e, :result, wait: :any)
+      {:ok, result, _} = Journey.get(e, :result, wait: :any)
       assert result == "m=1,n=?"
 
       # Update m again (same branch, new value)
       e = Journey.set(e, :m, "2")
-      {:ok, %{value: result}} = Journey.get(e, :result, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :result, wait: :newer)
       assert result == "m=2,n=?"
 
       # Now set n (different branch)
       e = Journey.set(e, :n, "3")
-      {:ok, %{value: result}} = Journey.get(e, :result, wait: :newer)
+      {:ok, result, _} = Journey.get(e, :result, wait: :newer)
       assert result == "m=2,n=3"
     end
   end

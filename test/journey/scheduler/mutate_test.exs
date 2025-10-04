@@ -57,7 +57,7 @@ defmodule Journey.Scheduler.Scheduler.MutateTest do
 
     assert wait_for(fn ->
              case Journey.get(execution, :switch_position) do
-               {:ok, %{value: "off"}} -> true
+               {:ok, "off", _} -> true
                _ -> false
              end
            end)

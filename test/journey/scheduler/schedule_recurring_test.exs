@@ -33,7 +33,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
     expected_scheduled_time = System.system_time(:second) + 10
     execution = execution |> Journey.set(:keep_sending_reminders, true)
 
-    {:ok, %{value: original_scheduled_time}} = Journey.get(execution, :schedule_a_reminder, wait: :any)
+    {:ok, original_scheduled_time, _} = Journey.get(execution, :schedule_a_reminder, wait: :any)
 
     assert original_scheduled_time in (expected_scheduled_time - 1)..(expected_scheduled_time + 5)
 
