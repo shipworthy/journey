@@ -19,7 +19,7 @@ The entry point for the Journey library. Provides functions for creating and man
 ### Value Operations
 - `Journey.set/2`, `Journey.set/3` - Sets values for input node(s) in an execution (potentially unblocking downstream computations)
 - `Journey.unset/2` - Removes values from input nodes and invalidates all dependent computed nodes
-- `Journey.get_value/3` - Returns the value of a node in an execution, optionally waits for the value to be set
+- `Journey.get/3` - Returns the value of a node in an execution and its revision, optionally waits for the value to be set or updated
 
 ### Data Retrieval
 - `Journey.values/2` - Returns a map of all set node values in an execution, excluding unset nodes
