@@ -8,7 +8,10 @@ defmodule Journey.Test.Support.Helpers do
 
     assert wait(
              (fn ->
-                {:ok, expected_value} == Journey.get_value(execution, node_name)
+                case Journey.get_value(execution, node_name) do
+                  {:ok, ^expected_value} -> true
+                  _ -> false
+                end
               end).(),
              timeout: timeout,
              frequency: frequency

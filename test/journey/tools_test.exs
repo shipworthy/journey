@@ -244,7 +244,7 @@ defmodule Journey.ToolsTest do
       # Get values to trigger computations
       {:ok, _, _} = Journey.get(execution, :success_node, wait: :any)
       # The fail_node will fail
-      {:error, _} = Journey.get(execution, :fail_node, wait: :newer)
+      {:error, _error} = Journey.get(execution, :fail_node, wait: :newer)
 
       # Check that completed states use emoji format
       _execution_after = Journey.load(execution.id)
@@ -412,7 +412,79 @@ defmodule Journey.ToolsTest do
               └─ 🛑 :not(:user_requested_card) | &true?/1
       """
 
-      assert redacted_result == String.trim(expected_output)
+      # The test has a race condition: send_follow_up and send_reminder can complete
+      # in either order since they have no dependencies on each other. Both orderings
+      # are valid. We need to accept either:
+      # 1. send_reminder (rev 4), send_follow_up (rev 3), OR
+      # 2. send_follow_up (rev 4), send_reminder (rev 3)
+
+      # Create alternative expected output with reversed ordering
+      expected_output_alt = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: '#{graph.name}' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 4
+      - # of Values: 4 (set) / 12 (total)
+      - # of Computations: 5
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 4
+
+        - send_reminder: '\"Please request your card\"' | :compute
+          computed at REDACTED | rev: 4
+
+        - send_follow_up: '\"Follow up message\"' | :compute
+          computed at REDACTED | rev: 3
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - card_mailed: <unk> | :input
+        - send_approval_notice: <unk> | :compute
+        - send_welcome: <unk> | :compute
+        - user_applied: <unk> | :input
+        - user_applied_or_card_mailed: <unk> | :compute
+        - user_approved: <unk> | :input
+        - user_name: <unk> | :input
+        - user_requested_card: <unk> | :input  
+
+      Computations:
+      - Completed:
+        - :send_reminder (CMPREDACTED): ✅ :success | :compute | rev 4
+          inputs used: 
+             :user_requested_card (rev 0)
+        - :send_follow_up (CMPREDACTED): ✅ :success | :compute | rev 3
+          inputs used: 
+             :user_applied (rev 0)
+             :card_mailed (rev 0)
+
+      - Outstanding:
+        - user_applied_or_card_mailed: ⬜ :not_set (not yet attempted) | :compute
+             :or
+              ├─ 🛑 :user_applied | &true?/1
+              └─ 🛑 :card_mailed | &true?/1
+        - send_welcome: ⬜ :not_set (not yet attempted) | :compute
+             🛑 :user_name | &provided?/1
+        - send_approval_notice: ⬜ :not_set (not yet attempted) | :compute
+             :and
+              ├─ 🛑 :user_applied | &true?/1
+              ├─ 🛑 :user_approved | &true?/1
+              └─ 🛑 :not(:user_requested_card) | &true?/1
+      """
+
+      # Accept either ordering as valid
+      assert redacted_result in [
+               String.trim(expected_output),
+               String.trim(expected_output_alt)
+             ]
     end
   end
 

@@ -62,7 +62,9 @@ defmodule Journey.GetTest do
       execution = Journey.set(execution, :user_name, "Dave")
 
       # Wait for newer revision
-      {:ok, new_value, new_revision} = Journey.get(execution, :reminder, wait: {:newer_than, initial_revision})
+      {:ok, new_value, new_revision} =
+        Journey.get(execution, :reminder, wait: {:newer_than, initial_revision})
+
       assert new_value =~ "Dave"
       assert new_revision > initial_revision
 
@@ -380,7 +382,7 @@ defmodule Journey.GetTest do
       background_sweeps_task = start_background_sweeps_in_test(execution.id)
 
       {:ok, greeting_value, greeting_rev} = Journey.get(execution, :greeting, wait: :any)
-      {:ok, _user_value, user_rev} = Journey.get(execution, :user_name)
+      {:ok, _, user_rev} = Journey.get(execution, :user_name)
 
       assert greeting_value == "Hello, Alice"
       assert is_integer(greeting_rev)

@@ -78,15 +78,16 @@ defmodule Flows.HoroscopeTest do
       assert Journey.get_value(execution, :astrological_sign) == {:error, :not_set}
       assert Journey.get_value(execution, :horoscope) == {:error, :not_set}
       assert Journey.get_value(execution, :library_of_congress_record) == {:error, :not_set}
-      assert Journey.get_value(execution, :birth_day) == {:ok, 26}
+      assert {:ok, 26} = Journey.get_value(execution, :birth_day)
 
-      assert Journey.get_value(execution, :astrological_sign, wait_any: true) == {:ok, "Taurus"}
-      assert Journey.get_value(execution, :horoscope, wait_any: true) == {:ok, "🍪s await, Taurus Mario!"}
+      assert {:ok, "Taurus"} = Journey.get_value(execution, :astrological_sign, wait_any: true)
+      assert {:ok, "🍪s await, Taurus Mario!"} = Journey.get_value(execution, :horoscope, wait_any: true)
 
-      assert Journey.get_value(execution, :library_of_congress_record, wait_any: :infinity) ==
-               {:ok, "Mario's horoscope was submitted for archival."}
+      assert {:ok, "Mario's horoscope was submitted for archival."} =
+               Journey.get_value(execution, :library_of_congress_record, wait_any: :infinity)
 
-      assert Journey.get_value(execution, :obfuscate_first_name, wait_any: true) == {:ok, "updated :first_name"}
+      assert {:ok, "updated :first_name"} =
+               Journey.get_value(execution, :obfuscate_first_name, wait_any: true)
 
       execution = Journey.load(execution)
 

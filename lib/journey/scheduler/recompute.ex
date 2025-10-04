@@ -17,48 +17,67 @@ defmodule Journey.Scheduler.Recompute do
     Logger.debug("#{prefix}: starting")
 
     {:ok, new_computations} =
-      Journey.Repo.transaction(fn repo ->
-        latest_computation_ids =
-          from(c in Computation,
-            where:
-              c.execution_id == ^execution.id and
-                c.computation_type in [:compute, :mutate, :schedule_once] and c.state == ^:success,
-            order_by: [desc: c.ex_revision_at_start],
-            distinct: c.node_name,
-            select: c.id
+      Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
+        fn repo ->
+          latest_computation_ids =
+            from(c in Computation,
+              where:
+                c.execution_id == ^execution.id and
+                  c.computation_type in [:compute, :mutate, :schedule_once] and c.state == ^:success,
+              order_by: [desc: c.ex_revision_at_start],
+              distinct: c.node_name,
+              select: c.id
+            )
+
+          all_computations =
+            from(c in Computation,
+              where: c.id in subquery(latest_computation_ids),
+              lock: "FOR UPDATE"
+            )
+            |> repo.all()
+            |> Journey.Executions.convert_values_to_atoms(:node_name)
+
+          all_values = get_all_values(execution.id, repo)
+
+          all_computations
+          # credo:disable-for-lines:10 Credo.Check.Refactor.FilterFilter
+          |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_values) end)
+          |> Enum.filter(fn c -> unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by) end)
+          |> Enum.map(fn computation_to_re_create ->
+            new_computation =
+              %Execution.Computation{
+                execution: execution,
+                node_name: Atom.to_string(computation_to_re_create.node_name),
+                computation_type: computation_to_re_create.computation_type,
+                state: :not_set
+              }
+              |> repo.insert!()
+
+            Logger.info(
+              "#{prefix}: created a new re-computation, #{new_computation.id}.#{new_computation.node_name}. an upstream node has a newer version"
+            )
+
+            new_computation
+          end)
+        end,
+        prefix
+      )
+      |> case do
+        {:ok, computations} ->
+          {:ok, computations}
+
+        {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
+          Logger.warning(
+            "#{prefix}: Failed after retries due to deadlock, " <>
+              "will retry on next advance/1 call"
           )
 
-        all_computations =
-          from(c in Computation,
-            where: c.id in subquery(latest_computation_ids),
-            lock: "FOR UPDATE"
-          )
-          |> repo.all()
-          |> Journey.Executions.convert_values_to_atoms(:node_name)
+          {:ok, []}
 
-        all_values = get_all_values(execution.id, repo)
-
-        all_computations
-        # credo:disable-for-lines:10 Credo.Check.Refactor.FilterFilter
-        |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_values) end)
-        |> Enum.filter(fn c -> unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by) end)
-        |> Enum.map(fn computation_to_re_create ->
-          new_computation =
-            %Execution.Computation{
-              execution: execution,
-              node_name: Atom.to_string(computation_to_re_create.node_name),
-              computation_type: computation_to_re_create.computation_type,
-              state: :not_set
-            }
-            |> repo.insert!()
-
-          Logger.info(
-            "#{prefix}: created a new re-computation, #{new_computation.id}.#{new_computation.node_name}. an upstream node has a newer version"
-          )
-
-          new_computation
-        end)
-      end)
+        {:error, other} ->
+          Logger.error("#{prefix}: Transaction failed with error: #{inspect(other)}")
+          raise other
+      end
 
     if new_computations == [] do
       Logger.debug("#{prefix}: completed. no new re-computations to create")

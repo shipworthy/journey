@@ -56,8 +56,7 @@ defmodule Journey do
   iex>
   iex> # 5. Once we get :first_name, the :horoscope node will compute itself:
   iex> e = Journey.set(e, :first_name, "Mario")
-  iex> Journey.get(e, :horoscope, wait: :any)
-  {:ok, "🍪s await, Taurus Mario!", 7}
+  iex> {:ok, "🍪s await, Taurus Mario!", 7} = Journey.get(e, :horoscope, wait: :any)
   iex>
   iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
   %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
@@ -148,8 +147,7 @@ defmodule Journey do
   "greeting workflow"
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :name, "Alice")
-  iex> Journey.get(execution, :greeting, wait: :any)
-  {:ok, "Hello, Alice!", 3}
+  iex> {:ok, "Hello, Alice!", 3} = Journey.get(execution, :greeting, wait: :any)
   ```
 
   Graph with a graph-wide `f_on_save` callback:
@@ -216,8 +214,7 @@ defmodule Journey do
   iex> execution = Journey.set(execution, :birth_month, "May")
   iex> {:ok, "Taurus", _revision} = Journey.get(execution, :zodiac_sign, wait: :any)
   iex> execution = Journey.set(execution, :first_name, "Bob")
-  iex> Journey.get(execution, :horoscope, wait: :any)
-  {:ok, "🍪s await, Taurus Bob!", 7}
+  iex> {:ok, "🍪s await, Taurus Bob!", 7} = Journey.get(execution, :horoscope, wait: :any)
   ```
 
   Multiple node types in a workflow:
@@ -239,10 +236,8 @@ defmodule Journey do
   ...> )
   iex> execution = Journey.start_execution(graph)
   iex> execution = Journey.set(execution, :raw_data, "hello world")
-  iex> Journey.get(execution, :upper_case, wait: :any)
-  {:ok, "HELLO WORLD", 3}
-  iex> Journey.get(execution, :suffix, wait: :any)
-  {:ok, "HELLO WORLD omg yay", 5}
+  iex> {:ok, "HELLO WORLD", 3} = Journey.get(execution, :upper_case, wait: :any)
+  iex> {:ok, "HELLO WORLD omg yay", 5} = Journey.get(execution, :suffix, wait: :any)
   ```
 
   Custom execution ID prefix for easier debugging:
@@ -264,8 +259,7 @@ defmodule Journey do
   iex> String.starts_with?(execution.id, "ONBOARD")
   true
   iex> execution = Journey.set(execution, :email, "user@example.com")
-  iex> Journey.get(execution, :welcome_message, wait: :any)
-  {:ok, "Welcome user@example.com!", 3}
+  iex> {:ok, "Welcome user@example.com!", 3} = Journey.get(execution, :welcome_message, wait: :any)
   ```
 
   """
@@ -756,10 +750,8 @@ defmodule Journey do
   true
   iex> execution1 = Journey.set(execution1, :count, 1)
   iex> execution2 = Journey.set(execution2, :count, 2)
-  iex> Journey.get(execution1, :count)
-  {:ok, 1, 1}
-  iex> Journey.get(execution2, :count)
-  {:ok, 2, 1}
+  iex> {:ok, 1, 1} = Journey.get(execution1, :count)
+  iex> {:ok, 2, 1} = Journey.get(execution2, :count)
   ```
 
   """
@@ -1034,6 +1026,15 @@ defmodule Journey do
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
   * `values` - Map of node names to values (e.g., `%{node1: "value1", node2: 42}`) or keyword list (e.g., `[node1: "value1", node2: 42]`)
 
+  ## Options
+  * `metadata:` - Optional contextual information to attach to the value(s).
+    Accepts any JSON-compatible type: `nil`, string, number, boolean, list, or map.
+    If using a map, **keys must be strings** (not atoms) for JSONB storage.
+    Useful for audit trails, tracking authors, timestamps, IP addresses, or other provenance data.
+    For bulk operations (map/keyword list), the same metadata applies to all values.
+    Metadata is stored with the value and flows to historians and compute functions but is not exposed via `Journey.get()`.
+    Default: `nil`
+
   ## Returns
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if any value changed)
 
@@ -1046,6 +1047,7 @@ defmodule Journey do
   * **Idempotent** - Setting the same values has no effect (no revision increment)
   * **Input nodes only** - Only input nodes can be set; compute nodes are read-only
   * **Atomic updates** - Multiple values are set together in a single transaction (single revision increment)
+  * **Metadata tracking** - Optional metadata flows to historians and arity-2 compute functions for audit trails
 
   ## Quick Examples
 
@@ -1080,8 +1082,7 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> Journey.get(execution, :greeting, wait: :any)
-  {:ok, "Hello, Mario!", 3}
+  iex> {:ok, "Hello, Mario!", 3} = Journey.get(execution, :greeting, wait: :any)
   iex> execution = Journey.set(execution, :name, "Luigi")
   iex> {:ok, "Hello, Luigi!", _revision} = Journey.get(execution, :greeting, wait: :newer)
   ```
@@ -1115,7 +1116,7 @@ defmodule Journey do
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :number, 42)
   iex> execution = Journey.set(execution, :flag, true)
-  iex> execution = Journey.set(execution, :data, %{key: "value"})
+  iex> execution = Journey.set(execution, :data, %{"key" => "value"})
   iex> {:ok, 42, _revision} = Journey.get(execution, :number)
   iex> {:ok, true, _revision} = Journey.get(execution, :flag)
   ```
@@ -1151,12 +1152,9 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros"})
-  iex> Journey.get(execution, :first_name)
-  {:ok, "Mario", 1}
-  iex> Journey.get(execution, :last_name)
-  {:ok, "Bros", 1}
-  iex> Journey.get(execution, :full_name, wait: :any)
-  {:ok, "Mario Bros", 3}
+  iex> {:ok, "Mario", 1} = Journey.get(execution, :first_name)
+  iex> {:ok, "Bros", 1} = Journey.get(execution, :last_name)
+  iex> {:ok, "Mario Bros", 3} = Journey.get(execution, :full_name, wait: :any)
   ```
 
   Multiple values via keyword list (ergonomic syntax):
@@ -1170,60 +1168,108 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, name: "Mario", age: 35, active: true)
-  iex> Journey.get(execution, :name)
-  {:ok, "Mario", 1}
-  iex> Journey.get(execution, :age)
-  {:ok, 35, 1}
-  iex> Journey.get(execution, :active)
-  {:ok, true, 1}
+  iex> {:ok, "Mario", 1} = Journey.get(execution, :name)
+  iex> {:ok, 35, 1} = Journey.get(execution, :age)
+  iex> {:ok, true, 1} = Journey.get(execution, :active)
+  ```
+
+  Setting values with metadata for audit trails:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "audit trail example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:document_title),
+  ...>         historian(:title_history, [:document_title])
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :document_title, "Draft v1", metadata: %{"author_id" => "user123"})
+  iex> {:ok, history1, _} = Journey.get(execution, :title_history, wait: :any)
+  iex> length(history1)
+  1
+  iex> execution = Journey.set(execution, :document_title, "Draft v2", metadata: %{"author_id" => "user456"})
+  iex> {:ok, history2, _} = Journey.get(execution, :title_history, wait: :newer)
+  iex> length(history2)
+  2
+  iex> # History entries include metadata for audit trail (newest first)
+  iex> [%{"value" => "Draft v2", "metadata" => %{"author_id" => "user456"}}, %{"value" => "Draft v1", "metadata" => %{"author_id" => "user123"}}] = history2
+  ```
+
+  Metadata with different types:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "metadata types example",
+  ...>       "v1.0.0",
+  ...>       [input(:field)]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> # String metadata
+  iex> execution = Journey.set(execution, :field, "value1", metadata: "version-1")
+  iex> # Map metadata (keys must be strings, not atoms)
+  iex> execution = Journey.set(execution, :field, "value2", metadata: %{"author_id" => "user789", "ip" => "192.168.1.1"})
+  iex> # Number metadata
+  iex> execution = Journey.set(execution, :field, "value3", metadata: 42)
+  iex> # List metadata
+  iex> execution = Journey.set(execution, :field, "value4", metadata: ["tag1", "tag2"])
+  iex> {:ok, "value4", _} = Journey.get(execution, :field)
   ```
 
   """
-  def set(execution_id, node_name, value)
+  def set(execution_or_id, node_name_or_map, value_or_opts \\ [], opts \\ [])
+
+  def set(execution_id, node_name, value, opts)
       when is_binary(execution_id) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
+    metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Repo.get!(Execution, execution_id)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
-    Journey.Executions.set_value(execution.id, node_name, value)
+    Journey.Executions.set_value(execution.id, node_name, value, metadata)
   end
 
   @doc group: "Value Operations"
-  def set(execution, node_name, value)
+  def set(execution, node_name, value, opts)
       when is_struct(execution, Execution) and is_atom(node_name) and
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
+    metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
-    Journey.Executions.set_value(execution, node_name, value)
+    Journey.Executions.set_value(execution, node_name, value, metadata)
   end
 
   @doc group: "Value Operations"
-  def set(execution_id, values_map)
+  def set(execution_id, values_map, opts, _unused)
       when is_binary(execution_id) and is_map(values_map) do
     execution = Journey.load(execution_id)
-    set(execution, values_map)
+    set(execution, values_map, opts, [])
   end
 
   @doc group: "Value Operations"
-  def set(execution, values_map)
+  def set(execution, values_map, opts, _unused)
       when is_struct(execution, Execution) and is_map(values_map) do
+    metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
 
     # Validate all node names and values first
     validate_values_map(execution, values_map)
 
-    Journey.Executions.set_values(execution, values_map)
+    Journey.Executions.set_values(execution, values_map, metadata)
   end
 
   # Multiple values via keyword list - converts to map
   @doc group: "Value Operations"
-  def set(execution, keyword_list)
+  def set(execution, keyword_list, opts, _unused)
       when (is_struct(execution, Execution) or is_binary(execution)) and is_list(keyword_list) and keyword_list != [] do
     # Ensure it's a proper keyword list
     if Keyword.keyword?(keyword_list) do
-      set(execution, Map.new(keyword_list))
+      set(execution, Map.new(keyword_list), opts, [])
     else
       # If it's not a keyword list, it might be a list value for a single node
       # This case should fall through to the function clause error
@@ -1367,8 +1413,7 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> Journey.get(execution, :greeting, wait: :any)
-  {:ok, "Hello, Mario!", 3}
+  iex> {:ok, "Hello, Mario!", 3} = Journey.get(execution, :greeting, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, :name)
   iex> Journey.get(execution_after_unset, :name)
   {:error, :not_set}
@@ -1391,10 +1436,8 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :a, "value")
-  iex> Journey.get(execution, :b, wait: :any)
-  {:ok, "B:value", 3}
-  iex> Journey.get(execution, :c, wait: :any)
-  {:ok, "C:B:value", 5}
+  iex> {:ok, "B:value", 3} = Journey.get(execution, :b, wait: :any)
+  iex> {:ok, "C:B:value", 5} = Journey.get(execution, :c, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, :a)
   iex> Journey.get(execution_after_unset, :a)
   {:error, :not_set}
@@ -1438,15 +1481,13 @@ defmodule Journey do
   ...> )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros", email: "mario@example.com"})
-  iex> Journey.get(execution, :full_name, wait: :any)
-  {:ok, "Mario Bros", 3}
+  iex> {:ok, "Mario Bros", 3} = Journey.get(execution, :full_name, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, [:first_name, :last_name])
   iex> Journey.get(execution_after_unset, :first_name)
   {:error, :not_set}
   iex> Journey.get(execution_after_unset, :last_name)
   {:error, :not_set}
-  iex> Journey.get(execution_after_unset, :email)
-  {:ok, "mario@example.com", 1}
+  iex> {:ok, "mario@example.com", 1} = Journey.get(execution_after_unset, :email)
   iex> Journey.get(execution_after_unset, :full_name)
   {:error, :not_set}
   ```
@@ -1580,8 +1621,11 @@ defmodule Journey do
     result = Executions.get_value_node(execution, node_name, timeout_ms_or_infinity, internal_opts)
 
     case result do
-      {:ok, value_node} -> {:ok, value_node.node_value, value_node.ex_revision}
-      error -> error
+      {:ok, value_node} ->
+        {:ok, value_node.node_value, value_node.ex_revision}
+
+      error ->
+        error
     end
   end
 

@@ -24,7 +24,16 @@ The library is published on hex: https://hexdocs.pm/journey
 - `make test` - Full test suite with coverage
 - `mix test path/to/test.exs` - Single test file
 - `make test-performance` - Performance benchmarks 
+Running elixir code from CLI:
 - `elixir -e "IO.puts(\"Hello from the command line\")"`
+or
+- 
+```
+~/src/new_journey $ mix run -e "IO.puts \"Hello from Elixir\""
+Compiling 1 file (.ex)
+Generated journey app
+Hello from Elixir
+```
 
 Please see Makefile for other useful commands and shortcuts.
 

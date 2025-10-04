@@ -12,9 +12,9 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.start_execution()
         |> Journey.set(%{first_name: "Mario", last_name: "Bros"})
 
-      assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
-      assert Journey.get_value(execution, :last_name) == {:ok, "Bros"}
-      assert Journey.get_value(execution, :full_name, wait_any: true) == {:ok, "Mario Bros"}
+      assert {:ok, "Mario"} = Journey.get_value(execution, :first_name)
+      assert {:ok, "Bros"} = Journey.get_value(execution, :last_name)
+      assert {:ok, "Mario Bros"} = Journey.get_value(execution, :full_name, wait_any: true)
     end
 
     test "empty map should be no-op" do
@@ -59,8 +59,8 @@ defmodule Journey.JourneySetValueMultiTest do
 
       # Should increment revision exactly once more for the change
       assert execution_v3.revision == execution_v2_final.revision + 1
-      assert Journey.get_value(execution_v3, :first_name) == {:ok, "Luigi"}
-      assert Journey.get_value(execution_v3, :last_name) == {:ok, "Bros"}
+      assert {:ok, "Luigi"} = Journey.get_value(execution_v3, :first_name)
+      assert {:ok, "Bros"} = Journey.get_value(execution_v3, :last_name)
     end
 
     test "atomic updates with compute node dependency" do
@@ -70,10 +70,10 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.set(%{first_name: "Mario", last_name: "Bros", age: 35})
 
       # All values should be set and computed value should be available
-      assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
-      assert Journey.get_value(execution, :last_name) == {:ok, "Bros"}
-      assert Journey.get_value(execution, :age) == {:ok, 35}
-      assert Journey.get_value(execution, :full_name, wait_any: true) == {:ok, "Mario Bros"}
+      assert {:ok, "Mario"} = Journey.get_value(execution, :first_name)
+      assert {:ok, "Bros"} = Journey.get_value(execution, :last_name)
+      assert {:ok, 35} = Journey.get_value(execution, :age)
+      assert {:ok, "Mario Bros"} = Journey.get_value(execution, :full_name, wait_any: true)
     end
 
     test "different value types" do
@@ -84,15 +84,15 @@ defmodule Journey.JourneySetValueMultiTest do
           text: "hello",
           number: 42,
           flag: true,
-          data: %{key: "value"},
+          data: %{"key" => "value"},
           items: [1, 2, 3]
         })
 
-      assert Journey.get_value(execution, :text) == {:ok, "hello"}
-      assert Journey.get_value(execution, :number) == {:ok, 42}
-      assert Journey.get_value(execution, :flag) == {:ok, true}
-      assert Journey.get_value(execution, :data) == {:ok, %{"key" => "value"}}
-      assert Journey.get_value(execution, :items) == {:ok, [1, 2, 3]}
+      assert {:ok, "hello"} = Journey.get_value(execution, :text)
+      assert {:ok, 42} = Journey.get_value(execution, :number)
+      assert {:ok, true} = Journey.get_value(execution, :flag)
+      assert {:ok, %{"key" => "value"}} = Journey.get_value(execution, :data)
+      assert {:ok, [1, 2, 3]} = Journey.get_value(execution, :items)
     end
 
     test "using execution ID string" do
@@ -100,7 +100,7 @@ defmodule Journey.JourneySetValueMultiTest do
 
       updated_execution = Journey.set(execution.id, %{first_name: "Mario"})
 
-      assert Journey.get_value(updated_execution, :first_name) == {:ok, "Mario"}
+      assert {:ok, "Mario"} = Journey.get_value(updated_execution, :first_name)
     end
 
     test "keyword list syntax (ergonomic API)" do
@@ -109,10 +109,10 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.start_execution()
         |> Journey.set(first_name: "Mario", last_name: "Bros", age: 35)
 
-      assert Journey.get_value(execution, :first_name) == {:ok, "Mario"}
-      assert Journey.get_value(execution, :last_name) == {:ok, "Bros"}
-      assert Journey.get_value(execution, :age) == {:ok, 35}
-      assert Journey.get_value(execution, :full_name, wait_any: true) == {:ok, "Mario Bros"}
+      assert {:ok, "Mario"} = Journey.get_value(execution, :first_name)
+      assert {:ok, "Bros"} = Journey.get_value(execution, :last_name)
+      assert {:ok, 35} = Journey.get_value(execution, :age)
+      assert {:ok, "Mario Bros"} = Journey.get_value(execution, :full_name, wait_any: true)
     end
 
     test "invalidates dependent computations correctly" do
@@ -216,9 +216,17 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.set(:age, 35)
 
       # Should have same final values
-      assert Journey.get_value(execution1, :first_name) == Journey.get_value(execution2, :first_name)
-      assert Journey.get_value(execution1, :last_name) == Journey.get_value(execution2, :last_name)
-      assert Journey.get_value(execution1, :age) == Journey.get_value(execution2, :age)
+      assert {:ok, val1_first} = Journey.get_value(execution1, :first_name)
+      assert {:ok, val2_first} = Journey.get_value(execution2, :first_name)
+      assert val1_first == val2_first
+
+      assert {:ok, val1_last} = Journey.get_value(execution1, :last_name)
+      assert {:ok, val2_last} = Journey.get_value(execution2, :last_name)
+      assert val1_last == val2_last
+
+      assert {:ok, val1_age} = Journey.get_value(execution1, :age)
+      assert {:ok, val2_age} = Journey.get_value(execution2, :age)
+      assert val1_age == val2_age
 
       # Computed values should be the same
       {:ok, full_name1} = Journey.get_value(execution1, :full_name, wait_any: true)

@@ -195,7 +195,7 @@ defmodule Journey.SqlInjectionTest do
 
       # Verify our original data is still intact
       reloaded_exec1 = Journey.load(exec1)
-      assert Journey.get_value(reloaded_exec1, :test_field) == {:ok, "before_injection"}
+      assert {:ok, "before_injection"} = Journey.get_value(reloaded_exec1, :test_field)
     end
 
     test "edge cases with special PostgreSQL characters" do
@@ -228,7 +228,7 @@ defmodule Journey.SqlInjectionTest do
         assert length(result) == 1
 
         found_exec = hd(result)
-        assert Journey.get_value(found_exec, :text_field) == {:ok, value}
+        assert {:ok, ^value} = Journey.get_value(found_exec, :text_field)
       end
 
       # Test string comparisons with special characters
@@ -323,7 +323,14 @@ defmodule Journey.SqlInjectionTest do
       expected_percent_matches = ["10% increase", "100% complete", "50%_discount"]
       assert length(result) == 3
 
-      result_values = result |> Enum.map(fn exec -> Journey.get_value(exec, :content) |> elem(1) end) |> Enum.sort()
+      result_values =
+        result
+        |> Enum.map(fn exec ->
+          {:ok, val} = Journey.get_value(exec, :content)
+          val
+        end)
+        |> Enum.sort()
+
       assert result_values == Enum.sort(expected_percent_matches)
 
       # Test that we can search for literal _ characters (should not act as wildcard)
@@ -331,7 +338,14 @@ defmodule Journey.SqlInjectionTest do
       expected_underscore_matches = ["user_name_field", "test_case_1", "50%_discount", "file_name\\path"]
       assert length(result) == 4
 
-      result_values = result |> Enum.map(fn exec -> Journey.get_value(exec, :content) |> elem(1) end) |> Enum.sort()
+      result_values =
+        result
+        |> Enum.map(fn exec ->
+          {:ok, val} = Journey.get_value(exec, :content)
+          val
+        end)
+        |> Enum.sort()
+
       assert result_values == Enum.sort(expected_underscore_matches)
 
       # Test that we can search for literal \ characters
@@ -339,18 +353,25 @@ defmodule Journey.SqlInjectionTest do
       expected_backslash_matches = ["path\\to\\file", "folder\\subfolder", "file_name\\path"]
       assert length(result) == 3
 
-      result_values = result |> Enum.map(fn exec -> Journey.get_value(exec, :content) |> elem(1) end) |> Enum.sort()
+      result_values =
+        result
+        |> Enum.map(fn exec ->
+          {:ok, val} = Journey.get_value(exec, :content)
+          val
+        end)
+        |> Enum.sort()
+
       assert result_values == Enum.sort(expected_backslash_matches)
 
       # Test case-insensitive matching with :icontains
       result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :icontains, "USER_"}])
       assert length(result) == 1
-      assert Journey.get_value(hd(result), :content) == {:ok, "user_name_field"}
+      assert {:ok, "user_name_field"} = Journey.get_value(hd(result), :content)
 
       # Test combination of wildcards
       result = Journey.list_executions(graph_name: graph.name, filter_by: [{:content, :contains, "%_"}])
       assert length(result) == 1
-      assert Journey.get_value(hd(result), :content) == {:ok, "50%_discount"}
+      assert {:ok, "50%_discount"} = Journey.get_value(hd(result), :content)
     end
   end
 end

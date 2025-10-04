@@ -46,7 +46,7 @@ defmodule Journey.Tools do
       🛑 :title | &is_set/1
       :ok
       iex> {:ok, execution} = Journey.set(execution, :title, "Dr.")
-      iex> {:ok, _greeting_value} = Journey.get_value(execution, :greeting, wait: :newer)
+      iex> {:ok, %{value: _greeting_value}} = Journey.get_value(execution, :greeting, wait: :newer)
       iex> Journey.Tools.what_am_i_waiting_for(execution.id, :greeting) |> IO.puts()
       ✅ :name | &is_set/1 | rev 1
       ✅ :title | &is_set/1 | rev 2
@@ -109,7 +109,7 @@ defmodule Journey.Tools do
       iex> Journey.Tools.computation_state(execution.id, :value)
       :not_compute_node
       iex> execution = Journey.set(execution, :value, 5)
-      iex> {:ok, _result} = Journey.get_value(execution, :double, wait: :newer)
+      iex> {:ok, %{value: _result}} = Journey.get_value(execution, :double, wait: :newer)
       iex> Journey.Tools.computation_state(execution.id, :double)
       :success
   """
@@ -231,7 +231,7 @@ defmodule Journey.Tools do
       ...> ])
       iex> execution = Journey.start_execution(graph)
       iex> execution = Journey.set(execution, :value, 5)
-      iex> {:ok, _} = Journey.get_value(execution, :triple, wait: :newer)
+      iex> {:ok, %{}} = Journey.get_value(execution, :triple, wait: :newer)
       iex> result = Journey.Tools.computation_status_as_text(execution.id, :triple)
       iex> result =~ ":triple"
       true

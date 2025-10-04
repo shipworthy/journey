@@ -52,9 +52,22 @@ defmodule Journey.Node do
       allowing for logical operators (`:and`, `:or`) and custom value predicates (e.g. `unblocked_when({:and, [{:a, &provided?/1}, {:b, &provided?/1}]})`).
 
   `f_compute` is the function that computes the value of the node, once the upstream dependencies are satisfied.
-  The function is provided a map of the upstream nodes and their values as its argument and returns a tuple:
+  The function can accept either one or two arguments:
+   - **Arity 1**: `fn values_map -> ... end` - Receives a map of upstream node names to their values
+   - **Arity 2**: `fn values_map, value_nodes_map -> ... end` - Additionally receives value node data from upstream nodes
+
+  The function must return a tuple:
    - `{:ok, value}` or
    - `{:error, reason}`.
+
+  The `value_nodes_map` (when using arity-2) contains detailed information for each upstream dependency, keyed by node name.
+  Each entry is a map with the following fields:
+   - `:node_value` - The current value of the node
+   - `:metadata` - Metadata set via `Journey.set/3`
+   - `:revision` - The revision number when this value was set
+   - `:set_time` - Unix timestamp when the value was set
+
+  This is useful for accessing contextual information like author IDs, timestamps, revision tracking, or data provenance.
   The function is called when the upstream nodes are set, and the value is set to the result of the function.
 
   Note that return values are JSON-serialized for storage. If the returned `value` or `reason` contains atoms 
@@ -92,8 +105,7 @@ defmodule Journey.Node do
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start_execution() |> Journey.set(:name, "Alice")
-  iex> execution |> Journey.get(:pig_latin_ish_name, wait: :any)
-  {:ok, "Alice-ay", 3}
+  iex> {:ok, "Alice-ay", 3} = execution |> Journey.get(:pig_latin_ish_name, wait: :any)
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
@@ -122,8 +134,37 @@ defmodule Journey.Node do
   iex> Journey.get(execution, :high_temp_alert)
   {:error, :not_set}
   iex> execution = Journey.set(execution, :temperature, 35)
-  iex> Journey.get(execution, :high_temp_alert, wait: :any)
-  {:ok, "High temperature alert: 35°C", 4}
+  iex> {:ok, "High temperature alert: 35°C", 4} = Journey.get(execution, :high_temp_alert, wait: :any)
+  ```
+
+  ## Using Value Node Data in Compute Functions
+
+  Value node data can be accessed by defining an arity-2 compute function. This is useful for accessing
+  contextual information like author IDs, timestamps, revisions, or data provenance from upstream nodes.
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "compute with value node data example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:title),
+  ...>         compute(
+  ...>           :title_with_author,
+  ...>           [:title],
+  ...>           # Arity-2 function receives value node data from dependencies
+  ...>           fn %{title: title}, value_nodes_map ->
+  ...>             author = get_in(value_nodes_map, [:title, :metadata, "author_id"]) || "unknown"
+  ...>             {:ok, "\#{title} by \#{author}"}
+  ...>           end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :title, "Hello", metadata: %{"author_id" => "user123"})
+  iex> {:ok, result, _} = Journey.get(execution, :title_with_author, wait: :any)
+  iex> result
+  "Hello by user123"
   ```
 
   ## Return Values
@@ -171,8 +212,7 @@ defmodule Journey.Node do
   ...>     graph
   ...>     |> Journey.start_execution()
   ...>     |> Journey.set(:name, "Mario")
-  iex> execution |> Journey.get(:remove_pii, wait: :any)
-  {:ok, "updated :name", 3}
+  iex> {:ok, "updated :name", 3} = execution |> Journey.get(:remove_pii, wait: :any)
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "redacted", remove_pii: "updated :name",  execution_id: "...", last_updated_at: 1_234_567_890}
   ```
@@ -243,15 +283,30 @@ defmodule Journey.Node do
   end
 
   @doc """
-  EXPERIMENTAL: Creates a history-tracking node that maintains a chronological log of changes to another node.
+  EXPERIMENTAL: Creates a history-tracking node that maintains a chronological log of changes to one or more nodes.
 
   `name` is an atom uniquely identifying this history node.
 
-  `gated_by` is a single-item list containing the node name to track.
+  `gated_by` defines which nodes to track. Accepts the same formats as `compute/4`:
+    - A single-item list like `[:node_name]` to track one node
+    - A list like `[:a, :b]` to track multiple nodes (all must be set)
+    - Complex conditions using `unblocked_when/1` (e.g., `unblocked_when({:or, [{:a, &provided?/1}, {:b, &provided?/1}]})`)
+
+  The historian will track changes to ALL nodes in the dependency tree and record only those that have changed since the last recording.
 
   ## Options
   - `:max_entries` (optional) - Maximum number of history entries to keep (FIFO).
     Defaults to 1000. Set to `nil` for unlimited history.
+
+  ## History Format
+
+  The history is returned as a list of entries in **newest-first order** (most recent changes at index 0).
+  Each entry is a map containing:
+  - `"value"` - The value of the changed node
+  - `"node"` - The name of the node (as string)
+  - `"timestamp"` - Unix timestamp when recorded
+  - `"metadata"` - Metadata from the node (if any)
+  - `"revision"` - Revision number of the node when recorded
 
   ## Examples:
 
@@ -275,7 +330,7 @@ defmodule Journey.Node do
   iex> {:ok, history2, _} = Journey.get(execution, :content_history, wait: :newer)
   iex> length(history2)
   2
-  iex> [_, %{"value" => "Second version", "node" => "content", "timestamp" => _ts}] = history2
+  iex> [%{"value" => "Second version", "node" => "content", "timestamp" => _ts}, _] = history2
   ```
 
   With custom max_entries limit:
@@ -298,12 +353,12 @@ defmodule Journey.Node do
   iex> execution = Journey.set(execution, :status, "active")
   iex> {:ok, history, rev2} = Journey.get(execution, :status_history, wait: {:newer_than, rev1})
   iex> Enum.map(history, fn entry -> entry["value"] end)
-  ["pending", "active"]
+  ["active", "pending"]
   iex> execution = Journey.set(execution, :status, "completed")
   iex> {:ok, history, _rev} = Journey.get(execution, :status_history, wait: {:newer_than, rev2})
-  iex> # Since status_history is limited to `max_entries: 2`, we'll only see the 2 latest values.
+  iex> # Since status_history is limited to `max_entries: 2`, we'll only see the 2 latest values (newest first).
   iex> Enum.map(history, fn entry -> entry["value"] end)
-  ["active", "completed"]
+  ["completed", "active"]
 
   ```
 
@@ -328,67 +383,114 @@ defmodule Journey.Node do
   iex> [%{"value" => "login", "node" => "audit_event", "timestamp" => _ts}] = history
   ```
 
+  Tracking multiple nodes with `:or` condition:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> import Journey.Node.Conditions
+  iex> import Journey.Node.UpstreamDependencies
+  iex> graph = Journey.new_graph(
+  ...>       "historian multi-node example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:email),
+  ...>         input(:phone),
+  ...>         # Track changes to either email or phone
+  ...>         historian(
+  ...>           :contact_history,
+  ...>           unblocked_when({
+  ...>             :or,
+  ...>             [{:email, &provided?/1}, {:phone, &provided?/1}]
+  ...>           })
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> execution = Journey.set(execution, :email, "user@example.com")
+  iex> {:ok, history1, _} = Journey.get(execution, :contact_history, wait: :any)
+  iex> length(history1)
+  1
+  iex> [%{"value" => "user@example.com", "node" => "email"}] = history1
+  iex> execution = Journey.set(execution, :phone, "555-1234")
+  iex> {:ok, history2, _} = Journey.get(execution, :contact_history, wait: :newer)
+  iex> length(history2)
+  2
+  iex> # Newest first: phone, then email
+  iex> [%{"value" => "555-1234", "node" => "phone"}, %{"value" => "user@example.com", "node" => "email"}] = history2
+  ```
+
   """
   def historian(name, gated_by, opts \\ []) when is_atom(name) do
-    tracked_field =
-      case gated_by do
-        [atom] when is_atom(atom) ->
-          atom
-
-        [] ->
-          raise ArgumentError, "historian/3 requires a single tracked node. Got empty list: #{inspect(gated_by)}"
-
-        [_ | _] ->
-          raise ArgumentError,
-                "historian/3 currently only supports a single tracked node. Got multiple nodes: #{inspect(gated_by)}"
-
-        _ ->
-          raise ArgumentError, "historian/3 requires a single-item list. Got: #{inspect(gated_by)}"
-      end
-
     max_entries = Keyword.get(opts, :max_entries, 1000)
 
     %Graph.Step{
       name: name,
       type: :compute,
-      gated_by: normalize_gated_by([tracked_field]),
-      f_compute: build_historian_function(name, tracked_field, max_entries),
+      gated_by: normalize_gated_by(gated_by),
+      f_compute: build_historian_function(name, max_entries),
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
     }
   end
 
-  defp build_historian_function(history_node_name, tracked_field, max_entries) do
-    fn inputs ->
+  defp build_historian_function(history_node_name, max_entries) do
+    fn inputs, value_nodes_map ->
       existing_history = Map.get(inputs, history_node_name, [])
 
-      # Always include node field for consistency
-      new_entry =
-        if Map.has_key?(inputs, tracked_field) do
+      # Build a map of last recorded revisions for each node
+      last_revisions =
+        Enum.reduce(existing_history, %{}, fn entry, acc ->
+          node_name = entry["node"]
+          revision = entry["revision"]
+          current_max = Map.get(acc, node_name, revision)
+          Map.put(acc, node_name, max(current_max, revision))
+        end)
+
+      # Find all tracked nodes (exclude the historian node itself)
+      tracked_nodes =
+        value_nodes_map
+        |> Map.keys()
+        |> Enum.reject(fn node -> node == history_node_name end)
+
+      # Create entries for nodes with new revisions
+      new_entries =
+        tracked_nodes
+        |> Enum.filter(fn node ->
+          current_revision = get_in(value_nodes_map, [node, :revision])
+          last_revision = Map.get(last_revisions, to_string(node))
+
+          # Include if node has value and (no previous revision or current is newer)
+          Map.has_key?(inputs, node) and
+            (is_nil(last_revision) or current_revision > last_revision)
+        end)
+        |> Enum.map(fn node ->
           %{
-            "value" => Map.get(inputs, tracked_field),
-            "node" => to_string(tracked_field),
-            "timestamp" => System.system_time(:second)
+            "value" => Map.get(inputs, node),
+            "node" => to_string(node),
+            "timestamp" => System.system_time(:second),
+            "metadata" => get_in(value_nodes_map, [node, :metadata]),
+            "revision" => get_in(value_nodes_map, [node, :revision])
           }
-        else
-          nil
-        end
+        end)
+        |> Enum.sort_by(
+          fn entry ->
+            {entry["revision"], entry["timestamp"], entry["node"]}
+          end,
+          :asc
+        )
 
-      updated_history =
-        if new_entry do
-          existing_history ++ [new_entry]
-        else
-          existing_history
-        end
+      # Prepend new entries (newest first)
+      updated_history = new_entries ++ existing_history
 
+      # Apply max_entries limit
       final_history =
         case max_entries do
           nil ->
             updated_history
 
           max when is_integer(max) and max > 0 ->
-            Enum.take(updated_history, -max)
+            Enum.take(updated_history, max)
         end
 
       {:ok, final_history}
@@ -436,7 +538,7 @@ defmodule Journey.Node do
   "Mario"
   iex> # This is only needed in a test, to simulate the background processing that happens in non-tests automatically.
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
-  iex> {:ok, "It's time to take a nap, Mario!", _revision} = execution |> Journey.get(:nap_time, wait: :any)
+  iex> {:ok, "It's time to take a nap, Mario!", _} = execution |> Journey.get(:nap_time, wait: :any)
   iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
 
   ```

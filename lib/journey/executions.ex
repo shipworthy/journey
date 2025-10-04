@@ -278,10 +278,33 @@ defmodule Journey.Executions do
     |> repo.update_all(set: [set_time: nil, node_value: nil, ex_revision: new_revision])
   end
 
+  # Validate that map keys are strings (JSONB requires string keys)
+  # Raises ArgumentError if atom keys are found
+  defp validate_jsonb_map(nil), do: nil
+
+  defp validate_jsonb_map(value) when is_map(value) do
+    atom_keys = value |> Map.keys() |> Enum.filter(&is_atom/1)
+
+    if atom_keys != [] do
+      raise ArgumentError,
+            "Map keys must be strings for JSONB storage. Found atom keys: #{inspect(atom_keys)}"
+    end
+
+    value
+  end
+
+  defp validate_jsonb_map(value), do: value
+
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
-  def set_value(execution_id, node_name, value) when is_binary(execution_id) do
+  def set_value(execution_id_or_execution, node_name, value, metadata \\ nil)
+
+  def set_value(execution_id, node_name, value, metadata) when is_binary(execution_id) do
     prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"
     Logger.debug("#{prefix}: setting value, #{inspect(value)}")
+
+    # Validate that map keys are strings (JSONB requires string keys)
+    validate_jsonb_map(value)
+    validate_jsonb_map(metadata)
 
     Journey.Repo.transaction(fn repo ->
       new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
@@ -292,11 +315,11 @@ defmodule Journey.Executions do
         )
         |> repo.one!()
 
-      updating_to_the_same_value? =
+      updating_to_the_same_value_and_metadata? =
         current_value_node.set_time != nil and current_value_node.node_value != nil and
-          current_value_node.node_value == value
+          current_value_node.node_value == value and current_value_node.metadata == metadata
 
-      if updating_to_the_same_value? do
+      if updating_to_the_same_value_and_metadata? do
         Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
         # Load execution for rollback response
         execution = repo.get!(Execution, execution_id)
@@ -311,6 +334,7 @@ defmodule Journey.Executions do
           set: [
             ex_revision: new_revision,
             node_value: value,
+            metadata: metadata,
             updated_at: now_seconds,
             set_time: now_seconds
           ]
@@ -360,9 +384,13 @@ defmodule Journey.Executions do
   end
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
-  def set_value(execution, node_name, value) do
+  def set_value(execution, node_name, value, metadata) do
     prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
     Logger.debug("#{prefix}: setting value, #{inspect(value)}")
+
+    # Validate that map keys are strings (JSONB requires string keys)
+    validate_jsonb_map(value)
+    validate_jsonb_map(metadata)
 
     Journey.Repo.transaction(fn repo ->
       new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution.id, repo)
@@ -373,11 +401,11 @@ defmodule Journey.Executions do
         )
         |> repo.one!()
 
-      updating_to_the_same_value? =
+      updating_to_the_same_value_and_metadata? =
         current_value_node.set_time != nil and current_value_node.node_value != nil and
-          current_value_node.node_value == value
+          current_value_node.node_value == value and current_value_node.metadata == metadata
 
-      if updating_to_the_same_value? do
+      if updating_to_the_same_value_and_metadata? do
         Logger.debug("#{prefix}: no need to update, value unchanged, aborting transaction")
         repo.rollback({:no_change, execution})
       else
@@ -390,6 +418,7 @@ defmodule Journey.Executions do
           set: [
             ex_revision: new_revision,
             node_value: value,
+            metadata: metadata,
             updated_at: now_seconds,
             set_time: now_seconds
           ]
@@ -440,12 +469,18 @@ defmodule Journey.Executions do
   end
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
-  def set_values(execution, values_map) when is_map(values_map) do
+  def set_values(execution, values_map, metadata \\ nil)
+
+  def set_values(execution, values_map, metadata) when is_map(values_map) do
     prefix = "[#{execution.id}] [#{mf()}]"
     Logger.debug("#{prefix}: setting #{map_size(values_map)} values: #{inspect(Map.keys(values_map))}")
 
+    # Validate that map keys are strings (JSONB requires string keys)
+    Enum.each(values_map, fn {_key, value} -> validate_jsonb_map(value) end)
+    validate_jsonb_map(metadata)
+
     # Filter out unchanged values BEFORE starting transaction
-    changed_values = filter_changed_values(execution, values_map)
+    changed_values = filter_changed_values(execution, values_map, metadata)
 
     if map_size(changed_values) == 0 do
       # Complete no-op: nothing changed, return execution as-is
@@ -461,7 +496,7 @@ defmodule Journey.Executions do
           now_seconds = System.system_time(:second)
 
           # Update only the changed values
-          update_changed_values_in_transaction(execution.id, changed_values, new_revision, now_seconds, repo)
+          update_changed_values_in_transaction(execution.id, changed_values, new_revision, now_seconds, repo, metadata)
 
           # Update last_updated_at once
           update_last_updated_at(execution.id, new_revision, now_seconds, repo)
@@ -486,29 +521,34 @@ defmodule Journey.Executions do
     end
   end
 
-  defp filter_changed_values(execution, values_map) do
-    # Create a map of current values for comparison
-    current_values =
+  defp filter_changed_values(execution, values_map, metadata) do
+    # Create a map of current values and metadata for comparison
+    current_state =
       execution.values
       |> Enum.filter(fn v -> Map.has_key?(values_map, v.node_name) end)
-      |> Map.new(fn v -> {v.node_name, v.node_value} end)
+      |> Map.new(fn v -> {v.node_name, {v.node_value, v.metadata}} end)
 
-    # Filter to only include values that are actually changing
+    # Filter to only include values or metadata that are actually changing
     values_map
     |> Enum.filter(fn {node_name, new_value} ->
-      current_value = Map.get(current_values, node_name)
-      current_value != new_value
+      case Map.get(current_state, node_name) do
+        {current_value, current_metadata} ->
+          current_value != new_value or current_metadata != metadata
+
+        _ ->
+          true
+      end
     end)
     |> Map.new()
   end
 
-  defp update_changed_values_in_transaction(execution_id, changed_values, revision, now_seconds, repo) do
+  defp update_changed_values_in_transaction(execution_id, changed_values, revision, now_seconds, repo, metadata) do
     Enum.each(changed_values, fn {node_name, value} ->
-      update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo)
+      update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo, metadata)
     end)
   end
 
-  defp update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo) do
+  defp update_value_in_transaction(execution_id, node_name, value, revision, now_seconds, repo, metadata) do
     {1, _} =
       from(v in Execution.Value,
         where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
@@ -517,6 +557,7 @@ defmodule Journey.Executions do
         set: [
           ex_revision: revision,
           node_value: value,
+          metadata: metadata,
           updated_at: now_seconds,
           set_time: now_seconds
         ]
@@ -539,8 +580,11 @@ defmodule Journey.Executions do
 
   def get_value(execution, node_name, timeout_ms, opts \\ []) do
     case get_value_node(execution, node_name, timeout_ms, opts) do
-      {:ok, value_node} -> {:ok, value_node.node_value}
-      error -> error
+      {:ok, value_node} ->
+        {:ok, value_node.node_value}
+
+      error ->
+        error
     end
   end
 

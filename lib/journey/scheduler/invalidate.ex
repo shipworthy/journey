@@ -27,10 +27,29 @@ defmodule Journey.Scheduler.Invalidate do
 
   defp do_iterative_clearing(execution_id, graph, prefix) do
     {:ok, cleared_count} =
-      Journey.Repo.transaction(fn repo ->
-        all_values = Journey.Persistence.Values.load_from_db(execution_id, repo)
-        clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix)
-      end)
+      Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
+        fn repo ->
+          all_values = Journey.Persistence.Values.load_from_db(execution_id, repo)
+          clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix)
+        end,
+        prefix
+      )
+      |> case do
+        {:ok, count} ->
+          {:ok, count}
+
+        {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
+          Logger.warning(
+            "#{prefix}: Failed after retries due to deadlock, " <>
+              "stopping invalidation check (will retry on next computation)"
+          )
+
+          {:ok, 0}
+
+        {:error, other} ->
+          Logger.error("#{prefix}: Transaction failed with error: #{inspect(other)}")
+          raise other
+      end
 
     if cleared_count > 0 do
       Logger.info("#{prefix}: cleared #{cleared_count} discardable computations, checking for more...")

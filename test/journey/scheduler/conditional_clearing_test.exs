@@ -51,6 +51,9 @@ defmodule Journey.Scheduler.ConditionalClearingTest do
       # Wait for sum to be recomputed
       assert {:ok, 13} = Journey.get_value(execution, :sum, wait_new: true)
 
+      # Reload execution to get latest state
+      execution = Journey.load(execution)
+
       # CRITICAL: Alert should be cleared since condition is no longer met
       assert {:error, :not_set} = Journey.get_value(execution, :large_value_alert),
              "Alert should be cleared when sum drops below threshold"

@@ -15,7 +15,9 @@ defmodule Journey.Tools.WhatAmIWaitingForTest do
       execution = Journey.set(execution, :user_name, "Bowser")
 
       {:ok, "Hello, Bowser"} = Journey.get_value(execution, :greeting, wait_any: true)
-      {:ok, _reminder_scheduled} = Journey.get_value(execution, :time_to_issue_reminder_schedule, wait_any: true)
+
+      {:ok, _reminder_scheduled} =
+        Journey.get_value(execution, :time_to_issue_reminder_schedule, wait_any: true)
 
       result = Journey.Tools.what_am_i_waiting_for(execution.id, :reminder)
       assert result == "🛑 :time_to_issue_reminder_schedule | &provided?/1"

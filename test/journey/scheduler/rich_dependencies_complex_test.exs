@@ -46,7 +46,7 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
 
       execution = execution |> Journey.set(:first_name, "Mario")
       assert execution != nil
-      assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait_any: true)
+      assert {:ok, "name set"} = execution |> Journey.get_value(:got_name, wait_any: true)
     end
 
     test ":or condition - right", %{test: test_name} do
@@ -83,7 +83,7 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
 
       execution = execution |> Journey.set(:last_name, "Bowser")
       assert execution != nil
-      assert {:ok, "name set"} == execution |> Journey.get_value(:got_name, wait_any: true)
+      assert {:ok, "name set"} = execution |> Journey.get_value(:got_name, wait_any: true)
     end
 
     test "nested :and/:or conditions", %{test: test_name} do
@@ -131,7 +131,7 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:one_of_each_group, wait_any: 700)
 
       execution = execution |> Journey.set(:g2_a, "g2_a set")
-      assert {:ok, "name set"} == execution |> Journey.get_value(:one_of_each_group, wait_any: true)
+      assert {:ok, "name set"} = execution |> Journey.get_value(:one_of_each_group, wait_any: true)
     end
 
     test "nested :and/:or conditions with recompute", %{test: test_name} do
@@ -174,9 +174,10 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       execution = execution |> Journey.set(:g1_a, "g1_a set")
       execution = execution |> Journey.set(:g2_a, "g2_a set")
 
-      assert {:ok,
-              "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"} ==
-               execution |> Journey.get_value(:one_of_each_group, wait_any: true)
+      {:ok, value1} = execution |> Journey.get_value(:one_of_each_group, wait_any: true)
+
+      assert value1 ==
+               "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"
 
       execution = execution |> Journey.load()
       assert execution.revision == 4
@@ -185,11 +186,10 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       assert execution.revision == 6
 
       # Fetch and verify the recomputed value when it is available.
-      recomputed_value = execution |> Journey.get_value(:one_of_each_group, wait_new: true)
+      {:ok, recomputed_value} = execution |> Journey.get_value(:one_of_each_group, wait_new: true)
 
-      assert {:ok,
-              "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set, v2\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"} ==
-               recomputed_value
+      assert recomputed_value ==
+               "name set, %{execution_id: \"#{execution.id}\", g1_a: \"g1_a set, v2\", g2_a: \"g2_a set\", last_updated_at: 1234567890}"
 
       execution = execution |> Journey.load()
       assert execution.revision == 7

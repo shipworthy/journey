@@ -32,7 +32,7 @@ defmodule Journey.Node.ArchiveTest do
       assert execution.archived_at == nil
       execution = Journey.set(execution, :user_name, "John Doe")
       {:ok, "Hello, John Doe", _} = Journey.get(execution, :greeting, wait: :any)
-      {:ok, _a, _} = Journey.get(execution, :archival, wait: :any)
+      {:ok, _, _} = Journey.get(execution, :archival, wait: :any)
 
       # The execution is now archived, and it is no longer visible by default.
       assert nil == execution |> Journey.load(), "archived executions are not load'able by default"
