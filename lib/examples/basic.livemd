@@ -51,8 +51,8 @@ A few things to note:
 * every input value (`:x`, `:y`), or computation result (`:sum`, `:large_value_alert`) is persisted,
 * the two computations
   * happen reliably (their functions are executed with a retry policy),
-  * are as horizontally distributed as your app is (the functions will run wherever your app runs),
-  * are proactive (`:sum` will be computed when `:x` and `:y` become available, and `:large_value_alert` will be computed when `:sum` is available).
+  * are as horizontally distributed as your app is (the functions will run on any replica of your app),
+  * are reactive (`:sum` will be computed when `:x` and `:y` become available, and `:large_value_alert` will be computed when `:sum` is available).
 * executions of this flow can be as long-running as needed (milliseconds? months?), and will live through system restarts, crashes, redeployments, page reloads, etc.
 
 These attributes – reliability, scalability, and persistence – come without the need to subscribe to an online service, or ship your application's data to a third party, or to deploy any additional infrastructure. Just your application, using a package, storing data in your database, and running as it normally would.
@@ -140,7 +140,8 @@ graph = Journey.new_graph(
     }
   ],
   f_on_save: nil,
-  hash: "43B3E97A0AEDE1B1FC3E78057CBAA7F0E534F829271F4B8C43F666F54BAD409E"
+  hash: "43B3E97A0AEDE1B1FC3E78057CBAA7F0E534F829271F4B8C43F666F54BAD409E",
+  execution_id_prefix: "EXEC"
 }
 ```
 
@@ -207,7 +208,7 @@ execution_id = execution.id
 <!-- livebook:{"output":true} -->
 
 ```
-"EXECMZXEB8YMT8T6HXAEAGB0"
+"EXECD217T11DZGA5BGJH5E0E"
 ```
 
 The new execution doesn't have much in it at this point, nothing has been set or computed, except for the two system fields.
@@ -224,8 +225,8 @@ Journey.values_all(execution)
   sum: :not_set,
   y: :not_set,
   x: :not_set,
-  execution_id: {:set, "EXECMZXEB8YMT8T6HXAEAGB0"},
-  last_updated_at: {:set, 1758040638},
+  execution_id: {:set, "EXECD217T11DZGA5BGJH5E0E"},
+  last_updated_at: {:set, 1759643397},
   large_value_alert: :not_set
 }
 ```
@@ -244,9 +245,7 @@ execution = Journey.set(execution, :x, 12); :ok
 :ok
 ```
 
-Btw, if the world crashed (or got redeployed, or if the user leaves), no worries.
-
-Since we took a note of the ID of the execution, we can load the execution as soon as things are back up (or when the user comes back), and proceed as if nothing happened.
+If the world crashed (or got redeployed, or if the user leaves), no worries: since we took a note of the ID of the execution, we can load the execution as soon as things are back up (or when the user comes back), and proceed as if nothing happened.
 
 ```elixir
 reloaded_execution = Journey.load(execution_id)
@@ -257,7 +256,7 @@ reloaded_execution = Journey.load(execution_id)
 ```
 %Journey.Persistence.Schema.Execution{
   __meta__: #Ecto.Schema.Metadata<:loaded, "executions">,
-  id: "EXECMZXEB8YMT8T6HXAEAGB0",
+  id: "EXECD217T11DZGA5BGJH5E0E",
   graph_name: "g1",
   graph_version: "v1",
   graph_hash: "43B3E97A0AEDE1B1FC3E78057CBAA7F0E534F829271F4B8C43F666F54BAD409E",
@@ -265,88 +264,94 @@ reloaded_execution = Journey.load(execution_id)
   values: [
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALT31RE2GT71690TAX8ELH",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
-      execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
-      node_name: :last_updated_at,
-      node_type: :input,
-      node_value: 1758040638,
-      set_time: 1758040638,
-      ex_revision: 1,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
-    },
-    %Journey.Persistence.Schema.Execution.Value{
-      __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALYV7YM1ZZG0BAL32BM3ZA",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
+      id: "VALVRGHB4XD12190A8G5VJE",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :x,
       node_type: :input,
       node_value: 12,
-      set_time: 1758040638,
+      metadata: nil,
+      set_time: 1759643402,
       ex_revision: 1,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
+      inserted_at: 1759643397,
+      updated_at: 1759643402
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VAL5H7RTG8YLG94H1H2H31M",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
+      id: "VAL0MLY1L6VE1R0X9ZD66E6",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
+      execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
+      node_name: :last_updated_at,
+      node_type: :input,
+      node_value: 1759643402,
+      metadata: nil,
+      set_time: 1759643402,
+      ex_revision: 1,
+      inserted_at: 1759643397,
+      updated_at: 1759643402
+    },
+    %Journey.Persistence.Schema.Execution.Value{
+      __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
+      id: "VALBH5J24RX26RD4Z7J4ZLR",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :execution_id,
       node_type: :input,
-      node_value: "EXECMZXEB8YMT8T6HXAEAGB0",
-      set_time: 1758040638,
+      node_value: "EXECD217T11DZGA5BGJH5E0E",
+      metadata: nil,
+      set_time: 1759643397,
       ex_revision: 0,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
+      inserted_at: 1759643397,
+      updated_at: 1759643397
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VAL2V7M8DE429Z79DGRBLLB",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
+      id: "VAL30YRGVLJ02H2X5H658E9",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :y,
       node_type: :input,
       node_value: nil,
+      metadata: nil,
       set_time: nil,
       ex_revision: 0,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
+      inserted_at: 1759643397,
+      updated_at: 1759643397
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALJBM13ZEJ679VMMTMYH32",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
+      id: "VALXE7AHLHEM61Z7Y5E9E8M",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :sum,
       node_type: :compute,
       node_value: nil,
+      metadata: nil,
       set_time: nil,
       ex_revision: 0,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
+      inserted_at: 1759643397,
+      updated_at: 1759643397
     },
     %Journey.Persistence.Schema.Execution.Value{
       __meta__: #Ecto.Schema.Metadata<:loaded, "values">,
-      id: "VALRET23726GV9X5B425A4D",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
+      id: "VAL006BHVE934DY6J7LEVMA",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :large_value_alert,
       node_type: :compute,
       node_value: nil,
+      metadata: nil,
       set_time: nil,
       ex_revision: 0,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
+      inserted_at: 1759643397,
+      updated_at: 1759643397
     }
   ],
   computations: [
     %Journey.Persistence.Schema.Execution.Computation{
       __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-      id: "CMP18T6XYBZMMXDVYAGH1AX",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
+      id: "CMP5ZBH2B2H211EH16J9J9D",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :sum,
       computation_type: :compute,
@@ -359,13 +364,13 @@ reloaded_execution = Journey.load(execution_id)
       deadline: nil,
       error_details: nil,
       computed_with: nil,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
+      inserted_at: 1759643397,
+      updated_at: 1759643397
     },
     %Journey.Persistence.Schema.Execution.Computation{
       __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-      id: "CMPHJTYYH2G2ZVYH7MAZL39",
-      execution_id: "EXECMZXEB8YMT8T6HXAEAGB0",
+      id: "CMP3MXH9RMAZ456T3LRA73Y",
+      execution_id: "EXECD217T11DZGA5BGJH5E0E",
       execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
       node_name: :large_value_alert,
       computation_type: :compute,
@@ -378,13 +383,13 @@ reloaded_execution = Journey.load(execution_id)
       deadline: nil,
       error_details: nil,
       computed_with: nil,
-      inserted_at: 1758040638,
-      updated_at: 1758040638
+      inserted_at: 1759643397,
+      updated_at: 1759643397
     }
   ],
   revision: 1,
-  inserted_at: 1758040638,
-  updated_at: 1758040638
+  inserted_at: 1759643397,
+  updated_at: 1759643402
 }
 ```
 
@@ -405,13 +410,13 @@ Now that both `:x` and `:y` have been supplied, `:sum` gets computed. Here is th
 (Note: since `:sum` is "small",  `:large_value_alert` does not get set (thanks to the condition we defined in the graph for this node.)
 
 ```elixir
-Journey.get_value(reloaded_execution, :sum, wait: :any)
+{:ok, value, _revision} = Journey.get(reloaded_execution, :sum, wait: :any)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, 14}
+{:ok, 14, 4}
 ```
 
 ```elixir
@@ -425,14 +430,14 @@ Journey.values_all(reloaded_execution)
   sum: {:set, 14},
   y: {:set, 2},
   x: {:set, 12},
-  execution_id: {:set, "EXECMZXEB8YMT8T6HXAEAGB0"},
-  last_updated_at: {:set, 1758040638},
+  execution_id: {:set, "EXECD217T11DZGA5BGJH5E0E"},
+  last_updated_at: {:set, 1759643407},
   large_value_alert: :not_set
 }
 ```
 
 ```elixir
-Journey.get_value(reloaded_execution, :large_value_alert)
+{:error, :not_set} = Journey.get(reloaded_execution, :large_value_alert)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -458,25 +463,25 @@ reloaded_execution = Journey.set(reloaded_execution, :x, 133); :ok
 "no worries, here is the updated sum"
 
 ```elixir
-Journey.get_value(reloaded_execution, :sum, wait: :newer)
+{:ok, value, _revision} = Journey.get(reloaded_execution, :sum, wait: :newer)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, 135}
+{:ok, 135, 7}
 ```
 
 The updated `:x` pushes `:sum` over the threshold that triggers `:large_value_alert`:
 
 ```elixir
-Journey.get_value(reloaded_execution, :large_value_alert)
+{:ok, value, _revision} = Journey.get(reloaded_execution, :large_value_alert)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, "🚨"}
+{:ok, "🚨", 9}
 ```
 
 ```elixir
@@ -490,17 +495,17 @@ reloaded_execution = Journey.set(reloaded_execution, :x, 1); :ok
 ```
 
 ```elixir
-Journey.get_value(reloaded_execution, :sum, wait: :newer)
+{:ok, value, _revision} = Journey.get(reloaded_execution, :sum, wait: :newer)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, 3}
+{:ok, 3, 12}
 ```
 
 ```elixir
-Journey.get_value(reloaded_execution, :large_value_alert)
+{:error, :not_set} = Journey.get(reloaded_execution, :large_value_alert)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -532,11 +537,7 @@ end)
 <!-- livebook:{"output":true} -->
 
 ```
-[
-  %{sum: 3, y: 2, x: 1, execution_id: "EXECB5468BED3JEB9AA5MJ0T", last_updated_at: 1758040010},
-  %{sum: 3, y: 2, x: 1, execution_id: "EXECL65MMAM486TZMX0YY4AA", last_updated_at: 1758040083},
-  %{sum: 3, y: 2, x: 1, execution_id: "EXECMZXEB8YMT8T6HXAEAGB0", last_updated_at: 1758040639}
-]
+[%{sum: 3, y: 2, x: 1, execution_id: "EXECD217T11DZGA5BGJH5E0E", last_updated_at: 1759643808}]
 ```
 
 ## System Status: health, stats
@@ -560,167 +561,31 @@ System Status: HEALTHY
 Database: Connected
 ================================================================================
 
-GRAPHS (14 total):
+GRAPHS (2 total):
 ----------
 Name: 'Credit Card Application flow graph'
 Version: 'v1.0.0'
 Executions:
-- active: 533
-- archived: 1.1k
-First activity: 2025-09-15T21:13:05Z
-Last activity: 2025-09-16T15:44:28Z
+- active: 1.1k
+- archived: 12
+First activity: 2025-10-04T20:35:18Z
+Last activity: 2025-10-04T20:35:46Z
 Computations:
-✓ success: 4.0k
-◯ not_set: 15.1k
-⚠ abandoned: 53
-
----------
-
-Name: 'somegraph'
-Version: 'v1'
-Executions:
-- active: 9
-- archived: 0
-First activity: 2025-09-16T16:05:41Z
-Last activity: 2025-09-16T16:05:41Z
-Computations:
-✓ success: 21
-✗ failed: 6
-◯ not_set: 4
-
----------
-
-Name: 'demo graph'
-Version: 'v1'
-Executions:
-- active: 3
-- archived: 0
-First activity: 2025-09-04T05:09:58Z
-Last activity: 2025-09-04T05:10:11Z
-Computations:
-✓ success: 3
-◯ not_set: 3
+✓ success: 7.4k
+◯ not_set: 6.4k
 
 ---------
 
 Name: 'g1'
 Version: 'v1'
 Executions:
-- active: 3
-- archived: 0
-First activity: 2025-09-16T16:37:18Z
-Last activity: 2025-09-16T16:37:19Z
-Computations:
-✓ success: 13
-◯ not_set: 4
-
----------
-
-Name: 'string_comp_test'
-Version: '1.0.0'
-Executions:
-- active: 3
-- archived: 0
-First activity: 2025-08-27T18:45:34Z
-Last activity: 2025-08-27T18:45:34Z
-
----------
-
-Name: 'string_fix_test'
-Version: '1.0.0'
-Executions:
-- active: 3
-- archived: 0
-First activity: 2025-08-27T18:47:33Z
-Last activity: 2025-08-27T18:47:33Z
-
----------
-
-Name: 'test_clean'
-Version: '1.0.0'
-Executions:
-- active: 3
-- archived: 0
-First activity: 2025-08-27T18:32:03Z
-Last activity: 2025-08-27T18:32:03Z
-
----------
-
-Name: 'g12345'
-Version: 'v293'
-Executions:
 - active: 2
 - archived: 0
-First activity: 2025-08-29T05:00:36Z
-Last activity: 2025-08-29T05:00:36Z
-
----------
-
-Name: 'demo'
-Version: 'v1.0.0'
-Executions:
-- active: 1
-- archived: 0
-First activity: 2025-09-15T21:13:41Z
-Last activity: 2025-09-15T21:13:41Z
+First activity: 2025-10-05T05:49:57Z
+Last activity: 2025-10-05T05:56:48Z
 Computations:
-✓ success: 1
-
----------
-
-Name: 'injection_test'
-Version: '1.0.0'
-Executions:
-- active: 1
-- archived: 0
-First activity: 2025-08-27T18:49:53Z
-Last activity: 2025-08-27T18:49:53Z
-
----------
-
-Name: 'string_test'
-Version: '1.0.0'
-Executions:
-- active: 1
-- archived: 0
-First activity: 2025-08-27T18:45:17Z
-Last activity: 2025-08-27T18:45:17Z
-
----------
-
-Name: 'test'
-Version: '1.0.0'
-Executions:
-- active: 1
-- archived: 0
-First activity: 2025-08-27T18:51:34Z
-Last activity: 2025-08-27T18:51:34Z
-
----------
-
-Name: 'test'
-Version: 'v1.0.0'
-Executions:
-- active: 1
-- archived: 0
-First activity: 2025-09-15T23:22:16Z
-Last activity: 2025-09-15T23:22:16Z
-Computations:
-✓ success: 2
-⏳ computing: 1
-
----------
-
-Name: 'testhskjdhfd'
-Version: 'v1'
-Executions:
-- active: 1
-- archived: 0
-First activity: 2025-09-16T04:25:01Z
-Last activity: 2025-09-16T04:26:22Z
-Computations:
-✓ success: 3
-◯ not_set: 3
+✓ success: 5
+◯ not_set: 2
 
 ```
 
@@ -744,152 +609,16 @@ Journey.Insights.Status.status()
   graphs: [
     %{
       stats: %{
-        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
-        executions: %{
-          active: 1,
-          archived: 0,
-          most_recently_created: "2025-08-27T18:49:53Z",
-          most_recently_updated: "2025-08-27T18:49:53Z"
-        }
-      },
-      graph_name: "injection_test",
-      graph_version: "1.0.0"
-    },
-    %{
-      stats: %{
-        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
-        executions: %{
-          active: 1,
-          archived: 0,
-          most_recently_created: "2025-08-27T18:45:17Z",
-          most_recently_updated: "2025-08-27T18:45:17Z"
-        }
-      },
-      graph_name: "string_test",
-      graph_version: "1.0.0"
-    },
-    %{
-      stats: %{
         computations: %{
-          by_state: %{
-            abandoned: 53,
-            cancelled: 0,
-            success: 4039,
-            failed: 0,
-            not_set: 15065,
-            computing: 0
-          },
-          most_recently_created: "2025-09-15T21:13:05Z",
-          most_recently_updated: "2025-09-16T15:44:28Z"
+          by_state: %{abandoned: 0, cancelled: 0, success: 5, failed: 0, not_set: 2, computing: 0},
+          most_recently_created: "2025-10-05T05:56:48Z",
+          most_recently_updated: "2025-10-05T05:56:48Z"
         },
-        executions: %{
-          active: 533,
-          archived: 1059,
-          most_recently_created: "2025-09-15T21:13:05Z",
-          most_recently_updated: "2025-09-16T15:44:28Z"
-        }
-      },
-      graph_name: "Credit Card Application flow graph",
-      graph_version: "v1.0.0"
-    },
-    %{
-      stats: %{
-        computations: %{
-          by_state: %{abandoned: 0, cancelled: 0, success: 21, failed: 6, not_set: 4, computing: 0},
-          most_recently_created: "2025-09-16T16:05:41Z",
-          most_recently_updated: "2025-09-16T16:05:41Z"
-        },
-        executions: %{
-          active: 9,
-          archived: 0,
-          most_recently_created: "2025-09-16T16:05:41Z",
-          most_recently_updated: "2025-09-16T16:05:41Z"
-        }
-      },
-      graph_name: "somegraph",
-      graph_version: "v1"
-    },
-    %{
-      stats: %{
-        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
-        executions: %{
-          active: 3,
-          archived: 0,
-          most_recently_created: "2025-08-27T18:47:33Z",
-          most_recently_updated: "2025-08-27T18:47:33Z"
-        }
-      },
-      graph_name: "string_fix_test",
-      graph_version: "1.0.0"
-    },
-    %{
-      stats: %{
-        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
-        executions: %{
-          active: 1,
-          archived: 0,
-          most_recently_created: "2025-08-27T18:51:34Z",
-          most_recently_updated: "2025-08-27T18:51:34Z"
-        }
-      },
-      graph_name: "test",
-      graph_version: "1.0.0"
-    },
-    %{
-      stats: %{
-        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
-        executions: %{
-          active: 3,
-          archived: 0,
-          most_recently_created: "2025-08-27T18:45:34Z",
-          most_recently_updated: "2025-08-27T18:45:34Z"
-        }
-      },
-      graph_name: "string_comp_test",
-      graph_version: "1.0.0"
-    },
-    %{
-      stats: %{
-        computations: %{
-          by_state: %{abandoned: 0, cancelled: 0, success: 2, failed: 0, not_set: 0, computing: 1},
-          most_recently_created: "2025-09-15T23:22:16Z",
-          most_recently_updated: "2025-09-15T23:22:16Z"
-        },
-        executions: %{
-          active: 1,
-          archived: 0,
-          most_recently_created: "2025-09-15T23:22:16Z",
-          most_recently_updated: "2025-09-15T23:22:16Z"
-        }
-      },
-      graph_name: "test",
-      graph_version: "v1.0.0"
-    },
-    %{
-      stats: %{
-        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
         executions: %{
           active: 2,
           archived: 0,
-          most_recently_created: "2025-08-29T05:00:36Z",
-          most_recently_updated: "2025-08-29T05:00:36Z"
-        }
-      },
-      graph_name: "g12345",
-      graph_version: "v293"
-    },
-    %{
-      stats: %{
-        computations: %{
-          by_state: %{abandoned: 0, cancelled: 0, success: 13, failed: 0, not_set: 4, computing: 0},
-          most_recently_created: "2025-09-16T16:37:19Z",
-          most_recently_updated: "2025-09-16T16:37:19Z"
-        },
-        executions: %{
-          active: 3,
-          archived: 0,
-          most_recently_created: "2025-09-16T16:37:18Z",
-          most_recently_updated: "2025-09-16T16:37:19Z"
+          most_recently_created: "2025-10-05T05:49:57Z",
+          most_recently_updated: "2025-10-05T05:56:48Z"
         }
       },
       graph_name: "g1",
@@ -898,65 +627,25 @@ Journey.Insights.Status.status()
     %{
       stats: %{
         computations: %{
-          by_state: %{abandoned: 0, cancelled: 0, success: 3, failed: 0, not_set: 3, computing: 0},
-          most_recently_created: "2025-09-04T05:09:58Z",
-          most_recently_updated: "2025-09-04T05:10:11Z"
+          by_state: %{
+            abandoned: 0,
+            cancelled: 0,
+            success: 7425,
+            failed: 0,
+            not_set: 6386,
+            computing: 0
+          },
+          most_recently_created: "2025-10-04T20:35:43Z",
+          most_recently_updated: "2025-10-04T20:35:46Z"
         },
         executions: %{
-          active: 3,
-          archived: 0,
-          most_recently_created: "2025-09-04T05:09:58Z",
-          most_recently_updated: "2025-09-04T05:10:11Z"
+          active: 1112,
+          archived: 12,
+          most_recently_created: "2025-10-04T20:35:18Z",
+          most_recently_updated: "2025-10-04T20:35:46Z"
         }
       },
-      graph_name: "demo graph",
-      graph_version: "v1"
-    },
-    %{
-      stats: %{
-        computations: %{by_state: %{}, most_recently_created: nil, most_recently_updated: nil},
-        executions: %{
-          active: 3,
-          archived: 0,
-          most_recently_created: "2025-08-27T18:32:03Z",
-          most_recently_updated: "2025-08-27T18:32:03Z"
-        }
-      },
-      graph_name: "test_clean",
-      graph_version: "1.0.0"
-    },
-    %{
-      stats: %{
-        computations: %{
-          by_state: %{abandoned: 0, cancelled: 0, success: 3, failed: 0, not_set: 3, computing: 0},
-          most_recently_created: "2025-09-16T04:26:22Z",
-          most_recently_updated: "2025-09-16T04:26:22Z"
-        },
-        executions: %{
-          active: 1,
-          archived: 0,
-          most_recently_created: "2025-09-16T04:25:01Z",
-          most_recently_updated: "2025-09-16T04:26:22Z"
-        }
-      },
-      graph_name: "testhskjdhfd",
-      graph_version: "v1"
-    },
-    %{
-      stats: %{
-        computations: %{
-          by_state: %{abandoned: 0, cancelled: 0, success: 1, failed: 0, not_set: 0, computing: 0},
-          most_recently_created: "2025-09-15T21:13:41Z",
-          most_recently_updated: "2025-09-15T21:13:41Z"
-        },
-        executions: %{
-          active: 1,
-          archived: 0,
-          most_recently_created: "2025-09-15T21:13:41Z",
-          most_recently_updated: "2025-09-15T21:13:41Z"
-        }
-      },
-      graph_name: "demo",
+      graph_name: "Credit Card Application flow graph",
       graph_version: "v1.0.0"
     }
   ],
@@ -985,32 +674,32 @@ Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version)
 ```
 Graph: 'g1'
 Version: 'v1'
-Analyzed at: 2025-09-16T16:37:19.894787Z
+Analyzed at: 2025-10-05T05:58:01.519192Z
 
 EXECUTION STATS:
 ----------
-Total executions: 3
-Average duration: 1 second
-Median duration: 1 second
+Total executions: 2
+Average duration: 214 seconds
+Median duration: 214 seconds
 
 NODE STATS (3 nodes):
 ----------
 Node Name: 'sum'
 Type: compute
-Reached by: 3 executions (100.0%)
-Average time to reach: 1 second
+Reached by: 2 executions (100.0%)
+Average time to reach: 214 seconds
 Flow ends here: 0 executions (0.0% of all, 0.0% of reached)
 
 Node Name: 'x'
 Type: input
-Reached by: 3 executions (100.0%)
-Average time to reach: 1 second
+Reached by: 2 executions (100.0%)
+Average time to reach: 209 seconds
 Flow ends here: 0 executions (0.0% of all, 0.0% of reached)
 
 Node Name: 'y'
 Type: input
-Reached by: 3 executions (100.0%)
-Average time to reach: 0 seconds
+Reached by: 2 executions (100.0%)
+Average time to reach: 13 seconds
 Flow ends here: 0 executions (0.0% of all, 0.0% of reached)
 
 ```
@@ -1039,9 +728,9 @@ Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version)
       %{
         node_type: :compute,
         node_name: :sum,
-        reached_count: 3,
+        reached_count: 2,
         reached_percentage: 100.0,
-        average_time_to_reach: 1,
+        average_time_to_reach: 214,
         flow_ends_here_count: 0,
         flow_ends_here_percentage_of_all: 0.0,
         flow_ends_here_percentage_of_reached: 0.0
@@ -1049,9 +738,9 @@ Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version)
       %{
         node_type: :input,
         node_name: :x,
-        reached_count: 3,
+        reached_count: 2,
         reached_percentage: 100.0,
-        average_time_to_reach: 1,
+        average_time_to_reach: 209,
         flow_ends_here_count: 0,
         flow_ends_here_percentage_of_all: 0.0,
         flow_ends_here_percentage_of_reached: 0.0
@@ -1059,20 +748,20 @@ Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version)
       %{
         node_type: :input,
         node_name: :y,
-        reached_count: 3,
+        reached_count: 2,
         reached_percentage: 100.0,
-        average_time_to_reach: 0,
+        average_time_to_reach: 13,
         flow_ends_here_count: 0,
         flow_ends_here_percentage_of_all: 0.0,
         flow_ends_here_percentage_of_reached: 0.0
       }
     ]
   },
-  analyzed_at: "2025-09-16T16:37:19.908430Z",
+  analyzed_at: "2025-10-05T05:58:03.894203Z",
   executions: %{
-    count: 3,
-    duration_median_seconds_to_last_update: 1,
-    duration_avg_seconds_to_last_update: 1
+    count: 2,
+    duration_median_seconds_to_last_update: 214,
+    duration_avg_seconds_to_last_update: 214
   }
 }
 ```
