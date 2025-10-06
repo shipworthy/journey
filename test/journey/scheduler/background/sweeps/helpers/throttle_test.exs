@@ -1,9 +1,9 @@
-defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
+defmodule Journey.Scheduler.Background.Sweeps.Helpers.ThrottleTest do
   use ExUnit.Case, async: true
   import Ecto.Query
 
   alias Journey.Persistence.Schema.SweepRun
-  alias Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut
+  alias Journey.Scheduler.Background.Sweeps.Helpers.Throttle
 
   setup do
     # Clean slate - delete all sweep runs for test sweep types
@@ -17,7 +17,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       current_time = System.system_time(:second)
       min_seconds = 100
 
-      {:ok, sweep_run_id} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, sweep_run_id} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
 
       assert is_binary(sweep_run_id)
 
@@ -34,11 +34,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       min_seconds = 100
 
       # First run
-      {:ok, _sweep_run_id1} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, _sweep_run_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
 
       # Second run 50 seconds later (less than 100)
       too_soon_time = current_time + 50
-      {:skip, reason} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, too_soon_time)
+      {:skip, reason} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, too_soon_time)
       assert reason == "only 50 seconds since last run (min: 100)"
     end
 
@@ -47,11 +47,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       min_seconds = 100
 
       # First run
-      {:ok, sweep_run_id1} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, sweep_run_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
 
       # Second run 150 seconds later (more than 100)
       later_time = current_time + 150
-      {:ok, sweep_run_id2} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, later_time)
+      {:ok, sweep_run_id2} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, later_time)
 
       assert is_binary(sweep_run_id2)
       assert sweep_run_id2 != sweep_run_id1
@@ -66,10 +66,10 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       min_seconds = 100
 
       # First run
-      {:ok, _sweep_run_id1} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, _sweep_run_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
 
       # Second run exactly 100 seconds later (boundary is exclusive)
-      {:skip, reason} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time + 100)
+      {:skip, reason} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time + 100)
       assert reason == "only 100 seconds since last run (min: 100)"
     end
 
@@ -78,10 +78,10 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       min_seconds = 100
 
       # First run
-      {:ok, sweep_run_id1} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, sweep_run_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
 
       # Second run 101 seconds later (just after threshold)
-      {:ok, sweep_run_id2} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time + 101)
+      {:ok, sweep_run_id2} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time + 101)
 
       assert is_binary(sweep_run_id2)
       assert sweep_run_id2 != sweep_run_id1
@@ -95,7 +95,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       tasks =
         for _i <- 1..5 do
           Task.async(fn ->
-            SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+            Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
           end)
         end
 
@@ -124,8 +124,8 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
 
       # Start both sweep types concurrently
       # Both should succeed because they use different lock IDs
-      {:ok, sweep_run_id1} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
-      {:ok, sweep_run_id2} = SpacedOut.attempt_to_start_sweep_run(:test_sweep2, min_seconds, current_time)
+      {:ok, sweep_run_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, sweep_run_id2} = Throttle.attempt_to_start_sweep_run(:test_sweep2, min_seconds, current_time)
 
       assert is_binary(sweep_run_id1)
       assert is_binary(sweep_run_id2)
@@ -146,7 +146,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       min_seconds = 100
 
       # Start a sweep run
-      {:ok, sweep_run_id} = SpacedOut.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, sweep_run_id} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
 
       # Verify initial state
       sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
@@ -157,7 +157,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOutTest do
       completion_time = current_time + 50
       executions_processed = 42
 
-      updated_sweep_run = SpacedOut.complete_started_sweep_run(sweep_run_id, executions_processed, completion_time)
+      updated_sweep_run = Throttle.complete_started_sweep_run(sweep_run_id, executions_processed, completion_time)
 
       assert updated_sweep_run.id == sweep_run_id
 

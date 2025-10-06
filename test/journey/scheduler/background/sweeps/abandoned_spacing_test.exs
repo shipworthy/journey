@@ -11,7 +11,7 @@ defmodule Journey.Scheduler.Background.Sweeps.AbandonedSpacingTest do
     :ok
   end
 
-  describe "sweep/2 with SpacedOut timing" do
+  describe "sweep/2 with Throttle timing" do
     test "first run succeeds and creates SweepRun record" do
       current_time = System.system_time(:second)
 

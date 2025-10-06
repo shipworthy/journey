@@ -17,7 +17,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   import Journey.Scheduler.Background.Sweeps.Helpers
 
   alias Journey.Persistence.Schema.SweepRun
-  alias Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut
+  alias Journey.Scheduler.Background.Sweeps.Helpers.Throttle
 
   @batch_size 100
   @min_seconds_between_runs 30 * 60
@@ -43,11 +43,11 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   defp sweep_impl(execution_id, current_time) do
     prefix = "[#{mf()}]"
 
-    case SpacedOut.attempt_to_start_sweep_run(:stalled_executions, @min_seconds_between_runs, current_time) do
+    case Throttle.attempt_to_start_sweep_run(:stalled_executions, @min_seconds_between_runs, current_time) do
       {:ok, sweep_run_id} ->
         try do
           total_processed = perform_sweep(execution_id, current_time)
-          SpacedOut.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
+          Throttle.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
           Logger.info("#{prefix}: completed. attempted to advance #{total_processed} execution(s)")
           {total_processed, sweep_run_id}
         rescue

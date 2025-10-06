@@ -20,7 +20,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   import Journey.Scheduler.Background.Sweeps.Helpers
 
   alias Journey.Persistence.Schema.Execution.Value
-  alias Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut
+  alias Journey.Scheduler.Background.Sweeps.Helpers.Throttle
 
   @batch_size 100
   @min_hours_between_runs 23
@@ -43,17 +43,17 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
     # Phase 1: Custom gating checks (enabled, preferred_hour)
     with :ok <- check_sweep_enabled(),
          :ok <- check_preferred_hour() do
-      # Phase 2: Use SpacedOut for time-based gating and lock acquisition
+      # Phase 2: Use Throttle for time-based gating and lock acquisition
       current_time = System.system_time(:second)
       min_seconds_between_runs = @min_hours_between_runs * 60 * 60
 
-      case SpacedOut.attempt_to_start_sweep_run(:missed_schedules_catchall, min_seconds_between_runs, current_time) do
+      case Throttle.attempt_to_start_sweep_run(:missed_schedules_catchall, min_seconds_between_runs, current_time) do
         {:ok, sweep_run_id} ->
           Logger.info("#{prefix}: starting missed schedules catch-all sweep")
 
           try do
             total_processed = perform_sweep(execution_id)
-            SpacedOut.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
+            Throttle.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
 
             if total_processed == 0 do
               Logger.info("#{prefix}: no executions with missed schedules found")

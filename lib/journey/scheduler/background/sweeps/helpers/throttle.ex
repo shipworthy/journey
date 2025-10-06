@@ -1,4 +1,4 @@
-defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut do
+defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
   @moduledoc false
   _ = """
   Shared logic for sweeps that need spacing/gating with advisory locks
@@ -13,11 +13,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut do
       def sweep(execution_id, current_time) do
         current_time = current_time || System.system_time(:second)
 
-        case SpacedOut.attempt_to_start_sweep_run(:my_sweep, 30 * 60, current_time) do
+        case Throttle.attempt_to_start_sweep_run(:my_sweep, 30 * 60, current_time) do
           {:ok, sweep_run_id} ->
             try do
               count = perform_sweep(execution_id, current_time)
-              SpacedOut.complete_started_sweep_run(sweep_run_id, count, current_time)
+              Throttle.complete_started_sweep_run(sweep_run_id, count, current_time)
               {count, sweep_run_id}
             rescue
               error ->

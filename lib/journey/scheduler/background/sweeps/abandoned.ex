@@ -7,7 +7,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
   import Journey.Helpers.Log
   import Journey.Scheduler.Background.Sweeps.Helpers
 
-  alias Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut
+  alias Journey.Scheduler.Background.Sweeps.Helpers.Throttle
 
   # This sweeper is processing abandoned computation in batches to avoid exhausting memory.
   @batch_size 100
@@ -30,13 +30,13 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
     prefix = "[#{mf()}]"
     min_seconds = get_config(:min_seconds_between_runs, @default_min_seconds_between_runs)
 
-    case SpacedOut.attempt_to_start_sweep_run(:abandoned, min_seconds, current_time) do
+    case Throttle.attempt_to_start_sweep_run(:abandoned, min_seconds, current_time) do
       {:ok, sweep_run_id} ->
         Logger.info("#{prefix}: starting")
 
         try do
           kicked_count = perform_sweep_logic(execution_id, current_time)
-          SpacedOut.complete_started_sweep_run(sweep_run_id, kicked_count, current_time)
+          Throttle.complete_started_sweep_run(sweep_run_id, kicked_count, current_time)
           Logger.info("#{prefix}: done, kicked #{kicked_count} execution(s)")
           {kicked_count, sweep_run_id}
         rescue
