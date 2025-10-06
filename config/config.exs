@@ -19,4 +19,15 @@ config :journey, :missed_schedules_catchall,
 # The sweep to pick up executions that may have stalled
 config :journey, :stalled_executions_sweep, enabled: true
 
+# The sweep to clean up abandoned computations
+config :journey, :abandoned_sweep,
+  # Minimum seconds between sweep runs (default: 59 seconds)
+  min_seconds_between_runs: 119,
+  enabled: true
+
+# Background sweeper configuration
+config :journey, :background_sweeper,
+  # Period in seconds between sweep runs (default: 60 seconds)
+  period_seconds: 60
+
 import_config "#{config_env()}.exs"

@@ -1,11 +1,13 @@
 defmodule Journey.Scheduler.AbandonedWithRetriesTest do
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
+  import Ecto.Query
 
+  alias Journey.Persistence.Schema.SweepRun
   alias Journey.Scheduler.Background.Sweeps.Abandoned
 
   use ExUnit.Case,
-    async: true,
+    async: false,
     parameterize:
       for(
         timeout_type <- [
@@ -18,6 +20,12 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
   import Journey.Node
 
   import Journey.Node.UpstreamDependencies
+
+  setup do
+    # Clean slate - delete all sweep runs for abandoned sweep type to avoid cross-test interference
+    Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+    :ok
+  end
 
   @tag :capture_log
   test "abandoned with retries", %{timeout_type: timeout_type} do
@@ -42,18 +50,27 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
 
     Process.sleep(2_000)
 
-    assert 1 == Abandoned.sweep(execution.id)
+    # Pass explicit timestamps to control spacing
+    current_time = System.system_time(:second)
+
+    min_seconds =
+      Application.get_env(:journey, :abandoned_sweep, [])
+      |> Keyword.get(:min_seconds_between_runs, 59)
+
+    assert {1, _} = Abandoned.sweep(execution.id, current_time)
     assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 1 == count_computations(execution.id, :astrological_sign, :computing)
     Process.sleep(2_000)
 
-    assert 1 == Abandoned.sweep(execution.id)
+    # Advance time to pass spacing threshold
+    assert {1, _} = Abandoned.sweep(execution.id, current_time + min_seconds + 1)
     assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)
     Process.sleep(2_000)
-    assert 0 == Abandoned.sweep(execution.id)
+    # Continue advancing time for subsequent sweeps
+    assert {0, _} = Abandoned.sweep(execution.id, current_time + (min_seconds + 1) * 2)
     Process.sleep(2_000)
-    assert 0 == Abandoned.sweep(execution.id)
+    assert {0, _} = Abandoned.sweep(execution.id, current_time + (min_seconds + 1) * 3)
     Process.sleep(2_000)
     assert 2 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 0 == count_computations(execution.id, :astrological_sign, :computing)

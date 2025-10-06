@@ -13,7 +13,7 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
     # Find and compute all unblocked uncomputed schedule_once computations.
     # Optimized to only process executions updated since last sweep.
 
-    prefix = "[#{mf()}] [#{inspect(self())}]"
+    prefix = "[#{mf()}]"
     Logger.info("#{prefix}: starting #{execution_id}")
 
     sweep_start = System.os_time(:second)

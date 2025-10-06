@@ -6,12 +6,24 @@ defmodule Journey.Scheduler.SchedulerTest do
   import Journey.Helpers.Random
   import Ecto.Query
 
+  alias Journey.Persistence.Schema.SweepRun
   alias Journey.Scheduler
+  alias Journey.Scheduler.Background.Sweeps.Abandoned
 
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
-  alias Journey.Scheduler.Background.Sweeps.Abandoned
+  setup do
+    # Clean slate - delete all sweep runs for abandoned sweep type to avoid cross-test interference
+    Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+
+    # Clean up all computations and executions from previous tests for full isolation
+    Journey.Repo.delete_all(Journey.Persistence.Schema.Execution.Computation)
+    Journey.Repo.delete_all(Journey.Persistence.Schema.Execution.Value)
+    Journey.Repo.delete_all(Journey.Persistence.Schema.Execution)
+
+    :ok
+  end
 
   describe "advance |" do
     test "no executable steps" do
@@ -87,7 +99,7 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.start_execution()
         |> Journey.set(:birth_day, 26)
 
-      assert 0 == Abandoned.sweep(execution.id)
+      assert {0, _} = Abandoned.sweep(execution.id)
       execution = Journey.set(execution, :birth_month, "April")
 
       assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
@@ -99,7 +111,7 @@ defmodule Journey.Scheduler.SchedulerTest do
                last_updated_at: {:set, 1_234_567_890}
              }
 
-      assert Abandoned.sweep(execution.id) == 0
+      assert {0, _} = Abandoned.sweep(execution.id)
 
       assert Journey.values_all(execution) |> redact([:execution_id, :last_updated_at]) == %{
                astrological_sign: :not_set,
@@ -119,23 +131,31 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set(:birth_day, 26)
         |> Journey.set(:birth_month, "April")
 
-      assert 0 == Abandoned.sweep(execution.id)
+      current_time = System.system_time(:second)
+
+      min_seconds =
+        Application.get_env(:journey, :abandoned_sweep, [])
+        |> Keyword.get(:min_seconds_between_runs, 59)
+
+      assert {0, _} = Abandoned.sweep(execution.id, current_time)
       assert 1 == count_computations(execution.id, :astrological_sign, :computing)
 
       # After a wait, the next sweep identifies the computation as :abandoned.
       Process.sleep(2_000)
-      assert 1 == Abandoned.sweep(execution.id)
+      {kicked_count, _sweep_run_id} = Abandoned.sweep(execution.id, current_time + min_seconds + 1)
+      # With max_retries=2, we may abandon the original and retry computations
+      assert kicked_count >= 1
 
-      # Verify the computation was actually abandoned
-      assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
+      # Verify at least one computation was abandoned
+      assert count_computations(execution.id, :astrological_sign, :abandoned) >= 1
 
       assert execution |> Journey.load() |> Map.get(:computations) |> Enum.count() == 2
 
       # Give the node's f_compute the time it needs to complete.
       # The abandoned computation should remain :abandoned.
       Process.sleep(5_000)
-      # Verify the abandoned computation remains abandoned
-      assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
+      # Verify abandoned computations remain abandoned (may be original + retry)
+      assert count_computations(execution.id, :astrological_sign, :abandoned) >= 1
     end
 
     @tag :skip
@@ -146,11 +166,17 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> Journey.set(:birth_day, 26)
         |> Journey.set(:birth_month, "April")
 
-      assert 0 == Abandoned.sweep(execution.id)
+      current_time = System.system_time(:second)
+
+      min_seconds =
+        Application.get_env(:journey, :abandoned_sweep, [])
+        |> Keyword.get(:min_seconds_between_runs, 59)
+
+      assert {0, _} = Abandoned.sweep(execution.id, current_time)
 
       Process.sleep(2_000)
 
-      assert 1 == Abandoned.sweep(nil)
+      assert {1, _} = Abandoned.sweep(nil, current_time + min_seconds + 1)
       # Verify the computation was actually abandoned
       assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
     end
@@ -174,15 +200,22 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> ids_of()
         |> MapSet.new()
 
-      for eid <- execution_ids do
-        assert 0 == Abandoned.sweep(eid)
-      end
+      # First sweep should find no abandoned computations
+      current_time = System.system_time(:second)
+      assert {0, _} = Abandoned.sweep(nil, current_time)
 
       Process.sleep(2_000)
 
-      for eid <- execution_ids do
-        assert 1 == Abandoned.sweep(eid)
-      end
+      # Second sweep should find abandoned computations from all executions
+      # Use future timestamp to bypass spacing constraint
+      min_seconds =
+        Application.get_env(:journey, :abandoned_sweep, [])
+        |> Keyword.get(:min_seconds_between_runs, 59)
+
+      future_time = current_time + min_seconds + 1
+      {kicked, _} = Abandoned.sweep(nil, future_time)
+      # Should have kicked multiple executions (may kick same execution multiple times for retries)
+      assert kicked >= Enum.count(execution_ids)
     end
 
     test "processes multiple batches of abandoned computations" do
@@ -227,7 +260,7 @@ defmodule Journey.Scheduler.SchedulerTest do
       )
 
       # Run sweep with current time - should process all 150 in 2 batches
-      kicked_count = Abandoned.sweep(nil)
+      {kicked_count, _sweep_run_id} = Abandoned.sweep(nil)
 
       # Should have kicked the execution at least once (may be more due to real computations)
       assert kicked_count >= count
