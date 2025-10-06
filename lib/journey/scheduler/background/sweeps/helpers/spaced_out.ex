@@ -96,6 +96,10 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut do
              is_integer(current_time) do
     sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
 
+    Logger.info(
+      "[#{mf()}] [#{sweep_run.sweep_type}]: sweep #{sweep_run_id}, processed #{executions_processed} executions"
+    )
+
     sweep_run
     |> SweepRun.changeset(%{
       completed_at: current_time,
