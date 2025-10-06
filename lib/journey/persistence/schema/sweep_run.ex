@@ -14,7 +14,8 @@ defmodule Journey.Persistence.Schema.SweepRun do
         :abandoned,
         :regenerate_schedule_recurring,
         :missed_schedules_catchall,
-        :stalled_executions
+        :stalled_executions,
+        :test_sweep
       ]
     )
 

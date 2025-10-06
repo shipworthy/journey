@@ -54,7 +54,7 @@ defmodule Journey.Scheduler.Background.Periodic do
 
   def run() do
     Process.flag(:trap_exit, true)
-    prefix = "[#{mf()}] [#{inspect(self())}]"
+    prefix = "[#{mf()}]"
     Logger.info("#{prefix}: starting, sweeper_period: #{sweeper_period_seconds()} s")
 
     try do
@@ -68,7 +68,7 @@ defmodule Journey.Scheduler.Background.Periodic do
   end
 
   def run_sweeps(execution_id) do
-    prefix = "#{mf()}[#{inspect(self())}]"
+    prefix = "[#{mf()}]"
     Logger.debug("#{prefix}: starting sweeps for execution_id: #{inspect(execution_id)}")
     Abandoned.sweep(execution_id)
     {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(execution_id)

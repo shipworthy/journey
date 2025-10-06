@@ -20,14 +20,11 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
   import Journey.Scheduler.Background.Sweeps.Helpers
 
   alias Journey.Persistence.Schema.Execution.Value
-  alias Journey.Persistence.Schema.SweepRun
+  alias Journey.Scheduler.Background.Sweeps.Helpers.SpacedOut
 
   @batch_size 100
   @min_hours_between_runs 23
   @recent_boundary_minutes 25
-
-  # Advisory lock ID for this sweep type
-  @lock_id :erlang.phash2(:missed_schedules_catchall)
 
   # Default configuration values
   @default_preferred_hour 2
@@ -41,52 +38,48 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
     Returns {execution_count, sweep_run_id} tuple.
     """
 
-    prefix = "[#{mf()}] [#{inspect(self())}]"
+    prefix = "[#{mf()}]"
 
-    case get_new_sweep_record_maybe() do
-      {:ok, sweep_run} ->
-        # We got a sweep record, proceed with the sweep
-        Logger.info("#{prefix}: starting missed schedules catch-all sweep")
+    # Phase 1: Custom gating checks (enabled, preferred_hour)
+    with :ok <- check_sweep_enabled(),
+         :ok <- check_preferred_hour() do
+      # Phase 2: Use SpacedOut for time-based gating and lock acquisition
+      current_time = System.system_time(:second)
+      min_seconds_between_runs = @min_hours_between_runs * 60 * 60
 
-        try do
-          total_processed = perform_sweep(execution_id)
+      case SpacedOut.attempt_to_start_sweep_run(:missed_schedules_catchall, min_seconds_between_runs, current_time) do
+        {:ok, sweep_run_id} ->
+          Logger.info("#{prefix}: starting missed schedules catch-all sweep")
 
-          # Update the sweep record with completion info
-          record_sweep_completion(sweep_run, total_processed)
+          try do
+            total_processed = perform_sweep(execution_id)
+            SpacedOut.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
 
-          if total_processed == 0 do
-            Logger.info("#{prefix}: no executions with missed schedules found")
-          else
-            Logger.info("#{prefix}: completed. advanced #{total_processed} execution(s)")
+            if total_processed == 0 do
+              Logger.info("#{prefix}: no executions with missed schedules found")
+            else
+              Logger.info("#{prefix}: completed. advanced #{total_processed} execution(s)")
+            end
+
+            {total_processed, sweep_run_id}
+          rescue
+            e ->
+              Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
+              reraise e, __STACKTRACE__
           end
 
-          {total_processed, sweep_run.id}
-        rescue
-          e ->
-            Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
-            reraise e, __STACKTRACE__
-        end
-
+        {:skip, reason} ->
+          Logger.info("#{prefix}: skipping - #{reason}")
+          {0, nil}
+      end
+    else
       {:skip, reason} ->
-        # No sweep needed, log the reason and exit
         Logger.info("#{prefix}: skipping - #{reason}")
         {0, nil}
     end
   end
 
-  defp get_new_sweep_record_maybe() do
-    # Phase 1: Cheap checks before acquiring lock
-    with :ok <- check_sweep_enabled(),
-         :ok <- check_preferred_hour(),
-         :ok <- quick_recency_check() do
-      # All cheap checks passed, now try to acquire lock and create record
-      attempt_sweep_record_creation()
-    else
-      {:skip, reason} -> {:skip, reason}
-    end
-  end
-
-  defp check_sweep_enabled() do
+  defp check_sweep_enabled do
     if sweep_enabled?() do
       :ok
     else
@@ -94,7 +87,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
     end
   end
 
-  defp check_preferred_hour() do
+  defp check_preferred_hour do
     preferred_hour = get_config(:preferred_hour, @default_preferred_hour)
     current_hour = get_current_hour_utc()
 
@@ -103,86 +96,6 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
     else
       {:skip, "current hour #{current_hour} != preferred hour #{preferred_hour}"}
     end
-  end
-
-  defp quick_recency_check do
-    now = System.system_time(:second)
-
-    case get_last_sweep_run() do
-      nil ->
-        :ok
-
-      %SweepRun{started_at: last_started} ->
-        hours_since = div(now - last_started, 3600)
-
-        if last_started > now - @min_hours_between_runs * 60 * 60 do
-          {:skip, "only #{hours_since} hours since last run (min: #{@min_hours_between_runs})"}
-        else
-          :ok
-        end
-    end
-  end
-
-  defp attempt_sweep_record_creation do
-    Journey.Repo.transaction(fn ->
-      # Acquire transaction-scoped advisory lock
-      query = "SELECT pg_try_advisory_xact_lock($1)"
-
-      case Journey.Repo.query(query, [@lock_id]) do
-        {:ok, %{rows: [[true]]}} ->
-          # We have the lock, do authoritative check and maybe create record
-          authoritative_check_and_create()
-
-        {:ok, %{rows: [[false]]}} ->
-          # Another process has the lock
-          Journey.Repo.rollback({:skip, "another process is already checking/running"})
-
-        error ->
-          Journey.Repo.rollback({:skip, "failed to acquire lock: #{inspect(error)}"})
-      end
-    end)
-    |> case do
-      {:ok, sweep_run} ->
-        {:ok, sweep_run}
-
-      {:error, {:skip, reason}} ->
-        {:skip, reason}
-
-      {:error, reason} ->
-        {:skip, "transaction failed: #{inspect(reason)}"}
-    end
-  end
-
-  defp authoritative_check_and_create do
-    now = System.system_time(:second)
-
-    case get_last_sweep_run() do
-      nil ->
-        # No previous run, create the first one
-        create_and_return_sweep_run(now)
-
-      %SweepRun{started_at: last_started} ->
-        if last_started <= now - @min_hours_between_runs * 60 * 60 do
-          # Enough time has passed, create new run
-          create_and_return_sweep_run(now)
-        else
-          # Too recent - another process must have just created one
-          Journey.Repo.rollback({:skip, "another process recently started a sweep"})
-        end
-    end
-  end
-
-  defp create_and_return_sweep_run(started_at) do
-    %SweepRun{}
-    |> SweepRun.changeset(%{
-      sweep_type: :missed_schedules_catchall,
-      started_at: started_at,
-      completed_at: nil,
-      executions_processed: 0
-    })
-    |> Journey.Repo.insert!()
-
-    # Transaction will commit after this, releasing the lock
   end
 
   defp perform_sweep(execution_id) do
@@ -197,15 +110,6 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
 
   defp sweep_enabled? do
     get_config(:enabled, true)
-  end
-
-  defp get_last_sweep_run do
-    from(sr in SweepRun,
-      where: sr.sweep_type == :missed_schedules_catchall,
-      order_by: [desc: sr.started_at],
-      limit: 1
-    )
-    |> Journey.Repo.one()
   end
 
   defp get_current_hour_utc do
@@ -267,14 +171,5 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
       offset: ^offset
     )
     |> Journey.Repo.all()
-  end
-
-  defp record_sweep_completion(sweep_run, executions_processed) do
-    sweep_run
-    |> SweepRun.changeset(%{
-      completed_at: System.system_time(:second),
-      executions_processed: executions_processed
-    })
-    |> Journey.Repo.update!()
   end
 end
