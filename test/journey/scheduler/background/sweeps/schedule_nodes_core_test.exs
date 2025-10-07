@@ -27,7 +27,7 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesCoreTest do
 
     test "returns fallback when no sweeps for given type exist" do
       # Use a different sweep type that hasn't been used
-      cutoff = ScheduleNodes.get_last_sweep_cutoff(:regenerate_schedule_recurring)
+      cutoff = ScheduleNodes.get_last_sweep_cutoff(:schedule_nodes)
 
       # Should return 0 (beginning of time) when no previous sweeps
       assert cutoff == 0
