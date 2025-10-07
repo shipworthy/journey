@@ -113,13 +113,6 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
     |> Journey.Repo.update!()
   end
 
-  def get_last_sweep_time(sweep_type) when is_atom(sweep_type) do
-    case get_last_sweep_run(sweep_type) do
-      nil -> nil
-      sweep_run -> sweep_run.started_at
-    end
-  end
-
   @doc """
   Returns the started_at timestamp of the most recent completed sweep run for the given type.
 
