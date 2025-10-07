@@ -173,4 +173,106 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ThrottleTest do
       assert persisted_sweep_run.executions_processed == executions_processed
     end
   end
+
+  describe "get_last_sweep_time/1" do
+    test "returns nil when no sweep has run" do
+      assert Throttle.get_last_sweep_time(:test_sweep) == nil
+    end
+
+    test "returns started_at timestamp after a sweep has run" do
+      current_time = System.system_time(:second)
+      min_seconds = 100
+
+      {:ok, _sweep_run_id} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+
+      assert Throttle.get_last_sweep_time(:test_sweep) == current_time
+    end
+
+    test "returns most recent started_at when multiple sweeps have run" do
+      min_seconds = 100
+      first_time = System.system_time(:second)
+      second_time = first_time + 200
+
+      {:ok, _sweep_run_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, first_time)
+      {:ok, _sweep_run_id2} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, second_time)
+
+      # Should return the most recent sweep's started_at
+      assert Throttle.get_last_sweep_time(:test_sweep) == second_time
+    end
+
+    test "different sweep types have independent timestamps" do
+      current_time = System.system_time(:second)
+      min_seconds = 100
+      later_time = current_time + 200
+
+      {:ok, _sweep_run_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      {:ok, _sweep_run_id2} = Throttle.attempt_to_start_sweep_run(:test_sweep2, min_seconds, later_time)
+
+      assert Throttle.get_last_sweep_time(:test_sweep) == current_time
+      assert Throttle.get_last_sweep_time(:test_sweep2) == later_time
+    end
+  end
+
+  describe "get_last_completed_sweep_time/1" do
+    test "returns nil when no completed sweep exists" do
+      assert Throttle.get_last_completed_sweep_time(:test_sweep) == nil
+    end
+
+    test "returns started_at of completed sweep" do
+      current_time = System.system_time(:second)
+      min_seconds = 100
+
+      {:ok, sweep_run_id} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      Throttle.complete_started_sweep_run(sweep_run_id, 5, current_time)
+
+      assert Throttle.get_last_completed_sweep_time(:test_sweep) == current_time
+    end
+
+    test "ignores incomplete sweeps" do
+      min_seconds = 100
+      incomplete_time = System.system_time(:second)
+      # Complete time needs to be more than min_seconds before incomplete_time to avoid throttling
+      complete_time = incomplete_time - 200
+
+      # Create completed sweep (older)
+      {:ok, complete_id} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, complete_time)
+      Throttle.complete_started_sweep_run(complete_id, 3, complete_time)
+
+      # Create incomplete sweep (started but not completed, more recent)
+      {:ok, _incomplete_id} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, incomplete_time)
+
+      # Should return the completed sweep's time, not the incomplete one
+      assert Throttle.get_last_completed_sweep_time(:test_sweep) == complete_time
+    end
+
+    test "returns most recent completed sweep when multiple exist" do
+      min_seconds = 100
+      first_time = System.system_time(:second)
+      second_time = first_time + 200
+
+      {:ok, sweep_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, first_time)
+      Throttle.complete_started_sweep_run(sweep_id1, 2, first_time)
+
+      {:ok, sweep_id2} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, second_time)
+      Throttle.complete_started_sweep_run(sweep_id2, 4, second_time)
+
+      # Should return the most recent completed sweep's started_at
+      assert Throttle.get_last_completed_sweep_time(:test_sweep) == second_time
+    end
+
+    test "different sweep types have independent completed timestamps" do
+      current_time = System.system_time(:second)
+      min_seconds = 100
+      later_time = current_time + 200
+
+      {:ok, sweep_id1} = Throttle.attempt_to_start_sweep_run(:test_sweep, min_seconds, current_time)
+      Throttle.complete_started_sweep_run(sweep_id1, 1, current_time)
+
+      {:ok, sweep_id2} = Throttle.attempt_to_start_sweep_run(:test_sweep2, min_seconds, later_time)
+      Throttle.complete_started_sweep_run(sweep_id2, 2, later_time)
+
+      assert Throttle.get_last_completed_sweep_time(:test_sweep) == current_time
+      assert Throttle.get_last_completed_sweep_time(:test_sweep2) == later_time
+    end
+  end
 end

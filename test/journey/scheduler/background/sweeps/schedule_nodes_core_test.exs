@@ -1,8 +1,15 @@
 defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesCoreTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
+  import Ecto.Query
   alias Journey.Persistence.Schema.SweepRun
   alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
+
+  setup do
+    # Clean up sweep runs for :schedule_nodes to ensure test isolation
+    Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :schedule_nodes))
+    :ok
+  end
 
   describe "get_last_sweep_cutoff/1" do
     test "returns last completed sweep's started_at timestamp minus 60 seconds" do
