@@ -25,6 +25,12 @@ config :journey, :abandoned_sweep,
   min_seconds_between_runs: 119,
   enabled: true
 
+# The sweep to find and compute unblocked schedule nodes
+config :journey, :schedule_nodes_sweep,
+  # Minimum seconds between sweep runs (default: 120 seconds / 2 minutes)
+  min_seconds_between_runs: 59,
+  enabled: true
+
 # Background sweeper configuration
 config :journey, :background_sweeper,
   # Period in seconds between sweep runs (default: 60 seconds)

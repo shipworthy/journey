@@ -1,11 +1,17 @@
 defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import Ecto.Query
 
   alias Journey.Examples.CreditCardApplication
   alias Journey.Persistence.Schema.SweepRun
   alias Journey.Scheduler.Background.Sweeps.ScheduleNodes
+
+  setup do
+    # Clean up sweep runs for :schedule_nodes to ensure test isolation
+    Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :schedule_nodes))
+    :ok
+  end
 
   describe "sweep/1 optimization" do
     test "only processes executions updated since last sweep" do
@@ -28,8 +34,9 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       # No need to check computation states since schedule computations
       # remain in :not_set even after being kicked
 
-      # Run sweep
-      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
+      # Run sweep with explicit time after min_seconds_between_runs (120 seconds default)
+      current_time = sweep_time + 121
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil, current_time)
 
       # Should have kicked at least one execution (the new one)
       # Background sweeps may create additional executions that get processed
@@ -61,7 +68,8 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       # Record current sweep count
       initial_sweep_count = Journey.Repo.aggregate(SweepRun, :count, :id)
 
-      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
+      current_time = System.system_time(:second)
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil, current_time)
 
       # Should have kicked at least our two executions
       assert kicked_count >= 2
@@ -75,11 +83,13 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       # Create execution
       _exec = create_execution_with_schedule()
 
-      # Insert incomplete sweep (no completed_at)
-      insert_incomplete_sweep_run(:schedule_nodes, System.os_time(:second) - 30)
+      # Insert incomplete sweep (no completed_at) - use time in the past
+      past_time = System.os_time(:second) - 200
+      insert_incomplete_sweep_run(:schedule_nodes, past_time)
 
-      # Should process at least our execution (uses 1 hour fallback)
-      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil)
+      # Should process at least our execution (uses beginning of time fallback)
+      current_time = past_time + 250
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(nil, current_time)
       assert kicked_count >= 1
     end
 
@@ -88,7 +98,8 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       _exec2 = create_execution_with_schedule()
 
       # Sweep specific execution only
-      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(exec1.id)
+      current_time = System.system_time(:second)
+      {kicked_count, _sweep_run_id} = ScheduleNodes.sweep(exec1.id, current_time)
 
       # Should only process exec1
       assert kicked_count == 1
@@ -98,20 +109,18 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       # Record initial sweep count
       initial_sweep_count = Journey.Repo.aggregate(SweepRun, :count, :id)
 
-      start_time = System.os_time(:second)
+      start_time = System.system_time(:second)
 
       _exec = create_execution_with_schedule()
-      {_kicked_count, sweep_run_id} = ScheduleNodes.sweep(nil)
-
-      end_time = System.os_time(:second)
+      {_kicked_count, sweep_run_id} = ScheduleNodes.sweep(nil, start_time)
 
       # Get the specific sweep run created by this test
       sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
 
       assert sweep_run.sweep_type == :schedule_nodes
-      assert sweep_run.started_at >= start_time
-      # Allow 1 second tolerance for timing precision
-      assert sweep_run.completed_at <= end_time + 1
+      assert sweep_run.started_at == start_time
+      # Completion time should match start_time since we pass it explicitly
+      assert sweep_run.completed_at == start_time
       assert sweep_run.completed_at >= sweep_run.started_at
 
       # Verify at least one new sweep was created (background sweeps may create additional ones)
@@ -123,7 +132,8 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       _exec = create_execution_with_schedule()
 
       # Run sweep and capture the returned sweep_run_id
-      {_kicked_count, sweep_run_id} = ScheduleNodes.sweep(nil)
+      current_time = System.system_time(:second)
+      {_kicked_count, sweep_run_id} = ScheduleNodes.sweep(nil, current_time)
 
       # Get the specific sweep run we just created
       sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
@@ -153,8 +163,11 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       # Add a few new executions (should be processed)
       _new_execs = for _ <- 1..5, do: create_execution_with_schedule()
 
-      # Measure sweep time
-      {time_micros, {kicked_count, _sweep_run_id}} = :timer.tc(fn -> ScheduleNodes.sweep(nil) end)
+      # Measure sweep time with explicit time to avoid throttling
+      current_time = sweep_time + 121
+
+      {time_micros, {kicked_count, _sweep_run_id}} =
+        :timer.tc(fn -> ScheduleNodes.sweep(nil, current_time) end)
 
       # Should have processed some executions (background sweeps may affect exact count)
       # The key test is that incremental processing is working and time is reasonable

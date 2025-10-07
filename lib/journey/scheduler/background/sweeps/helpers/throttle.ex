@@ -17,10 +17,13 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
           {:ok, sweep_run_id} ->
             try do
               count = perform_sweep(execution_id, current_time)
+              # Complete sweep run with actual count on success
               Throttle.complete_started_sweep_run(sweep_run_id, count, current_time)
               {count, sweep_run_id}
             rescue
               error ->
+                # Complete sweep run with 0 count on failure
+                Throttle.complete_started_sweep_run(sweep_run_id, 0, current_time)
                 Logger.error("Error during sweep")
                 reraise error, __STACKTRACE__
             end
@@ -59,6 +62,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
   Advisory locks ensure that only one process across all replicas can start
   this sweep type at a time, preventing race conditions in distributed deployments.
   """
+
   def attempt_to_start_sweep_run(sweep_type, min_seconds_between_runs, current_time)
       when is_atom(sweep_type) and is_integer(min_seconds_between_runs) and
              is_integer(current_time) do
@@ -91,6 +95,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
   - `executions_processed` - Number of executions processed during the sweep
   - `current_time` - Current timestamp in seconds (Unix epoch)
   """
+
   def complete_started_sweep_run(sweep_run_id, executions_processed, current_time)
       when is_binary(sweep_run_id) and is_integer(executions_processed) and
              is_integer(current_time) do
@@ -106,6 +111,34 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
       executions_processed: executions_processed
     })
     |> Journey.Repo.update!()
+  end
+
+  @doc """
+  Returns the started_at timestamp of the most recent completed sweep run for the given type.
+
+  Only considers sweeps that have a completed_at timestamp set.
+  Returns `nil` if no completed sweep has run yet.
+
+  ## Parameters
+
+  - `sweep_type` - The type of sweep (atom matching SweepRun.sweep_type enum)
+
+  ## Examples
+
+      iex> Throttle.get_last_completed_sweep_time(:my_sweep)
+      1234567890
+
+      iex> Throttle.get_last_completed_sweep_time(:never_completed_sweep)
+      nil
+  """
+  def get_last_completed_sweep_time(sweep_type) when is_atom(sweep_type) do
+    from(sr in SweepRun,
+      where: sr.sweep_type == ^sweep_type and not is_nil(sr.completed_at),
+      order_by: [desc: sr.completed_at],
+      limit: 1,
+      select: sr.started_at
+    )
+    |> Journey.Repo.one()
   end
 
   # Private functions
