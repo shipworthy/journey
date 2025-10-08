@@ -9,11 +9,10 @@ defmodule Journey.Scheduler.Recompute do
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
-  import Journey.Helpers.Log
   import Journey.Node.UpstreamDependencies.Computations, only: [unblocked?: 2]
 
   def detect_updates_and_create_re_computations(execution, graph) do
-    prefix = "[#{execution.id}] [#{mf()}]"
+    prefix = "[#{execution.id}]"
     Logger.debug("#{prefix}: starting")
 
     {:ok, new_computations} =

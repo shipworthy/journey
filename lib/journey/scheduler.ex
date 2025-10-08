@@ -4,15 +4,14 @@ defmodule Journey.Scheduler do
   alias Journey.Scheduler.Completions
 
   require Logger
-  import Journey.Helpers.Log
 
   def advance(nil) do
-    Logger.warning("[#{mf()}] [#{inspect(self())}] - advancing a nil execution")
+    Logger.warning("[#{inspect(self())}] - advancing a nil execution")
     nil
   end
 
   def advance(execution) do
-    prefix = "[#{execution.id}] [#{mf()}] [#{inspect(self())}]"
+    prefix = "[#{execution.id}] [#{inspect(self())}]"
     Logger.debug("#{prefix}: starting")
 
     # Migrate execution to current graph if needed
@@ -59,7 +58,7 @@ defmodule Journey.Scheduler do
     # Note that this task is intentionally not OTP-"supervised" – we are using
     # database-based supervision instead.
     Task.start(fn ->
-      prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{mf()}] [#{execution.graph_name}]"
+      prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{execution.graph_name}]"
       Logger.debug("#{prefix}: starting async computation")
 
       graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)

@@ -4,7 +4,6 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
   require Logger
   import Ecto.Query
 
-  import Journey.Helpers.Log
   import Journey.Scheduler.Background.Sweeps.Helpers
   alias Journey.Scheduler.Background.Sweeps.Helpers.Throttle
 
@@ -27,33 +26,32 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
   end
 
   defp sweep_impl(execution_id, current_time) do
-    prefix = "[#{mf()}]"
     min_seconds = get_config(:min_seconds_between_runs, @default_min_seconds_between_runs)
 
     case Throttle.attempt_to_start_sweep_run(:schedule_nodes, min_seconds, current_time) do
       {:ok, sweep_run_id} ->
-        Logger.info("#{prefix}: starting #{execution_id}")
+        Logger.info("starting #{execution_id}")
 
         try do
           kicked_count = perform_sweep_logic(execution_id)
           Throttle.complete_started_sweep_run(sweep_run_id, kicked_count, current_time)
 
           if kicked_count == 0 do
-            Logger.info("#{prefix}: no recently due pulse value(s) found")
+            Logger.info("no recently due pulse value(s) found")
           else
-            Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+            Logger.info("completed. kicked #{kicked_count} execution(s)")
           end
 
           {kicked_count, sweep_run_id}
         rescue
           error ->
             Throttle.complete_started_sweep_run(sweep_run_id, 0, current_time)
-            Logger.error("#{prefix}: error during sweep: #{inspect(error)}")
+            Logger.error("error during sweep: #{inspect(error)}")
             reraise error, __STACKTRACE__
         end
 
       {:skip, reason} ->
-        Logger.info("#{prefix}: skipping - #{reason}")
+        Logger.info("skipping - #{reason}")
         {0, nil}
     end
   end

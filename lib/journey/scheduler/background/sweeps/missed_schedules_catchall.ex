@@ -16,7 +16,6 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
 
   require Logger
   import Ecto.Query
-  import Journey.Helpers.Log
   import Journey.Scheduler.Background.Sweeps.Helpers
 
   alias Journey.Persistence.Schema.Execution.Value
@@ -38,8 +37,6 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
     Returns {execution_count, sweep_run_id} tuple.
     """
 
-    prefix = "[#{mf()}]"
-
     # Phase 1: Custom gating checks (enabled, preferred_hour)
     with :ok <- check_sweep_enabled(),
          :ok <- check_preferred_hour() do
@@ -49,33 +46,33 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
 
       case Throttle.attempt_to_start_sweep_run(:missed_schedules_catchall, min_seconds_between_runs, current_time) do
         {:ok, sweep_run_id} ->
-          Logger.info("#{prefix}: starting missed schedules catch-all sweep")
+          Logger.info("starting missed schedules catch-all sweep")
 
           try do
             total_processed = perform_sweep(execution_id)
             Throttle.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
 
             if total_processed == 0 do
-              Logger.info("#{prefix}: no executions with missed schedules found")
+              Logger.info("no executions with missed schedules found")
             else
-              Logger.info("#{prefix}: completed. advanced #{total_processed} execution(s)")
+              Logger.info("completed. advanced #{total_processed} execution(s)")
             end
 
             {total_processed, sweep_run_id}
           rescue
             e ->
               Throttle.complete_started_sweep_run(sweep_run_id, 0, current_time)
-              Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
+              Logger.error("error during sweep: #{inspect(e)}")
               reraise e, __STACKTRACE__
           end
 
         {:skip, reason} ->
-          Logger.info("#{prefix}: skipping - #{reason}")
+          Logger.info("skipping - #{reason}")
           {0, nil}
       end
     else
       {:skip, reason} ->
-        Logger.info("#{prefix}: skipping - #{reason}")
+        Logger.info("skipping - #{reason}")
         {0, nil}
     end
   end
@@ -142,7 +139,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
               acc + 1
             rescue
               e ->
-                Logger.error("[#{mf()}] Failed to process execution #{exec_id}: #{inspect(e)}")
+                Logger.error("Failed to process execution #{exec_id}: #{inspect(e)}")
                 acc
             end
           end)

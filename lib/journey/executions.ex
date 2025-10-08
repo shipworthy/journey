@@ -4,13 +4,12 @@ defmodule Journey.Executions do
   import Ecto.Query
 
   require Logger
-  import Journey.Helpers.Log
 
   # Namespace for PostgreSQL advisory locks used in graph migrations
   @migration_lock_namespace 12_345
 
   def create_new(graph_name, graph_version, nodes, graph_hash, execution_id_prefix) do
-    Logger.info("[#{mf()}]: graph '#{graph_name}' (version '#{graph_version}'), id prefix [#{execution_id_prefix}]")
+    Logger.info("graph '#{graph_name}' (version '#{graph_version}'), id prefix [#{execution_id_prefix}]")
 
     {:ok, execution} =
       Journey.Repo.transaction(fn repo ->
@@ -118,7 +117,7 @@ defmodule Journey.Executions do
   end
 
   def unset_value(execution, node_name) do
-    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
+    prefix = "[#{execution.id}] [#{node_name}]"
     Logger.debug("#{prefix}: unsetting value")
 
     result =
@@ -203,7 +202,7 @@ defmodule Journey.Executions do
   end
 
   def unset_values(execution, node_names) when is_list(node_names) do
-    prefix = "[#{execution.id}] [#{mf()}]"
+    prefix = "[#{execution.id}]"
     Logger.debug("#{prefix}: unsetting #{length(node_names)} values: #{inspect(node_names)}")
 
     # Deduplicate node names to avoid processing the same node multiple times
@@ -299,7 +298,7 @@ defmodule Journey.Executions do
   def set_value(execution_id_or_execution, node_name, value, metadata \\ nil)
 
   def set_value(execution_id, node_name, value, metadata) when is_binary(execution_id) do
-    prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"
+    prefix = "[#{execution_id}] [#{node_name}]"
     Logger.debug("#{prefix}: setting value, #{inspect(value)}")
 
     # Validate that map keys are strings (JSONB requires string keys)
@@ -385,7 +384,7 @@ defmodule Journey.Executions do
 
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   def set_value(execution, node_name, value, metadata) do
-    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
+    prefix = "[#{execution.id}] [#{node_name}]"
     Logger.debug("#{prefix}: setting value, #{inspect(value)}")
 
     # Validate that map keys are strings (JSONB requires string keys)
@@ -472,7 +471,7 @@ defmodule Journey.Executions do
   def set_values(execution, values_map, metadata \\ nil)
 
   def set_values(execution, values_map, metadata) when is_map(values_map) do
-    prefix = "[#{execution.id}] [#{mf()}]"
+    prefix = "[#{execution.id}]"
     Logger.debug("#{prefix}: setting #{map_size(values_map)} values: #{inspect(Map.keys(values_map))}")
 
     # Validate that map keys are strings (JSONB requires string keys)
@@ -589,7 +588,7 @@ defmodule Journey.Executions do
   end
 
   def get_value_node(execution, node_name, timeout_ms, opts \\ []) do
-    prefix = "[#{execution.id}] [#{mf()}] [#{node_name}]"
+    prefix = "[#{execution.id}] [#{node_name}]"
     wait_new = Keyword.get(opts, :wait_new, false)
     wait_for_revision = Keyword.get(opts, :wait_for_revision, nil)
 
@@ -700,7 +699,7 @@ defmodule Journey.Executions do
     wait_new = wait_for_revision != nil
 
     prefix =
-      "[#{execution.id}][#{node_name}][#{mf()}][#{call_count}]" <>
+      "[#{execution.id}][#{node_name}][#{call_count}]" <>
         if(wait_new, do: " wait_new", else: "")
 
     if wait_new do
@@ -997,7 +996,7 @@ defmodule Journey.Executions do
   defp filter_by_graph_version(query, graph_version), do: from(e in query, where: e.graph_version == ^graph_version)
 
   def archive_execution(execution_id) do
-    prefix = "[#{mf()}][#{execution_id}]"
+    prefix = "[#{execution_id}]"
     Logger.info("#{prefix}: archiving execution")
 
     {:ok, archived_at_time} =
@@ -1025,7 +1024,7 @@ defmodule Journey.Executions do
   end
 
   def unarchive_execution(execution_id) do
-    prefix = "[#{mf()}][#{execution_id}]"
+    prefix = "[#{execution_id}]"
     Logger.info("#{prefix}: unarchiving execution")
 
     {:ok, :ok} =

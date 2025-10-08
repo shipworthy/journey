@@ -37,7 +37,6 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
 
   require Logger
   import Ecto.Query
-  import Journey.Helpers.Log
 
   alias Journey.Persistence.Schema.SweepRun
 
@@ -66,7 +65,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
   def attempt_to_start_sweep_run(sweep_type, min_seconds_between_runs, current_time)
       when is_atom(sweep_type) and is_integer(min_seconds_between_runs) and
              is_integer(current_time) do
-    prefix = "[#{mf()}] [#{sweep_type}]"
+    prefix = "[#{sweep_type}]"
 
     # Phase 1: Quick check before acquiring lock
     if time_check_passes?(sweep_type, min_seconds_between_runs, current_time) do
@@ -101,9 +100,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
              is_integer(current_time) do
     sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
 
-    Logger.info(
-      "[#{mf()}] [#{sweep_run.sweep_type}]: sweep #{sweep_run_id}, processed #{executions_processed} executions"
-    )
+    Logger.info("[#{sweep_run.sweep_type}]: sweep #{sweep_run_id}, processed #{executions_processed} executions")
 
     sweep_run
     |> SweepRun.changeset(%{
@@ -144,7 +141,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
   # Private functions
 
   defp time_check_passes?(sweep_type, min_seconds_between_runs, current_time) do
-    prefix = "[#{mf()}] [#{sweep_type}]"
+    prefix = "[#{sweep_type}]"
 
     case get_last_sweep_run(sweep_type) do
       nil ->

@@ -4,7 +4,6 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
   require Logger
   import Ecto.Query
 
-  import Journey.Helpers.Log
   import Journey.Scheduler.Background.Sweeps.Helpers
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
@@ -15,8 +14,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
     # Create new :not_set schedule_recurring records for schedule_recurring nodes
     # that have computed their scheduled time and whose scheduled time has passed.
 
-    prefix = "[#{mf()}]"
-    Logger.info("#{prefix}: starting #{execution_id}")
+    Logger.info("starting #{execution_id}")
 
     now = System.system_time(:second)
 
@@ -58,9 +56,9 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
       |> Enum.count()
 
     if regenerated_count == 0 do
-      Logger.info("#{prefix}: no schedule_recurring nodes need regeneration")
+      Logger.info("no schedule_recurring nodes need regeneration")
     else
-      Logger.info("#{prefix}: regenerated #{regenerated_count} schedule_recurring computation(s)")
+      Logger.info("regenerated #{regenerated_count} schedule_recurring computation(s)")
     end
   end
 
@@ -87,7 +85,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
       }
       |> Journey.Repo.insert!()
 
-    prefix = "[#{execution_id}] [#{mf()}] [#{node_name}]"
+    prefix = "[#{execution_id}] [#{node_name}]"
 
     Logger.debug("#{prefix}: created a new :not_set computation, #{c.id}")
     c

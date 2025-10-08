@@ -10,17 +10,16 @@ defmodule Journey.Scheduler.Available do
   alias Journey.Persistence.Schema.Execution.Value
 
   require Logger
-  import Journey.Helpers.Log
 
   def grab_available_computations(execution, nil) when is_struct(execution, Execution) do
-    prefix = "[#{execution.id}] [#{mf()}]"
+    prefix = "[#{execution.id}]"
     Logger.error("#{prefix}: unknown graph #{execution.graph_name}")
     []
   end
 
   def grab_available_computations(execution, graph)
       when is_struct(execution, Execution) and is_struct(graph, Journey.Graph) do
-    prefix = "[#{execution.id}] [#{mf()}]"
+    prefix = "[#{execution.id}]"
     Logger.debug("#{prefix}: grabbing available computation")
 
     computations_to_perform =

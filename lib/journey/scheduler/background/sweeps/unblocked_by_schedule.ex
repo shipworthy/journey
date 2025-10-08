@@ -4,7 +4,6 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
   require Logger
   import Ecto.Query
 
-  import Journey.Helpers.Log
   import Journey.Scheduler.Background.Sweeps.Helpers
   alias Journey.Persistence.Schema.Execution.Value
 
@@ -45,8 +44,7 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
   @doc false
   def sweep(execution_id, sweeper_period)
       when (is_nil(execution_id) or is_binary(execution_id)) and is_number(sweeper_period) do
-    prefix = "[#{mf()}]"
-    Logger.info("#{prefix}: starting #{execution_id}")
+    Logger.info("starting #{execution_id}")
 
     q = q_execution_ids_to_advance(execution_id, sweeper_period)
 
@@ -62,15 +60,15 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
         |> Enum.count()
       rescue
         e ->
-          Logger.error("#{prefix}: error while sweeping: #{inspect(e)}")
-          Logger.error("#{prefix}: query: #{inspect(Journey.Repo.to_sql(:all, q))}")
+          Logger.error("error while sweeping: #{inspect(e)}")
+          Logger.error("query: #{inspect(Journey.Repo.to_sql(:all, q))}")
           reraise e, __STACKTRACE__
       end
 
     if kicked_count == 0 do
-      Logger.info("#{prefix}: no recently due pulse value(s) found")
+      Logger.info("no recently due pulse value(s) found")
     else
-      Logger.info("#{prefix}: completed. kicked #{kicked_count} execution(s)")
+      Logger.info("completed. kicked #{kicked_count} execution(s)")
     end
   end
 end

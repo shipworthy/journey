@@ -15,7 +15,7 @@ config :logger,
        :console,
        format: "$time [$level] $metadata$message\n",
        level: :info,
-       metadata: [:pid]
+       metadata: [:pid, :mfa]
 
 config :journey, :graphs, [
   &Journey.Examples.CreditCardApplication.graph/0
