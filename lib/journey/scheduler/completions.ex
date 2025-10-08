@@ -11,7 +11,7 @@ defmodule Journey.Scheduler.Completions do
   def record_success(computation, inputs_to_capture, result) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}][:success]"
 
-    Logger.debug("#{prefix}] starting.")
+    Logger.debug("#{prefix}: starting.")
 
     {:ok, _} =
       Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
