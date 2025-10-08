@@ -9,7 +9,7 @@ defmodule Journey.Scheduler.Completions do
   require Logger
 
   def record_success(computation, inputs_to_capture, result) do
-    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}][:success]"
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [:success]"
 
     Logger.debug("#{prefix}: starting.")
 
