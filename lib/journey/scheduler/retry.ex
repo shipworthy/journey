@@ -7,7 +7,6 @@ defmodule Journey.Scheduler.Retry do
   alias Journey.Persistence.Schema.Execution.Computation
 
   require Logger
-  import Journey.Helpers.Log
 
   defp get_max_upstream_revision(computation, repo) do
     all_values = Journey.Persistence.Values.load_from_db(computation.execution_id, repo)
@@ -30,7 +29,7 @@ defmodule Journey.Scheduler.Retry do
   end
 
   def maybe_schedule_a_retry(computation, repo) do
-    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}]"
     Logger.info("#{prefix}: starting")
 
     node_name_as_string = computation.node_name |> Atom.to_string()

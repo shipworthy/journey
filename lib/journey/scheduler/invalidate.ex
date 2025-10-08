@@ -3,7 +3,6 @@ defmodule Journey.Scheduler.Invalidate do
 
   import Ecto.Query
   require Logger
-  import Journey.Helpers.Log
 
   alias Journey.Graph
   alias Journey.Node.UpstreamDependencies
@@ -14,7 +13,7 @@ defmodule Journey.Scheduler.Invalidate do
   are no longer met. Continues until no more values can be discarded.
   """
   def ensure_all_discardable_cleared(execution_id, graph) do
-    prefix = "[#{execution_id}] [#{mf()}]"
+    prefix = "[#{execution_id}]"
     Logger.debug("#{prefix}: starting invalidation check")
 
     if graph == nil do

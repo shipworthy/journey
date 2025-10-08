@@ -19,8 +19,6 @@ defmodule Journey.Scheduler.Background.Periodic do
 
   require Logger
 
-  import Journey.Helpers.Log
-
   alias Journey.Scheduler.Background.Sweeps.Abandoned
   alias Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall
   alias Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring
@@ -37,7 +35,7 @@ defmodule Journey.Scheduler.Background.Periodic do
       Application.get_env(:journey, :background_sweeper, [])
       |> Keyword.get(:period_seconds, @default_sweeper_period_seconds)
 
-    Logger.info("[#{mf()}]: #{period_seconds}")
+    Logger.info("period seconds: #{period_seconds}")
     period_seconds
   end
 
@@ -54,22 +52,20 @@ defmodule Journey.Scheduler.Background.Periodic do
 
   def run() do
     Process.flag(:trap_exit, true)
-    prefix = "[#{mf()}]"
-    Logger.info("#{prefix}: starting")
+    Logger.info("starting")
 
     try do
       run_sweeps(nil)
     catch
       exception ->
-        Logger.error("#{prefix}: #{inspect(exception)}")
+        Logger.error("#{inspect(exception)}")
     end
 
-    Logger.info("#{prefix}: done")
+    Logger.info("done")
   end
 
   def run_sweeps(execution_id) do
-    prefix = "[#{mf()}]"
-    Logger.debug("#{prefix}: starting sweeps for execution_id: #{inspect(execution_id)}")
+    Logger.debug("starting sweeps for execution_id: #{inspect(execution_id)}")
     {_kicked_count, _sweep_run_id} = Abandoned.sweep(execution_id)
     {_kicked_count, _sweep_run_id} = ScheduleNodes.sweep(execution_id)
     UnblockedBySchedule.sweep(execution_id, sweeper_period_seconds())
@@ -77,7 +73,7 @@ defmodule Journey.Scheduler.Background.Periodic do
     {_kicked_count, _sweep_run_id} = MissedSchedulesCatchall.sweep(execution_id)
     {_kicked_count, _sweep_run_id} = StalledExecutions.sweep(execution_id)
 
-    Logger.debug("#{prefix}: done")
+    Logger.debug("done")
   end
 
   def start_background_sweeps_in_test(eid) do

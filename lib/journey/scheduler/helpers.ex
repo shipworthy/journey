@@ -6,7 +6,6 @@ defmodule Journey.Scheduler.Helpers do
   require Logger
 
   alias Journey.Persistence.Schema.Execution
-  import Journey.Helpers.Log
 
   def graph_from_execution_id(execution_id) do
     execution =
@@ -24,7 +23,7 @@ defmodule Journey.Scheduler.Helpers do
 
   def increment_execution_revision_in_transaction(execution_id, repo) do
     if !repo.in_transaction?() do
-      raise "#{mf()} must be called inside a transaction"
+      raise "must be called inside a transaction"
     end
 
     {1, [new_revision]} =
@@ -81,7 +80,7 @@ defmodule Journey.Scheduler.Helpers do
               delay_ms = calculate_backoff_with_jitter(attempt)
 
               Logger.info(
-                "#{prefix}: [RETRY] Deadlock detected (attempt #{attempt + 1}/#{max_retries + 1}), " <>
+                "[RETRY] Deadlock detected (attempt #{attempt + 1}/#{max_retries + 1}), " <>
                   "retrying after #{delay_ms}ms. Details: #{inspect(error.postgres)}"
               )
 
@@ -89,7 +88,7 @@ defmodule Journey.Scheduler.Helpers do
               do_transaction_with_retry(operation, prefix, attempt + 1, max_retries)
             else
               Logger.warning(
-                "#{prefix}: [RETRY] Deadlock detected after #{max_retries} retries, giving up. " <>
+                "[RETRY] Deadlock detected after #{max_retries} retries, giving up. " <>
                   "Will rely on background sweeper. Details: #{inspect(error.postgres)}"
               )
 
@@ -98,7 +97,7 @@ defmodule Journey.Scheduler.Helpers do
 
           _ ->
             Logger.info(
-              "#{prefix}: [RETRY] Non-deadlock Postgrex error raised. " <>
+              "[RETRY] Non-deadlock Postgrex error raised. " <>
                 "Code: #{inspect(error.postgres[:code])}, " <>
                 "Full structure: #{inspect(error)}"
             )

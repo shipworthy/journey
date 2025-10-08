@@ -19,7 +19,7 @@ config :logger,
        :console,
        format: "$time [$level] $metadata$message\n",
        level: :warning,
-       metadata: [:pid]
+       metadata: [:pid, :mfa]
 
 config :journey, :graphs, [
   &Journey.Test.Support.create_test_graph1/0,

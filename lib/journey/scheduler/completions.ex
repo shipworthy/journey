@@ -7,10 +7,9 @@ defmodule Journey.Scheduler.Completions do
   alias Journey.Persistence.Schema.Execution.Value
 
   require Logger
-  import Journey.Helpers.Log
 
   def record_success(computation, inputs_to_capture, result) do
-    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()} :success]"
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}][:success]"
 
     Logger.debug("#{prefix}] starting.")
 
@@ -41,7 +40,7 @@ defmodule Journey.Scheduler.Completions do
   end
 
   def record_error(computation, error_details) do
-    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()} :error]"
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [:error]"
     Logger.info("#{prefix}: marking as completed. starting.")
 
     {:ok, _} =
@@ -101,7 +100,7 @@ defmodule Journey.Scheduler.Completions do
   end
 
   defp record_success_in_transaction(repo, computation, inputs_to_capture, result) do
-    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [#{mf()}]"
+    prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}]"
     Logger.debug("#{prefix}: starting.")
 
     execution = computation.execution_id |> Journey.Executions.load(false, true)

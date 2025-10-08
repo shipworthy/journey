@@ -13,7 +13,6 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
 
   require Logger
   import Ecto.Query
-  import Journey.Helpers.Log
   import Journey.Scheduler.Background.Sweeps.Helpers
 
   alias Journey.Persistence.Schema.SweepRun
@@ -41,24 +40,22 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   end
 
   defp sweep_impl(execution_id, current_time) do
-    prefix = "[#{mf()}]"
-
     case Throttle.attempt_to_start_sweep_run(:stalled_executions, @min_seconds_between_runs, current_time) do
       {:ok, sweep_run_id} ->
         try do
           total_processed = perform_sweep(execution_id, current_time)
           Throttle.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
-          Logger.info("#{prefix}: completed. attempted to advance #{total_processed} execution(s)")
+          Logger.info("completed. attempted to advance #{total_processed} execution(s)")
           {total_processed, sweep_run_id}
         rescue
           e ->
             Throttle.complete_started_sweep_run(sweep_run_id, 0, current_time)
-            Logger.error("#{prefix}: error during sweep: #{inspect(e)}")
+            Logger.error("error during sweep: #{inspect(e)}")
             reraise e, __STACKTRACE__
         end
 
       {:skip, reason} ->
-        Logger.info("#{prefix}: skipping - #{reason}")
+        Logger.info("skipping - #{reason}")
         {0, nil}
     end
   end
@@ -66,7 +63,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   defp perform_sweep(execution_id, current_time) do
     check_from = compute_check_from_threshold()
     check_to = current_time - @too_new_threshold_seconds
-    Logger.info("[#{mf()}]: checking executions updated between #{to_dt(check_from)} and #{to_dt(check_to)}")
+    Logger.info("checking executions updated between #{to_dt(check_from)} and #{to_dt(check_to)}")
     process_batches_recursively(execution_id, check_from, check_to, 0, 0)
   end
 
@@ -94,10 +91,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
               acc + 1
             rescue
               e ->
-                Logger.error(
-                  "[#{mf()}] Failed to process execution #{exec_id}: #{Exception.format(:error, e, __STACKTRACE__)}"
-                )
-
+                Logger.error("Failed to process execution #{exec_id}: #{Exception.format(:error, e, __STACKTRACE__)}")
                 acc
             end
           end)

@@ -3,7 +3,6 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
 
   require Logger
 
-  import Journey.Helpers.Log
   import Journey.Test.Support.Helpers
 
   import Journey.Node
@@ -86,14 +85,14 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
 
   defp schedule_next_reminder(%{execution_id: execution_id}) do
     next_reminder_time = System.system_time(:second) + 10
-    Logger.debug("[#{execution_id}] [#{mf()}]: scheduling for '#{DateTime.from_unix!(next_reminder_time)}'")
+    Logger.debug("[#{execution_id}]: scheduling for '#{DateTime.from_unix!(next_reminder_time)}'")
     {:ok, next_reminder_time}
   end
 
   defp send_reminder(%{user_name: user_name, execution_id: execution_id} = v) do
     reminder_count = Map.get(v, :send_a_reminder, 0) + 1
     reminder = "Here is your reminder #{reminder_count}, #{user_name}"
-    Logger.debug("[#{execution_id}] [#{mf()}]: '#{reminder}'")
+    Logger.debug("[#{execution_id}]: '#{reminder}'")
     {:ok, reminder_count}
   end
 end
