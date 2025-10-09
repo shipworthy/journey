@@ -11,13 +11,20 @@ defmodule Journey.Scheduler.Recompute do
 
   import Journey.Node.UpstreamDependencies.Computations, only: [unblocked?: 2]
 
+  # Namespace for PostgreSQL advisory locks used to prevent duplicate re-computations
+  @advance_lock_namespace 54_321
+
   def detect_updates_and_create_re_computations(execution, graph) do
     prefix = "[#{execution.id}]"
-    Logger.debug("#{prefix}: starting")
+    Logger.info("#{prefix}: starting")
 
     {:ok, new_computations} =
       Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
         fn repo ->
+          # Acquire execution-scoped advisory lock to prevent concurrent duplicate creation
+          lock_key = :erlang.phash2(execution.id)
+          repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [@advance_lock_namespace, lock_key])
+
           latest_computation_ids =
             from(c in Computation,
               where:
@@ -39,9 +46,10 @@ defmodule Journey.Scheduler.Recompute do
           all_values = get_all_values(execution.id, repo)
 
           all_computations
-          # credo:disable-for-lines:10 Credo.Check.Refactor.FilterFilter
+          # credo:disable-for-lines:15 Credo.Check.Refactor.FilterFilter
           |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_values) end)
           |> Enum.filter(fn c -> unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by) end)
+          |> Enum.reject(fn c -> has_pending_computation?(execution.id, c.node_name, repo) end)
           |> Enum.map(fn computation_to_re_create ->
             new_computation =
               %Execution.Computation{
@@ -63,6 +71,7 @@ defmodule Journey.Scheduler.Recompute do
       )
       |> case do
         {:ok, computations} ->
+          Logger.info("#{prefix}: transaction completed")
           {:ok, computations}
 
         {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
@@ -142,5 +151,16 @@ defmodule Journey.Scheduler.Recompute do
     m
     |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
     |> Enum.into(%{})
+  end
+
+  defp has_pending_computation?(execution_id, node_name, repo) do
+    from(c in Computation,
+      where:
+        c.execution_id == ^execution_id and
+          c.node_name == ^Atom.to_string(node_name) and
+          c.state in [:not_set, :computing],
+      limit: 1
+    )
+    |> repo.exists?()
   end
 end
