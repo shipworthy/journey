@@ -34,7 +34,7 @@ defmodule Journey.Node.Conditions do
   def provided?(%{node_type: node_type} = value_node) when node_type in [:schedule_once, :schedule_recurring] do
     now = System.system_time(:second)
     due_in_seconds = if value_node.node_value == nil, do: nil, else: value_node.node_value - now
-    value_node.set_time != nil and due_in_seconds != nil and due_in_seconds <= 0
+    value_node.set_time != nil and due_in_seconds != nil and value_node.node_value > 0 and due_in_seconds <= 0
   end
 
   def provided?(value_node), do: value_node.set_time != nil

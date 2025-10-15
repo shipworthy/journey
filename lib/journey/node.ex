@@ -544,8 +544,57 @@ defmodule Journey.Node do
   ```
 
   ## Return Values
-  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms
   in the returned `value` and `reason` will be converted to strings when persisted.
+
+  Returning `{:ok, 0}` indicates that the schedule should not trigger downstream computations.
+  This might be useful for conditional scheduling - when the function determines that
+  scheduling is not needed based on the current state.
+
+  ## Conditional Scheduling Example
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "conditional scheduling example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:user_name),
+  ...>         input(:wants_reminder),
+  ...>         schedule_once(
+  ...>           :schedule_reminder,
+  ...>           [:user_name, :wants_reminder],
+  ...>           fn %{wants_reminder: wants_reminder} ->
+  ...>             if wants_reminder do
+  ...>               # Schedule for 2 seconds from now
+  ...>               {:ok, System.system_time(:second) + 2}
+  ...>             else
+  ...>               # Don't schedule - user opted out
+  ...>               {:ok, 0}
+  ...>             end
+  ...>           end
+  ...>         ),
+  ...>         compute(
+  ...>           :send_reminder,
+  ...>           [:user_name, :schedule_reminder],
+  ...>           fn %{user_name: name} ->
+  ...>             {:ok, "Reminder for \#{name}"}
+  ...>           end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution()
+  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
+  iex> # User doesn't want reminders - schedule returns 0
+  iex> execution = Journey.set(execution, :user_name, "Mario")
+  iex> execution = Journey.set(execution, :wants_reminder, false)
+  iex> {:ok, 0, _} = Journey.get(execution, :schedule_reminder, wait: :any)
+  iex> # Reminder is never sent because schedule returned 0
+  iex> :timer.sleep(3_000)
+  iex> Journey.get(execution, :send_reminder)
+  {:error, :not_set}
+  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
+  ```
 
   """
   def schedule_once(name, gated_by, f_compute, opts \\ [])
@@ -622,9 +671,10 @@ defmodule Journey.Node do
   ```
 
   ## Return Values
-  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms
   in the returned `value` and `reason` will be converted to strings when persisted.
 
+  Returning `{:ok, 0}` indicates that the schedule should not trigger downstream computations.
   """
 
   def schedule_recurring(name, gated_by, f_compute, opts \\ [])

@@ -7,6 +7,7 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
   import Journey.Scheduler.Background.Sweeps.Helpers
   alias Journey.Persistence.Schema.Execution.Value
 
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defp q_execution_ids_to_advance(execution_id, sweeper_period_seconds) do
     # Find all executions that have schedule_* computations that have "recently" come due.
 
@@ -28,8 +29,8 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
       where:
         c.state == :success and
           not is_nil(v.set_time) and
-          (v.node_value <= ^now or
-             fragment("?::bigint", v.node_value) <= ^now) and
+          fragment("?::bigint", v.node_value) > 0 and
+          fragment("?::bigint", v.node_value) <= ^now and
           v.set_time >= ^cutoff_time,
       distinct: true,
       select: e.id
