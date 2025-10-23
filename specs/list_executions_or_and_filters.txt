@@ -1,0 +1,582 @@
+================================================================================
+SPECIFICATION: OR/AND Logical Operators for Journey.list_executions()
+================================================================================
+
+## Overview
+
+Add support for :or and :and logical operators in the filter_by parameter of
+Journey.list_executions(), enabling complex filtering logic with unlimited
+nesting while maintaining full backward compatibility.
+
+## Current Behavior
+
+Currently, filter_by only supports implicit AND logic:
+
+```elixir
+Journey.list_executions(
+  graph_name: "users",
+  filter_by: [
+    {:age, :gt, 18},
+    {:status, :eq, "active"}
+  ]
+)
+# Returns: executions where age > 18 AND status = 'active'
+```
+
+All filters in the list are combined with AND - there's no way to express OR.
+
+## Requirements
+
+### 1. Backward Compatibility (CRITICAL)
+- Existing code with filter_by: [f1, f2] must continue to work unchanged
+- Simple filter lists remain implicit AND (no breaking changes)
+- New syntax is opt-in only
+
+### 2. OR Support
+- Enable {:or, [filter1, filter2, ...]} syntax
+- Must work with all existing operators: :eq, :neq, :lt, :lte, :gt, :gte,
+  :in, :not_in, :contains, :icontains, :list_contains, :is_nil, :is_not_nil
+
+### 3. Explicit AND Support
+- Enable {:and, [filter1, filter2, ...]} syntax
+- Useful for clarity when mixing with OR
+
+### 4. Unlimited Nesting
+- Support arbitrary nesting depth: {:or, [f1, {:and, [f2, {:or, [f3, f4]}]}]}
+- No artificial depth limits
+
+### 5. Mixed Syntax
+- Allow mixing simple filters with logical operators:
+  [simple_filter, {:or, [...]}, another_simple_filter]
+- Mixed elements at top level are combined with implicit AND
+
+## Proposed Syntax
+
+### Basic OR
+```elixir
+filter_by: [
+  {:or, [
+    {:birth_day, :gt, 10},
+    {:first_name, :is_not_nil}
+  ]}
+]
+# SQL: birth_day > 10 OR first_name IS NOT NULL
+```
+
+### Explicit AND (for clarity)
+```elixir
+filter_by: [
+  {:and, [
+    {:age, :gte, 18},
+    {:status, :eq, "active"}
+  ]}
+]
+# SQL: age >= 18 AND status = 'active'
+```
+
+### Mixed: Simple filters with logical operators
+```elixir
+filter_by: [
+  {:status, :eq, "active"},                          # Simple filter
+  {:or, [{:email, :is_not_nil}, {:phone, :is_not_nil}]},  # OR condition
+  {:age, :gte, 18}                                   # Simple filter
+]
+# SQL: status = 'active' AND (email IS NOT NULL OR phone IS NOT NULL) AND age >= 18
+```
+
+### Nested logical operators
+```elixir
+filter_by: [
+  {:and, [
+    {:age, :gte, 18},
+    {:or, [
+      {:country, :eq, "US"},
+      {:and, [
+        {:country, :eq, "CA"},
+        {:province, :eq, "ON"}
+      ]}
+    ]}
+  ]}
+]
+# SQL: age >= 18 AND (country = 'US' OR (country = 'CA' AND province = 'ON'))
+```
+
+### Real-world example: Find users ready for contact
+```elixir
+filter_by: [
+  {:status, :eq, "active"},                    # Must be active
+  {:or, [                                      # AND must have contact info
+    {:email_verified, :eq, true},
+    {:phone_verified, :eq, true}
+  ]},
+  {:or, [                                      # AND must be eligible
+    {:age, :gte, 18},
+    {:parental_consent, :eq, true}
+  ]}
+]
+```
+
+## Implementation Architecture
+
+### High-Level Approach
+
+1. **Parse filters into an AST (Abstract Syntax Tree)**
+   - Traverse filter structure recursively
+   - Build internal tree representation
+   - Validate structure during parse
+
+2. **Generate SQL from AST**
+   - Use EXISTS subqueries for OR conditions
+   - Optimize top-level AND with JOINs (current approach)
+   - Recursively build WHERE clauses for nested structures
+
+3. **Maintain current JOIN optimization**
+   - Top-level implicit AND continues using efficient JOINs
+   - Only use EXISTS when OR is involved or AND is nested in OR
+
+### SQL Generation Strategy
+
+#### For OR conditions (use EXISTS):
+```sql
+-- For: {:or, [{:age, :gt, 18}, {:country, :eq, "US"}]}
+WHERE (
+  EXISTS (
+    SELECT 1 FROM execution_values v1
+    WHERE v1.execution_id = e.id
+      AND v1.node_name = 'age'
+      AND (v1.node_value)::numeric > 18
+  )
+  OR EXISTS (
+    SELECT 1 FROM execution_values v2
+    WHERE v2.execution_id = e.id
+      AND v2.node_name = 'country'
+      AND v2.node_value = '"US"'
+  )
+)
+```
+
+#### For top-level AND conditions (keep current JOINs):
+```sql
+-- For: [{:age, :gt, 18}, {:status, :eq, "active"}]
+-- Current efficient approach:
+FROM executions e
+JOIN execution_values v1 ON v1.execution_id = e.id
+  AND v1.node_name = 'age'
+  AND (v1.node_value)::numeric > 18
+JOIN execution_values v2 ON v2.execution_id = e.id
+  AND v2.node_name = 'status'
+  AND v2.node_value = '"active"'
+```
+
+#### For nested AND inside OR (use EXISTS):
+```sql
+-- For: {:or, [{:status, :eq, "A"}, {:and, [{:status, :eq, "B"}, {:verified, :eq, true}]}]}
+WHERE (
+  EXISTS (SELECT 1 FROM execution_values v1 WHERE v1.execution_id = e.id AND v1.node_name = 'status' AND v1.node_value = '"A"')
+  OR (
+    EXISTS (SELECT 1 FROM execution_values v2 WHERE v2.execution_id = e.id AND v2.node_name = 'status' AND v2.node_value = '"B"')
+    AND EXISTS (SELECT 1 FROM execution_values v3 WHERE v3.execution_id = e.id AND v3.node_name = 'verified' AND v3.node_value = 'true')
+  )
+)
+```
+
+## Implementation Details
+
+### Files to Modify
+
+1. **lib/journey/executions.ex**
+   - Core filtering logic
+   - SQL generation
+   - Validation
+
+2. **lib/journey.ex**
+   - Documentation updates for Journey.list_executions/1
+   - Add examples showing OR/AND usage
+
+3. **test/journey/list_executions_or_and_conditions_test.exs** (NEW FILE)
+   - Comprehensive test suite for logical operators
+
+### New Functions to Add (lib/journey/executions.ex)
+
+```elixir
+# Parse and normalize filter structure
+defp normalize_filters(filters) when is_list(filters)
+  # Input: Raw filter_by parameter
+  # Output: Normalized AST structure
+  # Handle backward compatibility: [f1, f2] -> {:and, [f1, f2]}
+  # Recursively parse {:or, [...]} and {:and, [...]}
+
+# Validate filter structure recursively
+defp validate_filter_structure(filter)
+  # Ensure valid operators (:or, :and)
+  # Ensure leaf nodes are valid filter tuples
+  # Provide helpful error messages for invalid structures
+  # Check for empty :or or :and lists
+
+# Build SQL WHERE clause from filter tree
+defp build_filter_query(query, filter_tree)
+  # Input: Ecto query + normalized filter tree
+  # Output: Ecto query with WHERE conditions applied
+  # Use pattern matching on {:or, children} vs {:and, children} vs leaf nodes
+  # Generate EXISTS subqueries for OR
+  # Generate JOINs for top-level AND (optimization)
+  # Recursively handle nesting
+
+# Helper: Build EXISTS subquery for a single filter
+defp build_exists_subquery(filter_tuple)
+  # Input: {:node_name, :operator, value}
+  # Output: Ecto dynamic query fragment for EXISTS
+  # Reuse existing operator logic from apply_comparison_filter/3
+
+# Helper: Build JOIN condition for a single filter
+defp build_join_filter(query, filter_tuple, join_alias)
+  # Input: Query + filter tuple + unique alias for this JOIN
+  # Output: Query with JOIN added
+  # Reuse existing apply_comparison_filter/3 logic
+```
+
+### Functions to Modify (lib/journey/executions.ex)
+
+```elixir
+# Line 1055: defp add_filters/2
+# BEFORE: Directly calls apply_db_value_filters
+# AFTER:
+  1. Normalize filters to AST
+  2. Validate filter structure
+  3. Call build_filter_query with AST
+
+# Lines 1067-1094: defp validate_db_filter/1
+# AFTER: Add pattern matches for:
+  - {:or, children} when is_list(children)
+  - {:and, children} when is_list(children)
+  - Recursively validate children
+  - Ensure children list is not empty
+  - Ensure all children are valid
+
+# Lines 1118-1151: defp apply_db_value_filters/2
+# This function may be replaced/refactored by build_filter_query/2
+# Keep existing logic for top-level AND optimization
+# Add new logic for OR and nested conditions
+```
+
+### AST Structure
+
+The normalized filter AST will have this structure:
+
+```elixir
+# Leaf node (actual filter)
+{:filter, {:node_name, :operator, value}}
+{:filter, {:node_name, :operator}}  # for :is_nil, :is_not_nil
+
+# Logical operators
+{:or, [child1, child2, ...]}
+{:and, [child1, child2, ...]}
+
+# Example: [{:age, :gt, 18}, {:or, [{:email, :is_not_nil}, {:phone, :is_not_nil}]}]
+# Becomes:
+{:and, [
+  {:filter, {:age, :gt, 18}},
+  {:or, [
+    {:filter, {:email, :is_not_nil}},
+    {:filter, {:phone, :is_not_nil}}
+  ]}
+]}
+```
+
+## Validation Rules
+
+### Valid Structures
+- `{:or, [filter1, filter2, ...]}`
+- `{:and, [filter1, filter2, ...]}`
+- `{:node_name, :operator, value}` (leaf filter)
+- `{:node_name, :operator}` (for :is_nil, :is_not_nil)
+- `[filter1, filter2, ...]` (top-level list, implicit AND)
+
+### Invalid Structures (should raise ArgumentError)
+- `{:or, []}` - empty OR list
+- `{:and, []}` - empty AND list
+- `{:or, filter}` - OR must have a list of children
+- `{:nand, [...]}` - unsupported operator
+- `{:age, :invalid_op, 18}` - invalid comparison operator
+- `{:age, :gt}` - missing value for non-nil-check operator
+- `{:age, :is_nil, 18}` - extra value for nil-check operator
+
+## Error Messages
+
+Provide clear, actionable error messages:
+
+```elixir
+# Empty operator
+{:or, []} ->
+  "Empty :or filter list. :or requires at least one filter condition."
+
+# Invalid operator
+{:nand, [...]} ->
+  "Unsupported logical operator :nand. Supported operators: :or, :and"
+
+# Invalid leaf filter
+{:age, :invalid_op, 18} ->
+  "Unsupported filter operator :invalid_op for node :age. Valid operators: :eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in, :contains, :icontains, :list_contains, :is_nil, :is_not_nil"
+
+# Mixed valid/invalid
+[{:age, :gt, 18}, {:or, "not a list"}] ->
+  "Invalid :or filter structure. Expected {:or, [filter1, filter2, ...]}, got {:or, \"not a list\"}"
+```
+
+## Edge Cases to Handle
+
+1. **Empty lists**
+   - `{:or, []}` → ArgumentError
+   - `{:and, []}` → ArgumentError
+
+2. **Single-item logical operators**
+   - `{:or, [filter1]}` → Simplify to just filter1 (optimization)
+   - `{:and, [filter1]}` → Simplify to just filter1 (optimization)
+
+3. **Mixing :is_nil with OR**
+   - `:is_nil` uses LEFT JOIN + WHERE IS NULL
+   - Inside OR, must use EXISTS with NOT EXISTS pattern
+   - Example: `{:or, [{:email, :is_nil}, {:phone, :is_nil}]}`
+   - SQL: `EXISTS (SELECT 1 FROM ... WHERE node_name='email' AND id IS NULL) OR ...`
+
+4. **Very deep nesting**
+   - Should work without artificial limits
+   - May want to log warning if nesting > 10 levels (potential performance concern)
+   - PostgreSQL can handle deep nesting well
+
+5. **Duplicate filters**
+   - `{:or, [{:age, :gt, 18}, {:age, :gt, 18}]}` → Legal, just redundant
+   - Don't try to deduplicate (users might have reasons)
+
+6. **All operators with OR**
+   - Every existing operator (:eq, :neq, :lt, :lte, :gt, :gte, :in, :not_in,
+     :contains, :icontains, :list_contains, :is_nil, :is_not_nil) must work
+   - Test each operator in OR context
+
+## Performance Considerations
+
+### Query Optimization
+- **Top-level AND**: Continue using JOINs (current efficient approach)
+- **OR conditions**: Use EXISTS subqueries (standard SQL pattern)
+- **Nested AND inside OR**: Use EXISTS with AND in WHERE clause
+- **Very deep nesting**: PostgreSQL query planner handles EXISTS well
+
+### Avoiding N+1 Queries
+- All filtering must happen in a single SQL query
+- Use EXISTS subqueries, not separate queries per filter
+- Verify with EXPLAIN ANALYZE that query plan is reasonable
+
+### Index Usage
+- Ensure GIN indexes on JSONB columns are used
+- EXISTS subqueries should use indexes efficiently
+- Test with EXPLAIN ANALYZE for complex queries
+
+### Benchmarking
+- Compare performance of OR vs multiple list_executions calls + merge
+- Test with various dataset sizes (100, 1000, 10000 executions)
+- Measure query execution time with EXPLAIN ANALYZE
+
+## Testing Strategy
+
+### Test Coverage Areas
+
+1. **Basic OR functionality**
+   - Simple two-condition OR
+   - Multi-condition OR (3+ conditions)
+   - OR with all operator types
+
+2. **Basic AND functionality**
+   - Explicit AND (verify it works like implicit AND)
+   - Multi-condition AND
+
+3. **Mixed syntax**
+   - Simple filters mixed with OR
+   - Simple filters mixed with AND
+   - Multiple logical operators at top level
+
+4. **Nesting**
+   - OR inside AND
+   - AND inside OR
+   - Deep nesting (3+ levels)
+   - Complex real-world scenarios
+
+5. **Edge cases**
+   - Empty OR/AND lists (should error)
+   - Single-item OR/AND (should work)
+   - Duplicate filters
+   - All operators with OR
+
+6. **Validation**
+   - Invalid operator names
+   - Invalid structure
+   - Helpful error messages
+
+7. **Backward compatibility**
+   - Existing tests continue to pass
+   - Simple filter lists work unchanged
+
+8. **Performance**
+   - Verify single query execution
+   - Check query plan efficiency
+   - Compare with current AND-only approach
+
+### Example Test Cases
+
+```elixir
+# test/journey/list_executions_or_and_conditions_test.exs
+
+test "simple OR with two conditions" do
+  # Setup: Create executions where some match condition A, some match B
+  # Execute: filter_by with {:or, [condA, condB]}
+  # Assert: Returns executions matching A OR B
+end
+
+test "OR inside AND" do
+  # Setup: Complex data set
+  # Execute: filter_by: [condA, {:or, [condB, condC]}, condD]
+  # Assert: Returns A AND (B OR C) AND D
+end
+
+test "deep nesting: 3 levels" do
+  # Setup: Data matching various nested conditions
+  # Execute: {:and, [{:or, [{:and, [...]}]}]}
+  # Assert: Correct filtering logic applied
+end
+
+test "OR with :is_nil operator" do
+  # Setup: Executions with nil and non-nil values
+  # Execute: {:or, [{:email, :is_nil}, {:phone, :is_nil}]}
+  # Assert: Returns executions where email OR phone is nil
+end
+
+test "validation: empty OR list" do
+  # Execute: filter_by: [{:or, []}]
+  # Assert: Raises ArgumentError with helpful message
+end
+
+test "backward compatibility: simple list unchanged" do
+  # Execute: filter_by: [f1, f2] (old syntax)
+  # Assert: Works exactly as before (implicit AND)
+end
+```
+
+## Documentation Updates
+
+### lib/journey.ex - Update Journey.list_executions/1 docstring
+
+Add section after line 440 (in `:filter_by` documentation):
+
+```
+### Logical Operators
+
+The `filter_by` option supports logical operators for complex filtering:
+
+* `:or` - Match executions where ANY condition is true
+* `:and` - Explicitly group conditions (implicit at top level)
+
+Logical operators can be nested to any depth for complex queries.
+
+**OR Syntax:**
+
+{:or, [filter1, filter2, ...]} - Returns executions matching any filter
+
+**Examples:**
+
+Find users with email OR phone:
+```elixir
+Journey.list_executions(
+  graph_name: "users",
+  filter_by: [
+    {:or, [
+      {:email, :is_not_nil},
+      {:phone, :is_not_nil}
+    ]}
+  ]
+)
+```
+
+Find active users in US OR Canada:
+```elixir
+Journey.list_executions(
+  graph_name: "users",
+  filter_by: [
+    {:status, :eq, "active"},
+    {:or, [
+      {:country, :eq, "US"},
+      {:country, :eq, "CA"}
+    ]}
+  ]
+)
+# Returns: status='active' AND (country='US' OR country='CA')
+```
+
+Nested conditions:
+```elixir
+Journey.list_executions(
+  graph_name: "users",
+  filter_by: [
+    {:and, [
+      {:age, :gte, 18},
+      {:or, [
+        {:country, :eq, "US"},
+        {:and, [
+          {:country, :eq, "CA"},
+          {:province, :in, ["ON", "BC"]}
+        ]}
+      ]}
+    ]}
+  ]
+)
+# Returns: age >= 18 AND (country='US' OR (country='CA' AND province IN ['ON','BC']))
+```
+
+**Backward Compatibility:**
+
+The existing list syntax continues to work with implicit AND:
+```elixir
+# These are equivalent:
+filter_by: [{:age, :gt, 18}, {:status, :eq, "active"}]
+filter_by: [{:and, [{:age, :gt, 18}, {:status, :eq, "active"}]}]
+```
+```
+
+## Implementation Checklist
+
+- [ ] Add normalize_filters/1 function
+- [ ] Add validate_filter_structure/1 function
+- [ ] Add build_filter_query/2 function
+- [ ] Add build_exists_subquery/1 helper
+- [ ] Modify add_filters/2 to use new AST approach
+- [ ] Update validate_db_filter/1 for :or/:and
+- [ ] Update documentation in lib/journey.ex
+- [ ] Create test/journey/list_executions_or_and_conditions_test.exs
+- [ ] Add basic OR tests
+- [ ] Add basic AND tests
+- [ ] Add mixed syntax tests
+- [ ] Add nesting tests (2-3 levels)
+- [ ] Add deep nesting test (4+ levels)
+- [ ] Add edge case tests
+- [ ] Add validation tests
+- [ ] Add backward compatibility tests
+- [ ] Add performance verification (query plan check)
+- [ ] Run existing test suite to verify no regressions
+- [ ] Run `make validate` and fix any issues
+- [ ] Update MODULES_AND_FUNCTIONS.md if needed
+
+## Success Criteria
+
+1. All new tests pass
+2. All existing tests continue to pass
+3. `make validate` passes (linting, formatting, coverage)
+4. Documentation is clear and includes examples
+5. Error messages are helpful and actionable
+6. Performance is acceptable (single query, uses indexes)
+7. Backward compatibility is maintained (no breaking changes)
+
+## Future Enhancements (Out of Scope)
+
+- NOT operator: {:not, filter}
+- XOR operator: {:xor, [f1, f2]}
+- Filter optimization (automatic deduplication, simplification)
+- Query plan analysis/warnings in logs
+- Filter validation at graph definition time

@@ -462,6 +462,97 @@ defmodule Journey do
   * Only primitive values supported for filtering (complex types raise errors)
   * Archived executions excluded by default
 
+  ## Logical Operators (OR/AND)
+
+  The `filter_by` option supports logical operators for complex filtering queries:
+
+  * **`:or`** - Match executions where ANY condition is true
+  * **`:and`** - Explicitly group conditions (implicit at top level for backward compatibility)
+
+  Logical operators can be nested to any depth for complex queries.
+
+  ### OR Syntax
+
+  Use `{:or, [filter1, filter2, ...]}` to find executions matching any filter:
+
+  ```elixir
+  # Find users with email OR phone
+  Journey.list_executions(
+    graph_name: "users",
+    filter_by: [
+      {:or, [
+        {:email, :is_not_nil},
+        {:phone, :is_not_nil}
+      ]}
+    ]
+  )
+  ```
+
+  ### Mixing Simple Filters with OR
+
+  Top-level lists use implicit AND (backward compatible), and you can mix simple filters with OR blocks:
+
+  ```elixir
+  # Find active users in US OR Canada
+  Journey.list_executions(
+    graph_name: "users",
+    filter_by: [
+      {:status, :eq, "active"},                    # Simple filter (AND)
+      {:or, [{:country, :eq, "US"}, {:country, :eq, "CA"}]}  # OR block
+    ]
+  )
+  # Returns: status='active' AND (country='US' OR country='CA')
+  ```
+
+  ### Nested Logical Operators
+
+  Operators can be nested to any depth for complex queries:
+
+  ```elixir
+  # Find adults in US, OR anyone in Ontario
+  Journey.list_executions(
+    graph_name: "users",
+    filter_by: [
+      {:or, [
+        {:and, [
+          {:age, :gte, 18},
+          {:country, :eq, "US"}
+        ]},
+        {:and, [
+          {:country, :eq, "CA"},
+          {:province, :eq, "ON"}
+        ]}
+      ]}
+    ]
+  )
+  # Returns: (age >= 18 AND country='US') OR (country='CA' AND province='ON')
+  ```
+
+  ### Real-World Example: User Eligibility
+
+  ```elixir
+  # Find users ready for contact: active, has verified contact info, and is eligible
+  Journey.list_executions(
+    graph_name: "users",
+    filter_by: [
+      {:status, :eq, "active"},                                      # Must be active
+      {:or, [{:email_verified, :eq, true}, {:phone_verified, :eq, true}]},  # Has contact
+      {:or, [{:age, :gte, 18}, {:parental_consent, :eq, true}]}            # Is eligible
+    ]
+  )
+  # Returns: status='active' AND (email_verified OR phone_verified) AND (age >= 18 OR parental_consent)
+  ```
+
+  ### Backward Compatibility
+
+  The existing list syntax continues to work with implicit AND (no breaking changes):
+
+  ```elixir
+  # These are equivalent:
+  filter_by: [{:age, :gt, 18}, {:status, :eq, "active"}]
+  filter_by: [{:and, [{:age, :gt, 18}, {:status, :eq, "active"}]}]
+  ```
+
   ## Examples
 
   Basic listing by graph name:

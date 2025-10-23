@@ -1055,12 +1055,427 @@ defmodule Journey.Executions do
   defp add_filters(query, []), do: query |> preload_and_convert()
 
   defp add_filters(query, value_filters) when is_list(value_filters) do
-    # Validate all filters are database-compatible before proceeding
-    Enum.each(value_filters, &validate_db_filter/1)
+    # Normalize filters to AST and validate
+    normalized = normalize_filters(value_filters)
+    validate_filter_structure(normalized)
 
+    # Build query from filter tree
     query
-    |> apply_db_value_filters(value_filters)
+    |> build_filter_query(normalized)
     |> preload_and_convert()
+  end
+
+  # Normalize filter list into AST structure
+  # Converts raw filter_by into tree with explicit :and/:or operators
+  defp normalize_filters([]), do: {:and, []}
+
+  defp normalize_filters(filters) when is_list(filters) do
+    # Top-level list is implicit AND for backward compatibility
+    normalized_children = Enum.map(filters, &normalize_single_filter/1)
+
+    # Optimize: if single child, unwrap it
+    case normalized_children do
+      [single] -> single
+      multiple -> {:and, multiple}
+    end
+  end
+
+  # Normalize a single filter element
+  defp normalize_single_filter({:or, children}) when is_list(children) do
+    {:or, Enum.map(children, &normalize_single_filter/1)}
+  end
+
+  defp normalize_single_filter({:and, children}) when is_list(children) do
+    {:and, Enum.map(children, &normalize_single_filter/1)}
+  end
+
+  # Leaf filter nodes - pass through as-is
+  defp normalize_single_filter({node_name, op, _value} = filter)
+       when is_atom(node_name) and is_atom(op) do
+    {:filter, filter}
+  end
+
+  defp normalize_single_filter({node_name, op} = filter)
+       when is_atom(node_name) and is_atom(op) do
+    {:filter, filter}
+  end
+
+  defp normalize_single_filter(invalid) do
+    raise ArgumentError,
+          "Invalid filter structure: #{inspect(invalid)}. " <>
+            "Expected {:node_name, :operator, value} or {:or/:and, [filters]}"
+  end
+
+  # Validate filter structure recursively
+  defp validate_filter_structure({:or, []}), do: raise_empty_operator_error(:or)
+  defp validate_filter_structure({:and, []}), do: raise_empty_operator_error(:and)
+
+  defp validate_filter_structure({:or, children}) when is_list(children) do
+    Enum.each(children, &validate_filter_structure/1)
+  end
+
+  defp validate_filter_structure({:and, children}) when is_list(children) do
+    Enum.each(children, &validate_filter_structure/1)
+  end
+
+  defp validate_filter_structure({:filter, filter_tuple}) do
+    validate_db_filter(filter_tuple)
+  end
+
+  defp validate_filter_structure(invalid) do
+    raise ArgumentError,
+          "Invalid filter structure during validation: #{inspect(invalid)}"
+  end
+
+  defp raise_empty_operator_error(op) do
+    raise ArgumentError,
+          "Empty :#{op} filter list. :#{op} requires at least one filter condition."
+  end
+
+  # Build SQL query from filter AST
+  defp build_filter_query(query, {:and, []}), do: query
+  defp build_filter_query(query, {:or, []}), do: query
+
+  # Single filter optimization
+  defp build_filter_query(query, {:and, [single]}), do: build_filter_query(query, single)
+  defp build_filter_query(query, {:or, [single]}), do: build_filter_query(query, single)
+
+  # Top-level AND: use efficient JOIN-based approach (backward compatible)
+  defp build_filter_query(query, {:and, children}) do
+    # Check if all children are simple filters (no nested OR)
+    if all_simple_filters?(children) do
+      # Use existing efficient JOIN approach
+      filters = Enum.map(children, fn {:filter, f} -> f end)
+      apply_db_value_filters(query, filters)
+    else
+      # Has nested OR, use EXISTS approach
+      # Build all conditions first, then combine them with AND
+      and_conditions =
+        children
+        |> Enum.map(&build_filter_condition/1)
+        |> Enum.reduce(fn condition, acc -> dynamic([e], ^acc and ^condition) end)
+
+      from([e] in query, as: :e, where: ^and_conditions)
+    end
+  end
+
+  # OR: use EXISTS subqueries
+  defp build_filter_query(query, {:or, children}) do
+    # Build OR condition combining all children
+    or_conditions =
+      children
+      |> Enum.map(&build_filter_condition/1)
+      |> Enum.reduce(fn condition, acc -> dynamic([e], ^acc or ^condition) end)
+
+    from([e] in query, as: :e, where: ^or_conditions)
+  end
+
+  # Leaf filter
+  defp build_filter_query(query, {:filter, filter_tuple}) do
+    apply_db_value_filters(query, [filter_tuple])
+  end
+
+  # Check if all children are simple filters (no nested logical operators)
+  defp all_simple_filters?([]), do: true
+  defp all_simple_filters?([{:filter, _} | rest]), do: all_simple_filters?(rest)
+  defp all_simple_filters?(_), do: false
+
+  # Build a dynamic query condition for a filter tree node
+  defp build_filter_condition({:and, children}) do
+    children
+    |> Enum.map(&build_filter_condition/1)
+    |> Enum.reduce(fn condition, acc -> dynamic([e], ^acc and ^condition) end)
+  end
+
+  defp build_filter_condition({:or, children}) do
+    children
+    |> Enum.map(&build_filter_condition/1)
+    |> Enum.reduce(fn condition, acc -> dynamic([e], ^acc or ^condition) end)
+  end
+
+  defp build_filter_condition({:filter, filter_tuple}) do
+    build_exists_condition(filter_tuple)
+  end
+
+  # Build EXISTS condition for a single filter
+  defp build_exists_condition({node_name, :is_nil}) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      not exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              not is_nil(v.set_time)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :is_not_nil}) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              not is_nil(v.set_time)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :eq, value}) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              v.node_value == ^value
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :neq, value}) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              v.node_value != ^value
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :lt, value}) when is_number(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment(
+                "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric < ? ELSE false END",
+                v.node_value,
+                v.node_value,
+                ^value
+              )
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :lt, value}) when is_binary(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') < ?", v.node_value, v.node_value, ^value)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :lte, value}) when is_number(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment(
+                "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric <= ? ELSE false END",
+                v.node_value,
+                v.node_value,
+                ^value
+              )
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :lte, value}) when is_binary(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') <= ?", v.node_value, v.node_value, ^value)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :gt, value}) when is_number(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment(
+                "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric > ? ELSE false END",
+                v.node_value,
+                v.node_value,
+                ^value
+              )
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :gt, value}) when is_binary(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') > ?", v.node_value, v.node_value, ^value)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :gte, value}) when is_number(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment(
+                "CASE WHEN jsonb_typeof(?) = 'number' THEN (?)::numeric >= ? ELSE false END",
+                v.node_value,
+                v.node_value,
+                ^value
+              )
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :gte, value}) when is_binary(value) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') >= ?", v.node_value, v.node_value, ^value)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :in, values}) when is_list(values) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              v.node_value in ^values
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :not_in, values}) when is_list(values) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              v.node_value not in ^values
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :contains, pattern}) when is_binary(pattern) do
+    node_name_str = Atom.to_string(node_name)
+    escaped_pattern = escape_like_pattern(pattern)
+    like_pattern = "%#{escaped_pattern}%"
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') LIKE ?", v.node_value, v.node_value, ^like_pattern)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :icontains, pattern}) when is_binary(pattern) do
+    node_name_str = Atom.to_string(node_name)
+    escaped_pattern = escape_like_pattern(pattern)
+    like_pattern = "%#{escaped_pattern}%"
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment("jsonb_typeof(?) = 'string' AND (? #>> '{}') ILIKE ?", v.node_value, v.node_value, ^like_pattern)
+      )
+    )
+  end
+
+  defp build_exists_condition({node_name, :list_contains, element})
+       when is_binary(element) or is_integer(element) do
+    node_name_str = Atom.to_string(node_name)
+
+    dynamic(
+      [e],
+      exists(
+        from v in Journey.Persistence.Schema.Execution.Value,
+          where:
+            v.execution_id == parent_as(:e).id and
+              v.node_name == ^node_name_str and
+              fragment("jsonb_typeof(?) = 'array' AND ? @> ?", v.node_value, v.node_value, ^element)
+      )
+    )
   end
 
   # Validate filters are compatible with database-level filtering
