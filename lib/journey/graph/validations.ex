@@ -114,8 +114,9 @@ defmodule Journey.Graph.Validations do
       raise "Mutation node '#{inspect(step.name)}' attempts to mutate itself"
     end
 
-    if not is_nil(step.mutates) and step.update_revision and MapSet.member?(all_upstream_node_names, step.mutates) do
-      raise "Mutation node '#{inspect(step.name)}' with update_revision: true creates a cycle by mutating '#{inspect(step.mutates)}' which is in its upstream dependencies"
+    if not is_nil(step.mutates) and step.update_revision_on_change and
+         MapSet.member?(all_upstream_node_names, step.mutates) do
+      raise "Mutation node '#{inspect(step.name)}' with update_revision_on_change: true creates a cycle by mutating '#{inspect(step.mutates)}' which is in its upstream dependencies"
     end
 
     step

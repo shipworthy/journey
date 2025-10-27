@@ -4,8 +4,8 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
   require Logger
   import Journey.Node
 
-  describe "mutate with update_revision |" do
-    test "mutate with update_revision: true triggers downstream recomputation" do
+  describe "mutate with update_revision_on_change |" do
+    test "mutate with update_revision_on_change: true triggers downstream recomputation" do
       graph =
         Journey.new_graph(
           "mutate update_revision true test",
@@ -21,7 +21,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, (temp || 20) + 10}
               end,
               mutates: :temperature,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :temperature_alert,
@@ -55,11 +55,11 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       # Wait for mutation to complete
       {:ok, "updated :temperature", _} = Journey.get(execution, :update_temperature, wait: :newer)
 
-      # Temperature alert should RECOMPUTE because update_revision: true
+      # Temperature alert should RECOMPUTE because update_revision_on_change: true
       {:ok, "High temperature: 40°C", _} = Journey.get(execution, :temperature_alert, wait: :newer)
     end
 
-    test "mutate with update_revision: false (default) does NOT trigger downstream recomputation" do
+    test "mutate with update_revision_on_change: false (default) does NOT trigger downstream recomputation" do
       graph =
         Journey.new_graph(
           "mutate update_revision false test",
@@ -148,7 +148,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, new_location}
               end,
               mutates: :driver_location,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :arrival_eta,
@@ -209,7 +209,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, p * 0.9}
               end,
               mutates: :price,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :price_with_tax,
@@ -260,7 +260,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       assert price_display2 == "$81.0"
     end
 
-    test "mutate with update_revision: true and unchanged value does NOT trigger downstream recomputation" do
+    test "mutate with update_revision_on_change: true and unchanged value does NOT trigger downstream recomputation" do
       graph =
         Journey.new_graph(
           "mutate unchanged value test",
@@ -276,7 +276,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, current_status}
               end,
               mutates: :status,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :status_display,
@@ -327,7 +327,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       assert final_display_rev == initial_display_rev
     end
 
-    test "mutate with update_revision: true and changed value DOES trigger downstream recomputation" do
+    test "mutate with update_revision_on_change: true and changed value DOES trigger downstream recomputation" do
       graph =
         Journey.new_graph(
           "mutate changed value test",
@@ -343,7 +343,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, c + 1}
               end,
               mutates: :counter,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :counter_display,

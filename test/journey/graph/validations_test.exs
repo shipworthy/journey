@@ -3,10 +3,10 @@ defmodule Journey.Graph.ValidationsTest do
 
   import Journey.Node
 
-  describe "mutate with update_revision cycle detection |" do
-    test "mutate with update_revision: true mutating an upstream node raises error" do
+  describe "mutate with update_revision_on_change cycle detection |" do
+    test "mutate with update_revision_on_change: true mutating an upstream node raises error" do
       assert_raise RuntimeError,
-                   ~r/Mutation node ':normalize_value' with update_revision: true creates a cycle by mutating ':value' which is in its upstream dependencies/,
+                   ~r/Mutation node ':normalize_value' with update_revision_on_change: true creates a cycle by mutating ':value' which is in its upstream dependencies/,
                    fn ->
                      Journey.new_graph(
                        "invalid cycle graph",
@@ -18,15 +18,15 @@ defmodule Journey.Graph.ValidationsTest do
                            [:value],
                            fn %{value: v} -> {:ok, String.downcase(v)} end,
                            mutates: :value,
-                           update_revision: true
+                           update_revision_on_change: true
                          )
                        ]
                      )
                    end
     end
 
-    test "mutate with update_revision: false mutating an upstream node is allowed" do
-      # This should not raise - mutations without update_revision can mutate upstream nodes
+    test "mutate with update_revision_on_change: false mutating an upstream node is allowed" do
+      # This should not raise - mutations without update_revision_on_change can mutate upstream nodes
       graph =
         Journey.new_graph(
           "valid mutation of upstream",
@@ -38,7 +38,7 @@ defmodule Journey.Graph.ValidationsTest do
               [:value],
               fn %{value: _v} -> {:ok, "changed"} end,
               mutates: :value,
-              update_revision: false
+              update_revision_on_change: false
             )
           ]
         )
@@ -46,7 +46,7 @@ defmodule Journey.Graph.ValidationsTest do
       assert graph != nil
     end
 
-    test "mutate with update_revision: true mutating a non-upstream node is allowed" do
+    test "mutate with update_revision_on_change: true mutating a non-upstream node is allowed" do
       # This should not raise - the mutated node is not in upstream dependencies
       graph =
         Journey.new_graph(
@@ -60,7 +60,7 @@ defmodule Journey.Graph.ValidationsTest do
               [:trigger],
               fn _ -> {:ok, "updated"} end,
               mutates: :target,
-              update_revision: true
+              update_revision_on_change: true
             )
           ]
         )
@@ -68,7 +68,7 @@ defmodule Journey.Graph.ValidationsTest do
       assert graph != nil
     end
 
-    test "mutate with update_revision: true in a chain (schedule + mutate + compute) is valid" do
+    test "mutate with update_revision_on_change: true in a chain (schedule + mutate + compute) is valid" do
       # The rideshare pattern should be valid
       graph =
         Journey.new_graph(
@@ -86,7 +86,7 @@ defmodule Journey.Graph.ValidationsTest do
               [:location_schedule],
               fn %{driver_location: loc} -> {:ok, (loc || 0) + 1} end,
               mutates: :driver_location,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :eta,
@@ -101,7 +101,7 @@ defmodule Journey.Graph.ValidationsTest do
 
     test "complex upstream dependency chain with cycle detection" do
       assert_raise RuntimeError,
-                   ~r/Mutation node ':mutate_b' with update_revision: true creates a cycle by mutating ':value_b' which is in its upstream dependencies/,
+                   ~r/Mutation node ':mutate_b' with update_revision_on_change: true creates a cycle by mutating ':value_b' which is in its upstream dependencies/,
                    fn ->
                      Journey.new_graph(
                        "complex cycle",
@@ -118,7 +118,7 @@ defmodule Journey.Graph.ValidationsTest do
                            [:value_b],
                            fn %{value_b: b} -> {:ok, b + 1} end,
                            mutates: :value_b,
-                           update_revision: true
+                           update_revision_on_change: true
                          )
                        ]
                      )

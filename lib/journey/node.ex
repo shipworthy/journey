@@ -219,7 +219,7 @@ defmodule Journey.Node do
 
   ## Options
 
-  - `:update_revision` (default: `false`) - When `true`, updating the mutated node's value also increments its revision,
+  - `:update_revision_on_change` (default: `false`) - When `true`, updating the mutated node's value also increments its revision,
     triggering downstream nodes to recompute. When `false`, mutations update the value without triggering recomputation.
     Setting this to `true` for a node that mutates an upstream dependency will raise a validation error to prevent cycles.
 
@@ -238,7 +238,7 @@ defmodule Journey.Node do
   ...>         mutate(:update_from_api, [:poll_schedule],
   ...>           fn %{cached_data: current} -> {:ok, (current || 0) + 1} end,
   ...>           mutates: :cached_data,
-  ...>           update_revision: true
+  ...>           update_revision_on_change: true
   ...>         ),
   ...>         compute(:processed_data, [:cached_data],
   ...>           fn %{cached_data: data} -> {:ok, data * 2} end
@@ -266,7 +266,7 @@ defmodule Journey.Node do
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       mutates: Keyword.fetch!(opts, :mutates),
-      update_revision: Keyword.get(opts, :update_revision, false),
+      update_revision_on_change: Keyword.get(opts, :update_revision_on_change, false),
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
     }
