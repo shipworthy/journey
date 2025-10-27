@@ -1,7 +1,17 @@
 defmodule Journey.Graph.Step do
   @moduledoc false
 
-  defstruct [:name, :gated_by, :f_compute, :f_on_save, :type, :mutates, :max_retries, :abandon_after_seconds]
+  defstruct [
+    :name,
+    :gated_by,
+    :f_compute,
+    :f_on_save,
+    :type,
+    :mutates,
+    :update_revision,
+    :max_retries,
+    :abandon_after_seconds
+  ]
 
   @type t :: %__MODULE__{
           name: atom,
@@ -10,6 +20,7 @@ defmodule Journey.Graph.Step do
           f_on_save: function | nil,
           type: Journey.Persistence.Schema.Execution.ComputationType.t(),
           mutates: atom | nil,
+          update_revision: boolean,
           max_retries: pos_integer(),
           abandon_after_seconds: pos_integer()
         }

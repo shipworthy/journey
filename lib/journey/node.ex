@@ -217,8 +217,43 @@ defmodule Journey.Node do
   %{name: "redacted", remove_pii: "updated :name",  execution_id: "...", last_updated_at: 1_234_567_890}
   ```
 
+  ## Options
+
+  - `:update_revision` (default: `false`) - When `true`, updating the mutated node's value also increments its revision,
+    triggering downstream nodes to recompute. When `false`, mutations update the value without triggering recomputation.
+    Setting this to `true` for a node that mutates an upstream dependency will raise a validation error to prevent cycles.
+
+  ## External Polling Pattern
+
+  A common use case is polling external data sources and triggering downstream recomputations:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "external polling example",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         schedule_recurring(:poll_schedule, [], fn _ -> {:ok, System.system_time(:second) + 2} end),
+  ...>         input(:cached_data),
+  ...>         mutate(:update_from_api, [:poll_schedule],
+  ...>           fn %{cached_data: current} -> {:ok, (current || 0) + 1} end,
+  ...>           mutates: :cached_data,
+  ...>           update_revision: true
+  ...>         ),
+  ...>         compute(:processed_data, [:cached_data],
+  ...>           fn %{cached_data: data} -> {:ok, data * 2} end
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution = graph |> Journey.start_execution() |> Journey.set(:cached_data, 5)
+  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
+  iex> {:ok, "updated :cached_data", _} = Journey.get(execution, :update_from_api, wait: :any)
+  iex> {:ok, 12, _} = Journey.get(execution, :processed_data, wait: :any)
+  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
+  ```
+
   ## Return Values
-  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms
   in the returned `value` and `reason` will be converted to strings when persisted.
 
   """
@@ -231,6 +266,7 @@ defmodule Journey.Node do
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       mutates: Keyword.fetch!(opts, :mutates),
+      update_revision: Keyword.get(opts, :update_revision, false),
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
     }
