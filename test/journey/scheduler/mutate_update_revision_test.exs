@@ -4,8 +4,8 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
   require Logger
   import Journey.Node
 
-  describe "mutate with update_revision |" do
-    test "mutate with update_revision: true triggers downstream recomputation" do
+  describe "mutate with update_revision_on_change |" do
+    test "mutate with update_revision_on_change: true triggers downstream recomputation" do
       graph =
         Journey.new_graph(
           "mutate update_revision true test",
@@ -21,7 +21,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, (temp || 20) + 10}
               end,
               mutates: :temperature,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :temperature_alert,
@@ -55,11 +55,11 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       # Wait for mutation to complete
       {:ok, "updated :temperature", _} = Journey.get(execution, :update_temperature, wait: :newer)
 
-      # Temperature alert should RECOMPUTE because update_revision: true
+      # Temperature alert should RECOMPUTE because update_revision_on_change: true
       {:ok, "High temperature: 40°C", _} = Journey.get(execution, :temperature_alert, wait: :newer)
     end
 
-    test "mutate with update_revision: false (default) does NOT trigger downstream recomputation" do
+    test "mutate with update_revision_on_change: false (default) does NOT trigger downstream recomputation" do
       graph =
         Journey.new_graph(
           "mutate update_revision false test",
@@ -148,7 +148,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, new_location}
               end,
               mutates: :driver_location,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :arrival_eta,
@@ -177,7 +177,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
         Journey.get(execution, :update_location_from_gps, wait: :any)
 
       # ETA should recompute after mutation (location becomes 10)
-      {:ok, eta1, _} = Journey.get(execution, :arrival_eta, wait: :newer)
+      {:ok, eta1, eta1_rev} = Journey.get(execution, :arrival_eta, wait: :newer)
       # After mutation: location = 10, ETA = (100-10)/10 = 9 minutes
       assert eta1 == "ETA: 9 minutes"
 
@@ -188,8 +188,10 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       assert rev2 > rev1
 
       # ETA should recompute with new location (20), ETA = (100-20)/10 = 8 minutes
-      {:ok, eta2, _} = Journey.get(execution, :arrival_eta, wait: :newer)
+      # Wait for ETA newer than eta1_rev to ensure we get the NEXT computation, not a later one
+      {:ok, eta2, eta2_rev} = Journey.get(execution, :arrival_eta, wait: {:newer_than, eta1_rev})
       assert eta2 == "ETA: 8 minutes"
+      assert eta2_rev > eta1_rev
 
       Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
     end
@@ -209,7 +211,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
                 {:ok, p * 0.9}
               end,
               mutates: :price,
-              update_revision: true
+              update_revision_on_change: true
             ),
             compute(
               :price_with_tax,
@@ -258,6 +260,134 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       # Verify they computed with the newly discounted price (90 * 0.9 = 81)
       assert_in_delta price_with_tax2, 89.1, 0.01
       assert price_display2 == "$81.0"
+    end
+
+    test "mutate with update_revision_on_change: true and unchanged value does NOT trigger downstream recomputation" do
+      graph =
+        Journey.new_graph(
+          "mutate unchanged value test",
+          "v1.0.0",
+          [
+            input(:trigger),
+            input(:status),
+            mutate(
+              :refresh_status,
+              [:trigger],
+              fn %{status: current_status} ->
+                # Simulate polling that returns the same value
+                {:ok, current_status}
+              end,
+              mutates: :status,
+              update_revision_on_change: true
+            ),
+            compute(
+              :status_display,
+              [:status],
+              fn %{status: s} ->
+                {:ok, "Status: #{s}"}
+              end
+            )
+          ]
+        )
+
+      execution = graph |> Journey.start_execution()
+
+      # Set initial status
+      execution = Journey.set(execution, :status, "active")
+      {:ok, initial_revision} = Journey.get(execution, :status) |> elem(2) |> then(&{:ok, &1})
+
+      # Trigger mutation
+      execution = Journey.set(execution, :trigger, 1)
+
+      # Wait for mutation to complete
+      {:ok, "updated :status", _} = Journey.get(execution, :refresh_status, wait: :any)
+
+      # Status display should compute initially
+      {:ok, "Status: active", initial_display_rev} = Journey.get(execution, :status_display, wait: :any)
+
+      # Get the status revision after mutation
+      {:ok, "active", status_rev_after_mutation} = Journey.get(execution, :status)
+
+      # Revision should be UNCHANGED because value didn't change (matching Journey.set/3 behavior)
+      assert status_rev_after_mutation == initial_revision
+
+      # Trigger another mutation with same value
+      execution = Journey.set(execution, :trigger, 2)
+
+      # Wait for mutation to complete
+      {:ok, "updated :status", _} = Journey.get(execution, :refresh_status, wait: :newer)
+
+      # Status display should NOT recompute because status revision didn't change
+      {:error, :not_set} =
+        Journey.get(execution, :status_display,
+          wait: {:newer_than, initial_display_rev},
+          timeout: 2000
+        )
+
+      # Verify status display is still the initial computation
+      {:ok, "Status: active", final_display_rev} = Journey.get(execution, :status_display)
+      assert final_display_rev == initial_display_rev
+    end
+
+    test "mutate with update_revision_on_change: true and changed value DOES trigger downstream recomputation" do
+      graph =
+        Journey.new_graph(
+          "mutate changed value test",
+          "v1.0.0",
+          [
+            input(:trigger),
+            input(:counter),
+            mutate(
+              :increment,
+              [:trigger],
+              fn %{counter: c} ->
+                # Value changes each time
+                {:ok, c + 1}
+              end,
+              mutates: :counter,
+              update_revision_on_change: true
+            ),
+            compute(
+              :counter_display,
+              [:counter],
+              fn %{counter: c} ->
+                {:ok, "Count: #{c}"}
+              end
+            )
+          ]
+        )
+
+      execution = graph |> Journey.start_execution()
+
+      # Set initial counter
+      execution = Journey.set(execution, :counter, 0)
+      {:ok, initial_revision} = Journey.get(execution, :counter) |> elem(2) |> then(&{:ok, &1})
+
+      # Trigger mutation
+      execution = Journey.set(execution, :trigger, 1)
+
+      # Wait for mutation to complete
+      {:ok, "updated :counter", _} = Journey.get(execution, :increment, wait: :any)
+
+      # Counter should have new value AND new revision
+      {:ok, 1, rev_after_first_mutation} = Journey.get(execution, :counter)
+      assert rev_after_first_mutation > initial_revision
+
+      # Counter display should recompute
+      {:ok, "Count: 1", _} = Journey.get(execution, :counter_display, wait: :any)
+
+      # Trigger another mutation with different value
+      execution = Journey.set(execution, :trigger, 2)
+
+      # Wait for mutation to complete
+      {:ok, "updated :counter", _} = Journey.get(execution, :increment, wait: :newer)
+
+      # Counter should have new value AND new revision
+      {:ok, 2, rev_after_second_mutation} = Journey.get(execution, :counter)
+      assert rev_after_second_mutation > rev_after_first_mutation
+
+      # Counter display should recompute with new value
+      {:ok, "Count: 2", _} = Journey.get(execution, :counter_display, wait: :newer)
     end
   end
 end

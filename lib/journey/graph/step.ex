@@ -8,7 +8,7 @@ defmodule Journey.Graph.Step do
     :f_on_save,
     :type,
     :mutates,
-    :update_revision,
+    :update_revision_on_change,
     :max_retries,
     :abandon_after_seconds
   ]
@@ -20,7 +20,7 @@ defmodule Journey.Graph.Step do
           f_on_save: function | nil,
           type: Journey.Persistence.Schema.Execution.ComputationType.t(),
           mutates: atom | nil,
-          update_revision: boolean,
+          update_revision_on_change: boolean,
           max_retries: pos_integer(),
           abandon_after_seconds: pos_integer()
         }

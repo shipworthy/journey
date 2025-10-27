@@ -160,7 +160,7 @@ defmodule Journey.Scheduler.Completions do
           record_result(
             repo,
             graph_node.mutates,
-            graph_node.update_revision,
+            graph_node.update_revision_on_change,
             computation.node_name,
             computation.execution_id,
             new_revision,
@@ -211,7 +211,7 @@ defmodule Journey.Scheduler.Completions do
     end
   end
 
-  defp record_result(repo, node_to_mutate, _update_revision, node_name, execution_id, new_revision, result)
+  defp record_result(repo, node_to_mutate, _update_revision_on_change, node_name, execution_id, new_revision, result)
        when is_nil(node_to_mutate) do
     # Record the result in the corresponding value node.
     set_value(
@@ -223,7 +223,7 @@ defmodule Journey.Scheduler.Completions do
     )
   end
 
-  defp record_result(repo, node_to_mutate, update_revision, node_name, execution_id, new_revision, result) do
+  defp record_result(repo, node_to_mutate, update_revision_on_change, node_name, execution_id, new_revision, result) do
     # Update this node to note that the mutation has been computed.
     set_value(
       execution_id,
@@ -234,17 +234,36 @@ defmodule Journey.Scheduler.Completions do
     )
 
     # Record the result in the value node being mutated.
-    # If update_revision is true, update the revision to trigger downstream recomputation.
-    # Otherwise, don't update the revision (mutations don't trigger recomputation by default).
-    mutated_node_revision = if update_revision, do: new_revision, else: nil
+    # When update_revision_on_change is true, only update if the value has changed (matching Journey.set/3 behavior).
+    # When update_revision_on_change is false, always update the value without updating revision.
+    if update_revision_on_change do
+      current_value = get_current_node_value(repo, execution_id, node_to_mutate)
 
-    set_value(
-      execution_id,
-      node_to_mutate,
-      mutated_node_revision,
-      repo,
-      result
-    )
+      if current_value != result do
+        # Value changed - update both value and revision to trigger downstream recomputation
+        set_value(
+          execution_id,
+          node_to_mutate,
+          new_revision,
+          repo,
+          result
+        )
+      else
+        # If value unchanged, skip update entirely (matching Journey.set/3 behavior)
+        Logger.debug(
+          "[#{execution_id}] [#{node_name}]: mutation target #{inspect(node_to_mutate)} value unchanged, skipping update"
+        )
+      end
+    else
+      # update_revision_on_change: false - update value without revision (mutations don't trigger recomputation by default)
+      set_value(
+        execution_id,
+        node_to_mutate,
+        nil,
+        repo,
+        result
+      )
+    end
   end
 
   defp set_value(execution_id, node_name, new_revision, repo, value) do
@@ -289,5 +308,18 @@ defmodule Journey.Scheduler.Completions do
         )
       end
     end)
+  end
+
+  defp get_current_node_value(repo, execution_id, node_name) do
+    value_node =
+      from(v in Value,
+        where: v.execution_id == ^execution_id and v.node_name == ^Atom.to_string(node_name)
+      )
+      |> repo.one()
+
+    case value_node do
+      nil -> nil
+      node -> Map.get(node, :node_value)
+    end
   end
 end
