@@ -177,7 +177,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
         Journey.get(execution, :update_location_from_gps, wait: :any)
 
       # ETA should recompute after mutation (location becomes 10)
-      {:ok, eta1, _} = Journey.get(execution, :arrival_eta, wait: :newer)
+      {:ok, eta1, eta1_rev} = Journey.get(execution, :arrival_eta, wait: :newer)
       # After mutation: location = 10, ETA = (100-10)/10 = 9 minutes
       assert eta1 == "ETA: 9 minutes"
 
@@ -188,8 +188,10 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       assert rev2 > rev1
 
       # ETA should recompute with new location (20), ETA = (100-20)/10 = 8 minutes
-      {:ok, eta2, _} = Journey.get(execution, :arrival_eta, wait: :newer)
+      # Wait for ETA newer than eta1_rev to ensure we get the NEXT computation, not a later one
+      {:ok, eta2, eta2_rev} = Journey.get(execution, :arrival_eta, wait: {:newer_than, eta1_rev})
       assert eta2 == "ETA: 8 minutes"
+      assert eta2_rev > eta1_rev
 
       Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
     end

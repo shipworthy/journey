@@ -248,9 +248,12 @@ defmodule Journey.Scheduler.Completions do
           repo,
           result
         )
+      else
+        # If value unchanged, skip update entirely (matching Journey.set/3 behavior)
+        Logger.debug(
+          "[#{execution_id}] [#{node_name}]: mutation target #{inspect(node_to_mutate)} value unchanged, skipping update"
+        )
       end
-
-      # If value unchanged, skip update entirely (matching Journey.set/3 behavior)
     else
       # update_revision_on_change: false - update value without revision (mutations don't trigger recomputation by default)
       set_value(
