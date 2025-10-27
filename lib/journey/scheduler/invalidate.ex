@@ -97,7 +97,7 @@ defmodule Journey.Scheduler.Invalidate do
   end
 
   defp should_clear?(all_values, graph_node) do
-    not UpstreamDependencies.Computations.unblocked?(all_values, graph_node.gated_by)
+    not UpstreamDependencies.Computations.unblocked?(all_values, graph_node.gated_by, :invalidation)
   end
 
   defp clear_discardable_computation(execution_id, node_name, graph_node, repo, prefix) do
