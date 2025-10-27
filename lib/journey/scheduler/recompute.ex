@@ -9,7 +9,7 @@ defmodule Journey.Scheduler.Recompute do
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
-  import Journey.Node.UpstreamDependencies.Computations, only: [unblocked?: 2]
+  import Journey.Node.UpstreamDependencies.Computations, only: [unblocked?: 3]
 
   # Namespace for PostgreSQL advisory locks used to prevent duplicate re-computations
   @advance_lock_namespace 54_321
@@ -49,7 +49,9 @@ defmodule Journey.Scheduler.Recompute do
           all_computations
           # credo:disable-for-lines:15 Credo.Check.Refactor.FilterFilter
           |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_values) end)
-          |> Enum.filter(fn c -> unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by) end)
+          |> Enum.filter(fn c ->
+            unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by, :computation)
+          end)
           |> Enum.reject(fn c -> has_pending_computation?(execution.id, c.node_name, repo) end)
           |> Enum.map(fn computation_to_re_create ->
             new_computation =
