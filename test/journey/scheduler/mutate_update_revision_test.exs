@@ -66,46 +66,62 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
           "v1.0.0",
           [
             input(:trigger),
-            input(:value),
+            input(:counter),
             mutate(
-              :change_value,
+              :increment_counter,
               [:trigger],
-              fn _ ->
-                {:ok, "mutated"}
+              fn %{counter: c} ->
+                {:ok, c + 1}
               end,
-              mutates: :value,
-              update_revision: false
+              mutates: :counter
             ),
             compute(
-              :downstream,
-              [:value],
-              fn %{value: v} ->
-                {:ok, "computed with: #{v}"}
+              :new_counter_notification,
+              [:counter],
+              fn %{counter: c} ->
+                {:ok, "new counter: #{c}"}
               end
             )
           ]
         )
 
-      execution = graph |> Journey.start_execution()
+      # Set an initial value for the counter.
+      execution =
+        graph
+        |> Journey.start_execution()
+        |> Journey.set(:counter, 1)
 
-      # Set trigger first to cause mutation
-      execution = Journey.set(execution, :trigger, 1)
-      execution = Journey.set(execution, :value, "original")
+      # Take a note of the counter's revision.
+      {:ok, 1, rev_counter_initial} = Journey.get(execution, :counter)
 
-      # Wait for mutation to complete - it will mutate value to "mutated"
-      {:ok, "updated :value", _} = Journey.get(execution, :change_value, wait: :any)
+      # Make sure the counter value triggers a downstream computation.
+      {:ok, ncn, rev_new_counter_notification_initial} = Journey.get(execution, :new_counter_notification, wait: :any)
+      assert ncn == "new counter: 1"
 
-      # Downstream computes with the mutated value
-      {:ok, "computed with: mutated", rev1} = Journey.get(execution, :downstream, wait: :any)
+      # Trigger an increment mutation for the counter.
+      execution = execution |> Journey.set(:trigger, "mutation trigger 1")
 
-      # Trigger another mutation
-      execution = Journey.set(execution, :trigger, 2)
+      # Make sure mutation takes place, and updates the value of the counter.
+      {:ok, mutation_value, _mutation_revision} = Journey.get(execution, :increment_counter, wait: :any)
+      assert mutation_value == "updated :counter"
 
-      # Wait for mutation to complete
-      {:ok, "updated :value", _} = Journey.get(execution, :change_value, wait: :newer)
+      # Make sure the increment happened (we already waited for the mutation to complete, so no need to wait any more).
+      {:ok, new_counter_value, rev_new_counter} = Journey.get(execution, :counter, wait: :any)
+      assert new_counter_value == 2
 
-      # Downstream should NOT recompute - revision should be the same
-      {:ok, "computed with: mutated", ^rev1} = Journey.get(execution, :downstream)
+      # By default, mutations don't increment the revision of the mutated node.
+      assert rev_counter_initial == rev_new_counter
+
+      # The mutated value of counter will not trigger a downstream computation -- no new values, no new revisions.
+      {:error, :not_set} =
+        Journey.get(execution, :new_counter_notification,
+          wait: {:newer_than, rev_new_counter_notification_initial},
+          timeout: 2000
+        )
+
+      {:ok, ncn2, rev_ncn2} = Journey.get(execution, :new_counter_notification, wait: :any)
+      assert ncn2 == "new counter: 1"
+      assert rev_ncn2 == rev_new_counter_notification_initial
     end
 
     test "external polling pattern: schedule_recurring + mutate + compute downstream" do
