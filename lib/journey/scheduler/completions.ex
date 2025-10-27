@@ -149,6 +149,7 @@ defmodule Journey.Scheduler.Completions do
           record_result(
             repo,
             graph_node.mutates,
+            false,
             computation.node_name,
             computation.execution_id,
             new_revision,
@@ -159,6 +160,7 @@ defmodule Journey.Scheduler.Completions do
           record_result(
             repo,
             graph_node.mutates,
+            graph_node.update_revision,
             computation.node_name,
             computation.execution_id,
             new_revision,
@@ -169,6 +171,7 @@ defmodule Journey.Scheduler.Completions do
           record_result(
             repo,
             graph_node.mutates,
+            false,
             computation.node_name,
             computation.execution_id,
             new_revision,
@@ -179,6 +182,7 @@ defmodule Journey.Scheduler.Completions do
           record_result(
             repo,
             graph_node.mutates,
+            false,
             computation.node_name,
             computation.execution_id,
             new_revision,
@@ -207,7 +211,7 @@ defmodule Journey.Scheduler.Completions do
     end
   end
 
-  defp record_result(repo, node_to_mutate, node_name, execution_id, new_revision, result)
+  defp record_result(repo, node_to_mutate, _update_revision, node_name, execution_id, new_revision, result)
        when is_nil(node_to_mutate) do
     # Record the result in the corresponding value node.
     set_value(
@@ -219,7 +223,7 @@ defmodule Journey.Scheduler.Completions do
     )
   end
 
-  defp record_result(repo, node_to_mutate, node_name, execution_id, new_revision, result) do
+  defp record_result(repo, node_to_mutate, update_revision, node_name, execution_id, new_revision, result) do
     # Update this node to note that the mutation has been computed.
     set_value(
       execution_id,
@@ -230,12 +234,14 @@ defmodule Journey.Scheduler.Completions do
     )
 
     # Record the result in the value node being mutated.
-    # Note that mutations are not regular updates, and do not trigger a recomputation,
-    # so we don't update the value's revision.
+    # If update_revision is true, update the revision to trigger downstream recomputation.
+    # Otherwise, don't update the revision (mutations don't trigger recomputation by default).
+    mutated_node_revision = if update_revision, do: new_revision, else: nil
+
     set_value(
       execution_id,
       node_to_mutate,
-      nil,
+      mutated_node_revision,
       repo,
       result
     )
