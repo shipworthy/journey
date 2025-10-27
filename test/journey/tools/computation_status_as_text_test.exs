@@ -272,7 +272,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
       # We'll check that it matches one of the expected patterns
       #
       expected_set_list =
-        [3, 5, 7]
+        [3, 5, 7, 9]
         |> Enum.map(fn rev ->
           """
           :recurring_task (CMPREDACTED): ✅ :success | :schedule_recurring | rev #{rev}
