@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.36
+
+- `mutate()` nodes: now accept `update_revision_on_change: true` option, to have the mutated node trigger downstream computations (idempotent behavior matching `Journey.set/3`). (#207)
+- `compute()` nodes do not trigger downstream computations if the newly computed value is unchanged (idempotent behavior, matching `Journey.set/3`). (#208)
+- `schedule_recurring()` nodes: recompute when upstream dependencies change, adding new semantics for pausing recurring scheduling (node's `f_compute` returning `{:ok, 0}`). (#203, #204)
+- relaxing `ex_doc` version constraint to include 0.39. (#205)
+
 ## v0.10.33 - v0.10.35
 
 - Metadata support: `Journey.set/3` now accepts `metadata: %{...}` option for tracking additional context.
