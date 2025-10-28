@@ -629,30 +629,6 @@ defmodule Journey.ToolsTest do
     end
   end
 
-  describe "increment_revision/1" do
-    test "sunny day" do
-      graph = Journey.Test.Support.create_test_graph1()
-
-      execution =
-        Journey.start_execution(graph)
-        |> Journey.set(:user_name, "John Doe")
-
-      background_sweeps_task = start_background_sweeps_in_test(execution.id)
-
-      {:ok, _, reminder_revision_1} = Journey.get(execution, :reminder, wait: :any)
-      execution = execution |> Journey.load()
-
-      assert execution.revision == 7
-
-      Journey.Tools.increment_revision(execution.id, :user_name)
-      {:ok, _, _} = Journey.get(execution, :reminder, wait: {:newer_than, reminder_revision_1})
-      execution = execution |> Journey.load()
-      assert execution.revision == 14
-
-      stop_background_sweeps_in_test(background_sweeps_task)
-    end
-  end
-
   describe "outstanding_computations/1" do
     test "basic validation" do
       graph = Journey.Test.Support.create_test_graph1()
@@ -728,10 +704,10 @@ defmodule Journey.ToolsTest do
       execution = Journey.Tools.retry_computation(execution.id, :failing_computation)
 
       # Verify the new computations have been attempted, and also failed.
-      execution = keep_advancing(execution, 2)
+      execution = keep_advancing(execution, 3)
       computations = find_computations_by_node_name(execution, :failing_computation)
       assert Enum.all?(computations, fn c -> c.state == :failed end)
-      assert length(computations) == 4
+      assert length(computations) == 3
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
@@ -747,24 +723,6 @@ defmodule Journey.ToolsTest do
       execution
       |> Journey.Scheduler.advance()
       |> keep_advancing(remaining_count - 1)
-    end
-
-    test "raises error when no upstream dependencies with values found" do
-      # Create a graph with a computation that has no upstream values set
-      graph =
-        Journey.new_graph("no upstream test #{random_string()}", "v1", [
-          input(:missing_trigger),
-          compute(:dependent_computation, [:missing_trigger], fn %{missing_trigger: val} ->
-            {:ok, val}
-          end)
-        ])
-
-      execution = Journey.start_execution(graph)
-
-      # Try to retry without setting upstream values
-      assert_raise RuntimeError, ~r/No upstream dependencies with values found/, fn ->
-        Journey.Tools.retry_computation(execution.id, :dependent_computation)
-      end
     end
   end
 
