@@ -153,7 +153,8 @@ defmodule Journey.Scheduler.Completions do
             computation.node_name,
             computation.execution_id,
             new_revision,
-            result
+            result,
+            :compute
           )
 
         :mutate ->
@@ -164,7 +165,8 @@ defmodule Journey.Scheduler.Completions do
             computation.node_name,
             computation.execution_id,
             new_revision,
-            result
+            result,
+            :mutate
           )
 
         :schedule_once ->
@@ -175,7 +177,8 @@ defmodule Journey.Scheduler.Completions do
             computation.node_name,
             computation.execution_id,
             new_revision,
-            result
+            result,
+            :schedule_once
           )
 
         :schedule_recurring ->
@@ -186,7 +189,8 @@ defmodule Journey.Scheduler.Completions do
             computation.node_name,
             computation.execution_id,
             new_revision,
-            result
+            result,
+            :schedule_recurring
           )
       end
 
@@ -211,8 +215,21 @@ defmodule Journey.Scheduler.Completions do
     end
   end
 
-  defp record_result(repo, node_to_mutate, _update_revision_on_change, node_name, execution_id, new_revision, result)
-       when is_nil(node_to_mutate) do
+  # Compute nodes: only update if value changed (idempotent, like Journey.set/3)
+  defp record_result(repo, nil, _update_revision_on_change, node_name, execution_id, new_revision, result, :compute) do
+    current_value = get_current_node_value(repo, execution_id, node_name)
+
+    if current_value != result do
+      # Value changed - update with new revision to trigger downstream recomputation
+      set_value(execution_id, node_name, new_revision, repo, result)
+    else
+      # Value unchanged - skip update entirely (matching Journey.set/3 behavior)
+      Logger.debug("[#{execution_id}] [#{node_name}]: compute node value unchanged, skipping update")
+    end
+  end
+
+  # Schedule nodes: always update (existing behavior)
+  defp record_result(repo, nil, _update_revision_on_change, node_name, execution_id, new_revision, result, _node_type) do
     # Record the result in the corresponding value node.
     set_value(
       execution_id,
@@ -223,7 +240,17 @@ defmodule Journey.Scheduler.Completions do
     )
   end
 
-  defp record_result(repo, node_to_mutate, update_revision_on_change, node_name, execution_id, new_revision, result) do
+  # Mutate nodes: update target node based on update_revision_on_change option
+  defp record_result(
+         repo,
+         node_to_mutate,
+         update_revision_on_change,
+         node_name,
+         execution_id,
+         new_revision,
+         result,
+         _node_type
+       ) do
     # Update this node to note that the mutation has been computed.
     set_value(
       execution_id,

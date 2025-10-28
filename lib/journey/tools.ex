@@ -402,31 +402,6 @@ defmodule Journey.Tools do
     end)
   end
 
-  @doc false
-  def increment_revision(execution_id, value_node_name) when is_binary(execution_id) and is_atom(value_node_name) do
-    value_node_name_str = Atom.to_string(value_node_name)
-
-    Journey.Repo.transaction(fn repo ->
-      [value_node] =
-        from(v in Value,
-          where: v.execution_id == ^execution_id and v.node_name == ^value_node_name_str,
-          lock: "FOR UPDATE"
-        )
-        |> repo.all()
-        |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
-
-      new_revision = Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(execution_id, repo)
-
-      value_node
-      |> Ecto.Changeset.change(%{
-        ex_revision: new_revision
-      })
-      |> repo.update!()
-    end)
-
-    Journey.load(execution_id)
-  end
-
   defp de_ecto(ecto_struct) do
     ecto_struct
     |> Map.drop([:__meta__, :__struct__, :execution_id, :execution])
@@ -858,7 +833,6 @@ defmodule Journey.Tools do
 
   ## How It Works
   1. Finds upstream dependencies that are currently satisfied
-  2. Increments the revision of the first available upstream node
   3. Creates a new :not_set computation for the scheduler to pick up
   4. Previous failed attempts become "stale" in the retry counting logic
   5. The scheduler can now execute the new computation attempt
@@ -868,25 +842,6 @@ defmodule Journey.Tools do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
     graph_node = Journey.Graph.find_node_by_name(graph, computation_node_name)
-
-    # Find satisfied upstream dependencies
-    readiness =
-      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-        execution.values,
-        graph_node.gated_by
-      )
-
-    # Get the first satisfied upstream node that has a value
-    upstream_node_to_increment =
-      readiness.conditions_met
-      |> Enum.find(fn condition -> condition.upstream_node.node_value != nil end)
-      |> case do
-        nil -> raise "No upstream dependencies with values found for node #{computation_node_name}"
-        condition -> condition.upstream_node.node_name
-      end
-
-    # Increment the revision of the selected upstream node
-    increment_revision(execution_id, upstream_node_to_increment)
 
     # Create a new computation for the scheduler to pick up
     Journey.Repo.transaction(fn repo ->
