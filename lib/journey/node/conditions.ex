@@ -6,7 +6,7 @@ defmodule Journey.Node.Conditions do
   @doc """
   This is a helper function provided for use in `unblocked_when` conditions.
   This function checks if the supplied node has a value.
-  For "scheduled" types of nodes (`tick_once`, `tick_recurring`, and their deprecated aliases `schedule_once`, `schedule_recurring`) it also checks that the scheduled time has come).
+  For "scheduled" types of nodes (`tick_once`, `tick_recurring`) it also checks that the scheduled time has come.
 
   ## Examples
 
