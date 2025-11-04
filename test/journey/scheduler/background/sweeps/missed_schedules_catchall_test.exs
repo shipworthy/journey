@@ -93,7 +93,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           "v1.0.0",
           [
             input(:trigger),
-            schedule_once(:past_schedule, [:trigger], fn _ -> {:ok, past_time} end),
+            tick_once(:past_schedule, [:trigger], fn _ -> {:ok, past_time} end),
             compute(:recovered_result, [:past_schedule], fn _ -> {:ok, "schedule recovered!"} end)
           ]
         )
@@ -134,7 +134,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           "v1.0.0",
           [
             input(:trigger),
-            schedule_once(:recent_schedule, [:trigger], fn _ -> {:ok, recent_time} end),
+            tick_once(:recent_schedule, [:trigger], fn _ -> {:ok, recent_time} end),
             compute(:should_not_run, [:recent_schedule], fn _ -> {:ok, "should not execute"} end)
           ]
         )
@@ -173,7 +173,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           "v1.0.0",
           [
             input(:trigger),
-            schedule_once(:old_schedule, [:trigger], fn _ -> {:ok, very_old_time} end),
+            tick_once(:old_schedule, [:trigger], fn _ -> {:ok, very_old_time} end),
             compute(:should_not_run, [:old_schedule], fn _ -> {:ok, "should not execute"} end)
           ]
         )
@@ -207,7 +207,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           "v1.0.0",
           [
             input(:trigger),
-            schedule_once(:valid_schedule, [:trigger], fn _ -> {:ok, valid_time} end),
+            tick_once(:valid_schedule, [:trigger], fn _ -> {:ok, valid_time} end),
             compute(:should_run, [:valid_schedule], fn _ -> {:ok, "executed in valid window"} end)
           ]
         )
@@ -245,8 +245,8 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           "v1.0.0",
           [
             input(:trigger),
-            schedule_once(:once_schedule, [:trigger], fn _ -> {:ok, past_time} end),
-            schedule_recurring(:recurring_schedule, [:trigger], fn _ -> {:ok, past_time} end),
+            tick_once(:once_schedule, [:trigger], fn _ -> {:ok, past_time} end),
+            tick_recurring(:recurring_schedule, [:trigger], fn _ -> {:ok, past_time} end),
             compute(:once_result, [:once_schedule], fn _ -> {:ok, "once recovered"} end),
             compute(:recurring_result, [:recurring_schedule], fn _ -> {:ok, "recurring recovered"} end)
           ]
@@ -361,7 +361,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
             "v1.0.0",
             [
               input(:trigger),
-              schedule_once(:old_schedule, [:trigger], fn _ -> {:ok, old_time} end),
+              tick_once(:old_schedule, [:trigger], fn _ -> {:ok, old_time} end),
               compute(:should_not_run, [:old_schedule], fn _ -> {:ok, "should not execute"} end)
             ]
           )
@@ -403,7 +403,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           "v1.0.0",
           [
             input(:trigger),
-            schedule_once(:past_schedule, [:trigger], fn _ -> {:ok, past_time} end),
+            tick_once(:past_schedule, [:trigger], fn _ -> {:ok, past_time} end),
             compute(:result, [:past_schedule], fn _ -> {:ok, "done"} end)
           ]
         )
@@ -456,7 +456,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
           "v1.0.0",
           [
             input(:trigger),
-            schedule_once(:good_schedule, [:trigger], fn _ -> {:ok, past_time} end),
+            tick_once(:good_schedule, [:trigger], fn _ -> {:ok, past_time} end),
             compute(:good_result, [:good_schedule], fn _ -> {:ok, "success"} end)
           ]
         )
@@ -507,7 +507,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
               "v1.0.0",
               [
                 input(:trigger),
-                schedule_once(:batch_schedule, [:trigger], fn _ -> {:ok, past_time} end),
+                tick_once(:batch_schedule, [:trigger], fn _ -> {:ok, past_time} end),
                 compute(:batch_result, [:batch_schedule], fn _ -> {:ok, "batch-#{i}"} end)
               ]
             )

@@ -103,7 +103,7 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
       "v1.0.0",
       [
         input(:due_date),
-        schedule_once(
+        tick_once(
           :reminder_schedule,
           [:due_date],
           fn %{due_date: due_date} ->

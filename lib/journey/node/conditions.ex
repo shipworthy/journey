@@ -6,7 +6,7 @@ defmodule Journey.Node.Conditions do
   @doc """
   This is a helper function provided for use in `unblocked_when` conditions.
   This function checks if the supplied node has a value.
-  For "scheduled" types of nodes (`schedule_once`, `schedule_recurring`) it also checks that the scheduled time has come).
+  For "scheduled" types of nodes (`tick_once`, `tick_recurring`) it also checks that the scheduled time has come.
 
   ## Examples
 
@@ -31,7 +31,8 @@ defmodule Journey.Node.Conditions do
   iex> {:ok, "Hello, Alice!"} = Journey.get_value(execution, :greeting, wait: :any)
   ```
   """
-  def provided?(%{node_type: node_type} = value_node) when node_type in [:schedule_once, :schedule_recurring] do
+  def provided?(%{node_type: node_type} = value_node)
+      when node_type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring] do
     now = System.system_time(:second)
     due_in_seconds = if value_node.node_value == nil, do: nil, else: value_node.node_value - now
     value_node.set_time != nil and due_in_seconds != nil and value_node.node_value > 0 and due_in_seconds <= 0

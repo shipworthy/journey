@@ -89,14 +89,14 @@ defmodule Journey.Tools.ComputationStateTest do
       assert Journey.Tools.computation_state_to_text(:not_compute_node) == "📝 :not_compute_node"
     end
 
-    test "handles schedule_once nodes" do
+    test "handles tick_once nodes" do
       graph =
         Journey.new_graph(
           "computation_state test graph schedule_once #{__MODULE__}",
           "1.0.0",
           [
             input(:value),
-            schedule_once(:scheduled_task, [:value], fn _ ->
+            tick_once(:scheduled_task, [:value], fn _ ->
               {:ok, System.system_time(:second) + 1}
             end)
           ]
@@ -113,14 +113,14 @@ defmodule Journey.Tools.ComputationStateTest do
       stop_background_sweeps_in_test(background_sweeps_task)
     end
 
-    test "handles schedule_recurring nodes" do
+    test "handles tick_recurring nodes" do
       graph =
         Journey.new_graph(
           "computation_state test graph schedule_recurring #{__MODULE__}",
           "1.0.0",
           [
             input(:value),
-            schedule_recurring(:recurring_task, [:value], fn _ ->
+            tick_recurring(:recurring_task, [:value], fn _ ->
               # Schedule to run 1 second in the future
               {:ok, System.system_time(:second) + 1}
             end)

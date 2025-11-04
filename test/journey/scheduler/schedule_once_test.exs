@@ -75,7 +75,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
             {:ok, "Hello, #{user_name}"}
           end
         ),
-        schedule_once(
+        tick_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
           fn _ -> {:ok, System.system_time(:second) + 10} end

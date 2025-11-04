@@ -34,8 +34,8 @@ Functions:
 - `Journey.Node.mutate/4` - Creates a graph node that mutates the value of another node, when unblocked (optionally triggers downstream recomputation with `update_revision_on_change: true`)
 - `Journey.Node.historian/3` - EXPERIMENTAL: Creates a history-tracking node that maintains a chronological log of changes to another node (default limit: 1000 entries)
 - `Journey.Node.archive/3` - Creates a graph node that archives data when unblocked
-- `Journey.Node.schedule_once/4` - Creates a graph node that declares its readiness at a specific time, once
-- `Journey.Node.schedule_recurring/4` - Creates a graph node that declares its readiness at specific times, repeatedly
+- `Journey.Node.tick_once/4` - Creates a graph node that declares its readiness at a specific time, once
+- `Journey.Node.tick_recurring/4` - Creates a graph node that declares its readiness at specific times, repeatedly
 
 ## `Journey.Node.Conditions`
 Helper functions for use in graph definitions, when defining upstream dependencies for compute modules.

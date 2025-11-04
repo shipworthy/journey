@@ -24,8 +24,8 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
         v.execution_id == e.id and
           v.node_name == c.node_name and
           v.node_type == c.computation_type and
-          v.node_type in [:schedule_once, :schedule_recurring] and
-          c.computation_type in [:schedule_once, :schedule_recurring],
+          v.node_type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring] and
+          c.computation_type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring],
       where:
         c.state == :success and
           not is_nil(v.set_time) and

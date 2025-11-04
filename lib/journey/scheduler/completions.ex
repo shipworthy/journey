@@ -169,7 +169,7 @@ defmodule Journey.Scheduler.Completions do
             :mutate
           )
 
-        :schedule_once ->
+        type when type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring] ->
           record_result(
             repo,
             graph_node.mutates,
@@ -178,19 +178,7 @@ defmodule Journey.Scheduler.Completions do
             computation.execution_id,
             new_revision,
             result,
-            :schedule_once
-          )
-
-        :schedule_recurring ->
-          record_result(
-            repo,
-            graph_node.mutates,
-            false,
-            computation.node_name,
-            computation.execution_id,
-            new_revision,
-            result,
-            :schedule_recurring
+            type
           )
       end
 

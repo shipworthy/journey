@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **API Naming**: Renamed `schedule_once/4` to `tick_once/4` and `schedule_recurring/4` to `tick_recurring/4` to better reflect that these nodes emit time-based signals (revisions) rather than imperatively schedule tasks. The old function names remain available with deprecation warnings for backward compatibility. Both old and new internal type atoms (`:schedule_once`, `:tick_once`, `:schedule_recurring`, `:tick_recurring`) are supported for zero-downtime deployments.
+
 ## v0.10.36
 
 - `mutate()` nodes: now accept `update_revision_on_change: true` option, to have the mutated node trigger downstream computations (idempotent behavior matching `Journey.set/3`). (#207)

@@ -75,7 +75,7 @@ defmodule Journey.Graph.ValidationsTest do
           "rideshare location pattern",
           "v1.0.0",
           [
-            schedule_recurring(
+            tick_recurring(
               :location_schedule,
               [],
               fn _ -> {:ok, System.system_time(:second) + 5} end

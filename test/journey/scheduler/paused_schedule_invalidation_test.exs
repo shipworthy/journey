@@ -18,7 +18,7 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
           [
             input(:user_config),
             input(:enable_schedule),
-            schedule_recurring(
+            tick_recurring(
               :schedule_pulse,
               [:enable_schedule],
               fn %{enable_schedule: enabled} ->
@@ -72,7 +72,7 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
           [
             input(:user_config),
             input(:enable_schedule),
-            schedule_recurring(
+            tick_recurring(
               :schedule_pulse,
               [:enable_schedule],
               fn %{enable_schedule: enabled} ->
@@ -126,7 +126,7 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
           "1.0.0",
           [
             input(:enable_schedule),
-            schedule_recurring(
+            tick_recurring(
               :schedule_pulse,
               [:enable_schedule],
               fn %{enable_schedule: enabled} ->
@@ -185,7 +185,7 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
           "1.0.0",
           [
             input(:enable_schedule),
-            schedule_recurring(
+            tick_recurring(
               :schedule_pulse,
               [:enable_schedule],
               fn %{enable_schedule: enabled} ->

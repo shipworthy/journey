@@ -70,10 +70,16 @@ defmodule JourneyMermaidConverter do
         "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
 
       type == :schedule_once ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>schedule_once node\"]"
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_once node\"]"
+
+      type == :tick_once ->
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_once node\"]"
 
       type == :schedule_recurring ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>schedule_recurring node\"]"
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_recurring node\"]"
+
+      type == :tick_recurring ->
+        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_recurring node\"]"
 
       true ->
         "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
@@ -211,7 +217,13 @@ defmodule JourneyMermaidConverter do
         %Journey.Graph.Step{type: :schedule_once} ->
           {input, compute, [sanitized_name | schedule], mutate}
 
+        %Journey.Graph.Step{type: :tick_once} ->
+          {input, compute, [sanitized_name | schedule], mutate}
+
         %Journey.Graph.Step{type: :schedule_recurring} ->
+          {input, compute, [sanitized_name | schedule], mutate}
+
+        %Journey.Graph.Step{type: :tick_recurring} ->
           {input, compute, [sanitized_name | schedule], mutate}
 
         _ ->

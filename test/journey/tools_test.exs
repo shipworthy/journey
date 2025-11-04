@@ -114,7 +114,7 @@ defmodule Journey.ToolsTest do
       - Not set:
         - greeting: <unk> | :compute
         - reminder: <unk> | :compute
-        - time_to_issue_reminder_schedule: <unk> | :schedule_once
+        - time_to_issue_reminder_schedule: <unk> | :tick_once
         - user_name: <unk> | :input  
 
       Computations:
@@ -122,7 +122,7 @@ defmodule Journey.ToolsTest do
 
 
       - Outstanding:
-        - time_to_issue_reminder_schedule: ⬜ :not_set (not yet attempted) | :schedule_once
+        - time_to_issue_reminder_schedule: ⬜ :not_set (not yet attempted) | :tick_once
              🛑 :greeting | &provided?/1
         - reminder: ⬜ :not_set (not yet attempted) | :compute
              🛑 :time_to_issue_reminder_schedule | &provided?/1
@@ -183,7 +183,7 @@ defmodule Journey.ToolsTest do
         - reminder: '#{inspect(reminder_value)}' | :compute
           computed at REDACTED | rev: 7
 
-        - time_to_issue_reminder_schedule: '#{time_to_issue_reminder_schedule_value}' | :schedule_once
+        - time_to_issue_reminder_schedule: '#{time_to_issue_reminder_schedule_value}' | :tick_once
           computed at REDACTED | rev: 5
 
         - greeting: '#{inspect(greeting_value)}' | :compute
@@ -204,7 +204,7 @@ defmodule Journey.ToolsTest do
         - :reminder (CMPREDACTED): ✅ :success | :compute | rev 7
           inputs used: 
              :time_to_issue_reminder_schedule (rev 5)
-        - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :schedule_once | rev 5
+        - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :tick_once | rev 5
           inputs used: 
              :greeting (rev 3)
         - :greeting (CMPREDACTED): ✅ :success | :compute | rev 3
@@ -535,7 +535,7 @@ defmodule Journey.ToolsTest do
         |> Enum.join("\n")
 
       assert mermaid_graph ==
-               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[\"greeting<br/>(anonymous fn)\"]\n        time_to_issue_reminder_schedule[\"time_to_issue_reminder_schedule<br/>(anonymous fn)<br/>schedule_once node\"]\n        reminder[\"reminder<br/>(anonymous fn)\"]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Legend\n    subgraph Legend[\"📖 Legend\"]\n        LegendInput[\"Input Node<br/>User-provided data\"]\n        LegendCompute[\"Compute Node<br/>Self-computing value\"]\n        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]\n        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000\n    classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000\n    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000\n    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000\n\n    %% Apply styles to legend nodes\n    class LegendInput inputNode\n    class LegendCompute computeNode\n    class LegendSchedule scheduleNode\n    class LegendMutate mutateNode\n\n    %% Apply styles to actual nodes\n    class user_name,last_updated_at,execution_id inputNode\n    class reminder,greeting computeNode\n    class time_to_issue_reminder_schedule scheduleNode"
+               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[\"greeting<br/>(anonymous fn)\"]\n        time_to_issue_reminder_schedule[\"time_to_issue_reminder_schedule<br/>(anonymous fn)<br/>tick_once node\"]\n        reminder[\"reminder<br/>(anonymous fn)\"]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Legend\n    subgraph Legend[\"📖 Legend\"]\n        LegendInput[\"Input Node<br/>User-provided data\"]\n        LegendCompute[\"Compute Node<br/>Self-computing value\"]\n        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]\n        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000\n    classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000\n    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000\n    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000\n\n    %% Apply styles to legend nodes\n    class LegendInput inputNode\n    class LegendCompute computeNode\n    class LegendSchedule scheduleNode\n    class LegendMutate mutateNode\n\n    %% Apply styles to actual nodes\n    class user_name,last_updated_at,execution_id inputNode\n    class reminder,greeting computeNode\n    class time_to_issue_reminder_schedule scheduleNode"
     end
 
     test "default - flow only (no legend, no timestamp)" do

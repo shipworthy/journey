@@ -63,7 +63,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
       [
         input(:user_name),
         input(:keep_sending_reminders),
-        schedule_recurring(
+        tick_recurring(
           :schedule_a_reminder,
           unblocked_when({
             :and,

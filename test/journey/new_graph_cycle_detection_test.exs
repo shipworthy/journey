@@ -158,7 +158,7 @@ defmodule Journey.NewGraphCycleDetectionTest do
                        "v1.0.0",
                        [
                          input(:trigger),
-                         schedule_once(:scheduler, [:trigger, :result], fn %{trigger: t, result: r} ->
+                         tick_once(:scheduler, [:trigger, :result], fn %{trigger: t, result: r} ->
                            {:ok, "scheduled: #{t}, #{r}"}
                          end),
                          compute(:result, [:scheduler], fn %{scheduler: s} -> {:ok, "result: #{s}"} end)
@@ -175,8 +175,8 @@ defmodule Journey.NewGraphCycleDetectionTest do
           [
             input(:trigger),
             compute(:data, [:trigger], fn %{trigger: t} -> {:ok, "data: #{t}"} end),
-            schedule_once(:scheduler, [:data], fn %{data: d} -> {:ok, "scheduled: #{d}"} end),
-            schedule_recurring(:recurring, [:data], fn %{data: d} -> {:ok, "recurring: #{d}"} end)
+            tick_once(:scheduler, [:data], fn %{data: d} -> {:ok, "scheduled: #{d}"} end),
+            tick_recurring(:recurring, [:data], fn %{data: d} -> {:ok, "recurring: #{d}"} end)
           ]
         )
 

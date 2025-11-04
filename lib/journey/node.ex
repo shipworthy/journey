@@ -6,8 +6,8 @@ defmodule Journey.Node do
   * `compute/4` – a node that computes a value based on its upstream nodes.
   * `mutate/4` – a node that mutates the value of another node.
   * `historian/3` – a node that tracks the history of changes to another node.
-  * `schedule_once/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule.
-  * `schedule_recurring/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.
+  * `tick_once/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule.
+  * `tick_recurring/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.
   """
 
   alias Journey.Graph
@@ -233,7 +233,7 @@ defmodule Journey.Node do
   ...>       "external polling example",
   ...>       "v1.0.0",
   ...>       [
-  ...>         schedule_recurring(:poll_schedule, [], fn _ -> {:ok, System.system_time(:second) + 2} end),
+  ...>         tick_recurring(:poll_schedule, [], fn _ -> {:ok, System.system_time(:second) + 2} end),
   ...>         input(:cached_data),
   ...>         mutate(:update_from_api, [:poll_schedule],
   ...>           fn %{cached_data: current} -> {:ok, (current || 0) + 1} end,
@@ -543,11 +543,11 @@ defmodule Journey.Node do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "`schedule_once()` doctest graph (it reminds you to take a nap in a couple of seconds;)",
+  ...>       "`tick_once()` doctest graph (it reminds you to take a nap in a couple of seconds;)",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
-  ...>         schedule_once(
+  ...>         tick_once(
   ...>           :schedule_a_nap,
   ...>           [:name],
   ...>           fn %{name: _name} ->
@@ -597,7 +597,7 @@ defmodule Journey.Node do
   ...>       [
   ...>         input(:user_name),
   ...>         input(:wants_reminder),
-  ...>         schedule_once(
+  ...>         tick_once(
   ...>           :schedule_reminder,
   ...>           [:user_name, :wants_reminder],
   ...>           fn %{wants_reminder: wants_reminder} ->
@@ -633,11 +633,11 @@ defmodule Journey.Node do
   ```
 
   """
-  def schedule_once(name, gated_by, f_compute, opts \\ [])
+  def tick_once(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
-      type: :schedule_once,
+      type: :tick_once,
       gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
@@ -658,11 +658,11 @@ defmodule Journey.Node do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "`schedule_recurring()` doctest graph (it issues 'reminders' every few seconds)",
+  ...>       "`tick_recurring()` doctest graph (it issues 'reminders' every few seconds)",
   ...>       "v1.0.0",
   ...>       [
   ...>         input(:name),
-  ...>         schedule_recurring(
+  ...>         tick_recurring(
   ...>           :schedule_a_reminder,
   ...>           [:name],
   ...>           fn _ ->
@@ -713,11 +713,11 @@ defmodule Journey.Node do
   Returning `{:ok, 0}` indicates that the schedule should not trigger downstream computations.
   """
 
-  def schedule_recurring(name, gated_by, f_compute, opts \\ [])
+  def tick_recurring(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     %Graph.Step{
       name: name,
-      type: :schedule_recurring,
+      type: :tick_recurring,
       gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
@@ -768,5 +768,20 @@ defmodule Journey.Node do
   defp normalize_gated_by(gated_by) do
     # Not a list - pass through unchanged (handles tuples like unblocked_when/2 results)
     gated_by
+  end
+
+  # Deprecated aliases for backward compatibility
+  @doc group: "Deprecated"
+  @deprecated "Use tick_once/4 instead"
+  def schedule_once(name, gated_by, f_compute, opts \\ [])
+      when is_atom(name) and is_function(f_compute) do
+    tick_once(name, gated_by, f_compute, opts)
+  end
+
+  @doc group: "Deprecated"
+  @deprecated "Use tick_recurring/4 instead"
+  def schedule_recurring(name, gated_by, f_compute, opts \\ [])
+      when is_atom(name) and is_function(f_compute) do
+    tick_recurring(name, gated_by, f_compute, opts)
   end
 end

@@ -202,14 +202,14 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
       assert redacted_result == String.trim(expected_output)
     end
 
-    test "handles schedule_once nodes" do
+    test "handles tick_once nodes" do
       graph =
         Journey.new_graph(
           "computation_status_as_text test schedule_once #{__MODULE__}",
           "1.0.0",
           [
             input(:value),
-            schedule_once(:scheduled_task, [:value], fn _ ->
+            tick_once(:scheduled_task, [:value], fn _ ->
               {:ok, System.system_time(:second) + 1}
             end)
           ]
@@ -229,7 +229,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         |> redact_computation_ids()
 
       expected_output = """
-      :scheduled_task (CMPREDACTED): ✅ :success | :schedule_once | rev 3
+      :scheduled_task (CMPREDACTED): ✅ :success | :tick_once | rev 3
       inputs used:
          :value (rev 1)
       """
@@ -239,14 +239,14 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
       stop_background_sweeps_in_test(background_sweeps_task)
     end
 
-    test "handles schedule_recurring nodes" do
+    test "handles tick_recurring nodes" do
       graph =
         Journey.new_graph(
           "computation_status_as_text test schedule_recurring #{__MODULE__}",
           "1.0.0",
           [
             input(:value),
-            schedule_recurring(:recurring_task, [:value], fn _ ->
+            tick_recurring(:recurring_task, [:value], fn _ ->
               {:ok, System.system_time(:second) + 1}
             end)
           ]
@@ -275,7 +275,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         [3, 5, 7, 9]
         |> Enum.map(fn rev ->
           """
-          :recurring_task (CMPREDACTED): ✅ :success | :schedule_recurring | rev #{rev}
+          :recurring_task (CMPREDACTED): ✅ :success | :tick_recurring | rev #{rev}
           inputs used:
              :value (rev 1)
           """
@@ -284,7 +284,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
 
       expected_not_set =
         """
-        :recurring_task (CMPREDACTED): ⬜ :not_set (not yet attempted) | :schedule_recurring
+        :recurring_task (CMPREDACTED): ⬜ :not_set (not yet attempted) | :tick_recurring
             🛑 :value | &provided?/1
         """
         |> String.trim()

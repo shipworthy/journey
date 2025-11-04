@@ -225,7 +225,7 @@ defmodule Journey.Examples.CreditCardApplication do
           unblocked_when({:or, [{:congratulate, &provided?/1}, {:inform_of_rejection, &provided?/1}]}),
           &Compute.all_done/1
         ),
-        schedule_once(
+        tick_once(
           :schedule_request_credit_card_reminder,
           [:congratulate],
           &Compute.choose_the_time_to_send_reminder/1
@@ -259,7 +259,7 @@ defmodule Journey.Examples.CreditCardApplication do
           }),
           &Compute.send_card_mailed_notification/1
         ),
-        schedule_once(
+        tick_once(
           :schedule_archival,
           unblocked_when({
             :or,

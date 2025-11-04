@@ -74,10 +74,10 @@ Make sure that the list of public modules and functions in MODULES_AND_FUNCTIONS
 ```elixir
 # Nodes created with Journey.Node functions:
 input/1           # User-provided data
-compute/4         # Self-computing with dependencies  
+compute/4         # Self-computing with dependencies
 mutate/4          # Modifies other node values
-schedule_once/3   # One-time scheduled execution
-schedule_recurring/3  # Recurring execution
+tick_once/3       # One-time scheduled execution
+tick_recurring/3  # Recurring execution
 ```
 
 ### Key APIs

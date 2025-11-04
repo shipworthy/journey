@@ -74,7 +74,12 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
       join: e in Journey.Persistence.Schema.Execution,
       on: c.execution_id == e.id,
       where:
-        c.computation_type in [^:schedule_once, ^:schedule_recurring] and
+        c.computation_type in [
+          ^:schedule_once,
+          ^:tick_once,
+          ^:schedule_recurring,
+          ^:tick_recurring
+        ] and
           c.state == ^:not_set and
           e.updated_at >= ^cutoff_time,
       select: c.execution_id,
