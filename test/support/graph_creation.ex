@@ -12,7 +12,7 @@ defmodule Journey.Test.Support do
           [:user_name],
           &f_prepend_with_hello/1
         ),
-        schedule_once(
+        tick_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
           &f_in_3_seconds/1
@@ -51,7 +51,7 @@ defmodule Journey.Test.Support do
             {:ok, "Hello, #{user_name}"}
           end
         ),
-        schedule_once(
+        tick_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
           fn _ -> {:ok, System.system_time(:second) + 1} end

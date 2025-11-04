@@ -139,7 +139,7 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
       "v1.0.0",
       [
         input(:interval_seconds),
-        schedule_recurring(
+        tick_recurring(
           :recurring_schedule,
           [:interval_seconds],
           fn %{interval_seconds: interval} ->

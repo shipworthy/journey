@@ -11,7 +11,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
   # credo:disable-for-lines:10 Credo.Check.Refactor.CyclomaticComplexity
   @doc false
   def sweep(execution_id) when is_nil(execution_id) or is_binary(execution_id) do
-    # Create new :not_set schedule_recurring records for schedule_recurring nodes
+    # Create new :not_set schedule_recurring/tick_recurring records for schedule_recurring/tick_recurring nodes
     # that have computed their scheduled time and whose scheduled time has passed.
 
     Logger.info("starting #{execution_id}")
@@ -32,23 +32,24 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
         on: v.execution_id == e.id and v.node_name == c.node_name,
         # No pending :not_set computation exists for this node
         where:
-          c.computation_type == ^:schedule_recurring and
+          c.computation_type in [^:schedule_recurring, ^:tick_recurring] and
             c.state == ^:success and
-            v.node_type == ^:schedule_recurring and
+            v.node_type in [^:schedule_recurring, ^:tick_recurring] and
             v.node_value <= ^now and
             not exists(
               from(c2 in Computation,
                 where:
                   c2.execution_id == parent_as(:main_execution).id and
                     c2.node_name == parent_as(:main_computation).node_name and
-                    c2.computation_type == ^:schedule_recurring and
+                    c2.computation_type in [^:schedule_recurring, ^:tick_recurring] and
                     c2.state == ^:not_set
               )
             ),
         distinct: [e.id, c.node_name],
         select: %{
           execution_id: e.id,
-          node_name: c.node_name
+          node_name: c.node_name,
+          computation_type: c.computation_type
         }
       )
       |> Journey.Repo.all()
@@ -64,14 +65,15 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
 
   defp create_new_recurring_computation(%{
          execution_id: execution_id,
-         node_name: node_name
+         node_name: node_name,
+         computation_type: computation_type
        }) do
     # Create a new :not_set computation record for the next recurring cycle
     c =
       %Computation{
         execution_id: execution_id,
         node_name: node_name,
-        computation_type: :schedule_recurring,
+        computation_type: computation_type,
         state: :not_set,
         # These will be set when the computation actually runs
         ex_revision_at_start: nil,

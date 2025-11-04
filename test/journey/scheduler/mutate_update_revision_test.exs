@@ -130,7 +130,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
           "external polling pattern test",
           "v1.0.0",
           [
-            schedule_recurring(
+            tick_recurring(
               :location_poll_schedule,
               [],
               fn _ ->

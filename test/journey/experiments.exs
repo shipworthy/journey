@@ -44,7 +44,7 @@ defmodule Journey.ExperimentsScripts do
       [
         input(:name),
         input(:email),
-        schedule_recurring(:remind_to_advocate_schedule, [], fn _ ->
+        tick_recurring(:remind_to_advocate_schedule, [], fn _ ->
           {:ok, System.system_time(:second) + one_week_in_seconds()}
         end),
         computation(:send_notification, [:name, :email, :remind_to_advocate_schedule], fn %{name: name, email: email} ->
@@ -146,7 +146,7 @@ defmodule Journey.ExperimentsScripts do
       "v123",
       [
         input(:name),
-        schedule_once(:cleanup_pii, [], fn _ ->
+        tick_once(:cleanup_pii, [], fn _ ->
           {:ok, System.system_time(:second) + 86_400}
         end),
         compute(
@@ -173,7 +173,7 @@ defmodule Journey.ExperimentsScripts do
       "v123",
       [
         input(:name),
-        schedule_once(:cleanup_pii_schedule, [], fn _ ->
+        tick_once(:cleanup_pii_schedule, [], fn _ ->
           {:ok, System.system_time(:second) + 86_400}
         end),
         compute(
@@ -203,7 +203,7 @@ defmodule Journey.ExperimentsScripts do
       "v123",
       [
         input(:name),
-        schedule_once(:cleanup_pii_schedule, [], fn _ ->
+        tick_once(:cleanup_pii_schedule, [], fn _ ->
           {:ok, System.system_time(:second) + 86_400}
         end),
         compute(
@@ -236,7 +236,7 @@ defmodule Journey.ExperimentsScripts do
         input(:name),
         input(:email),
         input(:enabled),
-        schedule_recurring(:remind_to_advocate_schedule, [:enabled], fn
+        tick_recurring(:remind_to_advocate_schedule, [:enabled], fn
           %{enabled: true} -> {:ok, System.system_time(:second) + one_week_in_seconds()}
           %{enabled: false} -> {:ok, nil}
         end),
@@ -281,7 +281,7 @@ defmodule Journey.ExperimentsScripts do
             {:ok, compose_letter(senator1, name, zip, district)}
           end
         ),
-        schedule_once(:hash_pii_schedule, [:name], fn %{name: name} ->
+        tick_once(:hash_pii_schedule, [:name], fn %{name: name} ->
           {:ok, System.system_time(:second) + one_day_in_seconds()}
         end),
         input(:email_address),

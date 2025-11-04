@@ -117,7 +117,13 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
     # (just check if set_time != nil, regardless of value)
     # For all other nodes, use the actual condition function
     condition_met =
-      if mode == :invalidation and relevant_value_node.node_type in [:schedule_once, :schedule_recurring] do
+      if mode == :invalidation and
+           relevant_value_node.node_type in [
+             :schedule_once,
+             :tick_once,
+             :schedule_recurring,
+             :tick_recurring
+           ] do
         provided_for_invalidation?(relevant_value_node)
       else
         f_condition.(relevant_value_node)
@@ -150,7 +156,13 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
     # In invalidation mode, use relaxed criteria for schedule nodes only
     # For all other nodes, use the actual condition function
     inner_condition_met =
-      if mode == :invalidation and relevant_value_node.node_type in [:schedule_once, :schedule_recurring] do
+      if mode == :invalidation and
+           relevant_value_node.node_type in [
+             :schedule_once,
+             :tick_once,
+             :schedule_recurring,
+             :tick_recurring
+           ] do
         provided_for_invalidation?(relevant_value_node)
       else
         f_condition.(relevant_value_node)

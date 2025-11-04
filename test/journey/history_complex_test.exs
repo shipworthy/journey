@@ -287,7 +287,7 @@ defmodule Journey.HistoryComplexTest do
           end,
           mutates: :input_node
         ),
-        schedule_once(
+        tick_once(
           :schedule_node,
           unblocked_when({:input_node, &provided?/1}),
           fn %{input_node: val} ->

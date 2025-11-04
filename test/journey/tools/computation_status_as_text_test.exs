@@ -209,7 +209,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
           "1.0.0",
           [
             input(:value),
-            schedule_once(:scheduled_task, [:value], fn _ ->
+            tick_once(:scheduled_task, [:value], fn _ ->
               {:ok, System.system_time(:second) + 1}
             end)
           ]
@@ -246,7 +246,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
           "1.0.0",
           [
             input(:value),
-            schedule_recurring(:recurring_task, [:value], fn _ ->
+            tick_recurring(:recurring_task, [:value], fn _ ->
               {:ok, System.system_time(:second) + 1}
             end)
           ]

@@ -377,7 +377,13 @@ defmodule Journey.Tools do
         where:
           c.execution_id == ^execution_id and
             c.state == ^:not_set and
-            c.computation_type in [^:compute, ^:schedule_once, ^:schedule_recurring],
+            c.computation_type in [
+              ^:compute,
+              ^:schedule_once,
+              ^:tick_once,
+              ^:schedule_recurring,
+              ^:tick_recurring
+            ],
         lock: "FOR UPDATE"
       )
       |> Journey.Repo.all()

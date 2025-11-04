@@ -158,7 +158,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
           "v1",
           [
             input(:enabled),
-            schedule_once(
+            tick_once(
               :scheduled_task,
               [enabled: fn node -> node.node_value == true end],
               fn _ ->

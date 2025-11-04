@@ -17,7 +17,7 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
           "1.0.0",
           [
             input(:user_name),
-            schedule_once(
+            tick_once(
               :schedule_reminder,
               [:user_name],
               fn %{user_name: _name} ->
@@ -60,7 +60,7 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
           [
             input(:user_name),
             input(:wants_reminder),
-            schedule_once(
+            tick_once(
               :schedule_reminder,
               [:user_name, :wants_reminder],
               fn %{wants_reminder: wants_reminder} ->
@@ -107,7 +107,7 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
           [
             input(:user_name),
             input(:wants_reminder),
-            schedule_once(
+            tick_once(
               :schedule_reminder,
               [:user_name, :wants_reminder],
               fn %{wants_reminder: wants_reminder} ->
@@ -161,7 +161,7 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
           "1.0.0",
           [
             input(:user_name),
-            schedule_recurring(
+            tick_recurring(
               :schedule_reminder,
               [:user_name],
               fn %{user_name: _name} ->
@@ -205,7 +205,7 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
           [
             input(:user_name),
             input(:keep_sending_reminders),
-            schedule_recurring(
+            tick_recurring(
               :schedule_reminder,
               [:user_name, :keep_sending_reminders],
               fn %{keep_sending_reminders: keep_sending} ->
@@ -253,7 +253,7 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
           [
             input(:user_name),
             input(:keep_sending_reminders),
-            schedule_recurring(
+            tick_recurring(
               :schedule_reminder,
               [:user_name, :keep_sending_reminders],
               fn %{keep_sending_reminders: keep_sending} ->

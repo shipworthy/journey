@@ -242,7 +242,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
               "1.0.0",
               [
                 input(:trigger),
-                schedule_once(
+                tick_once(
                   :scheduled_task,
                   [:trigger],
                   fn _params ->
