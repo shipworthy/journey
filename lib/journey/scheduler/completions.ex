@@ -104,6 +104,13 @@ defmodule Journey.Scheduler.Completions do
     Logger.debug("#{prefix}: starting.")
 
     execution = computation.execution_id |> Journey.Executions.load(false, true)
+
+    if execution == nil do
+      message = "#{prefix}: execution not found: '#{computation.execution_id}'"
+      Logger.error(message)
+      raise message
+    end
+
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
     if graph == nil do
