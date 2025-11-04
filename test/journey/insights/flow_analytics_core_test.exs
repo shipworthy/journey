@@ -78,7 +78,7 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
                } = node
 
         assert is_atom(node_name)
-        assert node_type in [:input, :compute, :mutate, :schedule_once, :schedule_recurring]
+        assert node_type in [:input, :compute, :mutate, :tick_once, :tick_recurring]
         assert is_integer(reached_count)
         assert is_float(reached_percentage)
         assert is_integer(avg_time)

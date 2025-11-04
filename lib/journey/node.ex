@@ -233,7 +233,7 @@ defmodule Journey.Node do
   ...>       "external polling example",
   ...>       "v1.0.0",
   ...>       [
-  ...>         schedule_recurring(:poll_schedule, [], fn _ -> {:ok, System.system_time(:second) + 2} end),
+  ...>         tick_recurring(:poll_schedule, [], fn _ -> {:ok, System.system_time(:second) + 2} end),
   ...>         input(:cached_data),
   ...>         mutate(:update_from_api, [:poll_schedule],
   ...>           fn %{cached_data: current} -> {:ok, (current || 0) + 1} end,

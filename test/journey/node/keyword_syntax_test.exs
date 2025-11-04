@@ -151,7 +151,7 @@ defmodule Journey.Node.KeywordSyntaxTest do
       assert Journey.get_value(exec, :value) == {:ok, nil}
     end
 
-    test "keyword syntax works with schedule_once nodes" do
+    test "keyword syntax works with tick_once nodes" do
       graph =
         Journey.new_graph(
           "schedule_keyword_test #{random_string()}",

@@ -233,7 +233,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
       refute log =~ "GRAPH_WIDE called for: test_input"
     end
 
-    test "graph-wide f_on_save works with schedule_once nodes" do
+    test "graph-wide f_on_save works with tick_once nodes" do
       {_result, log} =
         with_log(fn ->
           graph =

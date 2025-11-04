@@ -89,7 +89,7 @@ defmodule Journey.Tools.ComputationStateTest do
       assert Journey.Tools.computation_state_to_text(:not_compute_node) == "📝 :not_compute_node"
     end
 
-    test "handles schedule_once nodes" do
+    test "handles tick_once nodes" do
       graph =
         Journey.new_graph(
           "computation_state test graph schedule_once #{__MODULE__}",
@@ -113,7 +113,7 @@ defmodule Journey.Tools.ComputationStateTest do
       stop_background_sweeps_in_test(background_sweeps_task)
     end
 
-    test "handles schedule_recurring nodes" do
+    test "handles tick_recurring nodes" do
       graph =
         Journey.new_graph(
           "computation_state test graph schedule_recurring #{__MODULE__}",
