@@ -1330,7 +1330,7 @@ defmodule Journey.Executions do
 
   defp convert_node_names_to_atoms(nil), do: nil
 
-  defp convert_node_names_to_atoms(execution) do
+  defp convert_node_names_to_atoms(%Execution{} = execution) do
     computations =
       convert_values_to_atoms(execution.computations, :node_name)
       |> Enum.map(fn

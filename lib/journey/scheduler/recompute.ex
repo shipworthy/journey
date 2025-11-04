@@ -37,7 +37,7 @@ defmodule Journey.Scheduler.Recompute do
                     :schedule_recurring,
                     :tick_recurring
                   ] and
-                  c.state == ^:success,
+                  c.state == :success,
               order_by: [desc: c.ex_revision_at_start],
               distinct: c.node_name,
               select: c.id
@@ -109,7 +109,7 @@ defmodule Journey.Scheduler.Recompute do
       where: v.execution_id == ^execution_id
     )
     |> repo.all()
-    |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
+    |> Enum.map(fn %Value{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
   end
 
   defp an_upstream_node_has_a_newer_version?(computation, graph, all_values) do
