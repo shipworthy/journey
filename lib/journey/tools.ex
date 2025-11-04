@@ -392,7 +392,7 @@ defmodule Journey.Tools do
     all_value_nodes =
       from(v in Value, where: v.execution_id == ^execution_id)
       |> Journey.Repo.all()
-      |> Enum.map(fn %{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
+      |> Enum.map(fn %Value{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
       |> Enum.map(fn v -> de_ecto(v) end)
 
     all_candidates_for_computation
