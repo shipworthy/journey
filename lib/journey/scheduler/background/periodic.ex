@@ -43,7 +43,7 @@ defmodule Journey.Scheduler.Background.Periodic do
     Periodic.child_spec(
       id: __MODULE__,
       mode: @mode,
-      initial_delay: :timer.seconds(:rand.uniform(20) + 5),
+      initial_delay: :timer.seconds(:rand.uniform(10) + 2),
       run: &run/0,
       every: :timer.seconds(sweeper_period_seconds()),
       delay_mode: :shifted
