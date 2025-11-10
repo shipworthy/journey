@@ -53,10 +53,10 @@ defmodule Journey.JourneyListExecutionsTest do
       some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :neq, 1}])
       assert Enum.count(some_executions) == 99
 
-      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_not_nil}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_set}])
       assert Enum.count(some_executions) == 100
 
-      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_nil}])
+      some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_not_set}])
       assert some_executions == []
 
       some_executions = Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :eq, 1}])
