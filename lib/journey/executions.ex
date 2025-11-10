@@ -891,6 +891,19 @@ defmodule Journey.Executions do
     |> add_filters(value_filters)
   end
 
+  def count(graph_name, graph_version, value_filters, include_archived?)
+      when (is_nil(graph_name) or is_binary(graph_name)) and
+             (is_nil(graph_version) or is_binary(graph_version)) and
+             is_list(value_filters) and
+             is_boolean(include_archived?) do
+    # Build and execute count query (no sorting, limit, or offset needed)
+    from(e in Execution)
+    |> filter_archived(include_archived?)
+    |> filter_by_graph_name(graph_name)
+    |> filter_by_graph_version(graph_version)
+    |> add_count_filters(value_filters)
+  end
+
   defp prepare_sort_fields(sort_by_fields, graph_name, graph_version) do
     normalized_fields = normalize_sort_fields(sort_by_fields)
     value_fields = extract_value_fields(normalized_fields)
@@ -1061,6 +1074,18 @@ defmodule Journey.Executions do
     query
     |> apply_db_value_filters(value_filters)
     |> preload_and_convert()
+  end
+
+  # Database-level filtering for counting (no preloading or conversion needed)
+  defp add_count_filters(query, []), do: Journey.Repo.aggregate(query, :count, :id)
+
+  defp add_count_filters(query, value_filters) when is_list(value_filters) do
+    # Validate all filters are database-compatible before proceeding
+    Enum.each(value_filters, &validate_db_filter/1)
+
+    query
+    |> apply_db_value_filters(value_filters)
+    |> Journey.Repo.aggregate(:count, :id)
   end
 
   # Validate filters are compatible with database-level filtering

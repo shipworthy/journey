@@ -661,6 +661,164 @@ defmodule Journey do
 
   @doc group: "Execution Lifecycle"
   @doc """
+  Returns the count of executions matching the specified criteria.
+
+  This function uses database-level counting, and does not load the execution records into memory.
+
+  This function provides the same filtering capabilities as `list_executions/1` but returns only
+  the count of matching executions instead of loading the full execution records.
+
+  ## Quick Example
+
+  ```elixir
+  # Count all executions for a specific graph
+  count = Journey.count_executions(graph_name: "user_onboarding")
+
+  # Count executions where age > 18
+  adults_count = Journey.count_executions(
+    graph_name: "user_registration",
+    filter_by: [{:age, :gt, 18}]
+  )
+  ```
+
+  ## Parameters
+
+    Please see `list_executions/1` for details on these parameters.
+
+    * `options` - Keyword list of query options (all optional):
+      * `:graph_name` - String name of a specific graph to filter by
+      * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
+      * `:filter_by` - List of node value filters (see `list_executions/1` for details)
+      * `:include_archived` - Whether to include archived executions (default: false)
+
+  Note: `:sort_by`, `:limit`, and `:offset` are not supported for counting.
+
+  ## Returns
+  * Non-negative integer representing the count of matching executions
+
+  ## Key Behaviors
+  * **Database-level counting** - Uses SQL COUNT() for optimal performance
+  * **No record loading** - Never loads execution records, values, or computations
+  * **Same filtering** - Supports all the same filters as `list_executions/1`
+  * **Archived handling** - Excludes archived executions by default
+
+  ## Examples
+
+  Basic counting by graph name:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "count example - \#{Journey.Helpers.Random.random_string_w_time()}",
+  ...>   "v1.0.0",
+  ...>   [input(:status)]
+  ...> )
+  iex> Journey.start_execution(graph) |> Journey.set(:status, "active")
+  iex> Journey.start_execution(graph) |> Journey.set(:status, "pending")
+  iex> Journey.start_execution(graph) |> Journey.set(:status, "active")
+  iex> Journey.count_executions(graph_name: graph.name)
+  3
+  ```
+
+  Counting with filters:
+
+  ```elixir
+  iex> graph = Journey.Examples.Horoscope.graph()
+  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set(:birth_day, day) |> Journey.set(:birth_month, 4)
+  iex> Journey.count_executions(graph_name: graph.name, filter_by: [{:birth_day, :lte, 5}])
+  5
+  iex> Journey.count_executions(graph_name: graph.name, filter_by: [{:birth_day, :gt, 10}])
+  10
+  iex> Journey.count_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [5, 10, 15]}])
+  3
+  ```
+
+  Counting with multiple filters:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "multi-filter count - \#{Journey.Helpers.Random.random_string_w_time()}",
+  ...>   "v1.0.0",
+  ...>   [input(:age), input(:status)]
+  ...> )
+  iex> Journey.start_execution(graph) |> Journey.set(:age, 25) |> Journey.set(:status, "active")
+  iex> Journey.start_execution(graph) |> Journey.set(:age, 17) |> Journey.set(:status, "active")
+  iex> Journey.start_execution(graph) |> Journey.set(:age, 30) |> Journey.set(:status, "inactive")
+  iex> Journey.count_executions(
+  ...>   graph_name: graph.name,
+  ...>   filter_by: [{:age, :gte, 18}, {:status, :eq, "active"}]
+  ...> )
+  1
+  ```
+
+  Including archived executions:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "archived count - \#{Journey.Helpers.Random.random_string_w_time()}",
+  ...>   "v1.0.0",
+  ...>   [input(:data)]
+  ...> )
+  iex> e1 = Journey.start_execution(graph)
+  iex> _e2 = Journey.start_execution(graph)
+  iex> Journey.archive(e1)
+  iex> Journey.count_executions(graph_name: graph.name)
+  1
+  iex> Journey.count_executions(graph_name: graph.name, include_archived: true)
+  2
+  ```
+
+  Pagination example (combining count and list):
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "pagination - \#{Journey.Helpers.Random.random_string_w_time()}",
+  ...>   "v1.0.0",
+  ...>   [input(:index)]
+  ...> )
+  iex> for i <- 1..25, do: Journey.start_execution(graph) |> Journey.set(:index, i)
+  iex> total = Journey.count_executions(graph_name: graph.name)
+  iex> page_size = 10
+  iex> total_pages = div(total + page_size - 1, page_size)
+  iex> total_pages
+  3
+  iex> page_1 = Journey.list_executions(graph_name: graph.name, limit: page_size, offset: 0)
+  iex> length(page_1)
+  10
+  ```
+
+  """
+  def count_executions(options \\ []) do
+    check_options(options, [
+      :graph_name,
+      :graph_version,
+      :filter_by,
+      # Deprecated alias for backwards compatibility
+      :value_filters,
+      :include_archived
+    ])
+
+    # Handle filter_by taking precedence over value_filters (deprecated)
+    filter_by = options[:filter_by] || options[:value_filters] || []
+
+    graph_name = Keyword.get(options, :graph_name, nil)
+    graph_version = Keyword.get(options, :graph_version, nil)
+
+    include_archived = Keyword.get(options, :include_archived, false)
+
+    # Validate that graph_version requires graph_name
+    if graph_version != nil and graph_name == nil do
+      raise ArgumentError, "Option :graph_version requires :graph_name to be specified"
+    end
+
+    Journey.Executions.count(graph_name, graph_version, filter_by, include_archived)
+  end
+
+  @doc group: "Execution Lifecycle"
+  @doc """
   Starts a new execution instance of a computation graph, initializing it to accept input values and perform computations.
 
   Creates a persistent execution in the database with a unique ID and begins background processing
