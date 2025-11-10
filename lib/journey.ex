@@ -433,14 +433,26 @@ defmodule Journey do
   Use with `start_execution/1` to create executions and `load/2` to get individual execution details.
 
   ## Parameters
-  * `options` - Keyword list of query options (all optional):
-    * `:graph_name` - String name of a specific graph to filter by
-    * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
-    * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
-    * `:filter_by` - List of node value filters using database-level filtering for optimal performance. Each filter is a tuple `{node_name, operator, value}` or `{node_name, operator}` for nil checks. Operators: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte` (comparisons), `:in`, `:not_in` (membership), `:contains` (case-sensitive substring matching, strings only), `:icontains` (case-insensitive substring matching, strings only), `:list_contains` (checks if a list-valued node contains the specified string or integer element), `:is_nil`, `:is_not_nil` (existence). Values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`). Complex values (maps, tuples, functions) will raise an ArgumentError.
-    * `:limit` - Maximum number of results (default: 10,000)
-    * `:offset` - Number of results to skip for pagination (default: 0)
-    * `:include_archived` - Whether to include archived executions (default: false)
+    * `options` - Keyword list of query options (all optional):
+      * `:graph_name` - String name of a specific graph to filter by
+      * `:graph_version` - String version of a specific graph to filter by (requires :graph_name)
+      * `:sort_by` - List of fields to sort by, including both execution fields and node values (see Sorting section for details)
+      * `:filter_by` - List of node value filters using database-level filtering for optimal performance.
+
+        Each filter is a tuple `{node_name, binary_operator, value}` or `{node_name, unary_operator}`.
+
+        Binary Operators (require a comparison value):
+        - comparisons: `:eq`, `:neq`, `:lt`, `:lte`, `:gt`, `:gte`
+        - membership: `:in`, `:not_in`, `:contains` (case-sensitive substring matching, strings only), `:icontains` (case-insensitive substring matching, strings only), `:list_contains` (checks if a list-valued node contains the specified string or integer element)
+
+        Unary Operators (no comparison value):
+        - whether node was set: `:is_set`, `:is_not_set`
+
+        For binary operators, values can be strings, numbers, booleans, nil or lists (used with `:in` and `:not_in`).
+        Complex values (maps, tuples, functions) will raise an ArgumentError.
+      * `:limit` - Maximum number of results (default: 10,000)
+      * `:offset` - Number of results to skip for pagination (default: 0)
+      * `:include_archived` - Whether to include archived executions (default: false)
 
   ## Returns
   * List of `%Journey.Persistence.Schema.Execution{}` structs with preloaded values and computations
@@ -543,7 +555,7 @@ defmodule Journey do
   5
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :in, [5, 10, 15]}]) |> Enum.count()
   3
-  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_not_nil}]) |> Enum.count()
+  iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :is_set}]) |> Enum.count()
   20
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:first_name, :contains, "ari"}]) |> Enum.count()
   20
@@ -579,7 +591,7 @@ defmodule Journey do
   iex> # Multiple filters combined
   iex> Journey.list_executions(
   ...>   graph_name: graph.name,
-  ...>   filter_by: [{:birth_day, :gt, 10}, {:first_name, :is_not_nil}],
+  ...>   filter_by: [{:birth_day, :gt, 10}, {:first_name, :is_set}],
   ...>   sort_by: [birth_day: :desc],
   ...>   limit: 5
   ...> ) |> Enum.count()
