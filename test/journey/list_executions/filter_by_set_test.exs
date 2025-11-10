@@ -1,4 +1,4 @@
-defmodule Journey.JourneyListExecutionsTest do
+defmodule Journey.ListExecutions.FilterByTest do
   use ExUnit.Case, async: true
 
   import Journey.Helpers.Random, only: [random_string: 0]
