@@ -115,17 +115,22 @@ defmodule Journey.Tools do
   """
   def computation_state(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
-    execution = Journey.load(execution_id)
-    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
-    graph_node = Graph.find_node_by_name(graph, node_name)
+    case Journey.load(execution_id) do
+      nil ->
+        raise ArgumentError, "Execution '#{execution_id}' not found"
 
-    case graph_node.type do
-      :input ->
-        :not_compute_node
+      execution ->
+        graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+        graph_node = Graph.find_node_by_name(graph, node_name)
 
-      _ ->
-        Journey.Executions.find_computations_by_node_name(execution, node_name)
-        |> computation_state_impl()
+        case graph_node.type do
+          :input ->
+            :not_compute_node
+
+          _ ->
+            Journey.Executions.find_computations_by_node_name(execution, node_name)
+            |> computation_state_impl()
+        end
     end
   end
 
@@ -242,7 +247,16 @@ defmodule Journey.Tools do
   """
   def computation_status_as_text(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
-    execution = Journey.load(execution_id)
+    case Journey.load(execution_id) do
+      nil ->
+        raise ArgumentError, "Execution '#{execution_id}' not found"
+
+      execution ->
+        do_computation_status_as_text(execution, execution_id, node_name)
+    end
+  end
+
+  defp do_computation_status_as_text(execution, execution_id, node_name) do
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
     case Graph.find_node_by_name(graph, node_name) do
@@ -468,8 +482,13 @@ defmodule Journey.Tools do
   """
   def summarize_as_data(execution_id) when is_binary(execution_id) do
     execution =
-      execution_id
-      |> Journey.load(include_archived: true)
+      case Journey.load(execution_id, include_archived: true) do
+        nil ->
+          raise ArgumentError, "Execution '#{execution_id}' not found"
+
+        exec ->
+          exec
+      end
 
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 

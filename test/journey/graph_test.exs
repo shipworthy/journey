@@ -60,7 +60,7 @@ defmodule Journey.GraphTest do
 
     test "mutates witout mutation" do
       assert_raise KeyError,
-                   "key :mutates not found in: []",
+                   ~r/key :mutates not found in/,
                    fn ->
                      Journey.new_graph(
                        "horoscope workflow, mutates something unknown #{__MODULE__}",

@@ -11,8 +11,12 @@ permissions:
 
 jobs:
   validate_changes:
-    name: Run Linters and Tests
+    name: Run Linters and Tests (Elixir ${{ matrix.elixir }}, OTP ${{ matrix.otp }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        elixir: ["1.18", "1.19.1"]
+        otp: ["27.2"]
     services:
       pg:
         image: postgres:16.4-alpine
@@ -32,16 +36,16 @@ jobs:
       - name: Install OTP and Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.18"
-          otp-version: "27.2"
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
       - name: Manage dependencies cache
         uses: actions/cache@v4
         with:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-
       - name: Install dependencies
         run: mix deps.get
       - name: Lint
