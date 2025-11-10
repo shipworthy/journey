@@ -1082,7 +1082,7 @@ defmodule Journey.Executions do
   end
 
   defp validate_db_filter({node_name, op})
-       when is_atom(node_name) and op in [:is_nil, :is_not_nil],
+       when is_atom(node_name) and op in [:is_nil, :is_not_nil, :is_set, :is_not_set],
        do: :ok
 
   # Crash with clear error message for unsupported filters
@@ -1119,7 +1119,7 @@ defmodule Journey.Executions do
     # Split filters by type for different handling strategies
     {existence_filters, comparison_filters} =
       Enum.split_with(value_filters, fn
-        {_, op} when op in [:is_nil, :is_not_nil] -> true
+        {_, op} when op in [:is_nil, :is_not_nil, :is_set, :is_not_set] -> true
         _ -> false
       end)
 
@@ -1145,6 +1145,20 @@ defmodule Journey.Executions do
           from(e in acc_query,
             join: v in Journey.Persistence.Schema.Execution.Value,
             on: v.execution_id == e.id and v.node_name == ^node_name_str
+          )
+
+        :is_set ->
+          from(e in acc_query,
+            join: v in Journey.Persistence.Schema.Execution.Value,
+            on: v.execution_id == e.id and v.node_name == ^node_name_str,
+            where: not is_nil(v.set_time)
+          )
+
+        :is_not_set ->
+          from(e in acc_query,
+            left_join: v in Journey.Persistence.Schema.Execution.Value,
+            on: v.execution_id == e.id and v.node_name == ^node_name_str,
+            where: is_nil(v.set_time)
           )
       end
     end)
