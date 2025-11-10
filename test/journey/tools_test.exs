@@ -36,7 +36,7 @@ defmodule Journey.ToolsTest do
       graph = Journey.Test.Support.create_test_graph1()
       _execution = Journey.start_execution(graph)
 
-      assert_raise KeyError, fn ->
+      assert_raise ArgumentError, "Execution 'none such' not found", fn ->
         Journey.Tools.summarize_as_data("none such")
       end
     end

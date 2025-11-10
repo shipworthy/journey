@@ -312,7 +312,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
     end
 
     test "raises for non-existent execution" do
-      assert_raise KeyError, fn ->
+      assert_raise ArgumentError, "Execution 'EXEC_DOESNT_EXIST' not found", fn ->
         Journey.Tools.computation_status_as_text("EXEC_DOESNT_EXIST", :some_node)
       end
     end
