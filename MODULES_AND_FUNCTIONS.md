@@ -12,6 +12,7 @@ The entry point for the Journey library. Provides functions for creating and man
 - `Journey.start_execution/1` - Starts a new execution instance of a computation graph
 - `Journey.load/2` - Loads the current version of an execution from the database
 - `Journey.list_executions/1` - Queries and retrieves executions with filtering, sorting, and pagination
+- `Journey.count_executions/1` - Returns the count of executions matching the specified criteria without fetching the execution records
 - `Journey.archive/1` - Archives an execution, making it invisible and stopping all background processing
 - `Journey.unarchive/1` - Un-archives the supplied execution if it is archived
 - `Journey.history/1` - Returns the chronological history of all successful computations and set values
