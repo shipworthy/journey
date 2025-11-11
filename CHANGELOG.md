@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## v0.10.37
 
-- **API Naming**: Renamed `schedule_once/4` to `tick_once/4` and `schedule_recurring/4` to `tick_recurring/4` to better reflect that these nodes emit time-based signals (revisions) rather than imperatively schedule tasks. The old function names remain available with deprecation warnings for backward compatibility. Both old and new internal type atoms (`:schedule_once`, `:tick_once`, `:schedule_recurring`, `:tick_recurring`) are supported for zero-downtime deployments.
+- **API Naming**: Renamed `schedule_once/4` to `tick_once/4` and `schedule_recurring/4` to `tick_recurring/4` to better reflect that these nodes emit time-based "ticks" (revisions). The old function names remain available with deprecation warnings for backward compatibility. Both old and new internal type atoms (`:schedule_once`, `:tick_once`, `:schedule_recurring`, `:tick_recurring`) are supported for zero-downtime deployments.
+- **New API**: `Journey.count_executions/1` - Returns the count of executions matching specified criteria using database-level counting (SQL COUNT) without loading records into memory. Supports the same filtering capabilities as `list_executions/1`. (#217)
+- **Enhanced Filtering**: `Journey.list_executions/1` now supports `:is_set` and `:is_not_set` filter operators to check whether a node has been set, regardless of its value. (#214, #215)
+- **Error Handling, logging**: `Journey.Tools` functions (`computation_state/2`, `computation_status_as_text/2`, `summarize_as_data/1`) now raise `ArgumentError` with clear messages when execution is not found. Extra logging in scheduler for better debuggability. (#216, #211)
+- **Elixir 1.19 Support**: Updates for Elixir 1.19 compatibility: compiler warning fixes, CI updates. (#212, #216)
 
 ## v0.10.36
 
