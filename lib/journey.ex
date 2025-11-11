@@ -1799,6 +1799,10 @@ defmodule Journey do
     end
   end
 
+  @doc group: "Deprecated"
+  @doc """
+    Deprecated, use `Journey.get/3` instead"
+  """
   def get_value(execution, node_name, opts \\ [])
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
     # Check for new vs old style options
