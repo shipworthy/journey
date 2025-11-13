@@ -11,7 +11,9 @@
 
 Journey is a package for defining and running durable workflows, with persistence, horizontal scalability, orchestration, retries, crash recovery, scheduling, introspection and analytics. 
 
-The example below illustrates just that:
+## Example
+
+The example below illustrates just that – defining and running a durable workflow.
 
 ### Defining a Workflow as a Graph
 
@@ -131,7 +133,7 @@ iex> Journey.values(execution)
 }
 ```
 
-## Analytics?
+### Analytics?
 
 "Is everyone getting greeted?" "Yes, 100%!"
 
@@ -171,9 +173,9 @@ The examples above demonstrated Journey's basic functionality:
 
 * **defining a workflow** with its data points, its computations, and its dependencies, with `Journey.new_graph/4`,
 * **running executions** of the workflow, and watching computations run their course when unblocked (`Journey.start_execution/1`, `Journey.set/3`, `Journey.values/2`),
-* **introspecting** the state of an execution with `summarize_as_text(eid)`,
-* **reloading** an execution after an interruption with `Journey.load(eid)`,
-* getting basic aggregated **analytics** with `flow_analytics()`.
+* **introspecting** the state of an execution with `Journey.Tools.summarize_as_text/1`,
+* **reloading** an execution after an interruption with `Journey.load/2`,
+* getting basic aggregated **analytics** with `Journey.Insights.FlowAnalytics.flow_analytics/2`.
 
 Also, notice the **code structure** that comes with an application's orchestration logic captured in its (somewhat self-documenting) graph.
 
@@ -181,10 +183,10 @@ Also, notice the **code structure** that comes with an application's orchestrati
 
 Here are some of the more complex scenarios that are outside of the scope of this introductory example:
 
-- executing one-time or recurring scheduled events with `tick_once/3` and `tick_recurring/3` nodes, 
-- mutating values with `mutate/3` nodes, 
-- defining conditional workflows with `unblocked_when`, 
-- automatically recording the history of changes with `historian/3` nodes,
+- executing one-time or recurring scheduled events with `Journey.Node.tick_once/3` and `Journey.Node.tick_recurring/3` nodes, 
+- mutating values with `Journey.Node.mutate/3` nodes, 
+- defining conditional workflows with `Journey.Node.UpstreamDependencies.unblocked_when/2`, 
+- automatically recording the history of changes with `Journey.Node.historian/3` nodes,
 - emitting change notification events with `f_on_save/3`
 
 You can see some of this functionality in JourDash, a play-demo food delivery service, running on https://jourdash.demo.gojourney.dev Its source code is available on GitHub: https://github.com/markmark206/jourdash
@@ -194,14 +196,16 @@ You can see some of this functionality in JourDash, a play-demo food delivery se
 
 Absolutely!
 
-Implementing persistence, retries, orchestrations, the logic for resuming things after crashes, horizontal scalability, scheduling, tracking the history of changes, helper functions for introspecting the state of individual executions and of the system, figuring out ways to structure the code... many of us have implemented – and debugged – this important plumbing multiple times!
+Implementing persistence, retries, orchestrations, the logic for resuming things after crashes, horizontal scalability, scheduling, tracking the history of changes, helper functions for introspecting the state of individual executions and of the system, figuring out ways to structure the code... many of us have implemented – and debugged – this important non-trivial plumbing multiple times!
 
-Journey handles those things for you, saving you the complexity of thousands of lines of non-trivial plumbing code.
+Journey handles those things for you, saving you the complexity of thousands of lines of this non-trivial plumbing code.
 
 Instead, you can spend your attention on building your actual application – whether its workflows are tiny and linear or large and conditional.
 
 
-## "Do I need to ship my data to the cloud? Is Journey a SaaS? Do I need to somehow deploy Journey in my infrastructure?"
+## Is Journey a SaaS? Nope.
+
+Is Journey a SaaS? Do I need to ship my data to the cloud? Do I need to somehow deploy Journey in my infrastructure?
 
 Absolutely not!
 

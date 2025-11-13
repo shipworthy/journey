@@ -1,5 +1,8 @@
 # Basic Concepts
 
+
+## A Basic Graph
+
 To illustrate a few concepts (graph, dependencies – including conditional dependencies, computation functions, persistence), here is a slightly more complex example.
 
 Keep in mind that these concepts apply to both simple, two-step linear processes and complex, multi-step conditional processes. Journey makes it easy to implement durable flows of a wide range of size and complexity.
@@ -108,7 +111,7 @@ Despite the simplicity of use, here are a few things provided by Journey that ar
 ```
   mutate(:ssn_redacted, [:credit_score], fn _ -> {:ok, "<redacted>"} end, mutates: :ssn)
 ```
-node in the example credit card application graph, [here](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L210), which mutates the contents of the `:ssn` node, replacing its value with "<redacted>", when :credit_score completes.
+node in the example credit card application graph, [here](https://github.com/markmark206/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L210), which mutates the contents of the `:ssn` node, replacing its value with "<redacted>", when `:credit_score` completes.
 
 * Tooling and visualization: `Journey.Tools` provides a set of tools for introspecting and managing executions, and for visualizing your application's graph.
 
