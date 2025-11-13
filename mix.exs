@@ -16,11 +16,11 @@ defmodule Journey.MixProject do
         main: "readme",
         extras: [
           "README.md",
+          "BASIC_CONCEPTS.md",
           "MODULES_AND_FUNCTIONS.md",
           "LICENSE.md",
           "CHANGELOG.md",
-          "MIGRATION_STRATEGY.md",
-          "lib/examples/basic.livemd"
+          "MIGRATION_STRATEGY.md"
         ],
         groups_for_docs: [
           "Graph Management": &(&1[:group] == "Graph Management"),
