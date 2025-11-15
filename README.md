@@ -6,8 +6,7 @@
 — <a href="https://www.youtube.com/watch?v=JvBT4XBdoUE">Saša Jurić, "The Soul of Elixir and Erlang"</a>
 </div>
 
-
-## What is Journey
+## Journey: Durable Workflows, as a Package
 
 Journey is a package for defining and running durable workflows, with persistence, horizontal scalability, orchestration, retries, crash recovery, scheduling, introspection and analytics. 
 
@@ -112,7 +111,7 @@ Computations:
 
 ### "My infrastructure is back after an outage. Can I resume executions?"
 
-Sure! With Journey's durable executions, as long as you have the ID of the execution, you can simply reload it and continue, as if nothing happened.
+Sure! With Journey's durable workflows, as long as you have the ID of the execution, you can simply reload it and continue, as if nothing happened.
 
 Handling interruptions – infrastructure outages, re-deployments, scaling events, users reloading pages, or leaving and coming back later – is as easy as calling `Journey.load/1`.
 
@@ -205,15 +204,15 @@ Instead, you can spend your attention on building your actual application – wh
 
 ## Is Journey a SaaS? Nope.
 
-Is Journey a SaaS? Do I need to ship my data to the cloud? Do I need to somehow deploy Journey in my infrastructure?
+Is Journey ("Durable Workflows as a Package") a SaaS? Do I need to ship my data to the cloud? Do I need to somehow deploy Journey in my infrastructure?
 
 Absolutely not!
 
-Journey is merely a package, so you get all the goodies of durable executions by simply importing it in your application and pointing it to a PostgreSQL database.
+Journey is merely a package, so you get all the goodies of executing durable workflows by simply importing it in your application and pointing it to a PostgreSQL database.
 
 No SaaS solution to subscribe to, no third-party services to ship your customers' data to, no remote runtime dependencies to take on, no need to deploy and operate a separate solution in your own infrastructure. All your data stays with you.
 
-Journey is simply a package you import in your application and point at a PostgreSQL database.
+Journey is durable workflows in a package.
 
 ## Installation and Configuration
 
