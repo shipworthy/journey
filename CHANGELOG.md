@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.38
+
+- **Documentation Updates**: 
+  * `Journey.get_value/3` is now marked as deprecated in favor of `Journey.get/3`. The function remains fully functional for backward compatibility. (#219)
+  * Reorganized and simplified documentation - created new `BASIC_CONCEPTS.md` with comprehensive examples, refactored README.md for improved clarity and focus on practical use cases. (#220, #221)
+- **Internal Enhancement**: Streamlined license validation logic for improved code maintainability. Added support for configurable license key service URL via `JOURNEY_LICENSE_KEY_SERVICE_URL` environment variable. (#222)
+
 ## v0.10.37
 
 - **API Naming**: Renamed `schedule_once/4` to `tick_once/4` and `schedule_recurring/4` to `tick_recurring/4` to better reflect that these nodes emit time-based "ticks" (revisions). The old function names remain available with deprecation warnings for backward compatibility. Both old and new internal type atoms (`:schedule_once`, `:tick_once`, `:schedule_recurring`, `:tick_recurring`) are supported for zero-downtime deployments.
