@@ -75,9 +75,18 @@ defmodule Journey do
 
   @default_timeout_ms 30_000
 
-  @doc group: "Graph Management"
   @doc """
   Creates a new computation graph with the given name, version, and node definitions.
+
+  ## Arities
+
+  - `new_graph(nodes)` - Auto-generates name and uses default version "v1.0"
+  - `new_graph(nodes, opts)` - Auto-generates name with options
+  - `new_graph(name, nodes)` - Explicit name, default version
+  - `new_graph(name, nodes, opts)` - Explicit name with options
+  - `new_graph(name, version, nodes)` - Full specification
+  - `new_graph(name, version, nodes, opts)` - Full specification with
+  options
 
   This is the foundational function for defining Journey graphs. It creates a validated
   graph structure that can be used to start executions with `start_execution/1`. The graph
@@ -263,8 +272,38 @@ defmodule Journey do
   ```
 
   """
-  def new_graph(name, version, nodes, opts \\ [])
+  @doc group: "Graph Management"
+  def new_graph(nodes) when is_list(nodes) do
+    new_graph(nil, nil, nodes, [])
+  end
+
+  @doc group: "Graph Management"
+  def new_graph(nodes, opts) when is_list(nodes) and is_list(opts) do
+    new_graph(nil, nil, nodes, opts)
+  end
+
+  @doc group: "Graph Management"
+  def new_graph(name, nodes) when is_binary(name) and is_list(nodes) do
+    new_graph(name, nil, nodes, [])
+  end
+
+  @doc group: "Graph Management"
+  def new_graph(name, nodes, opts)
+      when is_binary(name) and is_list(nodes) and is_list(opts) do
+    new_graph(name, nil, nodes, opts)
+  end
+
+  @doc group: "Graph Management"
+  def new_graph(name, version, nodes)
       when is_binary(name) and is_binary(version) and is_list(nodes) do
+    new_graph(name, version, nodes, [])
+  end
+
+  @doc group: "Graph Management"
+  def new_graph(name, version, nodes, opts)
+      when (is_binary(name) or is_nil(name)) and (is_binary(version) or is_nil(version)) and
+             is_list(nodes) and is_list(opts) do
+    # The canonical implementation - all others delegate here
     Graph.new(name, version, nodes, opts)
     |> Journey.Graph.Validations.validate()
     |> Graph.Catalog.register()
@@ -934,6 +973,16 @@ defmodule Journey do
       graph.execution_id_prefix
     )
     |> Journey.Scheduler.advance()
+  end
+
+  @doc group: "Execution Lifecycle"
+  @doc """
+  Alias for `start_execution/1`. Creates and starts a new execution of the given graph.
+
+  See `start_execution/1` for full documentation.
+  """
+  def start(graph) when is_struct(graph, Graph) do
+    start_execution(graph)
   end
 
   @doc group: "Data Retrieval"
