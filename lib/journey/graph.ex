@@ -15,7 +15,8 @@ defmodule Journey.Graph do
         }
 
   def new(name, version, nodes, opts \\ [])
-      when is_binary(name) and is_binary(version) and is_list(nodes) do
+      when (is_binary(name) or is_nil(name)) and (is_binary(version) or is_nil(version)) and
+             is_list(nodes) do
     opts_schema = [
       f_on_save: [
         is: {:fun, 3},
@@ -33,14 +34,18 @@ defmodule Journey.Graph do
     KeywordValidator.validate!(opts, opts_schema)
 
     all_nodes = [input(:execution_id), input(:last_updated_at)] ++ nodes
+    hash = compute_hash(all_nodes)
+
+    actual_name = name || "graph_#{String.slice(hash, 0, 8) |> String.downcase()}"
+    actual_version = version || "v1.0"
 
     %__MODULE__{
-      name: name,
-      version: version,
+      name: actual_name,
+      version: actual_version,
       nodes: all_nodes,
       f_on_save: Keyword.get(opts, :f_on_save),
       execution_id_prefix: Keyword.get(opts, :execution_id_prefix, "EXEC"),
-      hash: compute_hash(all_nodes)
+      hash: hash
     }
   end
 

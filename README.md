@@ -83,7 +83,7 @@ iex> Journey.values(execution)
 
 ```elixir
 iex> execution.id
-  |> Journey.Tools.summarize_as_text()
+  |> Journey.Tools.introspect()
   |> IO.puts()
 
 """
@@ -172,7 +172,7 @@ The examples above demonstrated Journey's basic functionality:
 
 * **defining a workflow** with its data points, its computations, and its dependencies, with `Journey.new_graph/4`,
 * **running executions** of the workflow, and watching computations run their course when unblocked (`Journey.start_execution/1`, `Journey.set/3`, `Journey.values/2`),
-* **introspecting** the state of an execution with `Journey.Tools.summarize_as_text/1`,
+* **introspecting** the state of an execution with `Journey.Tools.introspect/1`,
 * **reloading** an execution after an interruption with `Journey.load/2`,
 * getting basic aggregated **analytics** with `Journey.Insights.FlowAnalytics.flow_analytics/2`.
 

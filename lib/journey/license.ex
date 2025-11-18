@@ -27,7 +27,6 @@ defmodule Journey.License.Functions do
   defp handle_not_set(result, _build_key), do: result
 
   defp validate_key(service_url, build_key) do
-    try do
     :inets.start()
     :ssl.start()
 
@@ -43,9 +42,8 @@ defmodule Journey.License.Functions do
       _ ->
         "verification_error"
     end
-    rescue
-      _e -> "unable_to_verify_build_key"
-    end
+  rescue
+    _e -> "unable_to_verify_build_key"
   end
 
   defp print_license_info() do
