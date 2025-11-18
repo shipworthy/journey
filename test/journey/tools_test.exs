@@ -69,12 +69,12 @@ defmodule Journey.ToolsTest do
     end
   end
 
-  describe "summarize_as_text/1 (text formatting)" do
+  describe "introspect/1 (text formatting)" do
     test "formats complete execution summary text for new execution" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
 
-      result = Journey.Tools.summarize_as_text(execution.id)
+      result = Journey.Tools.introspect(execution.id)
 
       # Get actual system node values for expected output
       values = Journey.values(execution)
@@ -144,7 +144,7 @@ defmodule Journey.ToolsTest do
 
       {:ok, _, _} = Journey.get(execution, :reminder, wait: :any)
 
-      result = Journey.Tools.summarize_as_text(execution.id)
+      result = Journey.Tools.introspect(execution.id)
 
       # Get actual values for expected output
       values = Journey.values(execution)
@@ -231,7 +231,7 @@ defmodule Journey.ToolsTest do
       execution = Journey.start_execution(graph)
 
       # Check initial state shows outstanding computations
-      summary_initial_text = Journey.Tools.summarize_as_text(execution.id)
+      summary_initial_text = Journey.Tools.introspect(execution.id)
       assert summary_initial_text =~ "⬜ :not_set (not yet attempted)"
       assert summary_initial_text =~ "🛑 :value | &provided?/1"
 
@@ -250,7 +250,7 @@ defmodule Journey.ToolsTest do
       _execution_after = Journey.load(execution.id)
 
       # Format as text and check for emoji usage
-      summary_text = Journey.Tools.summarize_as_text(execution.id)
+      summary_text = Journey.Tools.introspect(execution.id)
 
       # Should see success emoji for successful computation
       assert summary_text =~ "✅ :success"
@@ -334,7 +334,7 @@ defmodule Journey.ToolsTest do
       {:ok, _, _} = Journey.get(execution, :send_reminder, wait: :any)
       {:ok, _, _} = Journey.get(execution, :send_follow_up, wait: :any)
 
-      result = Journey.Tools.summarize_as_text(execution.id)
+      result = Journey.Tools.introspect(execution.id)
 
       # Get actual system node values for expected output
       values = Journey.values(execution)
@@ -488,13 +488,13 @@ defmodule Journey.ToolsTest do
     end
   end
 
-  describe "summarize_as_text/1" do
-    test "returns formatted text summary as convenience function" do
+  describe "introspect/1" do
+    test "returns formatted text summary" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
 
       result =
-        Journey.Tools.summarize_as_text(execution.id)
+        Journey.Tools.introspect(execution.id)
         |> redact_text_timestamps()
         |> redact_text_duration()
         |> redact_text_seconds_ago()
@@ -509,16 +509,24 @@ defmodule Journey.ToolsTest do
       assert result =~ "Values:"
       assert result =~ "Computations:"
 
-      # Test deprecated function returns the same result
+      # Test deprecated functions return the same result
       # Using string-based call to avoid compile-time deprecation warning in test
-      deprecated_result =
+      deprecated_result_summarize_as_text =
+        Code.eval_string("Journey.Tools.summarize_as_text(\"#{execution.id}\")")
+        |> elem(0)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+
+      deprecated_result_summarize =
         Code.eval_string("Journey.Tools.summarize(\"#{execution.id}\")")
         |> elem(0)
         |> redact_text_timestamps()
         |> redact_text_duration()
         |> redact_text_seconds_ago()
 
-      assert deprecated_result == result
+      assert deprecated_result_summarize_as_text == result
+      assert deprecated_result_summarize == result
     end
   end
 

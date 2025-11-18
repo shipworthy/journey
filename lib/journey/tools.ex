@@ -375,7 +375,9 @@ defmodule Journey.Tools do
         computation -> computation.id
       end
 
-    header = ":#{node_name} (#{computation_id}): #{computation_state_to_text(:not_set)} | #{inspect(graph_node.type)}\n"
+    header =
+      ":#{node_name} (#{computation_id}): #{computation_state_to_text(:not_set)} | #{inspect(graph_node.type)}\n"
+
     formatted_conditions = format_condition_tree(readiness.structure, "    ")
 
     header <> formatted_conditions
@@ -531,11 +533,14 @@ defmodule Journey.Tools do
   end
 
   @doc """
-  Generates a human-readable text summary of an execution's current state.
+  Introspects an execution's current state with a human-readable text summary.
+
+  This is the primary debugging and introspection tool for Journey executions,
+  providing a comprehensive snapshot of values, computations, and dependencies.
 
   ## Example
 
-      iex> Journey.Tools.summarize_as_text("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
+      iex> Journey.Tools.introspect("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
       Execution summary:
       - ID: 'EXEC07B2H0H7J1LTAE0VJDAL'
       - Graph: 'g1' | 'v1'
@@ -548,9 +553,9 @@ defmodule Journey.Tools do
   ## Returns
   A formatted string with the complete execution state summary.
 
-  Use `summarize_as_data/1` to get execution summary as data.
+  Use `summarize_as_data/1` to get execution summary as structured data.
   """
-  def summarize_as_text(execution_id) when is_binary(execution_id) do
+  def introspect(execution_id) when is_binary(execution_id) do
     execution_id
     |> summarize_as_data()
     |> convert_summary_data_to_text()
@@ -559,7 +564,25 @@ defmodule Journey.Tools do
   @doc """
   Generates a human-readable text summary of an execution's current state.
 
-  **This function is deprecated.** Use `summarize_as_text/1` instead.
+  **This function is deprecated.** Use `introspect/1` instead.
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to analyze
+
+  ## Returns
+  A formatted string with the complete execution state summary.
+
+  Use `summarize_as_data/1` to get execution summary as data.
+  """
+  @deprecated "Use introspect/1 instead"
+  def summarize_as_text(execution_id) when is_binary(execution_id) do
+    introspect(execution_id)
+  end
+
+  @doc """
+  Generates a human-readable text summary of an execution's current state.
+
+  **This function is deprecated.** Use `introspect/1` instead.
 
   ## Parameters
   - `execution_id` - The ID of the execution to analyze
@@ -567,9 +590,9 @@ defmodule Journey.Tools do
   ## Returns
   A formatted string with the complete execution state summary.
   """
-  @deprecated "Use summarize_as_text/1 instead"
+  @deprecated "Use introspect/1 instead"
   def summarize(execution_id) when is_binary(execution_id) do
-    summarize_as_text(execution_id)
+    introspect(execution_id)
   end
 
   defp convert_summary_data_to_text(summary_data) when is_map(summary_data) do
