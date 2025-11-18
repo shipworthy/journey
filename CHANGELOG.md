@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.10.39
+
+- **API Ergonomics Improvements**: renaming `Journey.Tools.summarize_as_text/1` -> `Journey.Tools.introspect/1`, renaming `Journey.start_execution/1` -> `Journey.start/1`, adding simple `Journey.new_graph(nodes)` with auto-generated graph name and revision. (#224)
+
 ## v0.10.38
 
 - **Documentation Updates**: 
