@@ -17,11 +17,14 @@ defmodule Journey.License.Functions do
       "verification_skipped"
     else
       validate_key(license_key_service, build_key)
-      |> then(fn r -> if build_key == "not_set", do: "not_set", else: r end)
+      |> handle_not_set(build_key)
     end
     |> message_from_response()
     |> IO.puts()
   end
+
+  defp handle_not_set(_result, "not_set"), do: "not_set"
+  defp handle_not_set(result, _build_key), do: result
 
   defp validate_key(service_url, build_key) do
     :inets.start()
