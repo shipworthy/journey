@@ -192,7 +192,7 @@ defmodule Journey.Tools do
   Shows the status and dependencies for a single computation node.
 
   Provides a focused view of one specific computation node's status and dependencies,
-  similar to the computation sections in summarize_as_text/1 but for just one node.
+  similar to the computation sections in Journey.Tools.introspect/1 but for just one node.
 
   ## Parameters
   - `execution_id` - The ID of the execution to analyze
@@ -454,7 +454,7 @@ defmodule Journey.Tools do
 
   ## Example
 
-      iex> Journey.Tools.summarize_as_data("EXEC07B2H0H7J1LTAE0VJDAL")
+      iex> Journey.Tools.introspect("EXEC07B2H0H7J1LTAE0VJDAL")
       %{
         execution_id: "EXEC07B2H0H7J1LTAE0VJDAL",
         graph_name: "g1",
@@ -480,7 +480,7 @@ defmodule Journey.Tools do
   ## Returns
   A structured map with execution state data.
 
-  Use `summarize_as_text/1` to get execution summary as text.
+  Use `introspect/1` to get execution summary as text.
   """
   def summarize_as_data(execution_id) when is_binary(execution_id) do
     execution =
