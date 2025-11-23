@@ -1,13 +1,13 @@
-defmodule UselessMachine do
+defmodule Journey.Examples.UselessMachine do
   import Journey.Node
 
   @moduledoc """
-  This module ([lib/examples/useless_machines.ex](https://github.com/markmark206/journey/blob/main/lib/examples/useless_machine.ex)) contains an example of building a Useless Machine using Journey.
+  This module ([lib/journey/examples/useless_machines.ex](https://github.com/markmark206/journey/blob/main/lib/journey/examples/useless_machine.ex)) contains an example of building a Useless Machine using Journey.
 
   Here is an example of running the useless Machine:
 
   ```elixir
-  iex> graph = UselessMachine.graph()
+  iex> graph = Journey.Examples.UselessMachine.graph()
   iex> execution = Journey.start_execution(graph)
   iex> Journey.get_value(execution, :switch)
   {:error, :not_set}
