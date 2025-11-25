@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.10.40
+
+- **refinements**: adding `jason` as an explicit dependency, renaming the `UselessMachine` example to `Journey.Examples.UselessMachine`. (#226, #227)
+
+
 ## v0.10.39
 
 - **API Ergonomics Improvements**: renaming `Journey.Tools.summarize_as_text/1` -> `Journey.Tools.introspect/1`, renaming `Journey.start_execution/1` -> `Journey.start/1`, adding simple `Journey.new_graph(nodes)` with auto-generated graph name and revision. (#224)
