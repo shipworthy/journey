@@ -188,7 +188,7 @@ Here are some of the more complex scenarios that are outside of the scope of thi
 - automatically recording the history of changes with `Journey.Node.historian/3` nodes,
 - emitting change notification events with `f_on_save/3`
 
-You can see some of this functionality in JourDash, a play-demo food delivery service, running on https://jourdash.demo.gojourney.dev Its source code is available on GitHub: https://github.com/markmark206/jourdash
+You can see some of this functionality in JourDash, a play-demo food delivery service, running on https://jourdash.gojourney.dev Its source code is available on GitHub: https://github.com/shipworthy/jour_dash
 
 
 ## Can I Just Write This by Hand?
@@ -298,7 +298,7 @@ config :journey, :graphs, [
 
 ## Questions / Comments / Issues
 
-To get in touch, report an issue, or ask a question, please create a GitHub issue: https://github.com/markmark206/journey/issues
+To get in touch, report an issue, or ask a question, please create a GitHub issue: https://github.com/shipworthy/journey/issues
 
 
 ## Full Documentation
@@ -315,9 +315,9 @@ There are a couple of open-source example applications that demonstrate the use 
 
 JourDash is a play-demo food delivery service. It uses Journey to conduct its food "deliveries" – from pickup to drop-off (or handoff!).
 
-You can see the application running on https://jourdash.demo.gojourney.dev/
+You can see the application running on https://jourdash.gojourney.dev/
 
-The source is available on GitHub: https://github.com/markmark206/jourdash
+The source is available on GitHub: https://github.com/shipworthy/jour_dash
 
 
 ### Horoscopes
@@ -326,6 +326,6 @@ Horoscopes is a Phoenix application for computing "horoscopes".
 
 It uses Journey to orchestrate the visitor experience, while giving the user a chance to peek behind the scenes.
 
-The application is running at https://demo.gojourney.dev/
+The application is running at https://horoscopes.gojourney.dev
 
-Its source is available on GitHub: https://github.com/shipworthy/journey-demo
+Its source is available on GitHub: https://github.com/shipworthy/journey_horoscopes
