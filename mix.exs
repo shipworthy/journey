@@ -46,8 +46,8 @@ defmodule Journey.MixProject do
         "Journey is a library for defining and running self-computing dataflow graphs with persistence, reliability, and scalability.",
       licenses: ["Journey License"],
       links: %{
-        "GitHub" => "https://github.com/markmark206/journey",
-        "License" => "https://github.com/markmark206/journey/blob/v#{@version}/LICENSE.md",
+        "GitHub" => "https://github.com/shipworthy/journey",
+        "License" => "https://github.com/shipworthy/journey/blob/v#{@version}/LICENSE.md",
         "About" => "https://gojourney.dev"
       }
     ]

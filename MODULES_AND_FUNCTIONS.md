@@ -84,10 +84,10 @@ Functions:
 ## Example: `Journey.Examples.CreditCardApplication`
 Demonstrates building a complete credit card application workflow using Journey.
 
-See the full implementation: [`lib/journey/examples/credit_card_application.ex`](https://github.com/markmark206/journey/blob/main/lib/journey/examples/credit_card_application.ex)
+See the full implementation: [`lib/journey/examples/credit_card_application.ex`](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/credit_card_application.ex)
 
 ## Example: `Journey.Examples.UselessMachine`
 Contains a simple example of building a "Useless Machine" using Journey - a reactive system that automatically turns itself off when turned on.
 
-See the full implementation: [`lib/journey/examples/useless_machine.ex`](https://github.com/markmark206/journey/blob/main/lib/journey/examples/useless_machine.ex)
+See the full implementation: [`lib/journey/examples/useless_machine.ex`](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/useless_machine.ex)
 

@@ -76,6 +76,6 @@ Any legal action arising from this license shall be brought exclusively in the s
 
 – Mark Markaryan
 
-[github.com/markmark206/journey](https://github.com/markmark206/journey)
+[github.com/shipworthy/journey](https://github.com/shipworthy/journey)
 
 [gojourney.dev](https://gojourney.dev)
