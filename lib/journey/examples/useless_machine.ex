@@ -2,7 +2,7 @@ defmodule Journey.Examples.UselessMachine do
   import Journey.Node
 
   @moduledoc """
-  This module ([lib/journey/examples/useless_machines.ex](https://github.com/markmark206/journey/blob/main/lib/journey/examples/useless_machine.ex)) contains an example of building a Useless Machine using Journey.
+  This module ([lib/journey/examples/useless_machine.ex](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/useless_machine.ex)) contains an example of building a Useless Machine using Journey.
 
   Here is an example of running the useless Machine:
 
