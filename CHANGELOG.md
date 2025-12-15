@@ -1,9 +1,12 @@
 # Changelog
 
+## v0.10.41
+
+- **documentation updates**: updating links and verbiage to reference the new repo (https://github.com/shipworthy), updating package description. (#229, #230, #231)
+
 ## v0.10.40
 
 - **refinements**: adding `jason` as an explicit dependency, renaming the `UselessMachine` example to `Journey.Examples.UselessMachine`. (#226, #227)
-
 
 ## v0.10.39
 
