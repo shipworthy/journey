@@ -43,7 +43,7 @@ defmodule Journey.MixProject do
     [
       name: "journey",
       description:
-        "Journey is a library for defining and running self-computing dataflow graphs with persistence, reliability, and scalability.",
+        "Journey is a library for defining and running durable workflows with persistence, reliability, and scalability.",
       licenses: ["Journey License"],
       links: %{
         "GitHub" => "https://github.com/shipworthy/journey",
