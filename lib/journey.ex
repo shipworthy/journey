@@ -891,6 +891,10 @@ defmodule Journey do
   * **Background processing** - Scheduler automatically begins monitoring for schedulable nodes
   * **Ready for inputs** - Can immediately accept input values via `set/3`
 
+  ## Singleton Graphs
+  For graphs created with `singleton: true`, use `ensure_execution/1` instead.
+  Calling `start_execution/1` on a singleton graph will raise an `ArgumentError`.
+
   ## Examples
 
   Basic execution creation:
@@ -965,7 +969,12 @@ defmodule Journey do
 
   """
   def start_execution(graph) when is_struct(graph, Graph) do
-    Journey.Executions.create_new(
+    if graph.singleton do
+      raise ArgumentError,
+            "Graph '#{graph.name}' is a singleton graph. Use ensure_execution/1 instead."
+    end
+
+    Executions.create_new(
       graph.name,
       graph.version,
       graph.nodes,
@@ -987,35 +996,35 @@ defmodule Journey do
 
   @doc group: "Execution Lifecycle"
   @doc """
-  Returns an existing execution for the graph, or creates a new one if none exists.
+  Returns an existing execution for a singleton graph, or creates a new one if none exists.
 
-  This function implements a singleton pattern for executions, ensuring that only one
+  This function implements the singleton pattern for executions, ensuring that only one
   non-archived execution exists per graph name. Useful for workflows that represent
-  a single business process rather than per-user/per-request workflows.
+  a single global process rather than per-user or per-request workflows.
 
   Uses PostgreSQL advisory locks to prevent race conditions when multiple processes
-  attempt to create the singleton execution simultaneously.
+  attempt to access the singleton execution simultaneously.
 
   ## Quick Example
 
   ```elixir
-  import Journey.Node
   graph = Journey.new_graph(
     "global config",
     "v1.0.0",
-    [input(:setting_a), input(:setting_b)]
+    [input(:setting_a), input(:setting_b)],
+    singleton: true
   )
 
   # First call creates the execution
-  execution1 = Journey.get_or_create_execution(graph)
+  execution1 = Journey.ensure_execution(graph)
 
   # Subsequent calls return the same execution
-  execution2 = Journey.get_or_create_execution(graph)
+  execution2 = Journey.ensure_execution(graph)
   execution1.id == execution2.id  # true
   ```
 
   ## Parameters
-  * `graph` - A `%Journey.Graph{}` struct created with `new_graph/3`
+  * `graph` - A `%Journey.Graph{}` struct created with `new_graph/3` and `singleton: true`
 
   ## Returns
   * `%Journey.Persistence.Schema.Execution{}` - The singleton execution for this graph
@@ -1023,7 +1032,7 @@ defmodule Journey do
   ## Key Behaviors
   * **Singleton per graph name** - Only one non-archived execution per graph name
   * **Race-condition safe** - Uses PostgreSQL advisory locks for concurrent access
-  * **Excludes archived** - Archived executions are not considered; archiving creates a new singleton
+  * **Excludes archived** - Archived executions are not considered; archiving allows a new singleton
   * **Version independent** - Matches by graph name only, not version
 
   ## Examples
@@ -1035,16 +1044,55 @@ defmodule Journey do
   iex> graph = Journey.new_graph(
   ...>   "singleton test - #{Journey.Helpers.Random.random_string_w_time()}",
   ...>   "v1.0.0",
-  ...>   [input(:value)]
+  ...>   [input(:value)],
+  ...>   singleton: true
   ...> )
-  iex> e1 = Journey.get_or_create_execution(graph)
-  iex> e2 = Journey.get_or_create_execution(graph)
+  iex> e1 = Journey.ensure_execution(graph)
+  iex> e2 = Journey.ensure_execution(graph)
   iex> e1.id == e2.id
   true
   ```
 
+  State is preserved across calls:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "state test - #{Journey.Helpers.Random.random_string_w_time()}",
+  ...>   "v1.0.0",
+  ...>   [input(:counter)],
+  ...>   singleton: true
+  ...> )
+  iex> e1 = Journey.ensure_execution(graph)
+  iex> Journey.set(e1, :counter, 42)
+  iex> e2 = Journey.ensure_execution(graph)
+  iex> {:ok, 42, _} = Journey.get(e2, :counter)
+  ```
+
+  Concurrent access returns the same execution:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "concurrent test - #{Journey.Helpers.Random.random_string_w_time()}",
+  ...>   "v1.0.0",
+  ...>   [input(:data)],
+  ...>   singleton: true
+  ...> )
+  iex> tasks = for _ <- 1..5, do: Task.async(fn -> Journey.ensure_execution(graph) end)
+  iex> executions = Task.await_many(tasks)
+  iex> executions |> Enum.map(fn e -> e.id end) |> Enum.uniq() |> length()
+  1
+  ```
+
   """
-  def get_or_create_execution(graph) when is_struct(graph, Graph) do
+  def ensure_execution(graph) when is_struct(graph, Graph) do
+    unless graph.singleton do
+      raise ArgumentError,
+            "Graph '#{graph.name}' is not a singleton graph. " <>
+              "Use start_execution/1 for regular graphs, or create the graph with singleton: true."
+    end
+
     Executions.get_or_create(graph)
     |> Journey.Scheduler.advance()
   end
