@@ -985,6 +985,70 @@ defmodule Journey do
     start_execution(graph)
   end
 
+  @doc group: "Execution Lifecycle"
+  @doc """
+  Returns an existing execution for the graph, or creates a new one if none exists.
+
+  This function implements a singleton pattern for executions, ensuring that only one
+  non-archived execution exists per graph name. Useful for workflows that represent
+  a single business process rather than per-user/per-request workflows.
+
+  Uses PostgreSQL advisory locks to prevent race conditions when multiple processes
+  attempt to create the singleton execution simultaneously.
+
+  ## Quick Example
+
+  ```elixir
+  import Journey.Node
+  graph = Journey.new_graph(
+    "global config",
+    "v1.0.0",
+    [input(:setting_a), input(:setting_b)]
+  )
+
+  # First call creates the execution
+  execution1 = Journey.get_or_create_execution(graph)
+
+  # Subsequent calls return the same execution
+  execution2 = Journey.get_or_create_execution(graph)
+  execution1.id == execution2.id  # true
+  ```
+
+  ## Parameters
+  * `graph` - A `%Journey.Graph{}` struct created with `new_graph/3`
+
+  ## Returns
+  * `%Journey.Persistence.Schema.Execution{}` - The singleton execution for this graph
+
+  ## Key Behaviors
+  * **Singleton per graph name** - Only one non-archived execution per graph name
+  * **Race-condition safe** - Uses PostgreSQL advisory locks for concurrent access
+  * **Excludes archived** - Archived executions are not considered; archiving creates a new singleton
+  * **Version independent** - Matches by graph name only, not version
+
+  ## Examples
+
+  Basic singleton usage:
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>   "singleton test - #{Journey.Helpers.Random.random_string_w_time()}",
+  ...>   "v1.0.0",
+  ...>   [input(:value)]
+  ...> )
+  iex> e1 = Journey.get_or_create_execution(graph)
+  iex> e2 = Journey.get_or_create_execution(graph)
+  iex> e1.id == e2.id
+  true
+  ```
+
+  """
+  def get_or_create_execution(graph) when is_struct(graph, Graph) do
+    Executions.get_or_create(graph)
+    |> Journey.Scheduler.advance()
+  end
+
   @doc group: "Data Retrieval"
   @doc """
   Returns a map of all nodes in an execution with their current status, including unset nodes.

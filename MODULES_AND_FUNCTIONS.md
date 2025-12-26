@@ -10,6 +10,7 @@ The entry point for the Journey library. Provides functions for creating and man
 
 ### Execution Lifecycle
 - `Journey.start_execution/1` - Starts a new execution instance of a computation graph
+- `Journey.get_or_create_execution/1` - Returns an existing execution for the graph, or creates a new one if none exists (singleton pattern)
 - `Journey.load/2` - Loads the current version of an execution from the database
 - `Journey.list_executions/1` - Queries and retrieves executions with filtering, sorting, and pagination
 - `Journey.count_executions/1` - Returns the count of executions matching the specified criteria without fetching the execution records
