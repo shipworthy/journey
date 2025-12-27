@@ -3,7 +3,7 @@ defmodule Journey.Graph do
 
   import Journey.Node, only: [input: 1]
 
-  defstruct [:name, :version, :nodes, :f_on_save, :hash, :execution_id_prefix]
+  defstruct [:name, :version, :nodes, :f_on_save, :hash, :execution_id_prefix, singleton: false]
 
   @type t :: %__MODULE__{
           name: String.t(),
@@ -11,7 +11,8 @@ defmodule Journey.Graph do
           nodes: list,
           f_on_save: function() | nil,
           hash: String.t(),
-          execution_id_prefix: String.t()
+          execution_id_prefix: String.t(),
+          singleton: boolean()
         }
 
   def new(name, version, nodes, opts \\ [])
@@ -28,6 +29,11 @@ defmodule Journey.Graph do
         is: :binary,
         required: false,
         doc: "Custom prefix for execution IDs. Will be normalized to uppercase. Defaults to 'EXEC'."
+      ],
+      singleton: [
+        is: :boolean,
+        required: false,
+        doc: "When true, only one non-archived execution can exist for this graph. Defaults to false."
       ]
     ]
 
@@ -45,7 +51,8 @@ defmodule Journey.Graph do
       nodes: all_nodes,
       f_on_save: Keyword.get(opts, :f_on_save),
       execution_id_prefix: Keyword.get(opts, :execution_id_prefix, "EXEC"),
-      hash: hash
+      hash: hash,
+      singleton: Keyword.get(opts, :singleton, false)
     }
   end
 

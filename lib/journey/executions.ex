@@ -8,6 +8,9 @@ defmodule Journey.Executions do
   # Namespace for PostgreSQL advisory locks used in graph migrations
   @migration_lock_namespace 12_345
 
+  # Namespace for PostgreSQL advisory locks used in singleton execution creation
+  @singleton_lock_namespace 67_890
+
   def create_new(graph_name, graph_version, nodes, graph_hash, execution_id_prefix) do
     Logger.info("graph '#{graph_name}' (version '#{graph_version}'), id prefix [#{execution_id_prefix}]")
 
@@ -64,6 +67,59 @@ defmodule Journey.Executions do
           end)
 
         load(execution.id, true, false)
+      end)
+
+    execution
+  end
+
+  @doc """
+  Returns an existing execution for the graph, or creates a new one if none exists.
+  Uses PostgreSQL advisory locks to prevent race conditions.
+  """
+  def get_or_create(graph) do
+    # Fast path: check without lock first
+    case find_singleton_execution(graph.name) do
+      %Execution{} = execution ->
+        execution
+
+      nil ->
+        create_singleton_with_lock(graph)
+    end
+  end
+
+  defp find_singleton_execution(graph_name) do
+    from(e in Execution,
+      where: e.graph_name == ^graph_name and is_nil(e.archived_at),
+      order_by: [asc: e.inserted_at],
+      limit: 1,
+      preload: [:values, :computations]
+    )
+    |> Journey.Repo.one()
+    |> convert_node_names_to_atoms()
+  end
+
+  defp create_singleton_with_lock(graph) do
+    lock_key = :erlang.phash2({:singleton, graph.name})
+
+    {:ok, execution} =
+      Journey.Repo.transaction(fn repo ->
+        # Acquire advisory lock scoped to this graph name
+        repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [@singleton_lock_namespace, lock_key])
+
+        # Re-check after acquiring lock (another process may have created it)
+        case find_singleton_execution(graph.name) do
+          %Execution{} = existing ->
+            existing
+
+          nil ->
+            create_new(
+              graph.name,
+              graph.version,
+              graph.nodes,
+              graph.hash,
+              graph.execution_id_prefix
+            )
+        end
       end)
 
     execution
