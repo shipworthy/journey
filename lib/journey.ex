@@ -892,7 +892,7 @@ defmodule Journey do
   * **Ready for inputs** - Can immediately accept input values via `set/3`
 
   ## Singleton Graphs
-  For graphs created with `singleton: true`, use `ensure_execution/1` instead.
+  For graphs created with `singleton: true`, use `find_or_start/1` instead.
   Calling `start_execution/1` on a singleton graph will raise an `ArgumentError`.
 
   ## Examples
@@ -971,7 +971,7 @@ defmodule Journey do
   def start_execution(graph) when is_struct(graph, Graph) do
     if graph.singleton do
       raise ArgumentError,
-            "Graph '#{graph.name}' is a singleton graph. Use ensure_execution/1 instead."
+            "Graph '#{graph.name}' is a singleton graph. Use find_or_start/1 instead."
     end
 
     Executions.create_new(
@@ -1016,10 +1016,10 @@ defmodule Journey do
   )
 
   # First call creates the execution
-  execution1 = Journey.ensure_execution(graph)
+  execution1 = Journey.find_or_start(graph)
 
   # Subsequent calls return the same execution
-  execution2 = Journey.ensure_execution(graph)
+  execution2 = Journey.find_or_start(graph)
   execution1.id == execution2.id  # true
   ```
 
@@ -1047,8 +1047,8 @@ defmodule Journey do
   ...>   [input(:value)],
   ...>   singleton: true
   ...> )
-  iex> e1 = Journey.ensure_execution(graph)
-  iex> e2 = Journey.ensure_execution(graph)
+  iex> e1 = Journey.find_or_start(graph)
+  iex> e2 = Journey.find_or_start(graph)
   iex> e1.id == e2.id
   true
   ```
@@ -1063,9 +1063,9 @@ defmodule Journey do
   ...>   [input(:counter)],
   ...>   singleton: true
   ...> )
-  iex> e1 = Journey.ensure_execution(graph)
+  iex> e1 = Journey.find_or_start(graph)
   iex> Journey.set(e1, :counter, 42)
-  iex> e2 = Journey.ensure_execution(graph)
+  iex> e2 = Journey.find_or_start(graph)
   iex> {:ok, 42, _} = Journey.get(e2, :counter)
   ```
 
@@ -1079,14 +1079,14 @@ defmodule Journey do
   ...>   [input(:data)],
   ...>   singleton: true
   ...> )
-  iex> tasks = for _ <- 1..5, do: Task.async(fn -> Journey.ensure_execution(graph) end)
+  iex> tasks = for _ <- 1..5, do: Task.async(fn -> Journey.find_or_start(graph) end)
   iex> executions = Task.await_many(tasks)
   iex> executions |> Enum.map(fn e -> e.id end) |> Enum.uniq() |> length()
   1
   ```
 
   """
-  def ensure_execution(graph) when is_struct(graph, Graph) do
+  def find_or_start(graph) when is_struct(graph, Graph) do
     unless graph.singleton do
       raise ArgumentError,
             "Graph '#{graph.name}' is not a singleton graph. " <>

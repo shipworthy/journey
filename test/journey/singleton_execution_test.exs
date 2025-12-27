@@ -8,7 +8,7 @@ defmodule Journey.SingletonExecutionTest do
     test "creates execution when none exists" do
       graph = singleton_graph(random_string())
 
-      execution = Journey.ensure_execution(graph)
+      execution = Journey.find_or_start(graph)
 
       assert execution.graph_name == graph.name
       assert execution.graph_version == graph.version
@@ -17,9 +17,9 @@ defmodule Journey.SingletonExecutionTest do
     test "returns existing execution on subsequent calls" do
       graph = singleton_graph(random_string())
 
-      execution1 = Journey.ensure_execution(graph)
-      execution2 = Journey.ensure_execution(graph)
-      execution3 = Journey.ensure_execution(graph)
+      execution1 = Journey.find_or_start(graph)
+      execution2 = Journey.find_or_start(graph)
+      execution3 = Journey.find_or_start(graph)
 
       assert execution1.id == execution2.id
       assert execution2.id == execution3.id
@@ -28,10 +28,10 @@ defmodule Journey.SingletonExecutionTest do
     test "maintains state across calls" do
       graph = singleton_graph(random_string())
 
-      execution1 = Journey.ensure_execution(graph)
+      execution1 = Journey.find_or_start(graph)
       _execution1 = Journey.set(execution1, :value, 42)
 
-      execution2 = Journey.ensure_execution(graph)
+      execution2 = Journey.find_or_start(graph)
 
       assert {:ok, 42, _revision} = Journey.get(execution2, :value)
     end
@@ -39,10 +39,10 @@ defmodule Journey.SingletonExecutionTest do
     test "creates new execution after archiving" do
       graph = singleton_graph(random_string())
 
-      execution1 = Journey.ensure_execution(graph)
+      execution1 = Journey.find_or_start(graph)
       Journey.archive(execution1)
 
-      execution2 = Journey.ensure_execution(graph)
+      execution2 = Journey.find_or_start(graph)
 
       assert execution1.id != execution2.id
     end
@@ -51,8 +51,8 @@ defmodule Journey.SingletonExecutionTest do
       graph1 = singleton_graph(random_string())
       graph2 = singleton_graph(random_string())
 
-      execution1 = Journey.ensure_execution(graph1)
-      execution2 = Journey.ensure_execution(graph2)
+      execution1 = Journey.find_or_start(graph1)
+      execution2 = Journey.find_or_start(graph2)
 
       assert execution1.id != execution2.id
     end
@@ -63,7 +63,7 @@ defmodule Journey.SingletonExecutionTest do
       tasks =
         for _ <- 1..10 do
           Task.async(fn ->
-            Journey.ensure_execution(graph)
+            Journey.find_or_start(graph)
           end)
         end
 
@@ -83,11 +83,11 @@ defmodule Journey.SingletonExecutionTest do
       end
     end
 
-    test "ensure_execution raises for regular graph" do
+    test "find_or_start raises for regular graph" do
       graph = regular_graph(random_string())
 
       assert_raise ArgumentError, ~r/is not a singleton graph/, fn ->
-        Journey.ensure_execution(graph)
+        Journey.find_or_start(graph)
       end
     end
 
