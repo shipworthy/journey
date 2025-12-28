@@ -58,6 +58,7 @@ Functions:
 Utility functions for debugging, analysis, and visualization of Journey executions.
 
 Functions:
+- `Journey.Tools.abandon_computation/1` - Manually abandons a computation in :computing state, scheduling a retry if max_retries not exhausted
 - `Journey.Tools.computation_state/2` - Returns the current state of a computation node (:not_set, :computing, :success, :failed, etc.)
 - `Journey.Tools.computation_state_to_text/1` - Converts a computation state atom to human-readable text with visual symbols
 - `Journey.Tools.computation_status_as_text/2` - Shows the status and dependencies for a single computation node
