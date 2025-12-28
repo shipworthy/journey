@@ -905,6 +905,75 @@ defmodule Journey.Tools do
     advance(execution_id)
   end
 
+  @doc """
+  Manually abandons a computation that is currently in the `:computing` state.
+
+  This is useful when you want to immediately abandon a stuck or problematic computation
+  without waiting for its deadline to expire. The behavior matches the automatic
+  abandonment sweeper: it will schedule a retry if the node hasn't exhausted its
+  `max_retries`, then mark the computation as `:abandoned`.
+
+  ## Parameters
+  - `computation_id` - The ID of the computation to abandon (starts with "CMP")
+
+  ## Returns
+  - `{:ok, computation}` - The updated computation struct
+  - `{:error, :not_found}` - Computation with the given ID doesn't exist
+  - `{:error, :invalid_state, state}` - Computation is not in `:computing` state
+
+  ## Example
+
+      # Abandon a stuck computation
+      {:ok, computation} = Journey.Tools.abandon_computation("CMP123ABC")
+
+      # The computation is now marked as :abandoned
+      computation.state
+      #=> :abandoned
+
+  ## How It Works
+  1. Looks up the computation by ID
+  2. Validates the computation is in `:computing` state
+  3. Schedules a retry if `max_retries` hasn't been exhausted
+  4. Marks the computation as `:abandoned` with current timestamp
+  5. Kicks the execution to trigger downstream processing
+  """
+  def abandon_computation(computation_id) when is_binary(computation_id) do
+    case Journey.Repo.get(Computation, computation_id) do
+      nil ->
+        {:error, :not_found}
+
+      computation ->
+        do_abandon_computation(computation)
+    end
+  end
+
+  defp do_abandon_computation(%Computation{state: :computing} = computation) do
+    computation = Journey.Executions.computation_db_to_atoms(computation)
+
+    {:ok, updated_computation} =
+      Journey.Repo.transaction(fn repo ->
+        # Schedule a retry if max_retries hasn't been exhausted (matches auto-abandonment behavior)
+        Journey.Scheduler.Retry.maybe_schedule_a_retry(computation, repo)
+
+        # Mark the computation as abandoned
+        computation
+        |> Ecto.Changeset.change(%{
+          state: :abandoned,
+          completion_time: System.system_time(:second)
+        })
+        |> repo.update!()
+      end)
+
+    # Kick the execution to trigger downstream processing
+    Journey.kick(updated_computation.execution_id)
+
+    {:ok, updated_computation}
+  end
+
+  defp do_abandon_computation(%Computation{state: state}) do
+    {:error, :invalid_state, state}
+  end
+
   # Helper function to format node names with conditional context
   defp format_node_name_with_context(node_name, condition_map) do
     case Map.get(condition_map, :condition_context, :direct) do

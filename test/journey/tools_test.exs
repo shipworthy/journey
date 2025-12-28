@@ -5,6 +5,7 @@ defmodule Journey.ToolsTest do
   import Journey.Node
   import Journey.Node.Conditions
   import Journey.Executions, only: [find_computations_by_node_name: 2]
+  import WaitForIt
 
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
@@ -734,6 +735,144 @@ defmodule Journey.ToolsTest do
     end
   end
 
+  describe "abandon_computation/1" do
+    test "abandons a computing computation and schedules retry" do
+      # Create a graph with a slow computation that will stay in :computing state
+      graph =
+        Journey.new_graph("abandon test #{random_string()}", "v1", [
+          input(:trigger),
+          compute(
+            :slow_computation,
+            [:trigger],
+            fn _inputs ->
+              # Long sleep to ensure we can catch it in :computing state
+              Process.sleep(:timer.seconds(30))
+              {:ok, "done"}
+            end,
+            abandon_after_seconds: 60,
+            max_retries: 3
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set(execution, :trigger, "start")
+
+      # Start background sweeps to trigger the computation
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+
+      # Wait for computation to enter :computing state (polls until found or timeout)
+      {:ok, computing_computation} =
+        wait_for_computation_state(execution, :slow_computation, :computing)
+
+      assert computing_computation != nil
+
+      # Abandon the computation
+      {:ok, abandoned_computation} = Journey.Tools.abandon_computation(computing_computation.id)
+
+      # Verify the computation is now abandoned
+      assert abandoned_computation.state == :abandoned
+      assert abandoned_computation.completion_time != nil
+
+      # Verify a retry was scheduled (should have 2 computations now - original abandoned + new retry)
+      execution = Journey.load(execution.id)
+      computations = find_computations_by_node_name(execution, :slow_computation)
+
+      # Should have at least 2 computations: the original (now abandoned) and the retry
+      assert length(computations) >= 2, "Expected retry computation to be created"
+
+      # Original should be abandoned
+      assert Enum.any?(computations, fn c -> c.state == :abandoned end),
+             "Expected original computation to be abandoned"
+
+      # Retry should exist (either :not_set if not picked up yet, or :computing if already picked up)
+      assert Enum.any?(computations, fn c -> c.state in [:not_set, :computing] end),
+             "Expected retry computation to be scheduled"
+
+      stop_background_sweeps_in_test(background_sweeps_task)
+    end
+
+    test "returns error for non-existent computation" do
+      result = Journey.Tools.abandon_computation("CMP_NONEXISTENT_ID")
+      assert result == {:error, :not_found}
+    end
+
+    test "returns error for computation not in :computing state" do
+      # Create a graph with a fast computation
+      graph =
+        Journey.new_graph("abandon state test #{random_string()}", "v1", [
+          input(:trigger),
+          compute(
+            :fast_computation,
+            [:trigger],
+            fn _inputs -> {:ok, "done"} end
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set(execution, :trigger, "start")
+
+      # Start background sweeps and wait for completion
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+      {:ok, _, _} = Journey.get(execution, :fast_computation, wait: :any)
+
+      # Find the completed computation
+      execution = Journey.load(execution.id)
+
+      completed_computation =
+        find_computations_by_node_name(execution, :fast_computation)
+        |> Enum.find(fn c -> c.state == :success end)
+
+      assert completed_computation != nil
+
+      # Try to abandon it - should fail since it's already :success
+      result = Journey.Tools.abandon_computation(completed_computation.id)
+      assert result == {:error, :invalid_state, :success}
+
+      stop_background_sweeps_in_test(background_sweeps_task)
+    end
+
+    test "does not schedule retry when max_retries exhausted" do
+      # With max_retries: 0, no retries are allowed - abandoning should not schedule a retry
+      graph =
+        Journey.new_graph("abandon no retry test #{random_string()}", "v1", [
+          input(:trigger),
+          compute(
+            :limited_retry_computation,
+            [:trigger],
+            fn _inputs ->
+              Process.sleep(:timer.seconds(30))
+              {:ok, "done"}
+            end,
+            abandon_after_seconds: 60,
+            max_retries: 0
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set(execution, :trigger, "start")
+
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+
+      # Wait for computation to enter :computing state
+      {:ok, computing} =
+        wait_for_computation_state(execution, :limited_retry_computation, :computing)
+
+      assert computing != nil
+
+      # Abandon - should NOT schedule retry since max_retries: 0
+      {:ok, _} = Journey.Tools.abandon_computation(computing.id)
+
+      # Verify no retry was scheduled (only the one abandoned computation exists)
+      execution = Journey.load(execution.id)
+      computations = find_computations_by_node_name(execution, :limited_retry_computation)
+
+      assert length(computations) == 1, "Expected no retry to be scheduled"
+      assert hd(computations).state == :abandoned
+
+      stop_background_sweeps_in_test(background_sweeps_task)
+    end
+  end
+
   # Helper functions for text redaction in tests
   defp redact_text_timestamps(text) do
     text
@@ -748,5 +887,30 @@ defmodule Journey.ToolsTest do
   defp redact_text_seconds_ago(text) do
     text
     |> String.replace(~r/\d+ seconds ago/, "REDACTED seconds ago")
+  end
+
+  # Helper to reliably wait for a computation to reach a specific state.
+  # Returns {:ok, computation} on success, {:error, :timeout} on timeout.
+  defp wait_for_computation_state(execution, node_name, expected_state, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 5_000)
+    frequency = Keyword.get(opts, :frequency, 100)
+
+    result =
+      wait(
+        (fn ->
+           execution = Journey.load(execution.id)
+
+           find_computations_by_node_name(execution, node_name)
+           |> Enum.find(fn c -> c.state == expected_state end)
+         end).(),
+        timeout: timeout,
+        frequency: frequency
+      )
+
+    case result do
+      {:error, :timeout} -> {:error, :timeout}
+      nil -> {:error, :timeout}
+      computation -> {:ok, computation}
+    end
   end
 end
