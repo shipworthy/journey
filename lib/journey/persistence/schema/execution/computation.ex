@@ -18,6 +18,8 @@ defmodule Journey.Persistence.Schema.Execution.Computation do
     field(:start_time, :integer, default: nil)
     field(:completion_time, :integer, default: nil)
     field(:deadline, :integer, default: nil)
+    field(:last_heartbeat_at, :integer, default: nil)
+    field(:heartbeat_deadline, :integer, default: nil)
     field(:error_details, :string, default: nil)
     # revisions of the upstream nodes used to compute this value – e.g. %{upstream_node1: 6, upstream_node2: 9}
     field(:computed_with, :map, default: nil)

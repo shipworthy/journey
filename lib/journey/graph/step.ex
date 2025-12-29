@@ -10,7 +10,9 @@ defmodule Journey.Graph.Step do
     :mutates,
     :update_revision_on_change,
     :max_retries,
-    :abandon_after_seconds
+    :abandon_after_seconds,
+    :heartbeat_interval_seconds,
+    :heartbeat_timeout_seconds
   ]
 
   @type t :: %__MODULE__{
@@ -22,6 +24,8 @@ defmodule Journey.Graph.Step do
           mutates: atom | nil,
           update_revision_on_change: boolean,
           max_retries: pos_integer(),
-          abandon_after_seconds: pos_integer()
+          abandon_after_seconds: pos_integer(),
+          heartbeat_interval_seconds: pos_integer(),
+          heartbeat_timeout_seconds: pos_integer()
         }
 end

@@ -64,6 +64,16 @@ defmodule Journey.Scheduler do
       graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
       graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
 
+      # Spawn linked watchdog - dies when this Task dies
+      _watchdog_pid =
+        spawn_link(fn ->
+          Journey.Scheduler.Watchdog.run(
+            computation.id,
+            graph_node.heartbeat_interval_seconds,
+            graph_node.heartbeat_timeout_seconds
+          )
+        end)
+
       input_versions_to_capture =
         conditions_fulfilled
         |> Enum.map(fn %{upstream_node: v} -> {v.node_name, v.ex_revision} end)

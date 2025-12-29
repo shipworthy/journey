@@ -181,7 +181,9 @@ defmodule Journey.Node do
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
+      heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
     }
   end
 
@@ -268,7 +270,9 @@ defmodule Journey.Node do
       mutates: Keyword.fetch!(opts, :mutates),
       update_revision_on_change: Keyword.get(opts, :update_revision_on_change, false),
       max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
+      heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
     }
   end
 
@@ -309,7 +313,9 @@ defmodule Journey.Node do
       f_compute: &archive_graph/1,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
+      heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
     }
   end
 
@@ -468,7 +474,9 @@ defmodule Journey.Node do
       end,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
+      heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
     }
   end
 
@@ -642,7 +650,9 @@ defmodule Journey.Node do
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
+      heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
     }
   end
 
@@ -722,7 +732,9 @@ defmodule Journey.Node do
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
       max_retries: Keyword.get(opts, :max_retries, 3),
-      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60)
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
+      heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
     }
   end
 
