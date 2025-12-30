@@ -117,7 +117,6 @@ defmodule Journey.Scheduler.Available do
       start_time: now,
       ex_revision_at_start: new_revision,
       deadline: now + graph_node.abandon_after_seconds,
-      last_heartbeat_at: now,
       heartbeat_deadline: now + graph_node.heartbeat_timeout_seconds
     })
     |> repo.update!()
