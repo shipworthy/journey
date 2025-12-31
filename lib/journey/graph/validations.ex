@@ -228,7 +228,7 @@ defmodule Journey.Graph.Validations do
 
       if interval < 30 do
         raise "Node '#{inspect(step.name)}' has unsupported heartbeat config. " <>
-                "heartbeat_interval_seconds be >= 30 seconds."
+                "heartbeat_interval_seconds must be >= 30 seconds."
       end
 
       if interval > timeout / 2 do

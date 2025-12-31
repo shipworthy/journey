@@ -7,7 +7,7 @@ defmodule Journey.Scheduler.HeartbeatTest do
 
   describe "graph validation" do
     test "rejects heartbeat interval < 30s" do
-      assert_raise RuntimeError, ~r/heartbeat_interval_seconds be >= 30 seconds/, fn ->
+      assert_raise RuntimeError, ~r/heartbeat_interval_seconds must be >= 30 seconds/, fn ->
         Journey.new_graph("bad_heartbeat_1", "1", [
           compute(:step1, [], fn _ -> {:ok, 1} end, heartbeat_interval_seconds: 29)
         ])
