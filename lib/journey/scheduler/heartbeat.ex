@@ -10,13 +10,17 @@ defmodule Journey.Scheduler.Heartbeat do
   - Worker exits → receives {:EXIT, pid, reason} → exits immediately
   - Worker crashes → heartbeat process receives EXIT, worker is already dead
   - Heartbeat process crashes → worker receives exit signal and dies (not trapping)
-  - Computation state changes → `update_heartbeat` returns 0 rows → exits
+  - Computation state changes → `update_heartbeat` returns 0 rows → checks state
+  - Deadline exceeded → marks as abandoned, exits non-normally to kill worker
   """
 
   require Logger
   import Ecto.Query
 
   alias Journey.Persistence.Schema.Execution.Computation
+
+  # Buffer before enforcing deadline (allows sweep to act first)
+  @deadline_buffer_seconds 10
 
   @doc """
   Runs the heartbeat loop for a computation.
@@ -41,17 +45,24 @@ defmodule Journey.Scheduler.Heartbeat do
   end
 
   defp loop(execution_id, computation_id, node_name, interval_seconds, timeout_seconds) do
+    prefix = "Heartbeat loop [#{execution_id}.#{computation_id}.#{node_name}]"
+
     receive do
       {:EXIT, pid, _reason} ->
-        prefix = "Heartbeat loop [#{execution_id}.#{computation_id}.#{node_name}]"
-        Logger.warning("#{prefix}: exiting, due to the worker process #{inspect(pid)} exiting")
-
+        Logger.warning("#{prefix}: exiting, worker process #{inspect(pid)} exited")
         :ok
     after
       calculate_sleep_ms(interval_seconds) ->
         case do_heartbeat(execution_id, computation_id, node_name, timeout_seconds) do
-          :continue -> loop(execution_id, computation_id, node_name, interval_seconds, timeout_seconds)
-          :stop -> :ok
+          :continue ->
+            loop(execution_id, computation_id, node_name, interval_seconds, timeout_seconds)
+
+          :stop_normal ->
+            :ok
+
+          :kill_worker ->
+            Logger.warning("#{prefix}: exiting the heartbeat process, also killing worker")
+            exit(:computation_timeout)
         end
     end
   end
@@ -68,12 +79,12 @@ defmodule Journey.Scheduler.Heartbeat do
     try do
       case update_heartbeat(computation_id, timeout_seconds) do
         {0, _} ->
-          Logger.warning("#{prefix}: computation no longer active (or missing)")
-          :stop
+          # Query returned 0 rows - check why and decide action
+          handle_update_failed(computation_id, prefix)
 
         {1, [new_deadline]} ->
           in_seconds = new_deadline - System.system_time(:second)
-          Logger.warning("#{prefix}: heartbeat recorded, new deadline: #{new_deadline} (in #{in_seconds} seconds)")
+          Logger.debug("#{prefix}: heartbeat recorded, new deadline: #{new_deadline} (in #{in_seconds} seconds)")
           :continue
       end
     rescue
@@ -83,17 +94,64 @@ defmodule Journey.Scheduler.Heartbeat do
     end
   end
 
+  defp handle_update_failed(computation_id, prefix) do
+    # Query the current state to decide action
+    case Journey.Repo.get(Computation, computation_id) do
+      nil ->
+        Logger.warning("#{prefix}: computation not found, exiting")
+        :stop_normal
+
+      %{state: :completed} ->
+        Logger.debug("#{prefix}: computation completed, exiting normally")
+        :stop_normal
+
+      %{state: :error} ->
+        Logger.debug("#{prefix}: computation errored, exiting normally")
+        :stop_normal
+
+      %{state: :abandoned} ->
+        # Sweep marked it abandoned - kill the worker
+        Logger.warning("#{prefix}: computation marked as abandoned by sweep")
+        :kill_worker
+
+      %{state: :computing} ->
+        # Still computing but update failed - deadline must have exceeded
+        Logger.warning("#{prefix}: deadline exceeded, marking as abandoned")
+        mark_as_abandoned(computation_id)
+        :kill_worker
+
+      %{state: other_state} ->
+        Logger.warning("#{prefix}: unexpected state #{inspect(other_state)}, exiting normally")
+        :stop_normal
+    end
+  end
+
   defp update_heartbeat(computation_id, timeout_seconds) do
     now = System.system_time(:second)
+    deadline_cutoff = now - @deadline_buffer_seconds
 
     from(c in Computation,
-      where: c.id == ^computation_id and c.state == :computing,
+      where: c.id == ^computation_id and c.state == :computing and c.deadline > ^deadline_cutoff,
       select: c.heartbeat_deadline
     )
     |> Journey.Repo.update_all(
       set: [
         last_heartbeat_at: now,
         heartbeat_deadline: now + timeout_seconds
+      ]
+    )
+  end
+
+  defp mark_as_abandoned(computation_id) do
+    now = System.system_time(:second)
+
+    from(c in Computation,
+      where: c.id == ^computation_id and c.state == :computing
+    )
+    |> Journey.Repo.update_all(
+      set: [
+        state: :abandoned,
+        completion_time: now
       ]
     )
   end
