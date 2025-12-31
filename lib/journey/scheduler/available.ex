@@ -109,13 +109,15 @@ defmodule Journey.Scheduler.Available do
 
     # Mark the computation as "computing".
     graph_node = Graph.find_node_by_name(graph, computation.node_name)
+    now = System.system_time(:second)
 
     computation
     |> Ecto.Changeset.change(%{
       state: :computing,
-      start_time: System.system_time(:second),
+      start_time: now,
       ex_revision_at_start: new_revision,
-      deadline: System.system_time(:second) + graph_node.abandon_after_seconds
+      deadline: now + graph_node.abandon_after_seconds,
+      heartbeat_deadline: now + graph_node.heartbeat_timeout_seconds
     })
     |> repo.update!()
   end

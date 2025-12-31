@@ -6,6 +6,7 @@ defmodule Journey.Graph.Validations do
     |> ensure_no_duplicate_node_names()
     |> ensure_no_cycles()
     |> validate_dependencies()
+    |> validate_heartbeat_options()
   end
 
   def ensure_known_node_name(execution, node_name) do
@@ -216,5 +217,26 @@ defmodule Journey.Graph.Validations do
   defp raise_cycle_error(cycle_path, graph_name) do
     cycle_description = Enum.map_join(cycle_path, " → ", &inspect/1)
     raise "Circular dependency detected in graph '#{graph_name}': #{cycle_description}"
+  end
+
+  defp validate_heartbeat_options(graph) do
+    graph.nodes
+    |> Enum.filter(fn node -> is_struct(node, Journey.Graph.Step) end)
+    |> Enum.each(fn step ->
+      interval = step.heartbeat_interval_seconds
+      timeout = step.heartbeat_timeout_seconds
+
+      if interval < 30 do
+        raise "Node '#{inspect(step.name)}' has unsupported heartbeat config. " <>
+                "heartbeat_interval_seconds must be >= 30 seconds."
+      end
+
+      if interval > timeout / 2 do
+        raise "Node '#{inspect(step.name)}' has unsupported heartbeat config. " <>
+                "heartbeat_interval_seconds must be <= half of heartbeat_timeout_seconds."
+      end
+    end)
+
+    graph
   end
 end

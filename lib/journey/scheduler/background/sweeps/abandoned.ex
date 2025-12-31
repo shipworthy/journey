@@ -118,7 +118,10 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
     from(c in computations_for_graphs(execution_id, all_graphs),
       join: e in Journey.Persistence.Schema.Execution,
       on: c.execution_id == e.id,
-      where: c.state == :computing and not is_nil(c.deadline) and c.deadline < ^current_time,
+      where:
+        c.state == :computing and
+          ((not is_nil(c.deadline) and c.deadline < ^current_time) or
+             (not is_nil(c.heartbeat_deadline) and c.heartbeat_deadline < ^current_time)),
       limit: ^@batch_size,
       lock: "FOR UPDATE"
     )

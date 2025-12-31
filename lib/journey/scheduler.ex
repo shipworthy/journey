@@ -55,79 +55,125 @@ defmodule Journey.Scheduler do
     computation_params = execution |> Journey.values(reload: false)
 
     # Start the computation in a separate process, as a "fire-and-forget" task.
-    # Note that this task is intentionally not OTP-"supervised" – we are using
-    # database-based supervision instead.
+    # Note that this process is intentionally not OTP-"supervised" – we are using
+    # database-based "supervision" instead.
     Task.start(fn ->
-      prefix = "[#{execution.id}.#{computation.node_name}.#{computation.id}] [#{execution.graph_name}]"
-      Logger.debug("#{prefix}: starting async computation")
-
-      graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
-      graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
-
-      input_versions_to_capture =
-        conditions_fulfilled
-        |> Enum.map(fn %{upstream_node: v} -> {v.node_name, v.ex_revision} end)
-        |> Enum.into(%{})
-
-      r =
-        try do
-          # Build value nodes map from upstream nodes
-          value_nodes_map = build_value_nodes_map(conditions_fulfilled)
-
-          # Introspect arity and call accordingly
-          case Function.info(graph_node.f_compute)[:arity] do
-            1 ->
-              graph_node.f_compute.(computation_params)
-
-            2 ->
-              graph_node.f_compute.(computation_params, value_nodes_map)
-
-            arity ->
-              raise ArgumentError,
-                    "f_compute must be arity 1 or 2, got arity #{arity} for node #{computation.node_name}"
-          end
-        rescue
-          e ->
-            exception_as_string = Exception.format(:error, e, __STACKTRACE__)
-            Logger.error("#{prefix}: f_compute raised an exception, #{Exception.format(:error, e, __STACKTRACE__)}")
-            {:error, "Exception. #{exception_as_string}"}
-        end
-
-      r
-      |> case do
-        {:ok, result} ->
-          Logger.debug("#{prefix}: async computation completed successfully")
-          Completions.record_success(computation, input_versions_to_capture, result)
-
-        {:error, error_details} ->
-          Logger.warning("#{prefix}: async computation completed with an error")
-          Completions.record_error(computation, error_details)
-          jitter_ms = :rand.uniform(10_000)
-          Process.sleep(jitter_ms)
-
-        unexpected_value ->
-          result_truncated = "#{inspect(unexpected_value)}" |> String.trim() |> String.slice(0, 1000)
-
-          Logger.error(
-            "#{prefix}: #{computation.node_name}'s f_compute function was expected to return `{:ok, _}` or {:error, _} tuples, but it returned an unexpected value: '#{result_truncated}'"
-          )
-
-          Completions.record_error(computation, "Unexpected value: '#{result_truncated}'")
-          jitter_ms = :rand.uniform(10_000)
-          Process.sleep(jitter_ms)
-      end
-
-      invoke_f_on_save(prefix, graph_node.f_on_save, graph.f_on_save, execution.id, computation.node_name, r)
-
-      if requires_invalidation_check?(r, graph_node) do
-        # After a compute node succeeds, check if any downstream values should be invalidated
-        Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(execution.id, graph)
-      end
-
-      advance(execution)
+      worker_with_heartbeat(execution, computation, computation_params, conditions_fulfilled)
     end)
 
     execution
+  end
+
+  defp worker_with_heartbeat(execution, computation, computation_params, conditions_fulfilled) do
+    start_time = System.monotonic_time(:second)
+    prefix = "Worker [#{execution.id}.#{computation.id}.#{computation.node_name}] [#{execution.graph_name}]"
+    Logger.info("#{prefix}: starting async computation")
+
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+    graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
+
+    # Spawn linked heartbeat sibling - receives EXIT when worker exits
+    _heartbeat_pid =
+      spawn_link(fn ->
+        Journey.Scheduler.Heartbeat.run(
+          execution.id,
+          computation.id,
+          computation.node_name,
+          graph_node.heartbeat_interval_seconds,
+          graph_node.heartbeat_timeout_seconds
+        )
+      end)
+
+    r =
+      do_compute(
+        prefix,
+        execution,
+        computation,
+        computation_params,
+        conditions_fulfilled,
+        graph,
+        graph_node
+      )
+
+    end_time = System.monotonic_time(:second)
+    Logger.info("#{prefix}: async computation completed after #{end_time - start_time} seconds")
+    r
+  end
+
+  defp do_compute(prefix, execution, computation, computation_params, conditions_fulfilled, graph, graph_node) do
+    input_versions_to_capture =
+      conditions_fulfilled
+      |> Enum.map(fn %{upstream_node: v} -> {v.node_name, v.ex_revision} end)
+      |> Enum.into(%{})
+
+    r =
+      try do
+        # Build value nodes map from upstream nodes
+        value_nodes_map = build_value_nodes_map(conditions_fulfilled)
+
+        # Introspect arity and call accordingly
+        case Function.info(graph_node.f_compute)[:arity] do
+          1 ->
+            graph_node.f_compute.(computation_params)
+
+          2 ->
+            graph_node.f_compute.(computation_params, value_nodes_map)
+
+          arity ->
+            raise ArgumentError,
+                  "f_compute must be arity 1 or 2, got arity #{arity} for node #{computation.node_name}"
+        end
+      rescue
+        e ->
+          exception_as_string = Exception.format(:error, e, __STACKTRACE__)
+
+          Logger.error("#{prefix}: f_compute raised an exception, #{Exception.format(:error, e, __STACKTRACE__)}")
+
+          {:error, "Exception. #{exception_as_string}"}
+      end
+
+    handle_computation_result(r, prefix, computation, input_versions_to_capture)
+
+    invoke_f_on_save(
+      prefix,
+      graph_node.f_on_save,
+      graph.f_on_save,
+      execution.id,
+      computation.node_name,
+      r
+    )
+
+    # After a compute node succeeds, check if any downstream values should be invalidated
+    requires_invalidation_check?(r, graph_node) &&
+      Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(execution.id, graph)
+
+    advance(execution)
+  end
+
+  defp handle_computation_result({:ok, result}, prefix, computation, input_versions_to_capture) do
+    Logger.debug("#{prefix}: async computation completed successfully")
+    Completions.record_success(computation, input_versions_to_capture, result)
+  end
+
+  defp handle_computation_result({:error, error_details}, prefix, computation, _input_versions_to_capture) do
+    Logger.warning("#{prefix}: async computation completed with an error")
+    r = Completions.record_error(computation, error_details)
+    jitter_ms = :rand.uniform(10_000)
+    Process.sleep(jitter_ms)
+    r
+  end
+
+  defp handle_computation_result(unexpected_value, prefix, computation, _input_versions_to_capture) do
+    result_truncated = "#{inspect(unexpected_value)}" |> String.trim() |> String.slice(0, 1000)
+
+    Logger.error(
+      "#{prefix}: #{computation.node_name}'s f_compute function was expected to return `{:ok, _}` or {:error, _} tuples, but it returned an unexpected value: '#{result_truncated}'"
+    )
+
+    r = Completions.record_error(computation, "Unexpected value: '#{result_truncated}'")
+    jitter_ms = :rand.uniform(10_000)
+    Process.sleep(jitter_ms)
+    r
   end
 
   defp invoke_f_on_save(prefix, node_f_on_save, graph_f_on_save, execution_id, node_name, result) do
