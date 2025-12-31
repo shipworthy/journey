@@ -55,45 +55,49 @@ defmodule Journey.Scheduler do
     computation_params = execution |> Journey.values(reload: false)
 
     # Start the computation in a separate process, as a "fire-and-forget" task.
-    # Note that this task is intentionally not OTP-"supervised" – we are using
-    # database-based supervision instead.
+    # Note that this process is intentionally not OTP-"supervised" – we are using
+    # database-based "supervision" instead.
     Task.start(fn ->
-      start_time = System.monotonic_time(:second)
-      prefix = "Worker [#{execution.id}.#{computation.id}.#{computation.node_name}] [#{execution.graph_name}]"
-      Logger.error("#{prefix}: starting async computation")
-
-      graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
-      graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
-
-      # Spawn linked heartbeat sibling - receives EXIT when worker exits
-      _heartbeat_pid =
-        spawn_link(fn ->
-          Journey.Scheduler.Heartbeat.run(
-            execution.id,
-            computation.id,
-            computation.node_name,
-            graph_node.heartbeat_interval_seconds,
-            graph_node.heartbeat_timeout_seconds
-          )
-        end)
-
-      r =
-        do_compute(
-          prefix,
-          execution,
-          computation,
-          computation_params,
-          conditions_fulfilled,
-          graph,
-          graph_node
-        )
-
-      end_time = System.monotonic_time(:second)
-      Logger.error("#{prefix}: async computation completed after #{end_time - start_time} seconds")
-      r
+      worker_with_heartbeat(execution, computation, computation_params, conditions_fulfilled)
     end)
 
     execution
+  end
+
+  defp worker_with_heartbeat(execution, computation, computation_params, conditions_fulfilled) do
+    start_time = System.monotonic_time(:second)
+    prefix = "Worker [#{execution.id}.#{computation.id}.#{computation.node_name}] [#{execution.graph_name}]"
+    Logger.error("#{prefix}: starting async computation")
+
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+    graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
+
+    # Spawn linked heartbeat sibling - receives EXIT when worker exits
+    _heartbeat_pid =
+      spawn_link(fn ->
+        Journey.Scheduler.Heartbeat.run(
+          execution.id,
+          computation.id,
+          computation.node_name,
+          graph_node.heartbeat_interval_seconds,
+          graph_node.heartbeat_timeout_seconds
+        )
+      end)
+
+    r =
+      do_compute(
+        prefix,
+        execution,
+        computation,
+        computation_params,
+        conditions_fulfilled,
+        graph,
+        graph_node
+      )
+
+    end_time = System.monotonic_time(:second)
+    Logger.error("#{prefix}: async computation completed after #{end_time - start_time} seconds")
+    r
   end
 
   defp do_compute(prefix, execution, computation, computation_params, conditions_fulfilled, graph, graph_node) do

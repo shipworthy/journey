@@ -84,7 +84,7 @@ defmodule Journey.Scheduler.Heartbeat do
 
         {1, [new_deadline]} ->
           in_seconds = new_deadline - System.system_time(:second)
-          Logger.debug("#{prefix}: heartbeat recorded, new deadline: #{new_deadline} (in #{in_seconds} seconds)")
+          Logger.warning("#{prefix}: heartbeat recorded, new deadline: #{new_deadline} (in #{in_seconds} seconds)")
           :continue
       end
     rescue
