@@ -67,7 +67,7 @@ defmodule Journey.Scheduler do
   defp worker_with_heartbeat(execution, computation, computation_params, conditions_fulfilled) do
     start_time = System.monotonic_time(:second)
     prefix = "Worker [#{execution.id}.#{computation.id}.#{computation.node_name}] [#{execution.graph_name}]"
-    Logger.error("#{prefix}: starting async computation")
+    Logger.info("#{prefix}: starting async computation")
 
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
     graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
@@ -96,7 +96,7 @@ defmodule Journey.Scheduler do
       )
 
     end_time = System.monotonic_time(:second)
-    Logger.error("#{prefix}: async computation completed after #{end_time - start_time} seconds")
+    Logger.info("#{prefix}: async computation completed after #{end_time - start_time} seconds")
     r
   end
 

@@ -38,10 +38,10 @@ defmodule Journey.Scheduler.Heartbeat do
     Process.flag(:trap_exit, true)
     start_time = System.monotonic_time(:second)
     prefix = "Heartbeat run [#{execution_id}.#{computation_id}.#{node_name}]"
-    Logger.warning("#{prefix}: started")
+    Logger.info("#{prefix}: started")
     loop(execution_id, computation_id, node_name, interval_seconds, timeout_seconds)
     end_time = System.monotonic_time(:second)
-    Logger.warning("#{prefix}: exiting, after #{end_time - start_time} seconds")
+    Logger.info("#{prefix}: exiting, after #{end_time - start_time} seconds")
   end
 
   defp loop(execution_id, computation_id, node_name, interval_seconds, timeout_seconds) do
@@ -49,7 +49,7 @@ defmodule Journey.Scheduler.Heartbeat do
 
     receive do
       {:EXIT, pid, _reason} ->
-        Logger.warning("#{prefix}: exiting, worker process #{inspect(pid)} exited")
+        Logger.info("#{prefix}: exiting, worker process #{inspect(pid)} exited")
         :ok
     after
       calculate_sleep_ms(interval_seconds) ->
@@ -84,7 +84,7 @@ defmodule Journey.Scheduler.Heartbeat do
 
         {1, [new_deadline]} ->
           in_seconds = new_deadline - System.system_time(:second)
-          Logger.warning("#{prefix}: heartbeat recorded, new deadline: #{new_deadline} (in #{in_seconds} seconds)")
+          Logger.info("#{prefix}: heartbeat recorded, new deadline: #{new_deadline} (in #{in_seconds} seconds)")
           :continue
       end
     rescue
@@ -102,16 +102,16 @@ defmodule Journey.Scheduler.Heartbeat do
         :stop_normal
 
       %{state: :completed} ->
-        Logger.debug("#{prefix}: computation completed, exiting normally")
+        Logger.info("#{prefix}: computation completed, exiting normally")
         :stop_normal
 
       %{state: :error} ->
-        Logger.debug("#{prefix}: computation errored, exiting normally")
+        Logger.info("#{prefix}: computation errored, exiting normally")
         :stop_normal
 
       %{state: :abandoned} ->
         # Sweep marked it abandoned - kill the worker
-        Logger.warning("#{prefix}: computation marked as abandoned by sweep")
+        Logger.info("#{prefix}: computation marked as abandoned by sweep")
         :kill_worker
 
       %{state: :computing} ->
