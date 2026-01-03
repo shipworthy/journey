@@ -12,6 +12,14 @@ defmodule Journey.Node do
 
   alias Journey.Graph
 
+  @common_step_options [
+    :f_on_save,
+    :max_retries,
+    :abandon_after_seconds,
+    :heartbeat_interval_seconds,
+    :heartbeat_timeout_seconds
+  ]
+
   @doc """
   Creates a graph input node. The value of an input node is set with `Journey.set/3`. The name of the node must be an atom.
 
@@ -174,6 +182,8 @@ defmodule Journey.Node do
   """
   def compute(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
+    check_options(opts, @common_step_options)
+
     %Graph.Step{
       name: name,
       type: :compute,
@@ -261,6 +271,8 @@ defmodule Journey.Node do
   """
   def mutate(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
+    check_options(opts, @common_step_options ++ [:mutates, :update_revision_on_change])
+
     %Graph.Step{
       name: name,
       type: :mutate,
@@ -306,6 +318,8 @@ defmodule Journey.Node do
   """
   def archive(name, gated_by, opts \\ [])
       when is_atom(name) do
+    check_options(opts, @common_step_options)
+
     %Graph.Step{
       name: name,
       type: :compute,
@@ -463,6 +477,8 @@ defmodule Journey.Node do
 
   """
   def historian(name, gated_by, opts \\ []) when is_atom(name) do
+    check_options(opts, @common_step_options ++ [:max_entries])
+
     max_entries = Keyword.get(opts, :max_entries, 1000)
 
     %Graph.Step{
@@ -643,6 +659,8 @@ defmodule Journey.Node do
   """
   def tick_once(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
+    check_options(opts, @common_step_options)
+
     %Graph.Step{
       name: name,
       type: :tick_once,
@@ -725,6 +743,8 @@ defmodule Journey.Node do
 
   def tick_recurring(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
+    check_options(opts, @common_step_options)
+
     %Graph.Step{
       name: name,
       type: :tick_recurring,
@@ -795,5 +815,17 @@ defmodule Journey.Node do
   def schedule_recurring(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     tick_recurring(name, gated_by, f_compute, opts)
+  end
+
+  # Validates that only known option keys are provided
+  defp check_options(supplied_opts, known_opts) do
+    supplied = MapSet.new(Keyword.keys(supplied_opts))
+    known = MapSet.new(known_opts)
+    unexpected = MapSet.difference(supplied, known)
+
+    if unexpected != MapSet.new([]) do
+      raise ArgumentError,
+            "Unknown options: #{inspect(Enum.sort(MapSet.to_list(unexpected)))}. Known options: #{inspect(Enum.sort(known_opts))}."
+    end
   end
 end
