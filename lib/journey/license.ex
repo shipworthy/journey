@@ -51,7 +51,7 @@ defmodule Journey.License.Functions do
     🚀 Journey is free for "small" projects (≤$10k/month in revenue).
     🔑 All other uses require a commercial build key.
     ⚙️ Set your Journey build key via #{@license_key_env_var_name} env variable (e.g. `export JOURNEY_BUILD_KEY=B...`).
-    ⚙️ Get and manage your free and commercial build keys at #{keys_url()}.
+    ⚙️ Get and manage your free and commercial build keys at #{keys_url()}
     🙏 Thank you for using Journey!
     """)
   end
