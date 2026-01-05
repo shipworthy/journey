@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.10.42
+
+- **better DevEx: validate node options**: this helps to avoid typos and misspellings in graph definitions (#238)
+- **adding heartbeats for monitoring computations of self-computing nodes**: this allows for faster detection and more robust handling of abandoned computations (#237)
+- **ops tooling: Journey.Tools.abandon_computation/1**: adding `Journey.Tools.abandon_computation/1` for abandoning a computation (#236)
+- **refactor/simplification**: refactoring `Journey.Executions` into smaller more focused submodules, adding `GEMINI.md` (#235)
+- **singleton executions**: implementing singleton executions, with `singleton: true` param to `Journey.new_graph` graph attribute and `Journey.find_or_start/1` (#234)
+
 ## v0.10.41
 
 - **documentation updates**: updating links and verbiage to reference the new repo (https://github.com/shipworthy), updating package description. (#229, #230, #231)
