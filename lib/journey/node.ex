@@ -483,7 +483,7 @@ defmodule Journey.Node do
 
     %Graph.Step{
       name: name,
-      type: :compute,
+      type: :historian,
       gated_by: normalize_gated_by(gated_by),
       f_compute: fn inputs, value_nodes_map ->
         process_historian_update(inputs, value_nodes_map, name, max_entries)

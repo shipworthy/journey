@@ -33,6 +33,7 @@ defmodule Journey.Scheduler.Available do
                   c.computation_type in [
                     ^:compute,
                     ^:mutate,
+                    ^:historian,
                     ^:schedule_once,
                     ^:tick_once,
                     ^:schedule_recurring,
