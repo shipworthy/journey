@@ -363,6 +363,9 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       execution = Journey.set(execution, :counter, 0)
       {:ok, initial_revision} = Journey.get(execution, :counter) |> elem(2) |> then(&{:ok, &1})
 
+      # Wait for initial counter_display computation and capture its revision
+      {:ok, "Count: 0", initial_display_rev} = Journey.get(execution, :counter_display, wait: :any)
+
       # Trigger mutation
       execution = Journey.set(execution, :trigger, 1)
 
@@ -374,7 +377,7 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       assert rev_after_first_mutation > initial_revision
 
       # Counter display should recompute
-      {:ok, "Count: 1", _} = Journey.get(execution, :counter_display, wait: :any)
+      {:ok, "Count: 1", _} = Journey.get(execution, :counter_display, wait: {:newer_than, initial_display_rev})
 
       # Trigger another mutation with different value
       execution = Journey.set(execution, :trigger, 2)
