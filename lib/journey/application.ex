@@ -8,6 +8,8 @@ defmodule Journey.Application do
 
   @impl true
   def start(_type, _args) do
+    Logger.error("Starting Journey application")
+
     if log_level = Application.get_env(:journey, :log_level) do
       Logger.put_application_level(:journey, log_level)
     end
@@ -31,7 +33,15 @@ defmodule Journey.Application do
   defp initialize_graphs() do
     for f_factory <- Application.get_env(:journey, :graphs, []) do
       graph = f_factory.() |> Journey.Graph.Catalog.register()
-      Logger.info("Registering graph #{inspect(graph.name)}")
+      Logger.info("Registering graph #{inspect(graph.name)} from config")
+    end
+
+    registered_graphs = Journey.GraphRegistry.all_registered_graphs()
+    Logger.error("Found #{length(registered_graphs)} registered graphs")
+
+    for {module, func_name} <- registered_graphs do
+      graph = apply(module, func_name, []) |> Journey.Graph.Catalog.register()
+      Logger.error("Registering graph #{inspect(graph.name)} from @registered_graph in #{inspect(module)}")
     end
   end
 end
