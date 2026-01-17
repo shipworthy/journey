@@ -83,10 +83,10 @@ defmodule Journey.HistorySimpleTest do
 
       # Perform multiple operations
       execution = Journey.set(execution, :input_a, "first")
-      {:ok, _} = Journey.get_value(execution, :computed_a, wait_any: true)
+      {:ok, _, first_revision} = Journey.get(execution, :computed_a, wait: :any)
 
       execution = Journey.set(execution, :input_a, "second")
-      {:ok, _} = Journey.get_value(execution, :computed_a, wait_new: true)
+      {:ok, _, _} = Journey.get(execution, :computed_a, wait: {:newer_than, first_revision})
 
       history = Journey.history(execution.id)
 
