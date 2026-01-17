@@ -61,13 +61,13 @@ defmodule Journey.Scheduler.Invalidate do
   end
 
   defp clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix) do
-    # Find set computed values (only :compute nodes).
-    # Excluded from invalidation:
-    # - :mutate and tick nodes represent completed actions
-    # - :historian nodes must preserve accumulated history
+    # Find :compute node values which might need to be cleared. Other types (eg :historian) preserve their state.
     set_computed_values =
       all_values
-      |> Enum.filter(fn v -> v.set_time != nil and v.node_type == :compute end)
+      |> Enum.filter(fn v ->
+        v.set_time != nil and
+          match?(%{type: :compute}, Graph.find_node_by_name(graph, v.node_name))
+      end)
 
     Logger.debug("#{prefix}: checking #{length(set_computed_values)} computed values for discardability")
 
