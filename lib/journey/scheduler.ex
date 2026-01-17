@@ -214,7 +214,7 @@ defmodule Journey.Scheduler do
     end
   end
 
-  defp requires_invalidation_check?({:ok, _result}, graph_node), do: graph_node.type == :compute
+  defp requires_invalidation_check?({:ok, _result}, graph_node), do: graph_node.type in [:compute, :historian]
   defp requires_invalidation_check?(_other_result, _graph_node), do: false
 
   defp build_value_nodes_map(conditions_fulfilled) do

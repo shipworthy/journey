@@ -152,7 +152,7 @@ defmodule Journey.Scheduler.Completions do
 
       computation.computation_type
       |> case do
-        :compute ->
+        type when type in [:compute, :historian] ->
           record_result(
             repo,
             graph_node.mutates,
@@ -161,7 +161,7 @@ defmodule Journey.Scheduler.Completions do
             computation.execution_id,
             new_revision,
             result,
-            :compute
+            type
           )
 
         :mutate ->

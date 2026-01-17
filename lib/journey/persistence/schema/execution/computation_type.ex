@@ -2,7 +2,15 @@ defmodule Journey.Persistence.Schema.Execution.ComputationType do
   @moduledoc false
 
   @type t ::
-          :unknown | :compute | :mutate | :schedule_once | :tick_once | :schedule_recurring | :tick_recurring | :archive
+          :unknown
+          | :compute
+          | :mutate
+          | :historian
+          | :schedule_once
+          | :tick_once
+          | :schedule_recurring
+          | :tick_recurring
+          | :archive
 
   @doc """
   Returns all possible types of computations.
@@ -13,6 +21,7 @@ defmodule Journey.Persistence.Schema.Execution.ComputationType do
     [
       :compute,
       :mutate,
+      :historian,
       :schedule_once,
       :tick_once,
       :schedule_recurring,

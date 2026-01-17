@@ -328,4 +328,46 @@ defmodule Journey.Node.HistorianTest do
              ]
     end
   end
+
+  describe "historian invalidation resistance |" do
+    import Journey.Node.Conditions
+
+    test "historian preserves history when upstream condition becomes unmet" do
+      graph_name = "historian invalidation test #{__MODULE__}-#{random_string()}"
+
+      graph =
+        Journey.new_graph(
+          graph_name,
+          "1.0.0",
+          [
+            input(:enabled),
+            compute(:data, [enabled: &true?/1], fn _ ->
+              {:ok, "value_#{System.unique_integer([:positive])}"}
+            end),
+            historian(:history, [:data])
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+
+      # Enable and get first history entry
+      execution = Journey.set(execution, :enabled, true)
+      {:ok, [first_entry], _} = Journey.get(execution, :history, wait: :any)
+      first_value = first_entry["value"]
+
+      # Disable - this would previously clear the historian via invalidation cascade
+      execution = Journey.set(execution, :enabled, false)
+
+      # History should still be accessible (historian not invalidated)
+      {:ok, [^first_entry], _} = Journey.get(execution, :history)
+
+      # Re-enable - compute will produce a new value
+      execution = Journey.set(execution, :enabled, true)
+      {:ok, history2, _} = Journey.get(execution, :history, wait: :newer)
+
+      # History should have BOTH entries (newest first), with the first entry preserved
+      assert [second_entry, ^first_entry] = history2
+      assert second_entry["value"] != first_value
+    end
+  end
 end
