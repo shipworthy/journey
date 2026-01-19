@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.10.44
+
+- **Test stability updates**: using deterministic `Journey.get(..., wait: {:newer_than, prev_revision})` in various tests to make them deterministic / stable (#244, #245)
+- **Preserve Historian node value across invalidations**: :historian nodes are accumulators, and should keep their value even when their upstream dependencies are not satisfied (#242, #243)
+
+## v0.10.43
+
+- **A Minor License text update**: updating the year to 2026 (9b2001f).
+
 ## v0.10.42
 
 - **better DevEx: validate node options**: this helps to avoid typos and misspellings in graph definitions (#238)
