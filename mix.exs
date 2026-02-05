@@ -71,7 +71,7 @@ defmodule Journey.MixProject do
       {:credo, "~> 1.7.12", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.12 or ~> 3.13"},
       {:ecto_sql, "~> 3.12 or ~> 3.13"},
-      {:ex_doc, "~> 0.38 or ~> 0.39", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.38 or ~> 0.40", only: :dev, runtime: false},
       {:jason, "~> 1.4"},
       {:keyword_validator, "~> 2.1.0"},
       {:mix_test_watch, "~> 1.3", only: [:dev, :test], runtime: false},
