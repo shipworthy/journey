@@ -237,11 +237,11 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       execution = Journey.set(execution, :trigger, 1)
 
       # Wait for mutation
-      {:ok, "updated :price", _} = Journey.get(execution, :apply_discount, wait: :any)
+      {:ok, "updated :price", mutation_rev} = Journey.get(execution, :apply_discount, wait: :any)
 
-      # Wait for both downstream computations
-      {:ok, price_with_tax1, _} = Journey.get(execution, :price_with_tax, wait: :any)
-      {:ok, price_display1, _} = Journey.get(execution, :price_display, wait: :any)
+      # Wait for both downstream computations (after the mutation updated :price)
+      {:ok, price_with_tax1, _} = Journey.get(execution, :price_with_tax, wait: {:newer_than, mutation_rev})
+      {:ok, price_display1, _} = Journey.get(execution, :price_display, wait: {:newer_than, mutation_rev})
 
       # Verify they computed with the discounted price (90)
       assert_in_delta price_with_tax1, 99.0, 0.01
