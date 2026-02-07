@@ -322,7 +322,7 @@ defmodule Journey.HistoryComplexTest do
       |> Enum.filter(&(&1.node_name == before_node))
       |> Enum.sort_by(& &1.revision)
 
-    if length(after_entries) > 0 and length(before_entries) > 0 do
+    if after_entries != [] and before_entries != [] do
       after_rev = hd(after_entries).revision
       before_rev = hd(before_entries).revision
 

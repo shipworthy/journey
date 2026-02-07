@@ -61,10 +61,10 @@ defmodule Journey.ToolsTest do
       assert summary_data.archived_at == nil
 
       # Should have some set values after execution progresses
-      assert Enum.count(summary_data.values.set) > 0
+      refute Enum.empty?(summary_data.values.set)
 
       # Should have some completed computations
-      assert Enum.count(summary_data.computations.completed) > 0
+      refute Enum.empty?(summary_data.computations.completed)
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end

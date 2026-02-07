@@ -138,7 +138,7 @@ defmodule Journey.Tools.ComputationStateTest do
       reloaded = Journey.load(execution.id)
       computations = Journey.Executions.find_computations_by_node_name(reloaded, :recurring_task)
 
-      assert length(computations) > 0
+      assert computations != []
       assert Enum.any?(computations, fn c -> c.state == :success end)
 
       assert Journey.Tools.computation_state(execution.id, :recurring_task) in [:success, :not_set]

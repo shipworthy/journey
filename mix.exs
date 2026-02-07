@@ -78,7 +78,7 @@ defmodule Journey.MixProject do
       {:nanoid, "~> 2.1.0"},
       {:number, "~> 1.0.5"},
       {:parent, "~> 0.12.1"},
-      {:postgrex, "~> 0.20 or ~> 0.21"},
+      {:postgrex, "~> 0.20 or ~> 0.21 or ~> 0.22"},
       {:wait_for_it, "~> 2.1", only: [:dev, :test], runtime: false}
 
       # {:dep_from_hexpm, "~> 0.3.0"},
