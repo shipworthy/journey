@@ -36,7 +36,7 @@ defmodule Journey.Scheduler do
     available_computations =
       Journey.Scheduler.Available.grab_available_computations(execution, graph)
 
-    if length(available_computations) > 0 do
+    if available_computations != [] do
       execution = Journey.load(execution)
 
       available_computations

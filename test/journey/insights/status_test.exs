@@ -52,7 +52,7 @@ defmodule Journey.InsightsTest do
 
       assert result.status == :healthy
       assert result.database_connected == true
-      assert length(result.graphs) >= 1
+      assert result.graphs != []
 
       # Find our test graph in the results
       test_graph_stats =
@@ -182,7 +182,7 @@ defmodule Journey.InsightsTest do
 
       result = Status.status()
 
-      if length(result.graphs) > 0 do
+      if result.graphs != [] do
         graph_stats = hd(result.graphs)
         exec_stats = graph_stats.stats.executions
         comp_stats = graph_stats.stats.computations
@@ -238,7 +238,7 @@ defmodule Journey.InsightsTest do
           (g[:stats][:executions][:active] || 0) > 0
         end)
 
-      if length(active_graphs) > 0 do
+      if active_graphs != [] do
         assert text_output =~ "GRAPHS"
         assert text_output =~ "----------"
       end

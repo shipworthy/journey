@@ -62,7 +62,7 @@ defmodule Journey.Insights.FlowAnalyticsCoreTest do
       # Check node stats structure
       assert %{nodes: nodes} = node_stats
       assert is_list(nodes)
-      assert length(nodes) >= 1
+      assert nodes != []
 
       # Verify node structure
       for node <- nodes do

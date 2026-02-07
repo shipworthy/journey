@@ -53,7 +53,7 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
         )
 
       # There should be at least 1 new sweep run (could be more from background tasks)
-      assert length(new_sweep_runs) >= 1
+      assert new_sweep_runs != []
 
       # Find a sweep run that processed at least 1 execution (our test sweep)
       test_sweep = Enum.find(new_sweep_runs, fn sr -> sr.executions_processed >= 1 end)
