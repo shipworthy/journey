@@ -10,14 +10,17 @@ defmodule Journey.ExecutionsMigrationTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
   import Ecto.Query
 
   describe "migrate_to_current_graph_if_needed/1" do
     test "sunny-day migration: adds new nodes when graph is updated" do
+      graph_name = "migration_test_graph_#{random_string()}"
+
       # Create original graph with two input nodes
       original_graph =
         Journey.new_graph(
-          "migration_test_graph",
+          graph_name,
           "v1",
           [
             input(:name),
@@ -38,7 +41,7 @@ defmodule Journey.ExecutionsMigrationTest do
       # Create updated graph with additional nodes
       updated_graph =
         Journey.new_graph(
-          "migration_test_graph",
+          graph_name,
           "v1",
           [
             input(:name),
@@ -77,10 +80,12 @@ defmodule Journey.ExecutionsMigrationTest do
     end
 
     test "migration is idempotent" do
+      graph_name = "idempotent_test_graph_#{random_string()}"
+
       # Create original graph
       original_graph =
         Journey.new_graph(
-          "idempotent_test_graph",
+          graph_name,
           "v1",
           [input(:a)]
         )
@@ -92,7 +97,7 @@ defmodule Journey.ExecutionsMigrationTest do
       # Create updated graph
       updated_graph =
         Journey.new_graph(
-          "idempotent_test_graph",
+          graph_name,
           "v1",
           [input(:a), input(:b)]
         )
@@ -115,7 +120,7 @@ defmodule Journey.ExecutionsMigrationTest do
       # Create graph
       graph =
         Journey.new_graph(
-          "no_migration_test",
+          "no_migration_test_#{random_string()}",
           "v1",
           [input(:x), input(:y)]
         )
@@ -133,10 +138,12 @@ defmodule Journey.ExecutionsMigrationTest do
     end
 
     test "migration handles complex node types" do
+      graph_name = "complex_migration_test_#{random_string()}"
+
       # Original graph with just input
       original_graph =
         Journey.new_graph(
-          "complex_migration_test",
+          graph_name,
           "v1",
           [
             input(:user_id)
@@ -149,7 +156,7 @@ defmodule Journey.ExecutionsMigrationTest do
       # Updated graph with various node types
       _updated_graph =
         Journey.new_graph(
-          "complex_migration_test",
+          graph_name,
           "v1",
           [
             input(:user_id),
@@ -179,10 +186,12 @@ defmodule Journey.ExecutionsMigrationTest do
     end
 
     test "new nodes start with ex_revision 0" do
+      graph_name = "ex_revision_test_#{random_string()}"
+
       # Create original graph
       original_graph =
         Journey.new_graph(
-          "ex_revision_test",
+          graph_name,
           "v1",
           [input(:original_node)]
         )
@@ -198,7 +207,7 @@ defmodule Journey.ExecutionsMigrationTest do
       # Create updated graph with new node
       _updated_graph =
         Journey.new_graph(
-          "ex_revision_test",
+          graph_name,
           "v1",
           [input(:original_node), input(:new_node)]
         )
@@ -220,13 +229,15 @@ defmodule Journey.ExecutionsMigrationTest do
     end
 
     test "concurrent migrations are handled safely" do
+      graph_name = "concurrent_test_#{random_string()}"
+
       # This test verifies that advisory locks prevent race conditions
       # We can't easily simulate true concurrency in tests, but we can verify
       # that repeated migrations don't cause issues
 
       original_graph =
         Journey.new_graph(
-          "concurrent_test",
+          graph_name,
           "v1",
           [input(:base)]
         )
@@ -236,7 +247,7 @@ defmodule Journey.ExecutionsMigrationTest do
 
       updated_graph =
         Journey.new_graph(
-          "concurrent_test",
+          graph_name,
           "v1",
           [input(:base), input(:new1), input(:new2)]
         )
@@ -284,10 +295,12 @@ defmodule Journey.ExecutionsMigrationTest do
     end
 
     test "migration with computation execution and new compute nodes" do
+      graph_name = "computation_migration_test_#{random_string()}"
+
       # Create original graph with computation
       original_graph =
         Journey.new_graph(
-          "computation_migration_test",
+          graph_name,
           "v1",
           [
             input(:i1),
@@ -305,7 +318,7 @@ defmodule Journey.ExecutionsMigrationTest do
       # Create updated graph (overwrites catalog)
       updated_graph =
         Journey.new_graph(
-          "computation_migration_test",
+          graph_name,
           # Same name/version to overwrite
           "v1",
           [

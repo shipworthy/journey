@@ -1,7 +1,8 @@
 defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
   import Journey.Test.Support.Helpers
 
   import Journey.Scheduler.Background.Periodic,
@@ -135,7 +136,7 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
 
   defp test_graph do
     Journey.new_graph(
-      "schedule_recurring recomputation test",
+      "schedule_recurring recomputation test #{random_string()}",
       "v1.0.0",
       [
         input(:interval_seconds),

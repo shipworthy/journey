@@ -1,8 +1,7 @@
 defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
   import Journey.Node
   import Journey.Helpers.Random
-  alias Journey.Graph.Catalog
   alias Journey.Scheduler.Background.Sweeps.Helpers
 
   describe "computations_for_graphs/2" do
@@ -53,24 +52,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       {:ok, _} = Journey.get_value(exec_b, :b, wait_any: true)
       {:ok, _} = Journey.get_value(exec_c, :q, wait_any: true)
 
-      # Get all registered graphs before unregistering
-      all_graphs = Catalog.list()
-      assert length(all_graphs) >= 3
+      # Build graph tuples explicitly for only graph_a and graph_c (excluding graph_b)
+      graph_tuples = [{graph_a.name, "1.0"}, {graph_c.name, "1.0"}]
 
-      # Unregister graph_b
-      :ok = Catalog.unregister(graph_b.name, "1.0")
-
-      # Get remaining registered graphs
-      registered_graphs = Catalog.list()
-      registered_graph_tuples = Enum.map(registered_graphs, fn g -> {g.name, g.version} end)
-
-      # Verify graph_b is not in registered graphs
-      refute {graph_b.name, "1.0"} in registered_graph_tuples
-      assert {graph_a.name, "1.0"} in registered_graph_tuples
-      assert {graph_c.name, "1.0"} in registered_graph_tuples
-
-      # Query computations for registered graphs only
-      query = Helpers.computations_for_graphs(nil, registered_graph_tuples)
+      # Query computations for selected graphs only
+      query = Helpers.computations_for_graphs(nil, graph_tuples)
       computations = Journey.Repo.all(query)
 
       # Verify we only get computations from graph_a and graph_c
@@ -146,15 +132,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       {:ok, _} = Journey.get_value(exec_v1, :y, wait_any: true)
       {:ok, _} = Journey.get_value(exec_v2, :y, wait_any: true)
 
-      # Unregister v1.0
-      :ok = Catalog.unregister(graph_name, "1.0")
-
-      # Get remaining registered graphs
-      registered_graphs = Catalog.list()
-      registered_graph_tuples = Enum.map(registered_graphs, fn g -> {g.name, g.version} end)
+      # Build graph tuples explicitly - only include v2.0
+      graph_tuples = [{graph_name, "2.0"}]
 
       # Query should only return computations from v2.0
-      query = Helpers.computations_for_graphs(nil, registered_graph_tuples)
+      query = Helpers.computations_for_graphs(nil, graph_tuples)
       computations = Journey.Repo.all(query)
 
       computation_execution_ids = Enum.map(computations, & &1.execution_id) |> Enum.uniq()
@@ -224,12 +206,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       {:ok, _} = Journey.get_value(exec_a, :y, wait_any: true)
       {:ok, _} = Journey.get_value(exec_b, :b, wait_any: true)
 
-      # Get all registered graphs
-      registered_graphs = Catalog.list()
-      registered_graph_tuples = Enum.map(registered_graphs, fn g -> {g.name, g.version} end)
+      # Build graph tuples explicitly from our test graphs
+      graph_tuples = [{graph_a.name, "1.0"}, {graph_b.name, "1.0"}]
 
       # Query with specific execution_id
-      query = Helpers.computations_for_graphs(exec_a.id, registered_graph_tuples)
+      query = Helpers.computations_for_graphs(exec_a.id, graph_tuples)
       computations = Journey.Repo.all(query)
 
       # Should only return computations from exec_a
@@ -237,7 +218,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       assert Enum.all?(computations, &(&1.execution_id == exec_a.id))
     end
 
-    test "returns empty list when execution's graph is not in the registered list" do
+    test "returns empty list when execution's graph is not in the graph list" do
       # Create a graph with unique name
       graph =
         Journey.new_graph(
@@ -254,15 +235,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       Journey.set(execution, :x, 5)
       {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
 
-      # Unregister the graph
-      :ok = Catalog.unregister(graph.name, graph.version)
+      # Build graph tuples that don't include this graph
+      graph_tuples = [{"some_other_graph_#{random_string()}", "1.0"}]
 
-      # Get remaining registered graphs
-      registered_graphs = Catalog.list()
-      registered_graph_tuples = Enum.map(registered_graphs, fn g -> {g.name, g.version} end)
-
-      # Query with execution_id but graph is not registered
-      query = Helpers.computations_for_graphs(execution.id, registered_graph_tuples)
+      # Query with execution_id but graph is not in the list
+      query = Helpers.computations_for_graphs(execution.id, graph_tuples)
       computations = Journey.Repo.all(query)
 
       # Should return empty even though execution exists
@@ -318,12 +295,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       {:ok, _} = Journey.get_value(exec_1, :z, wait_any: true)
       {:ok, _} = Journey.get_value(exec_2, :z, wait_any: true)
 
-      # Get registered graphs
-      registered_graphs = Catalog.list()
-      registered_graph_tuples = Enum.map(registered_graphs, fn g -> {g.name, g.version} end)
+      # Build graph tuples explicitly from our test graph
+      graph_tuples = [{graph.name, "1.0"}]
 
       # Query with exec_1's id
-      query = Helpers.computations_for_graphs(exec_1.id, registered_graph_tuples)
+      query = Helpers.computations_for_graphs(exec_1.id, graph_tuples)
       computations = Journey.Repo.all(query)
 
       # Should only return computations from exec_1 (2 compute nodes)
@@ -332,7 +308,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
     end
 
     test "returns empty list for non-existent execution_id" do
-      # Create a graph to ensure there are registered graphs
+      # Create a graph to ensure there are computations in the system
       graph =
         Journey.new_graph(
           "graph_#{random_string()}",
@@ -348,13 +324,12 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.ComputationsForGraphsTest 
       Journey.set(execution, :x, 5)
       {:ok, _} = Journey.get_value(execution, :y, wait_any: true)
 
-      # Get registered graphs
-      registered_graphs = Catalog.list()
-      registered_graph_tuples = Enum.map(registered_graphs, fn g -> {g.name, g.version} end)
+      # Build graph tuples explicitly from our test graph
+      graph_tuples = [{graph.name, "1.0"}]
 
       # Query with non-existent execution_id
       fake_execution_id = "EXEC_FAKE_#{random_string()}"
-      query = Helpers.computations_for_graphs(fake_execution_id, registered_graph_tuples)
+      query = Helpers.computations_for_graphs(fake_execution_id, graph_tuples)
       computations = Journey.Repo.all(query)
 
       # Should return empty

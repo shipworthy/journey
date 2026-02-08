@@ -1,6 +1,7 @@
 defmodule Journey.MetadataTest do
   use ExUnit.Case, async: true
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
 
   # Helper to redact timestamps for deterministic assertions
   defp redact_timestamps(history) do
@@ -12,7 +13,7 @@ defmodule Journey.MetadataTest do
   describe "basic metadata functionality" do
     test "set and get value with metadata" do
       graph =
-        Journey.new_graph("metadata test - basic", "v1.0.0", [
+        Journey.new_graph("metadata test - basic #{random_string()}", "v1.0.0", [
           input(:title)
         ])
 
@@ -25,7 +26,7 @@ defmodule Journey.MetadataTest do
     end
 
     test "set without metadata stores value correctly" do
-      graph = Journey.new_graph("metadata test - no metadata", "v1.0.0", [input(:title)])
+      graph = Journey.new_graph("metadata test - no metadata #{random_string()}", "v1.0.0", [input(:title)])
       execution = Journey.start_execution(graph)
       execution = Journey.set(execution, :title, "Hello")
 
@@ -36,7 +37,7 @@ defmodule Journey.MetadataTest do
 
     test "bulk set with metadata applies to all values" do
       graph =
-        Journey.new_graph("metadata test - bulk", "v1.0.0", [
+        Journey.new_graph("metadata test - bulk #{random_string()}", "v1.0.0", [
           input(:title),
           input(:description)
         ])
@@ -65,7 +66,7 @@ defmodule Journey.MetadataTest do
   describe "f_compute/2 receives value node data" do
     test "f_compute/2 receives value node data from upstream nodes" do
       graph =
-        Journey.new_graph("metadata test - compute with value nodes", "v1.0.0", [
+        Journey.new_graph("metadata test - compute with value nodes #{random_string()}", "v1.0.0", [
           input(:title),
           compute(
             :title_with_author,
@@ -86,7 +87,7 @@ defmodule Journey.MetadataTest do
 
     test "f_compute/1 still works without value node data (backward compatibility)" do
       graph =
-        Journey.new_graph("metadata test - compute without value nodes", "v1.0.0", [
+        Journey.new_graph("metadata test - compute without value nodes #{random_string()}", "v1.0.0", [
           input(:name),
           compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello #{name}"} end)
         ])
@@ -100,7 +101,7 @@ defmodule Journey.MetadataTest do
 
     test "f_compute/2 with multiple upstream nodes receives all value node data" do
       graph =
-        Journey.new_graph("metadata test - multiple upstream", "v1.0.0", [
+        Journey.new_graph("metadata test - multiple upstream #{random_string()}", "v1.0.0", [
           input(:first_name),
           input(:last_name),
           compute(
@@ -126,7 +127,7 @@ defmodule Journey.MetadataTest do
   describe "historian includes metadata" do
     test "historian includes metadata in history entries" do
       graph =
-        Journey.new_graph("metadata test - historian", "v1.0.0", [
+        Journey.new_graph("metadata test - historian #{random_string()}", "v1.0.0", [
           input(:content),
           historian(:content_history, [:content])
         ])
@@ -172,7 +173,7 @@ defmodule Journey.MetadataTest do
 
     test "historian handles nil metadata" do
       graph =
-        Journey.new_graph("metadata test - historian nil", "v1.0.0", [
+        Journey.new_graph("metadata test - historian nil #{random_string()}", "v1.0.0", [
           input(:content),
           historian(:content_history, [:content])
         ])
@@ -196,7 +197,7 @@ defmodule Journey.MetadataTest do
 
     test "historian tracks bulk set with metadata" do
       graph =
-        Journey.new_graph("metadata test - historian bulk set", "v1.0.0", [
+        Journey.new_graph("metadata test - historian bulk set #{random_string()}", "v1.0.0", [
           input(:name),
           input(:age),
           historian(:name_history, [:name]),
@@ -239,7 +240,7 @@ defmodule Journey.MetadataTest do
   describe "metadata with keyword list syntax" do
     test "set with keyword list and metadata" do
       graph =
-        Journey.new_graph("metadata test - keyword list", "v1.0.0", [
+        Journey.new_graph("metadata test - keyword list #{random_string()}", "v1.0.0", [
           input(:name),
           input(:age)
         ])
@@ -261,7 +262,7 @@ defmodule Journey.MetadataTest do
   describe "metadata persistence across reloads" do
     test "metadata persists after reloading execution" do
       graph =
-        Journey.new_graph("metadata test - persistence", "v1.0.0", [
+        Journey.new_graph("metadata test - persistence #{random_string()}", "v1.0.0", [
           input(:title)
         ])
 
