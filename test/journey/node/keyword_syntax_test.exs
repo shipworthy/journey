@@ -1,5 +1,5 @@
 defmodule Journey.Node.KeywordSyntaxTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   import Journey.Node
   import Journey.Node.UpstreamDependencies

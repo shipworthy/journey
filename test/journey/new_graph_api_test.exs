@@ -1,6 +1,7 @@
 defmodule Journey.NewGraphApiTest do
   use ExUnit.Case, async: true
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
 
   describe "new_graph/1 with nodes only" do
     test "creates graph with auto-generated name and default version" do
@@ -35,9 +36,10 @@ defmodule Journey.NewGraphApiTest do
 
   describe "new_graph/2 with name and nodes" do
     test "creates graph with provided name and default version" do
-      graph = Journey.new_graph("MyGraph", [input(:test_node)])
+      name = "MyGraph_#{random_string()}"
+      graph = Journey.new_graph(name, [input(:test_node)])
 
-      assert graph.name == "MyGraph"
+      assert graph.name == name
       assert graph.version == "v1.0"
       assert length(graph.nodes) == 3
     end
@@ -45,9 +47,10 @@ defmodule Journey.NewGraphApiTest do
 
   describe "new_graph/3 with name, version, and nodes (existing behavior)" do
     test "creates graph with provided name and version" do
-      graph = Journey.new_graph("MyGraph", "v2.0", [input(:test_node)])
+      name = "MyGraph_#{random_string()}"
+      graph = Journey.new_graph(name, "v2.0", [input(:test_node)])
 
-      assert graph.name == "MyGraph"
+      assert graph.name == name
       assert graph.version == "v2.0"
       assert length(graph.nodes) == 3
     end
@@ -55,7 +58,7 @@ defmodule Journey.NewGraphApiTest do
 
   describe "start/1 alias" do
     test "works identically to start_execution/1" do
-      graph = Journey.new_graph("TestGraph", "v1.0", [input(:test)])
+      graph = Journey.new_graph("TestGraph_#{random_string()}", "v1.0", [input(:test)])
 
       execution1 = Journey.start_execution(graph)
       execution2 = Journey.start(graph)

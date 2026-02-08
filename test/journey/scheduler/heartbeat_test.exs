@@ -2,13 +2,14 @@ defmodule Journey.Scheduler.HeartbeatTest do
   use ExUnit.Case, async: true
   import Ecto.Query
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
 
   alias Journey.Persistence.Schema.Execution.Computation
 
   describe "graph validation" do
     test "rejects heartbeat interval < 30s" do
       assert_raise RuntimeError, ~r/heartbeat_interval_seconds must be >= 30 seconds/, fn ->
-        Journey.new_graph("bad_heartbeat_1", "1", [
+        Journey.new_graph("bad_heartbeat_1_#{random_string()}", "1", [
           compute(:step1, [], fn _ -> {:ok, 1} end, heartbeat_interval_seconds: 29)
         ])
       end
@@ -16,7 +17,7 @@ defmodule Journey.Scheduler.HeartbeatTest do
 
     test "rejects interval > timeout / 2" do
       assert_raise RuntimeError, ~r/must be <= half of heartbeat_timeout_seconds/, fn ->
-        Journey.new_graph("bad_heartbeat_2", "1", [
+        Journey.new_graph("bad_heartbeat_2_#{random_string()}", "1", [
           compute(:step1, [], fn _ -> {:ok, 1} end,
             heartbeat_interval_seconds: 40,
             heartbeat_timeout_seconds: 70
@@ -27,7 +28,7 @@ defmodule Journey.Scheduler.HeartbeatTest do
 
     test "accepts valid configuration" do
       graph =
-        Journey.new_graph("good_heartbeat", "1", [
+        Journey.new_graph("good_heartbeat_#{random_string()}", "1", [
           compute(:step1, [], fn _ -> {:ok, 1} end,
             heartbeat_interval_seconds: 30,
             heartbeat_timeout_seconds: 60
@@ -43,7 +44,7 @@ defmodule Journey.Scheduler.HeartbeatTest do
       timeout = 100
 
       graph =
-        Journey.new_graph("heartbeat_init", "1", [
+        Journey.new_graph("heartbeat_init_#{random_string()}", "1", [
           compute(:step1, [], fn _ -> {:ok, 1} end,
             heartbeat_interval_seconds: 30,
             heartbeat_timeout_seconds: timeout
@@ -68,7 +69,7 @@ defmodule Journey.Scheduler.HeartbeatTest do
       timeout = 70
 
       graph =
-        Journey.new_graph("heartbeat_during_execution", "1", [
+        Journey.new_graph("heartbeat_during_execution_#{random_string()}", "1", [
           compute(
             :slow_step_75_seconds,
             [],
@@ -106,7 +107,7 @@ defmodule Journey.Scheduler.HeartbeatTest do
       # Heartbeat marks as abandoned and kills worker
 
       graph =
-        Journey.new_graph("deadline_enforcement", "1", [
+        Journey.new_graph("deadline_enforcement_#{random_string()}", "1", [
           compute(
             :runaway_worker,
             [],

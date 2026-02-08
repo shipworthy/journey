@@ -2,6 +2,7 @@ defmodule Journey.GraphTest do
   use ExUnit.Case, async: true
 
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
 
   defp create_graph() do
     Journey.new_graph(
@@ -234,7 +235,7 @@ defmodule Journey.GraphTest do
       assert_raise ArgumentError,
                    "Unknown options: [:typo]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
                    fn ->
-                     Journey.new_graph("test graph", "1.0", [
+                     Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
                        compute(:foo, [:bar], fn _ -> {:ok, 1} end, typo: true)
                      ])
@@ -242,8 +243,10 @@ defmodule Journey.GraphTest do
     end
 
     test "compute accepts all common options" do
+      name = "test graph #{random_string()}"
+
       graph =
-        Journey.new_graph("test graph", "1.0", [
+        Journey.new_graph(name, "1.0", [
           input(:bar),
           compute(:foo, [:bar], fn _ -> {:ok, 1} end,
             f_on_save: fn _ -> :ok end,
@@ -254,14 +257,14 @@ defmodule Journey.GraphTest do
           )
         ])
 
-      assert graph.name == "test graph"
+      assert graph.name == name
     end
 
     test "mutate raises on unknown options" do
       assert_raise ArgumentError,
                    "Unknown options: [:bogus]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries, :mutates, :update_revision_on_change].",
                    fn ->
-                     Journey.new_graph("test graph", "1.0", [
+                     Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
                        mutate(:foo, [:bar], fn _ -> {:ok, 1} end, mutates: :bar, bogus: 123)
                      ])
@@ -269,8 +272,10 @@ defmodule Journey.GraphTest do
     end
 
     test "mutate accepts valid options" do
+      name = "test graph #{random_string()}"
+
       graph =
-        Journey.new_graph("test graph", "1.0", [
+        Journey.new_graph(name, "1.0", [
           input(:bar),
           input(:baz),
           mutate(:foo, [:bar], fn _ -> {:ok, 1} end,
@@ -280,14 +285,14 @@ defmodule Journey.GraphTest do
           )
         ])
 
-      assert graph.name == "test graph"
+      assert graph.name == name
     end
 
     test "archive raises on unknown options" do
       assert_raise ArgumentError,
                    "Unknown options: [:nope]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
                    fn ->
-                     Journey.new_graph("test graph", "1.0", [
+                     Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
                        archive(:foo, [:bar], nope: true)
                      ])
@@ -298,7 +303,7 @@ defmodule Journey.GraphTest do
       assert_raise ArgumentError,
                    "Unknown options: [:bad_opt]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_entries, :max_retries].",
                    fn ->
-                     Journey.new_graph("test graph", "1.0", [
+                     Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
                        historian(:foo, [:bar], bad_opt: 1)
                      ])
@@ -306,20 +311,22 @@ defmodule Journey.GraphTest do
     end
 
     test "historian accepts max_entries" do
+      name = "test graph #{random_string()}"
+
       graph =
-        Journey.new_graph("test graph", "1.0", [
+        Journey.new_graph(name, "1.0", [
           input(:bar),
           historian(:foo, [:bar], max_entries: 500)
         ])
 
-      assert graph.name == "test graph"
+      assert graph.name == name
     end
 
     test "tick_once raises on unknown options" do
       assert_raise ArgumentError,
                    "Unknown options: [:wrong]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
                    fn ->
-                     Journey.new_graph("test graph", "1.0", [
+                     Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
                        tick_once(:foo, [:bar], fn _ -> {:ok, 1} end, wrong: true)
                      ])
@@ -330,7 +337,7 @@ defmodule Journey.GraphTest do
       assert_raise ArgumentError,
                    "Unknown options: [:invalid]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
                    fn ->
-                     Journey.new_graph("test graph", "1.0", [
+                     Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
                        tick_recurring(:foo, [:bar], fn _ -> {:ok, 1} end, invalid: 1)
                      ])

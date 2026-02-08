@@ -280,7 +280,7 @@ defmodule Journey.Scheduler.SchedulerTest do
 
   defp create_graph(behavior) when behavior in [:success, :failure, :timeout] do
     Journey.new_graph(
-      "astrological sign workflow, #{behavior} compute #{__MODULE__}",
+      "astrological sign workflow, #{behavior} compute #{__MODULE__} #{random_string()}",
       "v2.0.0",
       [
         input(:first_name),

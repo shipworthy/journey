@@ -1,7 +1,8 @@
 defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
 
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
@@ -99,7 +100,7 @@ defmodule Journey.Scheduler.ScheduleOnceRecomputationTest do
 
   defp test_graph do
     Journey.new_graph(
-      "schedule_once recomputation test",
+      "schedule_once recomputation test #{random_string()}",
       "v1.0.0",
       [
         input(:due_date),

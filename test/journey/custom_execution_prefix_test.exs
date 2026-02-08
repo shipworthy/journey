@@ -1,10 +1,13 @@
 defmodule Journey.CustomExecutionPrefixTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   import Journey.Node
+  import Journey.Helpers.Random, only: [random_string: 0]
 
   describe "custom execution ID prefix" do
     test "uses custom prefix when specified" do
-      graph = Journey.new_graph("custom prefix test", "v1", [input(:name)], execution_id_prefix: "mygraph")
+      graph =
+        Journey.new_graph("custom prefix test #{random_string()}", "v1", [input(:name)], execution_id_prefix: "mygraph")
+
       execution = Journey.start_execution(graph)
 
       assert String.starts_with?(execution.id, "MYGRAPH")
@@ -13,7 +16,7 @@ defmodule Journey.CustomExecutionPrefixTest do
     end
 
     test "uses default EXEC prefix when not specified" do
-      graph = Journey.new_graph("default prefix test", "v1", [input(:name)])
+      graph = Journey.new_graph("default prefix test #{random_string()}", "v1", [input(:name)])
       execution = Journey.start_execution(graph)
 
       assert String.starts_with?(execution.id, "EXEC")
@@ -22,21 +25,31 @@ defmodule Journey.CustomExecutionPrefixTest do
     end
 
     test "prefix is normalized to uppercase" do
-      graph = Journey.new_graph("lowercase prefix test", "v1", [input(:name)], execution_id_prefix: "lowercase")
+      graph =
+        Journey.new_graph("lowercase prefix test #{random_string()}", "v1", [input(:name)],
+          execution_id_prefix: "lowercase"
+        )
+
       execution = Journey.start_execution(graph)
 
       assert String.starts_with?(execution.id, "LOWERCASE")
     end
 
     test "prefix works with mixed case" do
-      graph = Journey.new_graph("mixed case prefix test", "v1", [input(:name)], execution_id_prefix: "MiXeD")
+      graph =
+        Journey.new_graph("mixed case prefix test #{random_string()}", "v1", [input(:name)],
+          execution_id_prefix: "MiXeD"
+        )
+
       execution = Journey.start_execution(graph)
 
       assert String.starts_with?(execution.id, "MIXED")
     end
 
     test "multiple executions with same prefix have different IDs" do
-      graph = Journey.new_graph("unique ID test", "v1", [input(:name)], execution_id_prefix: "test")
+      graph =
+        Journey.new_graph("unique ID test #{random_string()}", "v1", [input(:name)], execution_id_prefix: "test")
+
       execution1 = Journey.start_execution(graph)
       execution2 = Journey.start_execution(graph)
 

@@ -1,5 +1,5 @@
 defmodule Journey.Node.ConditionsTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   import Journey.Node
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
