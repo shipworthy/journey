@@ -5,7 +5,6 @@ defmodule Journey.Scheduler.Recompute do
   require Logger
 
   alias Journey.Graph
-  alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
@@ -21,7 +20,11 @@ defmodule Journey.Scheduler.Recompute do
     {:ok, new_computations} =
       Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
         fn repo ->
-          # Acquire execution-scoped advisory lock to prevent concurrent duplicate creation
+          # Serializes concurrent Recompute calls for the same execution. Without this,
+          # two transactions could both run the atomic insert below and neither would see
+          # the other's uncommitted row (READ COMMITTED), creating duplicates.
+          # The atomic insert separately handles races with record_success, which runs
+          # in a different transaction that does not acquire this lock.
           lock_key = :erlang.phash2(execution.id)
           repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [@advance_lock_namespace, lock_key])
 
@@ -55,27 +58,12 @@ defmodule Journey.Scheduler.Recompute do
           all_values = get_all_values(execution.id, repo)
 
           all_computations
-          # credo:disable-for-lines:15 Credo.Check.Refactor.FilterFilter
-          |> Enum.filter(fn c -> an_upstream_node_has_a_newer_version?(c, graph, all_values) end)
           |> Enum.filter(fn c ->
-            unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by, :computation)
+            an_upstream_node_has_a_newer_version?(c, graph, all_values) and
+              unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by, :computation)
           end)
-          |> Enum.reject(fn c -> has_pending_computation?(execution.id, c.node_name, repo) end)
-          |> Enum.map(fn computation_to_re_create ->
-            new_computation =
-              %Execution.Computation{
-                execution: execution,
-                node_name: Atom.to_string(computation_to_re_create.node_name),
-                computation_type: computation_to_re_create.computation_type,
-                state: :not_set
-              }
-              |> repo.insert!()
-
-            Logger.info(
-              "#{prefix}: created a new re-computation, #{new_computation.id}.#{new_computation.node_name}. an upstream node has a newer version"
-            )
-
-            new_computation
+          |> Enum.flat_map(fn c ->
+            atomic_insert_if_no_duplicate(prefix, execution.id, c, repo)
           end)
         end,
         prefix
@@ -164,14 +152,42 @@ defmodule Journey.Scheduler.Recompute do
     |> Enum.into(%{})
   end
 
-  defp has_pending_computation?(execution_id, node_name, repo) do
-    from(c in Computation,
-      where:
-        c.execution_id == ^execution_id and
-          c.node_name == ^Atom.to_string(node_name) and
-          c.state in [:not_set, :computing],
-      limit: 1
-    )
-    |> repo.exists?()
+  # Atomic conditional insert: creates a re-computation only if no pending
+  # (:not_set/:computing) or newer :success computation exists for this node.
+  # Using INSERT...SELECT...WHERE NOT EXISTS ensures the check and insert happen
+  # in a single SQL statement, which sees one consistent READ COMMITTED snapshot.
+  defp atomic_insert_if_no_duplicate(prefix, execution_id, computation, repo) do
+    new_id = Journey.Helpers.Random.object_id("CMP")
+    node_name_str = Atom.to_string(computation.node_name)
+    comp_type_str = Atom.to_string(computation.computation_type)
+    now = System.os_time(:second)
+
+    %{num_rows: num_rows} =
+      repo.query!(
+        """
+        INSERT INTO computations (id, execution_id, node_name, computation_type, state, inserted_at, updated_at)
+        SELECT $1::varchar, $2::varchar, $3::varchar, $4::varchar, 'not_set', $5::bigint, $5::bigint
+        WHERE NOT EXISTS (
+          SELECT 1 FROM computations
+          WHERE execution_id = $2
+            AND node_name = $3
+            AND (
+              state IN ('not_set', 'computing')
+              OR (state = 'success' AND ex_revision_at_start > $6)
+            )
+        )
+        """,
+        [new_id, execution_id, node_name_str, comp_type_str, now, computation.ex_revision_at_start]
+      )
+
+    if num_rows == 1 do
+      Logger.info(
+        "#{prefix}: created a new re-computation, #{new_id}.#{node_name_str}. an upstream node has a newer version"
+      )
+
+      [new_id]
+    else
+      []
+    end
   end
 end
