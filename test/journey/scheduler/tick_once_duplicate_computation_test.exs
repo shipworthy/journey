@@ -1,15 +1,7 @@
 defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
   @moduledoc """
-  Reproduction test for Bug #1: Background sweeper creating duplicate tick_once computations.
-
-  The bug report claims that after a single set_values call, the tick_once computation
-  function can be called twice with identical inputs, producing two separate revisions.
-  This breaks `wait: {:newer_than, revision}` semantics.
-
-  The key insight from the reporter is that the bug occurs with a complex cascading graph
-  where multiple parallel branches are triggered by the same set_values call. Each branch
-  completion triggers recursive advance() calls, creating many concurrent advance() calls
-  that might race with each other.
+  Verifies that tick_once nodes compute exactly once per upstream change,
+  even when parallel cascading branches trigger concurrent advance() calls.
   """
   use ExUnit.Case, async: true
 
@@ -22,8 +14,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
 
-  require Logger
-
   alias Journey.Persistence.Schema.Execution.Computation
 
   # ── helpers ──────────────────────────────────────────────────────────────
@@ -32,8 +22,7 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
     from(c in Computation,
       where: c.execution_id == ^execution_id and c.node_name == ^Atom.to_string(node_name)
     )
-    |> Journey.Repo.all()
-    |> length()
+    |> Journey.Repo.aggregate(:count)
   end
 
   defp count_successful_computations(execution_id, node_name) do
@@ -43,8 +32,7 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
           c.node_name == ^Atom.to_string(node_name) and
           c.state == ^:success
     )
-    |> Journey.Repo.all()
-    |> length()
+    |> Journey.Repo.aggregate(:count)
   end
 
   # ── graph builders ─────────────────────────────────────────────────────
@@ -64,13 +52,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
           [:due_date, :due_type],
           fn %{due_date: due_date, due_type: _due_type} ->
             Agent.update(counter_agent, &(&1 + 1))
-            count = Agent.get(counter_agent, & &1)
-
-            Logger.warning(
-              "DIAG[simple] tick_once f_compute invoked (call ##{count}), " <>
-                "due_date=#{due_date}, pid=#{inspect(self())}"
-            )
-
             {:ok, due_date - 86_400}
           end
         )
@@ -78,16 +59,9 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
     )
   end
 
-  # Cascade graph: mimics the Ooshki graph topology where set_values triggers
-  # multiple parallel branches, each with cascading computations.
-  #
-  # set_values(%{due_type: "on", due_date: ..., contents: "..."})
-  #   ├── Branch 1: item_changes → item_history → schedule_notification (tick_once) → send_notification
-  #   └── Branch 2: due_date_reminder (tick_once) ← THE VICTIM
-  #
-  # Each branch completion triggers recursive advance() calls. The hypothesis is that
-  # these concurrent cascading advance() calls can cause Recompute to see stale
-  # computed_with data and create a duplicate tick_once computation.
+  # Cascade graph with two parallel branches triggered by the same inputs:
+  #   Branch 1: item_changes → item_history → schedule_notification (tick_once) → send_notification
+  #   Branch 2: due_date_reminder (tick_once) — counted by counter_agent
   defp build_cascade_graph(counter_agent) do
     graph_name = "tick_once_dup_cascade_#{random_string()}"
 
@@ -118,7 +92,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
             [{:item_changes, &provided?/1}]
           }),
           fn %{item_changes: changes} ->
-            Logger.warning("DIAG[cascade] item_history computed, changes=#{inspect(length(changes || []))}")
             {:ok, changes}
           end
         ),
@@ -126,8 +99,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
           :schedule_notification,
           [:item_history],
           fn %{item_history: _history} ->
-            Logger.warning("DIAG[cascade] schedule_notification tick_once computed")
-            # Schedule far in the future
             {:ok, System.system_time(:second) + 100_000}
           end
         ),
@@ -135,7 +106,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
           :send_notification,
           [:schedule_notification],
           fn %{schedule_notification: _time} ->
-            Logger.warning("DIAG[cascade] send_notification computed")
             {:ok, "notification_sent"}
           end
         ),
@@ -146,13 +116,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
           [:due_date, :due_type],
           fn %{due_date: due_date, due_type: _due_type} ->
             Agent.update(counter_agent, &(&1 + 1))
-            count = Agent.get(counter_agent, & &1)
-
-            Logger.warning(
-              "DIAG[cascade] due_date_reminder tick_once invoked (call ##{count}), " <>
-                "due_date=#{due_date}, pid=#{inspect(self())}"
-            )
-
             {:ok, due_date - 86_400}
           end
         )
@@ -259,11 +222,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
       total = count_computations(execution.id, :due_date_reminder)
       successful = count_successful_computations(execution.id, :due_date_reminder)
 
-      Logger.warning(
-        "DIAG[cascade] after initial set + cascade: " <>
-          "invocations=#{invocations}, total=#{total}, successful=#{successful}"
-      )
-
       assert invocations == 1,
              "Expected exactly 1 due_date_reminder invocation after initial set, " <>
                "got #{invocations}. total_computations=#{total}, successful=#{successful}"
@@ -271,9 +229,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
       # ── second set: change due_date (re-triggers both branches) ──
 
       new_future = System.system_time(:second) + 800_000
-
-      Logger.warning("DIAG[cascade] setting due_date to #{new_future}, initial_revision=#{initial_revision}")
-
       execution = Journey.set(execution, :due_date, new_future)
 
       {:ok, new_value, new_revision} =
@@ -294,11 +249,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
       final_invocations = Agent.get(counter, & &1)
       final_total = count_computations(execution.id, :due_date_reminder)
       final_successful = count_successful_computations(execution.id, :due_date_reminder)
-
-      Logger.warning(
-        "DIAG[cascade] final: invocations=#{final_invocations}, " <>
-          "total=#{final_total}, successful=#{final_successful}"
-      )
 
       assert final_invocations == 2,
              "Expected exactly 2 due_date_reminder invocations total, " <>
@@ -382,8 +332,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
       invocations = Agent.get(counter, & &1)
       total = count_computations(execution.id, :due_date_reminder)
 
-      Logger.warning("DIAG[cascade+concurrent] invocations=#{invocations}, total=#{total}")
-
       assert invocations == 1,
              "Expected 1 due_date_reminder invocation with cascade + 10 concurrent advance(), " <>
                "got #{invocations}. total_computations=#{total}"
@@ -396,13 +344,6 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
 
   describe "wait: {:newer_than, revision} returns correct value after recomputation" do
     test "does not return stale duplicate revision (cascade graph)" do
-      # The exact failure from the bug report:
-      # 1. First set → tick_once computes → revision A
-      # 2. Capture initial_revision = A
-      # 3. (Sweeper/cascade duplicate) → same value → revision B (B > A)
-      # 4. Second set → tick_once computes → revision C (new value)
-      # 5. get(wait: {:newer_than, A}) finds B → returns OLD value instead of C
-
       {:ok, counter} = Agent.start_link(fn -> 0 end)
       graph = build_cascade_graph(counter)
       execution = Journey.start_execution(graph)
