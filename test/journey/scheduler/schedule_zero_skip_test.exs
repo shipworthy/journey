@@ -139,11 +139,16 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
       :timer.sleep(2_000)
       assert Journey.get(execution, :send_reminder) == {:error, :not_set}
 
+      # Capture schedule revision before change
+      {:ok, 0, schedule_rev} = Journey.get(execution, :schedule_reminder)
+
       # Now user changes their mind and wants reminders
       execution = Journey.set(execution, :wants_reminder, true)
 
       # Schedule should now have a real timestamp
-      assert {:ok, scheduled_time, _} = Journey.get(execution, :schedule_reminder, wait: :newer)
+      assert {:ok, scheduled_time, _} =
+               Journey.get(execution, :schedule_reminder, wait: {:newer_than, schedule_rev})
+
       assert scheduled_time > 0
 
       # Downstream node should now execute after the scheduled time
@@ -285,9 +290,12 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
       # First reminder should be sent
       assert wait_for_value(execution, :send_reminder, 1, timeout: 10_000)
 
+      # Capture schedule revision before pausing
+      {:ok, _, schedule_rev} = Journey.get(execution, :schedule_reminder, wait: :any)
+
       # Pause reminders
       execution = Journey.set(execution, :keep_sending_reminders, false)
-      assert {:ok, 0, _} = Journey.get(execution, :schedule_reminder, wait: :newer)
+      assert {:ok, 0, _} = Journey.get(execution, :schedule_reminder, wait: {:newer_than, schedule_rev})
 
       # Get current reminder count
       {:ok, count_when_paused, _} = Journey.get(execution, :send_reminder)

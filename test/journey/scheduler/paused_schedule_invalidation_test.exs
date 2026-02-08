@@ -50,9 +50,12 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
       # Wait for first execution
       assert wait_for_value(execution, :process_data, "v1-1", timeout: 10_000)
 
+      # Capture current schedule_pulse revision before pausing
+      {:ok, _, pulse_rev} = Journey.get(execution, :schedule_pulse, wait: :any)
+
       # Pause the schedule
       execution = Journey.set(execution, :enable_schedule, false)
-      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: :newer)
+      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: {:newer_than, pulse_rev})
 
       # Reload to get latest state
       execution = Journey.load(execution)
@@ -157,9 +160,12 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
       # Wait for first execution
       assert wait_for_value(execution, :counter, 1, timeout: 10_000)
 
+      # Capture current schedule_pulse revision before pausing
+      {:ok, _, pulse_rev} = Journey.get(execution, :schedule_pulse, wait: :any)
+
       # Pause the schedule
       execution = Journey.set(execution, :enable_schedule, false)
-      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: :newer)
+      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: {:newer_than, pulse_rev})
 
       # Reload to get latest state
       execution = Journey.load(execution)
@@ -214,9 +220,12 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
       execution = Journey.set(execution, :enable_schedule, true)
       assert wait_for_value(execution, :counter, 1, timeout: 10_000)
 
+      # Capture current schedule_pulse revision before pausing
+      {:ok, _, pulse_rev} = Journey.get(execution, :schedule_pulse, wait: :any)
+
       # Pause
       execution = Journey.set(execution, :enable_schedule, false)
-      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: :newer)
+      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: {:newer_than, pulse_rev})
 
       # Verify counter is preserved
       execution = Journey.load(execution)

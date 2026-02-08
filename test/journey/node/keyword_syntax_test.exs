@@ -320,13 +320,21 @@ defmodule Journey.Node.KeywordSyntaxTest do
       assert {:ok, "Large sum: 60"} = Journey.get_value(exec1, :large_sum_alert, wait_any: true)
       assert {:ok, "Large sum: 60"} = Journey.get_value(exec2, :large_sum_alert, wait_any: true)
 
-      # Lower values to create small sum
-      exec1 = exec1 |> Journey.set(:x, 10) |> Journey.set(:y, 10)
-      exec2 = exec2 |> Journey.set(:x, 10) |> Journey.set(:y, 10)
+      # Capture sum revisions before lowering values
+      {:ok, 60, sum_rev1} = Journey.get(exec1, :sum)
+      {:ok, 60, sum_rev2} = Journey.get(exec2, :sum)
 
-      # Wait for sum recomputation
-      assert {:ok, 20} = Journey.get_value(exec1, :sum, wait_new: true)
-      assert {:ok, 20} = Journey.get_value(exec2, :sum, wait_new: true)
+      # Lower x values first and wait for intermediate sum recomputation
+      exec1 = Journey.set(exec1, :x, 10)
+      exec2 = Journey.set(exec2, :x, 10)
+      {:ok, _, sum_rev1b} = Journey.get(exec1, :sum, wait: {:newer_than, sum_rev1})
+      {:ok, _, sum_rev2b} = Journey.get(exec2, :sum, wait: {:newer_than, sum_rev2})
+
+      # Lower y values and wait for final sum recomputation
+      exec1 = Journey.set(exec1, :y, 10)
+      exec2 = Journey.set(exec2, :y, 10)
+      {:ok, 20, _} = Journey.get(exec1, :sum, wait: {:newer_than, sum_rev1b})
+      {:ok, 20, _} = Journey.get(exec2, :sum, wait: {:newer_than, sum_rev2b})
 
       # Both should have cleared the alert
       assert Journey.get_value(exec1, :large_sum_alert) == {:error, :not_set}

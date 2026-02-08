@@ -378,12 +378,12 @@ defmodule Journey.Node do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :content, "First version")
-  iex> {:ok, history1, _} = Journey.get(execution, :content_history, wait: :any)
+  iex> {:ok, history1, history1_rev} = Journey.get(execution, :content_history, wait: :any)
   iex> length(history1)
   1
   iex> [%{"value" => "First version", "node" => "content", "timestamp" => _ts}] = history1
   iex> execution = Journey.set(execution, :content, "Second version")
-  iex> {:ok, history2, _} = Journey.get(execution, :content_history, wait: :newer)
+  iex> {:ok, history2, _} = Journey.get(execution, :content_history, wait: {:newer_than, history1_rev})
   iex> length(history2)
   2
   iex> [%{"value" => "Second version", "node" => "content", "timestamp" => _ts}, _] = history2
@@ -463,12 +463,12 @@ defmodule Journey.Node do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :email, "user@example.com")
-  iex> {:ok, history1, _} = Journey.get(execution, :contact_history, wait: :any)
+  iex> {:ok, history1, history1_rev} = Journey.get(execution, :contact_history, wait: :any)
   iex> length(history1)
   1
   iex> [%{"value" => "user@example.com", "node" => "email"}] = history1
   iex> execution = Journey.set(execution, :phone, "555-1234")
-  iex> {:ok, history2, _} = Journey.get(execution, :contact_history, wait: :newer)
+  iex> {:ok, history2, _} = Journey.get(execution, :contact_history, wait: {:newer_than, history1_rev})
   iex> length(history2)
   2
   iex> # Newest first: phone, then email

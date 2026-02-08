@@ -1413,9 +1413,9 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :name, "Mario")
-  iex> {:ok, "Hello, Mario!", 3} = Journey.get(execution, :greeting, wait: :any)
+  iex> {:ok, "Hello, Mario!", rev1} = Journey.get(execution, :greeting, wait: :any)
   iex> execution = Journey.set(execution, :name, "Luigi")
-  iex> {:ok, "Hello, Luigi!", _revision} = Journey.get(execution, :greeting, wait: :newer)
+  iex> {:ok, "Hello, Luigi!", _revision} = Journey.get(execution, :greeting, wait: {:newer_than, rev1})
   ```
 
   Idempotent behavior - same value doesn't change revision:
@@ -1518,11 +1518,11 @@ defmodule Journey do
   ...>     )
   iex> execution = graph |> Journey.start_execution()
   iex> execution = Journey.set(execution, :document_title, "Draft v1", metadata: %{"author_id" => "user123"})
-  iex> {:ok, history1, _} = Journey.get(execution, :title_history, wait: :any)
+  iex> {:ok, history1, history1_rev} = Journey.get(execution, :title_history, wait: :any)
   iex> length(history1)
   1
   iex> execution = Journey.set(execution, :document_title, "Draft v2", metadata: %{"author_id" => "user456"})
-  iex> {:ok, history2, _} = Journey.get(execution, :title_history, wait: :newer)
+  iex> {:ok, history2, _} = Journey.get(execution, :title_history, wait: {:newer_than, history1_rev})
   iex> length(history2)
   2
   iex> # History entries include metadata for audit trail (newest first)

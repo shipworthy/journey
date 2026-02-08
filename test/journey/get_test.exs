@@ -87,7 +87,7 @@ defmodule Journey.GetTest do
       execution = Journey.set(execution, :user_name, "Frank")
 
       # Wait for newer revision
-      {:ok, new_value, new_revision} = Journey.get(execution, :reminder, wait: :newer)
+      {:ok, new_value, new_revision} = Journey.get(execution, :reminder, wait: {:newer_than, initial_revision})
       assert new_value =~ "Frank"
       assert new_revision > initial_revision
 

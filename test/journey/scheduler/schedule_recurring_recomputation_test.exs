@@ -25,7 +25,7 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
     # Set initial interval to 100 seconds (far in the future)
     execution = Journey.set(execution, :interval_seconds, 100)
 
-    {:ok, initial_scheduled_time, _} =
+    {:ok, initial_scheduled_time, initial_schedule_rev} =
       Journey.get(execution, :recurring_schedule, wait: :any)
 
     initial_computation_count = count_computations_for(execution, :recurring_schedule)
@@ -37,7 +37,10 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
     execution = Journey.set(execution, :interval_seconds, 200)
     execution = Journey.Scheduler.advance(execution)
 
-    case Journey.get(execution, :recurring_schedule, wait: :newer, timeout: 5000) do
+    case Journey.get(execution, :recurring_schedule,
+           wait: {:newer_than, initial_schedule_rev},
+           timeout: 5000
+         ) do
       {:ok, updated_scheduled_time, _} ->
         assert updated_scheduled_time != initial_scheduled_time
         expected_new_time = System.system_time(:second) + 200
@@ -92,7 +95,7 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
     daily_interval = 86_400
     execution = Journey.set(execution, :interval_seconds, daily_interval)
 
-    {:ok, initial_time, _} = Journey.get(execution, :recurring_schedule, wait: :any)
+    {:ok, initial_time, initial_schedule_rev} = Journey.get(execution, :recurring_schedule, wait: :any)
     expected_daily = System.system_time(:second) + daily_interval
     assert initial_time in (expected_daily - 2)..(expected_daily + 5)
 
@@ -103,7 +106,10 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
     execution = Journey.set(execution, :interval_seconds, hourly_interval)
     execution = Journey.Scheduler.advance(execution)
 
-    case Journey.get(execution, :recurring_schedule, wait: :newer, timeout: 5000) do
+    case Journey.get(execution, :recurring_schedule,
+           wait: {:newer_than, initial_schedule_rev},
+           timeout: 5000
+         ) do
       {:ok, updated_time, _} ->
         # Should now be scheduled hourly, not daily
         expected_hourly = System.system_time(:second) + hourly_interval

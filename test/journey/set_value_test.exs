@@ -42,12 +42,12 @@ defmodule Journey.JourneySetValueTest do
 
       execution_v2 = execution_v1 |> Journey.set(:first_name, "Mario")
       {:ok, "Mario", _} = Journey.get(execution_v1, :first_name, wait: :any)
-      {:ok, "Hello, Mario", _} = Journey.get(execution_v1, :greeting, wait: :any)
+      {:ok, "Hello, Mario", greeting_rev} = Journey.get(execution_v1, :greeting, wait: :any)
       assert execution_v2.revision > execution_v1.revision
 
       execution_v3 = execution_v1 |> Journey.set(:first_name, "Luigi")
       {:ok, "Luigi", _} = Journey.get(execution_v3, :first_name)
-      {:ok, "Hello, Luigi", _} = Journey.get(execution_v3, :greeting, wait: :newer)
+      {:ok, "Hello, Luigi", _} = Journey.get(execution_v3, :greeting, wait: {:newer_than, greeting_rev})
       assert execution_v3.revision > execution_v2.revision
     end
 

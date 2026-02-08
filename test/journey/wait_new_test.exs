@@ -89,11 +89,13 @@ defmodule Journey.JourneyWaitNewTest do
     test "wait_new works with dependent computations", %{execution: execution} do
       # Set initial first_name to trigger greeting computation
       execution = execution |> Journey.set(:first_name, "Mario")
-      {:ok, "Hello, Mario"} = Journey.get_value(execution, :greeting, wait_any: true)
+      {:ok, "Hello, Mario", greeting_rev} = Journey.get(execution, :greeting, wait: :any)
 
       # Change first_name and wait for new greeting computation
-      execution_v2 = execution |> Journey.set(:first_name, "Luigi")
-      {:ok, "Hello, Luigi"} = Journey.get_value(execution_v2, :greeting, wait_new: true)
+      # Use explicit revision to avoid race where the execution returned by set
+      # may already contain the recomputed value
+      execution = execution |> Journey.set(:first_name, "Luigi")
+      {:ok, "Hello, Luigi"} = Journey.get_value(execution, :greeting, wait: {:newer_than, greeting_rev})
     end
   end
 

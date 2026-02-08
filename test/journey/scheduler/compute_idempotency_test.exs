@@ -118,13 +118,16 @@ defmodule Journey.Scheduler.ComputeIdempotencyTest do
       execution = Journey.set(execution, :temperature, 40)
 
       # temperature_status should recompute with new value and NEW revision
-      {:ok, "high", status_rev_after_change} = Journey.get(execution, :temperature_status, wait: :newer)
+      {:ok, "high", status_rev_after_change} =
+        Journey.get(execution, :temperature_status, wait: {:newer_than, initial_status_rev})
 
       assert status_rev_after_change > initial_status_rev,
              "temperature_status revision should increase when value changes"
 
       # Downstream alert_message SHOULD recompute because temperature_status changed
-      {:ok, "Alert: high", new_alert_rev} = Journey.get(execution, :alert_message, wait: :newer)
+      {:ok, "Alert: high", new_alert_rev} =
+        Journey.get(execution, :alert_message, wait: {:newer_than, initial_alert_rev})
+
       assert new_alert_rev > initial_alert_rev
     end
 
@@ -165,8 +168,8 @@ defmodule Journey.Scheduler.ComputeIdempotencyTest do
 
       # Set initial value: 12 -> rounds to 10
       execution = Journey.set(execution, :value, 12)
-      {:ok, 10, _} = Journey.get(execution, :rounded_value, wait: :any)
-      {:ok, "updated :recompute_counter", _} = Journey.get(execution, :increment_counter, wait: :any)
+      {:ok, 10, rounded_rev1} = Journey.get(execution, :rounded_value, wait: :any)
+      {:ok, "updated :recompute_counter", inc_rev1} = Journey.get(execution, :increment_counter, wait: :any)
       {:ok, 1, _} = Journey.get(execution, :recompute_counter)
 
       # Change to 14 -> still rounds to 10 (unchanged)
@@ -177,8 +180,11 @@ defmodule Journey.Scheduler.ComputeIdempotencyTest do
 
       # Change to 18 -> rounds to 20 (changed!)
       execution = Journey.set(execution, :value, 18)
-      {:ok, 20, _} = Journey.get(execution, :rounded_value, wait: :newer)
-      {:ok, "updated :recompute_counter", _} = Journey.get(execution, :increment_counter, wait: :newer)
+      {:ok, 20, rounded_rev2} = Journey.get(execution, :rounded_value, wait: {:newer_than, rounded_rev1})
+
+      {:ok, "updated :recompute_counter", inc_rev2} =
+        Journey.get(execution, :increment_counter, wait: {:newer_than, inc_rev1})
+
       {:ok, 2, _} = Journey.get(execution, :recompute_counter)
 
       # Change to 22 -> still rounds to 20 (unchanged)
@@ -189,8 +195,11 @@ defmodule Journey.Scheduler.ComputeIdempotencyTest do
 
       # Change to 35 -> rounds to 40 (changed!)
       execution = Journey.set(execution, :value, 35)
-      {:ok, 40, _} = Journey.get(execution, :rounded_value, wait: :newer)
-      {:ok, "updated :recompute_counter", _} = Journey.get(execution, :increment_counter, wait: :newer)
+      {:ok, 40, _} = Journey.get(execution, :rounded_value, wait: {:newer_than, rounded_rev2})
+
+      {:ok, "updated :recompute_counter", _} =
+        Journey.get(execution, :increment_counter, wait: {:newer_than, inc_rev2})
+
       {:ok, 3, _} = Journey.get(execution, :recompute_counter)
     end
   end

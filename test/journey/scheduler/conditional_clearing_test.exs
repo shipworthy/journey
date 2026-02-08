@@ -35,21 +35,21 @@ defmodule Journey.Scheduler.ConditionalClearingTest do
       execution = Journey.set(execution, :y, 9)
 
       # Verify sum is computed but alert is not triggered
-      assert {:ok, 21} = Journey.get_value(execution, :sum, wait_any: true)
+      {:ok, 21, sum_rev1} = Journey.get(execution, :sum, wait: :any)
       assert {:error, :not_set} = Journey.get_value(execution, :large_value_alert)
 
       # Increase y so sum exceeds threshold (12 + 100 = 112)
       execution = Journey.set(execution, :y, 100)
 
       # Wait for sum to be recomputed and verify both sum and alert are set
-      assert {:ok, 112} = Journey.get_value(execution, :sum, wait_new: true)
+      {:ok, 112, sum_rev2} = Journey.get(execution, :sum, wait: {:newer_than, sum_rev1})
       assert {:ok, "🚨"} = Journey.get_value(execution, :large_value_alert, wait_any: true)
 
       # Decrease y so sum is below threshold again (12 + 1 = 13)
       execution = Journey.set(execution, :y, 1)
 
       # Wait for sum to be recomputed
-      assert {:ok, 13} = Journey.get_value(execution, :sum, wait_new: true)
+      {:ok, 13, _} = Journey.get(execution, :sum, wait: {:newer_than, sum_rev2})
 
       # Reload execution to get latest state
       execution = Journey.load(execution)
