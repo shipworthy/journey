@@ -60,7 +60,10 @@ defmodule Journey.Scheduler.Recompute do
           |> Enum.filter(fn c ->
             unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by, :computation)
           end)
-          |> Enum.reject(fn c -> has_pending_computation?(execution.id, c.node_name, repo) end)
+          |> Enum.reject(fn c ->
+            has_pending_computation?(execution.id, c.node_name, repo) or
+              has_newer_success_computation?(execution.id, c.node_name, c.ex_revision_at_start, repo)
+          end)
           |> Enum.map(fn computation_to_re_create ->
             new_computation =
               %Execution.Computation{
@@ -170,6 +173,24 @@ defmodule Journey.Scheduler.Recompute do
         c.execution_id == ^execution_id and
           c.node_name == ^Atom.to_string(node_name) and
           c.state in [:not_set, :computing],
+      limit: 1
+    )
+    |> repo.exists?()
+  end
+
+  # Guards against a READ COMMITTED race condition where a computation transitions
+  # from :computing to :success between the latest_computation_ids query and the
+  # has_pending_computation? check. In that window, the computation escapes both
+  # checks: it wasn't :success when we selected the "latest", and it's no longer
+  # :computing when we check for pending. This query catches that case by detecting
+  # a :success computation newer than the one we based our analysis on.
+  defp has_newer_success_computation?(execution_id, node_name, reference_revision, repo) do
+    from(c in Computation,
+      where:
+        c.execution_id == ^execution_id and
+          c.node_name == ^Atom.to_string(node_name) and
+          c.state == :success and
+          c.ex_revision_at_start > ^reference_revision,
       limit: 1
     )
     |> repo.exists?()
