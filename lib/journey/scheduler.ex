@@ -44,7 +44,7 @@ defmodule Journey.Scheduler do
         launch_computation(execution, to_compute, conditions_fulfilled)
       end)
 
-      Journey.load(execution)
+      execution
     else
       execution
     end
