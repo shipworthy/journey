@@ -913,4 +913,70 @@ defmodule Journey.ToolsTest do
       computation -> {:ok, computation}
     end
   end
+
+  describe "orphaned node handling" do
+    # Helper to create an execution with orphaned nodes.
+    # Creates graph v1 with 3 nodes, starts an execution, then re-registers
+    # the same graph name/version with only 1 node — leaving orphaned computations.
+    defp create_execution_with_orphaned_nodes do
+      graph_name = "orphaned nodes test #{random_string()}"
+
+      graph_v1 =
+        Journey.new_graph(graph_name, "v1", [
+          input(:input_a),
+          compute(:compute_b, [:input_a], fn %{input_a: a} -> {:ok, a} end),
+          compute(:compute_c, [:input_a], fn %{input_a: a} -> {:ok, a} end)
+        ])
+
+      execution = Journey.start_execution(graph_v1)
+
+      # Re-register with fewer nodes — compute_b and compute_c are now orphaned
+      _graph_v1_reduced =
+        Journey.new_graph(graph_name, "v1", [
+          input(:input_a)
+        ])
+
+      execution
+    end
+
+    test "introspect/1 doesn't crash on orphaned nodes" do
+      execution = create_execution_with_orphaned_nodes()
+
+      result = Journey.Tools.introspect(execution.id)
+
+      assert is_binary(result)
+      assert result =~ "node not found in current graph definition"
+    end
+
+    test "what_am_i_waiting_for/2 returns descriptive string for orphaned node" do
+      execution = create_execution_with_orphaned_nodes()
+
+      result = Journey.Tools.what_am_i_waiting_for(execution.id, :compute_b)
+
+      assert result == "Node :compute_b not found in graph"
+    end
+
+    test "computation_state/2 returns :node_not_found for orphaned node" do
+      execution = create_execution_with_orphaned_nodes()
+
+      assert Journey.Tools.computation_state(execution.id, :compute_b) == :node_not_found
+    end
+
+    test "outstanding_computations/1 filters out orphaned nodes" do
+      execution = create_execution_with_orphaned_nodes()
+
+      result = Journey.Tools.outstanding_computations(execution.id)
+
+      # Orphaned nodes should be silently filtered out
+      node_names = Enum.map(result, fn %{computation: c} -> c.node_name end)
+      refute :compute_b in node_names
+      refute :compute_c in node_names
+    end
+
+    test "retry_computation/2 returns {:error, :node_not_found} for orphaned node" do
+      execution = create_execution_with_orphaned_nodes()
+
+      assert Journey.Tools.retry_computation(execution.id, :compute_b) == {:error, :node_not_found}
+    end
+  end
 end
