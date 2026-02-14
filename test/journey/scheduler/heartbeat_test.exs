@@ -79,7 +79,8 @@ defmodule Journey.Scheduler.HeartbeatTest do
               {:ok, "done"}
             end,
             heartbeat_interval_seconds: interval,
-            heartbeat_timeout_seconds: timeout
+            heartbeat_timeout_seconds: timeout,
+            abandon_after_seconds: 120
           )
         ])
 
