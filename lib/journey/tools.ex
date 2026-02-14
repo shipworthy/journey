@@ -57,23 +57,29 @@ defmodule Journey.Tools do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
-    gated_by = graph |> Graph.find_node_by_name(computation_node_name) |> Map.get(:gated_by)
+    case Graph.find_node_by_name(graph, computation_node_name) do
+      nil ->
+        "Node :#{computation_node_name} not found in graph"
 
-    readiness =
-      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-        execution.values,
-        gated_by
-      )
+      graph_node ->
+        gated_by = Map.get(graph_node, :gated_by)
 
-    # Use flat format for this debugging function
-    Enum.map_join(readiness.conditions_met, "", fn condition_map = %{upstream_node: v, f_condition: f} ->
-      node_display = format_node_name_with_context(v.node_name, condition_map)
-      "✅ #{node_display} | #{f_name(f)} | rev #{v.ex_revision}\n"
-    end) <>
-      Enum.map_join(readiness.conditions_not_met, "\n", fn condition_map = %{upstream_node: v, f_condition: f} ->
-        node_display = format_node_name_with_context(v.node_name, condition_map)
-        "🛑 #{node_display} | #{f_name(f)}"
-      end)
+        readiness =
+          Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+            execution.values,
+            gated_by
+          )
+
+        # Use flat format for this debugging function
+        Enum.map_join(readiness.conditions_met, "", fn condition_map = %{upstream_node: v, f_condition: f} ->
+          node_display = format_node_name_with_context(v.node_name, condition_map)
+          "✅ #{node_display} | #{f_name(f)} | rev #{v.ex_revision}\n"
+        end) <>
+          Enum.map_join(readiness.conditions_not_met, "\n", fn condition_map = %{upstream_node: v, f_condition: f} ->
+            node_display = format_node_name_with_context(v.node_name, condition_map)
+            "🛑 #{node_display} | #{f_name(f)}"
+          end)
+    end
   end
 
   @doc """
@@ -121,16 +127,21 @@ defmodule Journey.Tools do
 
       execution ->
         graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
-        graph_node = Graph.find_node_by_name(graph, node_name)
+        do_computation_state(graph, execution, node_name)
+    end
+  end
 
-        case graph_node.type do
-          :input ->
-            :not_compute_node
+  defp do_computation_state(graph, execution, node_name) do
+    case Graph.find_node_by_name(graph, node_name) do
+      nil ->
+        :node_not_found
 
-          _ ->
-            Journey.Executions.find_computations_by_node_name(execution, node_name)
-            |> computation_state_impl()
-        end
+      %{type: :input} ->
+        :not_compute_node
+
+      _ ->
+        Journey.Executions.find_computations_by_node_name(execution, node_name)
+        |> computation_state_impl()
     end
   end
 
@@ -175,18 +186,15 @@ defmodule Journey.Tools do
       iex> Journey.Tools.computation_state_to_text(:not_set)
       "⬜ :not_set (not yet attempted)"
   """
-  def computation_state_to_text(state) when is_atom(state) do
-    case state do
-      :not_set -> "⬜ :not_set (not yet attempted)"
-      :computing -> "⏳ :computing"
-      :success -> "✅ :success"
-      :failed -> "❌ :failed"
-      :abandoned -> "❓ :abandoned"
-      :cancelled -> "🛑 :cancelled"
-      :not_compute_node -> "📝 :not_compute_node"
-      other -> "? :#{other}"
-    end
-  end
+  def computation_state_to_text(:not_set), do: "⬜ :not_set (not yet attempted)"
+  def computation_state_to_text(:computing), do: "⏳ :computing"
+  def computation_state_to_text(:success), do: "✅ :success"
+  def computation_state_to_text(:failed), do: "❌ :failed"
+  def computation_state_to_text(:abandoned), do: "❓ :abandoned"
+  def computation_state_to_text(:cancelled), do: "🛑 :cancelled"
+  def computation_state_to_text(:not_compute_node), do: "📝 :not_compute_node"
+  def computation_state_to_text(:node_not_found), do: "❓ :node_not_found (node not in current graph)"
+  def computation_state_to_text(other) when is_atom(other), do: "? :#{other}"
 
   @doc """
   Shows the status and dependencies for a single computation node.
@@ -413,14 +421,25 @@ defmodule Journey.Tools do
 
     all_candidates_for_computation
     |> Enum.map(fn computation_candidate -> de_ecto(computation_candidate) end)
-    |> Enum.map(fn computation_candidate ->
-      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-        all_value_nodes,
-        graph
-        |> Graph.find_node_by_name(computation_candidate.node_name)
-        |> Map.get(:gated_by)
-      )
-      |> Map.put(:computation, computation_candidate)
+    |> Enum.flat_map(fn computation_candidate ->
+      case Graph.find_node_by_name(graph, computation_candidate.node_name) do
+        nil ->
+          Logger.warning(
+            "Skipping orphaned computation node :#{computation_candidate.node_name} " <>
+              "in execution #{execution_id} — node not found in current graph definition"
+          )
+
+          []
+
+        graph_node ->
+          [
+            Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+              all_value_nodes,
+              Map.get(graph_node, :gated_by)
+            )
+            |> Map.put(:computation, computation_candidate)
+          ]
+      end
     end)
   end
 
@@ -832,24 +851,34 @@ defmodule Journey.Tools do
          %{node_name: node_name, state: state, computation_type: computation_type},
          with_header?
        ) do
-    gated_by = graph |> Graph.find_node_by_name(node_name) |> Map.get(:gated_by)
+    case Graph.find_node_by_name(graph, node_name) do
+      nil ->
+        if with_header? do
+          "  - #{node_name}: (node not found in current graph definition)\n"
+        else
+          ""
+        end
 
-    readiness =
-      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-        values,
-        gated_by
-      )
+      graph_node ->
+        gated_by = Map.get(graph_node, :gated_by)
 
-    header =
-      if with_header? do
-        "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n"
-      else
-        ""
-      end
+        readiness =
+          Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+            values,
+            gated_by
+          )
 
-    formatted_conditions = format_condition_tree(readiness.structure, "       ")
+        header =
+          if with_header? do
+            "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n"
+          else
+            ""
+          end
 
-    header <> formatted_conditions
+        formatted_conditions = format_condition_tree(readiness.structure, "       ")
+
+        header <> formatted_conditions
+    end
   end
 
   # Helper function to format node values appropriately
@@ -889,20 +918,25 @@ defmodule Journey.Tools do
       when is_binary(execution_id) and is_atom(computation_node_name) do
     execution = Journey.load(execution_id)
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
-    graph_node = Journey.Graph.find_node_by_name(graph, computation_node_name)
 
-    # Create a new computation for the scheduler to pick up
-    Journey.Repo.transaction(fn repo ->
-      %Journey.Persistence.Schema.Execution.Computation{
-        execution_id: execution_id,
-        node_name: Atom.to_string(computation_node_name),
-        computation_type: graph_node.type,
-        state: :not_set
-      }
-      |> repo.insert!()
-    end)
+    case Journey.Graph.find_node_by_name(graph, computation_node_name) do
+      nil ->
+        {:error, :node_not_found}
 
-    advance(execution_id)
+      graph_node ->
+        # Create a new computation for the scheduler to pick up
+        Journey.Repo.transaction(fn repo ->
+          %Journey.Persistence.Schema.Execution.Computation{
+            execution_id: execution_id,
+            node_name: Atom.to_string(computation_node_name),
+            computation_type: graph_node.type,
+            state: :not_set
+          }
+          |> repo.insert!()
+        end)
+
+        advance(execution_id)
+    end
   end
 
   @doc """
