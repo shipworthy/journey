@@ -29,7 +29,7 @@ defmodule Journey.Node.HistorianTest do
 
       # First value
       execution = Journey.set(execution, :content, "First version")
-      {:ok, history1} = Journey.get_value(execution, :content_history, wait_any: true)
+      {:ok, history1, history_rev1} = Journey.get(execution, :content_history, wait: :any)
 
       assert redact_timestamps(history1) == [
                %{
@@ -43,7 +43,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Second value
       execution = Journey.set(execution, :content, "Second version")
-      {:ok, history2} = Journey.get_value(execution, :content_history, wait: :newer)
+      {:ok, history2, _} = Journey.get(execution, :content_history, wait: {:newer_than, history_rev1})
 
       assert redact_timestamps(history2) == [
                %{
@@ -199,7 +199,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Just test that the default max_entries behavior exists by setting a single value
       execution = Journey.set(execution, :counter, 1)
-      {:ok, history} = Journey.get_value(execution, :counter_history, wait: :any)
+      {:ok, history, history_rev1} = Journey.get(execution, :counter_history, wait: :any)
 
       assert redact_timestamps(history) == [
                %{"metadata" => nil, "node" => "counter", "revision" => 1, "timestamp" => 1_234_567_890, "value" => 1}
@@ -207,7 +207,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Verify the historian works with subsequent updates (proving it has some limit, not unlimited)
       execution = Journey.set(execution, :counter, 2)
-      {:ok, history2} = Journey.get_value(execution, :counter_history, wait: :newer)
+      {:ok, history2, _} = Journey.get(execution, :counter_history, wait: {:newer_than, history_rev1})
 
       assert redact_timestamps(history2) == [
                %{"metadata" => nil, "node" => "counter", "revision" => 4, "timestamp" => 1_234_567_890, "value" => 2},
@@ -292,7 +292,7 @@ defmodule Journey.Node.HistorianTest do
 
       # Set initial value
       execution = Journey.set(execution, :value, "first")
-      {:ok, history1} = Journey.get_value(execution, :value_history, wait: :any)
+      {:ok, history1, history_rev1} = Journey.get(execution, :value_history, wait: :any)
 
       assert redact_timestamps(history1) == [
                %{
@@ -308,7 +308,7 @@ defmodule Journey.Node.HistorianTest do
       # Ensure different timestamp
       Process.sleep(10)
       execution = Journey.set(execution, :value, "second")
-      {:ok, history2} = Journey.get_value(execution, :value_history, wait: :newer)
+      {:ok, history2, _} = Journey.get(execution, :value_history, wait: {:newer_than, history_rev1})
 
       assert redact_timestamps(history2) == [
                %{
@@ -359,11 +359,11 @@ defmodule Journey.Node.HistorianTest do
       execution = Journey.set(execution, :enabled, false)
 
       # History should still be accessible (historian not invalidated)
-      {:ok, [^first_entry], _} = Journey.get(execution, :history)
+      {:ok, [^first_entry], history_rev} = Journey.get(execution, :history)
 
       # Re-enable - compute will produce a new value
       execution = Journey.set(execution, :enabled, true)
-      {:ok, history2, _} = Journey.get(execution, :history, wait: :newer)
+      {:ok, history2, _} = Journey.get(execution, :history, wait: {:newer_than, history_rev})
 
       # History should have BOTH entries (newest first), with the first entry preserved
       assert [second_entry, ^first_entry] = history2
