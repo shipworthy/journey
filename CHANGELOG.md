@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.10.45
+
+- **Scheduler: skip loading inactive computations**: important optimization for executions with a long history of computations (#256)
+- **Journey.Tools: harden introspection for orphaned nodes**: introspection functions now handle computation nodes that no longer exist in the graph (#255)
+- **Journey.set() deterministic return value**: `Journey.set/3` now returns a deterministic execution from before kicking off downstream computations (#254)
+- **Scheduler: prevent duplicate computation scheduling**: closing a window that allowed occasional mis-scheduling of duplicate computations (#251)
+- **Test stability and isolation improvements**: various tests updated to use deterministic waits and better isolation (#249, #250, #252)
+- **Dependency updates**: picking up updated libraries, addressing Elixir warnings, updating ex_doc to 0.40.1 (#247, #248)
+
 ## v0.10.44
 
 - **Test stability updates**: using deterministic `Journey.get(..., wait: {:newer_than, prev_revision})` in various tests to make them deterministic / stable (#244, #245)
