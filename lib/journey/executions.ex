@@ -171,14 +171,12 @@ defmodule Journey.Executions do
       when is_binary(execution_id) and is_boolean(preload?) and is_boolean(include_archived?) do
     execution =
       if preload? do
-        query = from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
-
-        query
+        q_execution(execution_id, include_archived?)
         |> Journey.Repo.one()
         |> preload_execution(computation_states)
         |> convert_node_names_to_atoms()
       else
-        from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
+        q_execution(execution_id, include_archived?)
         |> Journey.Repo.one()
       end
 
