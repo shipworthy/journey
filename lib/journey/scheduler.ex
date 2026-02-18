@@ -37,7 +37,7 @@ defmodule Journey.Scheduler do
       Journey.Scheduler.Available.grab_available_computations(execution, graph)
 
     if available_computations != [] do
-      execution = Journey.load(execution)
+      execution = Journey.load(execution, computations: [:not_set, :computing])
 
       available_computations
       |> Enum.each(fn %{computation: to_compute, fulfilled_conditions: conditions_fulfilled} ->

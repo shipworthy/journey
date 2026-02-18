@@ -55,7 +55,7 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
         |> Journey.Repo.all()
         |> Enum.map(fn swept_execution_id ->
           swept_execution_id
-          |> Journey.load()
+          |> Journey.load(computations: [:not_set, :computing])
           |> Journey.Scheduler.advance()
         end)
         |> Enum.count()

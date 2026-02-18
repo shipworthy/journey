@@ -7,6 +7,51 @@ defmodule Journey.JourneyLoadTest do
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
+  describe "load with computations filter" do
+    test "filters computation records by state" do
+      graph =
+        Journey.new_graph(
+          "load computations filter #{__MODULE__} #{random_string()}",
+          "1.0.0",
+          [
+            input(:name),
+            compute(
+              :greeting,
+              unblocked_when({:name, &provided?/1}),
+              fn %{name: name} ->
+                {:ok, "Hello, #{name}"}
+              end
+            )
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+
+      # Before setting input: greeting computation is :not_set
+      loaded = Journey.load(execution.id)
+      assert length(loaded.computations) == 1
+      assert hd(loaded.computations).state == :not_set
+
+      # Trigger computation
+      Journey.set(execution, :name, "Alice")
+      Journey.Test.Support.Helpers.wait_for_value(execution, :greeting, "Hello, Alice")
+
+      # Default load: returns all computation states (including :success)
+      loaded_all = Journey.load(execution.id)
+      success_comps = Enum.filter(loaded_all.computations, fn c -> c.state == :success end)
+      assert success_comps != []
+
+      # Filtered load: only :not_set computations
+      loaded_filtered = Journey.load(execution.id, computations: [:not_set])
+      assert Enum.all?(loaded_filtered.computations, fn c -> c.state == :not_set end)
+
+      # Filtered load excludes the :success records
+      filtered_count = Enum.count(loaded_filtered.computations)
+      all_count = Enum.count(loaded_all.computations)
+      assert filtered_count < all_count
+    end
+  end
+
   describe "load" do
     test "sunny day" do
       execution =

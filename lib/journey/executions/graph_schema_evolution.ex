@@ -25,30 +25,31 @@ defmodule Journey.Executions.GraphSchemaEvolution do
   Uses PostgreSQL advisory locks to prevent concurrent evolution of the
   same execution.
   """
-  def evolve_if_needed(nil), do: nil
+  def evolve_if_needed(execution, computation_states \\ nil)
+  def evolve_if_needed(nil, _computation_states), do: nil
 
-  def evolve_if_needed(execution) do
+  def evolve_if_needed(execution, computation_states) do
     case Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version) do
       nil ->
         # Graph not found in catalog, proceed with original execution
         execution
 
       current_graph ->
-        evolve_to_graph_if_needed(execution, current_graph)
+        evolve_to_graph_if_needed(execution, current_graph, computation_states)
     end
   end
 
-  defp evolve_to_graph_if_needed(execution, graph) do
+  defp evolve_to_graph_if_needed(execution, graph, computation_states) do
     if execution.graph_hash == graph.hash do
       # Hashes match, no evolution needed
       execution
     else
       # Execution has no hash (old execution) or hashes differ, evolve
-      evolve_to_graph(execution, graph)
+      evolve_to_graph(execution, graph, computation_states)
     end
   end
 
-  defp evolve_to_graph(execution, graph) do
+  defp evolve_to_graph(execution, graph, computation_states) do
     {:ok, evolved_execution} =
       Journey.Repo.transaction(fn repo ->
         # Acquire advisory lock to prevent concurrent evolution of the same execution
@@ -60,18 +61,18 @@ defmodule Journey.Executions.GraphSchemaEvolution do
 
         # Check if evolution is still needed (another process might have just done it)
         if current_execution.graph_hash == graph.hash do
-          # Already evolved by another process
-          current_execution
+          # Already evolved by another process — reload with caller's preload preferences
+          Journey.Executions.load(execution.id, true, false, computation_states)
         else
           # Proceed with evolution
-          perform_evolution(repo, execution.id, current_execution, graph)
+          perform_evolution(repo, execution.id, current_execution, graph, computation_states)
         end
       end)
 
     evolved_execution
   end
 
-  defp perform_evolution(repo, execution_id, current_execution, graph) do
+  defp perform_evolution(repo, execution_id, current_execution, graph, computation_states) do
     # Find missing nodes
     missing_node_names = find_missing_nodes(current_execution, graph)
 
@@ -84,24 +85,25 @@ defmodule Journey.Executions.GraphSchemaEvolution do
     from(e in Execution, where: e.id == ^execution_id)
     |> repo.update_all(set: [graph_hash: graph.hash])
 
-    # Reload and return the evolved execution
-    Journey.Executions.load(execution_id, true, false)
+    # Reload and return the evolved execution, respecting the caller's computation filter
+    Journey.Executions.load(execution_id, true, false, computation_states)
   end
 
   defp load_execution_for_evolution(repo, execution_id) do
     from(e in Execution,
       where: e.id == ^execution_id,
-      preload: [:values, :computations]
+      preload: [:values]
     )
     |> repo.one!()
-    |> Journey.Executions.convert_node_names_to_atoms()
   end
 
   defp find_missing_nodes(current_execution, graph) do
-    # Get current node names from execution
+    # Get current node names from execution (convert strings to atoms for comparison)
     existing_node_names =
       current_execution.values
-      |> Enum.map(& &1.node_name)
+      |> Enum.map(fn v ->
+        if is_atom(v.node_name), do: v.node_name, else: String.to_existing_atom(v.node_name)
+      end)
       |> MapSet.new()
 
     # Get expected node names from graph
