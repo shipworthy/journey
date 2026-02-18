@@ -85,7 +85,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
           |> Enum.reduce(0, fn exec_id, acc ->
             try do
               exec_id
-              |> Journey.load()
+              |> Journey.load(computations: [:not_set, :computing])
               |> Journey.Scheduler.advance()
 
               acc + 1

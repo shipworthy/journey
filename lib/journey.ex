@@ -337,6 +337,9 @@ defmodule Journey do
     Set to `false` for better performance when you only need execution metadata.
   * `:include_archived` - Whether to include archived executions. Defaults to `false`.
     Archived executions are normally hidden but can be loaded with this option.
+  * `:computations` - List of computation states to preload. Defaults to all states.
+    Use `[:not_set, :computing]` to load only active computations for better performance
+    on executions with large computation history (e.g., long-running `tick_recurring` nodes).
 
   ## Key Behaviors
   * **Fresh state** - Always returns the current state from the database, not cached data
@@ -424,9 +427,12 @@ defmodule Journey do
   def load(nil, _), do: nil
 
   def load(execution_id, opts) when is_binary(execution_id) do
+    alias Journey.Persistence.Schema.Execution.ComputationState
+
     opts_schema = [
       preload: [is: :boolean],
-      include_archived: [is: :boolean]
+      include_archived: [is: :boolean],
+      computations: [is: :list]
     ]
 
     KeywordValidator.validate!(opts, opts_schema)
@@ -434,7 +440,8 @@ defmodule Journey do
     Journey.Executions.load(
       execution_id,
       Keyword.get(opts, :preload, true),
-      Keyword.get(opts, :include_archived, false)
+      Keyword.get(opts, :include_archived, false),
+      Keyword.get(opts, :computations, ComputationState.values())
     )
   end
 

@@ -167,22 +167,32 @@ defmodule Journey.Executions do
     )
   end
 
-  def load(execution_id, preload?, include_archived?)
+  def load(execution_id, preload?, include_archived?, computation_states \\ nil)
       when is_binary(execution_id) and is_boolean(preload?) and is_boolean(include_archived?) do
     execution =
       if preload? do
-        from(e in q_execution(execution_id, include_archived?),
-          where: e.id == ^execution_id,
-          preload: [:values, :computations]
-        )
+        q_execution(execution_id, include_archived?)
         |> Journey.Repo.one()
+        |> preload_execution(computation_states)
         |> convert_node_names_to_atoms()
       else
-        from(e in q_execution(execution_id, include_archived?), where: e.id == ^execution_id)
+        q_execution(execution_id, include_archived?)
         |> Journey.Repo.one()
       end
 
-    Journey.Executions.GraphSchemaEvolution.evolve_if_needed(execution)
+    Journey.Executions.GraphSchemaEvolution.evolve_if_needed(execution, computation_states)
+  end
+
+  @doc false
+  def preload_execution(nil, _computation_states), do: nil
+
+  def preload_execution(execution, nil) do
+    Journey.Repo.preload(execution, [:values, :computations])
+  end
+
+  def preload_execution(execution, computation_states) do
+    computations_query = from(c in Execution.Computation, where: c.state in ^computation_states)
+    Journey.Repo.preload(execution, [:values, computations: computations_query])
   end
 
   def values(execution) do

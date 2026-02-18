@@ -1,7 +1,7 @@
 defmodule Journey.Persistence.Schema.Execution.ComputationState do
   @moduledoc false
 
-  @type t :: :not_set | :computing | :set | :failed | :cancelled
+  @type t :: :not_set | :computing | :success | :failed | :abandoned | :cancelled
 
   @doc """
   Returns a list of all possible states for a computation node.
