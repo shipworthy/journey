@@ -61,8 +61,8 @@ defmodule Journey.Executions.GraphSchemaEvolution do
 
         # Check if evolution is still needed (another process might have just done it)
         if current_execution.graph_hash == graph.hash do
-          # Already evolved by another process — reload with caller's preload preferences
-          Journey.Executions.load(execution.id, true, false, computation_states)
+          # Already evolved by another process
+          reload_with_preloads(execution.id, computation_states)
         else
           # Proceed with evolution
           perform_evolution(repo, execution.id, current_execution, graph, computation_states)
@@ -85,8 +85,17 @@ defmodule Journey.Executions.GraphSchemaEvolution do
     from(e in Execution, where: e.id == ^execution_id)
     |> repo.update_all(set: [graph_hash: graph.hash])
 
-    # Reload and return the evolved execution, respecting the caller's computation filter
-    Journey.Executions.load(execution_id, true, false, computation_states)
+    # Reload with caller's preload preferences (without re-entering evolve_if_needed)
+    reload_with_preloads(execution_id, computation_states)
+  end
+
+  # Loads an execution with preloads directly, bypassing evolve_if_needed to avoid
+  # re-entrant calls inside the advisory-locked evolution transaction.
+  defp reload_with_preloads(execution_id, computation_states) do
+    from(e in Execution, where: e.id == ^execution_id and is_nil(e.archived_at))
+    |> Journey.Repo.one()
+    |> Journey.Executions.preload_execution(computation_states)
+    |> Journey.Executions.convert_node_names_to_atoms()
   end
 
   defp load_execution_for_evolution(repo, execution_id) do
@@ -102,7 +111,7 @@ defmodule Journey.Executions.GraphSchemaEvolution do
     existing_node_names =
       current_execution.values
       |> Enum.map(fn v ->
-        if is_atom(v.node_name), do: v.node_name, else: String.to_existing_atom(v.node_name)
+        if is_atom(v.node_name), do: v.node_name, else: String.to_atom(v.node_name)
       end)
       |> MapSet.new()
 

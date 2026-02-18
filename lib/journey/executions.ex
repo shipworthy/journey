@@ -119,10 +119,10 @@ defmodule Journey.Executions do
     from(e in Execution,
       where: e.graph_name == ^graph_name and is_nil(e.archived_at),
       order_by: [asc: e.inserted_at],
-      limit: 1
+      limit: 1,
+      preload: [:values, :computations]
     )
     |> Journey.Repo.one()
-    |> preload_execution([:not_set, :computing])
     |> convert_node_names_to_atoms()
   end
 
@@ -185,13 +185,14 @@ defmodule Journey.Executions do
     Journey.Executions.GraphSchemaEvolution.evolve_if_needed(execution, computation_states)
   end
 
-  defp preload_execution(nil, _computation_states), do: nil
+  @doc false
+  def preload_execution(nil, _computation_states), do: nil
 
-  defp preload_execution(execution, nil) do
+  def preload_execution(execution, nil) do
     Journey.Repo.preload(execution, [:values, :computations])
   end
 
-  defp preload_execution(execution, computation_states) do
+  def preload_execution(execution, computation_states) do
     computations_query = from(c in Execution.Computation, where: c.state in ^computation_states)
     Journey.Repo.preload(execution, [:values, computations: computations_query])
   end
