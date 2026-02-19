@@ -178,21 +178,29 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       {:ok, "updated :driver_location", rev1} =
         Journey.get(execution, :update_location_from_gps, wait: :any)
 
-      # ETA should recompute after mutation (location becomes 10)
-      {:ok, eta1, eta1_rev} = Journey.get(execution, :arrival_eta, wait: {:newer_than, rev1})
-      # After mutation: location = 10, ETA = (100-10)/10 = 9 minutes
-      assert eta1 == "ETA: 9 minutes"
+      # Read the actual location after mutation — don't assume how many ticks fired
+      {:ok, loc1, _} = Journey.get(execution, :driver_location)
+      assert loc1 > 0
+      assert rem(loc1, 10) == 0
 
-      # Wait for scheduled update to trigger mutation (must be newer than rev1)
+      # ETA should recompute after mutation, derived from actual location
+      {:ok, eta1, eta1_rev} = Journey.get(execution, :arrival_eta, wait: {:newer_than, rev1})
+      expected_eta1 = max(0, div(100 - loc1, 10))
+      assert eta1 == "ETA: #{expected_eta1} minutes"
+
+      # Wait for scheduled update to trigger another mutation
       {:ok, "updated :driver_location", rev2} =
         Journey.get(execution, :update_location_from_gps, wait: {:newer_than, rev1})
 
       assert rev2 > rev1
 
-      # ETA should recompute with new location (20), ETA = (100-20)/10 = 8 minutes
-      # Wait for ETA newer than eta1_rev to ensure we get the NEXT computation, not a later one
+      # Read updated location and verify ETA recomputed correctly
+      {:ok, loc2, _} = Journey.get(execution, :driver_location)
+      assert loc2 > loc1
+
       {:ok, eta2, eta2_rev} = Journey.get(execution, :arrival_eta, wait: {:newer_than, eta1_rev})
-      assert eta2 == "ETA: 8 minutes"
+      expected_eta2 = max(0, div(100 - loc2, 10))
+      assert eta2 == "ETA: #{expected_eta2} minutes"
       assert eta2_rev > eta1_rev
 
       Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)

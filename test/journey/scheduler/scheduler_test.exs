@@ -17,11 +17,6 @@ defmodule Journey.Scheduler.SchedulerTest do
     # Clean slate - delete all sweep runs for abandoned sweep type to avoid cross-test interference
     Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
 
-    # Clean up all computations and executions from previous tests for full isolation
-    Journey.Repo.delete_all(Journey.Persistence.Schema.Execution.Computation)
-    Journey.Repo.delete_all(Journey.Persistence.Schema.Execution.Value)
-    Journey.Repo.delete_all(Journey.Persistence.Schema.Execution)
-
     :ok
   end
 
@@ -200,9 +195,10 @@ defmodule Journey.Scheduler.SchedulerTest do
         |> ids_of()
         |> MapSet.new()
 
-      # First sweep should find no abandoned computations
+      # First sweep should find no abandoned computations for these executions yet
       current_time = System.system_time(:second)
-      assert {0, _} = Abandoned.sweep(nil, current_time)
+      first_eid = Enum.at(execution_ids, 0)
+      assert {0, _} = Abandoned.sweep(first_eid, current_time)
 
       Process.sleep(2_000)
 
@@ -241,8 +237,6 @@ defmodule Journey.Scheduler.SchedulerTest do
           ]
         )
 
-      Journey.Graph.Catalog.list() |> Enum.map(fn g -> g.name end)
-
       count = 120
 
       execution_ids =
@@ -259,7 +253,9 @@ defmodule Journey.Scheduler.SchedulerTest do
           where: c.execution_id in ^execution_ids
       )
 
-      # Run sweep with current time - should process all 150 in 2 batches
+      # Clear throttle records that may have been created by parallel async tests
+      Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+
       {kicked_count, _sweep_run_id} = Abandoned.sweep(nil)
 
       # Should have kicked the execution at least once (may be more due to real computations)
