@@ -57,6 +57,9 @@ defmodule Journey.Scheduler.AbandonedWithRetriesTest do
       Application.get_env(:journey, :abandoned_sweep, [])
       |> Keyword.get(:min_seconds_between_runs, 59)
 
+    # Clear throttle records that parallel async tests may have created during sleep
+    Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+
     assert {1, _} = Abandoned.sweep(execution.id, current_time)
     assert 1 == count_computations(execution.id, :astrological_sign, :abandoned)
     assert 1 == count_computations(execution.id, :astrological_sign, :computing)
