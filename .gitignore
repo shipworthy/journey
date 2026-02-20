@@ -27,3 +27,5 @@ journey-*.tar
 .vscode/
 
 /scraps/
+
+/.claude/
