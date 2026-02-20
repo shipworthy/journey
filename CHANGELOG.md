@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.46
+
+- **tick_recurring: improvements**: better reliability and precision (#260, #262)
+- **Trim steady state logs from sweepers**: reducing log noise by suppressing sweeper logs when no work is being done (#259)
+- **Test stability improvements**: improving scheduler and schedule invalidation test stability (#258, #261)
+
 ## v0.10.45
 
 - **Scheduler: skip loading inactive computations**: important optimization for executions with a long history of computations (#256)

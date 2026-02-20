@@ -339,7 +339,7 @@ defmodule Journey.Node do
   end
 
   @doc """
-  EXPERIMENTAL: Creates a history-tracking node that maintains a chronological log of changes to one or more nodes.
+  Creates a history-tracking node that maintains a chronological log of changes to one or more nodes.
 
   `name` is an atom uniquely identifying this history node.
 
