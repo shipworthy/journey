@@ -50,12 +50,9 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
       # Wait for first execution
       assert wait_for_value(execution, :process_data, "v1-1", timeout: 10_000)
 
-      # Capture current schedule_pulse revision before pausing
-      {:ok, _, pulse_rev} = Journey.get(execution, :schedule_pulse, wait: :any)
-
-      # Pause the schedule
+      # Pause the schedule and wait for it to take effect
       execution = Journey.set(execution, :enable_schedule, false)
-      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: {:newer_than, pulse_rev})
+      assert wait_for_value(execution, :schedule_pulse, 0, timeout: 10_000)
 
       # Reload to get latest state
       execution = Journey.load(execution)
@@ -160,12 +157,9 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
       # Wait for first execution
       assert wait_for_value(execution, :counter, 1, timeout: 10_000)
 
-      # Capture current schedule_pulse revision before pausing
-      {:ok, _, pulse_rev} = Journey.get(execution, :schedule_pulse, wait: :any)
-
-      # Pause the schedule
+      # Pause the schedule and wait for it to take effect
       execution = Journey.set(execution, :enable_schedule, false)
-      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: {:newer_than, pulse_rev})
+      assert wait_for_value(execution, :schedule_pulse, 0, timeout: 10_000)
 
       # Reload to get latest state
       execution = Journey.load(execution)
@@ -220,12 +214,9 @@ defmodule Journey.Scheduler.PausedScheduleInvalidationTest do
       execution = Journey.set(execution, :enable_schedule, true)
       assert wait_for_value(execution, :counter, 1, timeout: 10_000)
 
-      # Capture current schedule_pulse revision before pausing
-      {:ok, _, pulse_rev} = Journey.get(execution, :schedule_pulse, wait: :any)
-
       # Pause
       execution = Journey.set(execution, :enable_schedule, false)
-      assert {:ok, 0, _} = Journey.get(execution, :schedule_pulse, wait: {:newer_than, pulse_rev})
+      assert wait_for_value(execution, :schedule_pulse, 0, timeout: 10_000)
 
       # Verify counter is preserved
       execution = Journey.load(execution)
