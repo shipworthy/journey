@@ -46,7 +46,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
 
       case Throttle.attempt_to_start_sweep_run(:missed_schedules_catchall, min_seconds_between_runs, current_time) do
         {:ok, sweep_run_id} ->
-          Logger.info("starting missed schedules catch-all sweep")
+          Logger.debug("starting missed schedules catch-all sweep")
 
           try do
             total_processed = perform_sweep(execution_id)
@@ -67,12 +67,12 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
           end
 
         {:skip, reason} ->
-          Logger.info("skipping - #{reason}")
+          Logger.debug("skipping - #{reason}")
           {0, nil}
       end
     else
       {:skip, reason} ->
-        Logger.info("skipping - #{reason}")
+        Logger.debug("skipping - #{reason}")
         {0, nil}
     end
   end

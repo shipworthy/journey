@@ -30,7 +30,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
 
     case Throttle.attempt_to_start_sweep_run(:abandoned, min_seconds, current_time) do
       {:ok, sweep_run_id} ->
-        Logger.info("starting")
+        Logger.debug("starting")
 
         try do
           kicked_count = perform_sweep_logic(execution_id, current_time)
@@ -45,7 +45,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
         end
 
       {:skip, reason} ->
-        Logger.info("skipping - #{reason}")
+        Logger.debug("skipping - #{reason}")
         {0, nil}
     end
   end
