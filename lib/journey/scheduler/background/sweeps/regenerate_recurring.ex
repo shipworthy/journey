@@ -5,6 +5,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
   import Ecto.Query
 
   import Journey.Scheduler.Background.Sweeps.Helpers
+  alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
@@ -86,6 +87,10 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
         computed_with: nil
       }
       |> Journey.Repo.insert!()
+
+    # Update execution.updated_at so ScheduleNodes can find this execution
+    from(e in Execution, where: e.id == ^execution_id)
+    |> Journey.Repo.update_all(set: [updated_at: System.system_time(:second)])
 
     prefix = "[#{execution_id}] [#{node_name}]"
 
