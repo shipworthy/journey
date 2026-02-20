@@ -14,7 +14,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
     # Create new :not_set schedule_recurring/tick_recurring records for schedule_recurring/tick_recurring nodes
     # that have computed their scheduled time and whose scheduled time has passed.
 
-    Logger.info("starting #{execution_id}")
+    Logger.debug("starting #{execution_id}")
 
     now = System.system_time(:second)
 

@@ -55,7 +55,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
         end
 
       {:skip, reason} ->
-        Logger.info("skipping - #{reason}")
+        Logger.debug("skipping - #{reason}")
         {0, nil}
     end
   end
@@ -63,7 +63,7 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
   defp perform_sweep(execution_id, current_time) do
     check_from = compute_check_from_threshold()
     check_to = current_time - @too_new_threshold_seconds
-    Logger.info("checking executions updated between #{to_dt(check_from)} and #{to_dt(check_to)}")
+    Logger.debug("checking executions updated between #{to_dt(check_from)} and #{to_dt(check_to)}")
     process_batches_recursively(execution_id, check_from, check_to, 0, 0)
   end
 

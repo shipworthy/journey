@@ -72,7 +72,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
       # Phase 2: Acquire lock and do authoritative check
       case acquire_lock_and_create_record(sweep_type, min_seconds_between_runs, current_time) do
         {:ok, sweep_run} ->
-          Logger.info("#{prefix}: created sweep run #{sweep_run.id}")
+          Logger.debug("#{prefix}: created sweep run #{sweep_run.id}")
           {:ok, sweep_run.id}
 
         {:skip, reason} ->
@@ -100,7 +100,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
              is_integer(current_time) do
     sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
 
-    Logger.info("[#{sweep_run.sweep_type}]: sweep #{sweep_run_id}, processed #{executions_processed} executions")
+    Logger.debug("[#{sweep_run.sweep_type}]: sweep #{sweep_run_id}, processed #{executions_processed} executions")
 
     sweep_run
     |> SweepRun.changeset(%{
@@ -145,13 +145,13 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
 
     case get_last_sweep_run(sweep_type) do
       nil ->
-        Logger.info("#{prefix}: this is the initial run")
+        Logger.debug("#{prefix}: this is the initial run")
         true
 
       last_run ->
         enough_time_threshold = current_time - min_seconds_between_runs
         ok_to_continue? = last_run.started_at < enough_time_threshold
-        Logger.info("#{prefix}: ok to continue? #{ok_to_continue?}")
+        Logger.debug("#{prefix}: ok to continue? #{ok_to_continue?}")
         ok_to_continue?
     end
   end

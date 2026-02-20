@@ -45,7 +45,7 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
   @doc false
   def sweep(execution_id, sweeper_period)
       when (is_nil(execution_id) or is_binary(execution_id)) and is_number(sweeper_period) do
-    Logger.info("starting #{execution_id}")
+    Logger.debug("starting #{execution_id}")
 
     q = q_execution_ids_to_advance(execution_id, sweeper_period)
 

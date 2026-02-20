@@ -35,7 +35,7 @@ defmodule Journey.Scheduler.Background.Periodic do
       Application.get_env(:journey, :background_sweeper, [])
       |> Keyword.get(:period_seconds, @default_sweeper_period_seconds)
 
-    Logger.info("period seconds: #{period_seconds}")
+    Logger.debug("period seconds: #{period_seconds}")
     period_seconds
   end
 
@@ -52,7 +52,7 @@ defmodule Journey.Scheduler.Background.Periodic do
 
   def run() do
     Process.flag(:trap_exit, true)
-    Logger.info("starting")
+    Logger.debug("starting")
 
     try do
       run_sweeps(nil)
@@ -61,7 +61,7 @@ defmodule Journey.Scheduler.Background.Periodic do
         Logger.error("#{inspect(exception)}")
     end
 
-    Logger.info("done")
+    Logger.debug("done")
   end
 
   def run_sweeps(execution_id) do
