@@ -28,10 +28,9 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedBySchedule do
           c.computation_type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring],
       where:
         c.state == :success and
-          not is_nil(v.set_time) and
           fragment("?::bigint", v.node_value) > 0 and
           fragment("?::bigint", v.node_value) <= ^now and
-          v.set_time >= ^cutoff_time,
+          fragment("?::bigint", v.node_value) >= ^cutoff_time,
       distinct: true,
       select: e.id
     )
