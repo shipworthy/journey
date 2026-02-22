@@ -17,14 +17,13 @@ defmodule Journey.Scheduler.Retry do
         computation.node_name
       )
 
-    readiness =
-      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-        all_values,
-        graph_node.gated_by
-      )
+    upstream_node_names =
+      Journey.Node.UpstreamDependencies.Computations.list_all_node_names(graph_node.gated_by)
 
-    readiness.conditions_met
-    |> Enum.map(fn condition -> condition.upstream_node.ex_revision end)
+    all_values
+    |> Enum.filter(fn v -> v.node_name in upstream_node_names and v.set_time != nil end)
+    |> Enum.map(fn v -> v.ex_revision end)
+    |> Enum.reject(fn r -> is_nil(r) end)
     |> Enum.max(fn -> 0 end)
   end
 
@@ -61,7 +60,9 @@ defmodule Journey.Scheduler.Retry do
 
       Logger.info("#{prefix}: creating a new computation, #{new_computation.id}")
     else
-      Logger.info("#{prefix}: reached max retries (#{number_of_recent_tries}), not rescheduling")
+      Logger.info(
+        "#{prefix}: reached max retries (#{number_of_recent_tries} attempts >= max #{graph_node.max_retries}), not rescheduling"
+      )
     end
 
     computation
