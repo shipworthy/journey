@@ -58,7 +58,7 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurring do
       |> Enum.count()
 
     if regenerated_count == 0 do
-      Logger.info("no schedule_recurring nodes need regeneration")
+      Logger.debug("no schedule_recurring nodes need regeneration")
     else
       Logger.info("regenerated #{regenerated_count} schedule_recurring computation(s)")
     end

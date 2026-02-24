@@ -45,7 +45,13 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutions do
         try do
           total_processed = perform_sweep(execution_id, current_time)
           Throttle.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
-          Logger.info("completed. attempted to advance #{total_processed} execution(s)")
+
+          if total_processed > 0 do
+            Logger.info("completed. attempted to advance #{total_processed} execution(s)")
+          else
+            Logger.debug("completed. attempted to advance 0 execution(s)")
+          end
+
           {total_processed, sweep_run_id}
         rescue
           e ->
