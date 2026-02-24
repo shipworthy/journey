@@ -27,6 +27,9 @@ defmodule Journey.Scheduler.Background.Sweeps.RegenerateScheduleRecurringTest do
 
       execution = Journey.start_execution(graph)
 
+      # Wait for the initial tick computation to complete before overwriting DB state
+      {:ok, _, _} = Journey.get(execution, :my_tick, wait: :any, timeout: 5_000)
+
       now = System.system_time(:second)
       old_time = now - 600
 

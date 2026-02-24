@@ -31,6 +31,9 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedByScheduleTest do
 
       execution = Journey.start_execution(graph)
 
+      # Wait for the initial tick computation to complete before overwriting DB state
+      {:ok, _, _} = Journey.get(execution, :my_tick, wait: :any, timeout: 5_000)
+
       now = System.system_time(:second)
       sweeper_period = 60
       # set_time is outside the 5 * 60 = 300s window
@@ -70,6 +73,9 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedByScheduleTest do
 
       execution = Journey.start_execution(graph)
 
+      # Wait for the initial tick computation to complete before overwriting DB state
+      {:ok, _, _} = Journey.get(execution, :my_tick, wait: :any, timeout: 5_000)
+
       now = System.system_time(:second)
       sweeper_period = 60
       future_pulse_time = now + 100
@@ -103,6 +109,9 @@ defmodule Journey.Scheduler.Background.Sweeps.UnblockedByScheduleTest do
         )
 
       execution = Journey.start_execution(graph)
+
+      # Wait for the initial tick computation to complete before overwriting DB state
+      {:ok, _, _} = Journey.get(execution, :my_tick, wait: :any, timeout: 5_000)
 
       now = System.system_time(:second)
       sweeper_period = 60

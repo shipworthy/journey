@@ -35,7 +35,13 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
         try do
           kicked_count = perform_sweep_logic(execution_id, current_time)
           Throttle.complete_started_sweep_run(sweep_run_id, kicked_count, current_time)
-          Logger.info("done, kicked #{kicked_count} execution(s)")
+
+          if kicked_count > 0 do
+            Logger.info("done, kicked #{kicked_count} execution(s)")
+          else
+            Logger.debug("done, kicked 0 execution(s)")
+          end
+
           {kicked_count, sweep_run_id}
         rescue
           e ->
@@ -89,7 +95,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
     computation_ids = Enum.map(processed_abandoned_computations, fn record -> record.id end) |> MapSet.new()
 
     if computation_ids == MapSet.new() do
-      Logger.info("#{prefix}: no abandoned computations found")
+      Logger.debug("#{prefix}: no abandoned computations found")
       0
     else
       kicked_count +

@@ -37,7 +37,7 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodes do
           Throttle.complete_started_sweep_run(sweep_run_id, kicked_count, current_time)
 
           if kicked_count == 0 do
-            Logger.info("no recently due pulse value(s) found")
+            Logger.debug("no recently due pulse value(s) found")
           else
             Logger.info("completed. kicked #{kicked_count} execution(s)")
           end

@@ -12,6 +12,8 @@ defmodule Journey.Application do
       Logger.put_application_level(:journey, log_level)
     end
 
+    Journey.Scheduler.Background.Periodic.log_configuration()
+
     children = [
       # Starts a worker by calling: Journey.Worker.start_link(arg)
       # {Journey.Worker, arg}

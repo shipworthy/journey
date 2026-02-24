@@ -53,7 +53,7 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchall do
             Throttle.complete_started_sweep_run(sweep_run_id, total_processed, current_time)
 
             if total_processed == 0 do
-              Logger.info("no executions with missed schedules found")
+              Logger.debug("no executions with missed schedules found")
             else
               Logger.info("completed. advanced #{total_processed} execution(s)")
             end
