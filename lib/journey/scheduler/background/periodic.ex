@@ -85,6 +85,25 @@ defmodule Journey.Scheduler.Background.Periodic do
     Process.exit(background_sweeps_pid, :kill)
   end
 
+  def log_configuration do
+    period = sweeper_period_seconds()
+    abandoned = Application.get_env(:journey, :abandoned_sweep, [])
+    schedule_nodes = Application.get_env(:journey, :schedule_nodes_sweep, [])
+    stalled = Application.get_env(:journey, :stalled_executions_sweep, [])
+    missed = Application.get_env(:journey, :missed_schedules_catchall, [])
+
+    Logger.info("""
+    Background sweeper configuration:
+      sweep interval: #{period}s
+      abandoned: enabled=#{Keyword.get(abandoned, :enabled, true)}, min_seconds_between_runs=#{Keyword.get(abandoned, :min_seconds_between_runs, 59)}
+      schedule_nodes: enabled=#{Keyword.get(schedule_nodes, :enabled, true)}, min_seconds_between_runs=#{Keyword.get(schedule_nodes, :min_seconds_between_runs, 120)}
+      stalled_executions: enabled=#{Keyword.get(stalled, :enabled, true)}, min_seconds_between_runs=1800 (hardcoded)
+      missed_schedules_catchall: enabled=#{Keyword.get(missed, :enabled, true)}, preferred_hour=#{inspect(Keyword.get(missed, :preferred_hour, 2))}, lookback_days=#{Keyword.get(missed, :lookback_days, 7)}
+      unblocked_by_schedule: always enabled
+      regenerate_recurring: always enabled\
+    """)
+  end
+
   defp sweep_forever(eid) do
     :timer.sleep(500)
     Journey.Scheduler.Background.Periodic.run_sweeps(eid)
