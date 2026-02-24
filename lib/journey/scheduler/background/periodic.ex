@@ -31,12 +31,8 @@ defmodule Journey.Scheduler.Background.Periodic do
   @default_sweeper_period_seconds 60
 
   def sweeper_period_seconds do
-    period_seconds =
-      Application.get_env(:journey, :background_sweeper, [])
-      |> Keyword.get(:period_seconds, @default_sweeper_period_seconds)
-
-    Logger.debug("period seconds: #{period_seconds}")
-    period_seconds
+    Application.get_env(:journey, :background_sweeper, [])
+    |> Keyword.get(:period_seconds, @default_sweeper_period_seconds)
   end
 
   def child_spec(_arg) do
