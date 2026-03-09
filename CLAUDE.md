@@ -37,6 +37,8 @@ Hello from Elixir
 
 Please see Makefile for other useful commands and shortcuts.
 
+Note that `make` commands generally return non-zero exit codes on failure.
+
 ### Checklist for making changes
 
 Before declaring a change "done", ask yourself the following questions:

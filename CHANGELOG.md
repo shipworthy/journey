@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.10.47
+
+- **Assorted scheduler refinements**: scoping retry counter to current cycle (#264); quieted sweeper "no work" logging, log config on startup, test coverage (#265)
+
 ## v0.10.46
 
 - **tick_recurring: improvements**: better reliability and precision (#260, #262)
