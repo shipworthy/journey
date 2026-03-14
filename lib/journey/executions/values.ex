@@ -205,7 +205,7 @@ defmodule Journey.Executions.Values do
         |> repo.one!()
 
       updating_to_the_same_value_and_metadata? =
-        current_value_node.set_time != nil and current_value_node.node_value != nil and
+        current_value_node.set_time != nil and
           current_value_node.node_value == value and current_value_node.metadata == metadata
 
       if updating_to_the_same_value_and_metadata? do
@@ -291,7 +291,7 @@ defmodule Journey.Executions.Values do
         |> repo.one!()
 
       updating_to_the_same_value_and_metadata? =
-        current_value_node.set_time != nil and current_value_node.node_value != nil and
+        current_value_node.set_time != nil and
           current_value_node.node_value == value and current_value_node.metadata == metadata
 
       if updating_to_the_same_value_and_metadata? do

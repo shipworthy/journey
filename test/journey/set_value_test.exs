@@ -35,6 +35,25 @@ defmodule Journey.JourneySetValueTest do
       assert execution_after_second_set.revision == execution_after_first_set.revision
     end
 
+    test "setting value to nil is idempotent" do
+      execution =
+        basic_graph(random_string())
+        |> Journey.start_execution()
+
+      execution_v1 = Journey.set(execution, :first_name, nil)
+      {:ok, nil, _} = Journey.get(execution_v1, :first_name)
+      # Wait for downstream compute to settle before capturing revision
+      {:ok, _, _} = Journey.get(execution_v1, :greeting, wait: :any)
+      execution_after_first_set = Journey.load(execution_v1)
+
+      assert execution_after_first_set.revision > execution.revision
+
+      execution_v2 = Journey.set(execution, :first_name, nil)
+      execution_after_second_set = Journey.load(execution_v2)
+
+      assert execution_after_second_set.revision == execution_after_first_set.revision
+    end
+
     test "setting value to a new value" do
       execution_v1 =
         basic_graph(random_string())
