@@ -1937,7 +1937,7 @@ defmodule Journey do
   Use `set/3` to set input values that trigger computations.
 
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or a binary execution ID
   * `node_name` - Atom representing the node name (must exist in the graph)
   * `opts` - Keyword list of options (see Options section below)
 
@@ -1949,12 +1949,13 @@ defmodule Journey do
   ## Errors
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
   * Raises `ArgumentError` if an invalid `:wait` option is provided
+  * Raises `ArgumentError` if `wait: :newer` is used with a binary execution ID
 
   ## Options
   * `:wait` – Controls waiting behavior:
     * `:immediate` (default) – Return immediately without waiting
     * `:any` – Wait until the value is available or timeout
-    * `:newer` – Wait for a newer revision than current execution
+    * `:newer` – Wait for a newer revision than current execution (requires `%Execution{}` struct)
     * `{:newer_than, revision}` – Wait for value newer than specific revision
   * `:timeout` – Timeout in milliseconds (default: 30,000) or `:infinity`
 
@@ -1981,6 +1982,24 @@ defmodule Journey do
 
   """
   def get(execution, node_name, opts \\ [])
+
+  def get(execution_id, node_name, opts)
+      when is_binary(execution_id) and is_atom(node_name) and is_list(opts) do
+    wait = Keyword.get(opts, :wait, :immediate)
+
+    if wait == :newer do
+      raise ArgumentError,
+            "the :newer wait option requires an %Execution{} struct because it compares " <>
+              "against the execution's current revision — a binary execution ID has no " <>
+              "prior state to compare against"
+    end
+
+    execution_id
+    |> Journey.load()
+    |> get(node_name, opts)
+  end
+
+  def get(execution, node_name, opts)
       when is_struct(execution, Execution) and is_atom(node_name) and is_list(opts) do
     check_options(opts, [:wait, :timeout])
     wait = Keyword.get(opts, :wait, :immediate)
