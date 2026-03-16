@@ -1122,8 +1122,11 @@ defmodule Journey do
   Use `values/2` to get only set values, or `get_value/3` for individual node values.
 
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
-  * `opts` - Keyword list of options (`:reload` - defaults to `true` for fresh database state)
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or a binary execution ID
+  * `opts` - Keyword list of options:
+    * `:reload` - Reload execution from database (default: `true`). Only valid when passing
+      an `%Execution{}` struct. Raises `ArgumentError` if used with a binary execution ID,
+      since the execution is always loaded fresh from the database in that case.
 
   ## Returns
   * Map with all nodes showing status: `:not_set` or `{:set, value}`
@@ -1144,8 +1147,28 @@ defmodule Journey do
   %{name: {:set, "Alice"}, age: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
   ```
 
+  Passing a binary execution ID:
+
+  ```elixir
+  Journey.values_all(execution.id)
+  ```
+
   """
-  def values_all(execution, opts \\ []) when is_struct(execution, Execution) do
+  def values_all(execution, opts \\ [])
+
+  def values_all(execution_id, opts) when is_binary(execution_id) and is_list(opts) do
+    if Keyword.has_key?(opts, :reload) do
+      raise ArgumentError,
+            "the :reload option is not supported when passing a binary execution ID " <>
+              "(the execution is always loaded fresh from the database)"
+    end
+
+    execution_id
+    |> Journey.load()
+    |> values_all(Keyword.put(opts, :reload, false))
+  end
+
+  def values_all(execution, opts) when is_struct(execution, Execution) do
     opts_schema = [
       reload: [is: :boolean]
     ]
@@ -1187,9 +1210,11 @@ defmodule Journey do
   Use `values_all/1` to see all nodes with their status tuples, or `get_value/3` for individual values.
 
   ## Parameters
-  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct
+  * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or a binary execution ID
   * `opts` - Keyword list of options:
-    * `:reload` - Reload execution from database (default: `true`)
+    * `:reload` - Reload execution from database (default: `true`). Only valid when passing
+      an `%Execution{}` struct. Raises `ArgumentError` if used with a binary execution ID,
+      since the execution is always loaded fresh from the database in that case.
     * `:include_unset_as_nil` - Include unset nodes as `nil` values (default: `false`)
 
   ## Returns
@@ -1223,8 +1248,28 @@ defmodule Journey do
   %{name: "Alice", age: nil, execution_id: "...", last_updated_at: 1234567890}
   ```
 
+  Passing a binary execution ID:
+
+  ```elixir
+  Journey.values(execution.id, include_unset_as_nil: true)
+  ```
+
   """
-  def values(execution, opts \\ []) when is_struct(execution, Execution) and is_list(opts) do
+  def values(execution, opts \\ [])
+
+  def values(execution_id, opts) when is_binary(execution_id) and is_list(opts) do
+    if Keyword.has_key?(opts, :reload) do
+      raise ArgumentError,
+            "the :reload option is not supported when passing a binary execution ID " <>
+              "(the execution is always loaded fresh from the database)"
+    end
+
+    execution_id
+    |> Journey.load()
+    |> values(Keyword.put(opts, :reload, false))
+  end
+
+  def values(execution, opts) when is_struct(execution, Execution) and is_list(opts) do
     opts_schema = [
       reload: [is: :boolean],
       include_unset_as_nil: [is: :boolean]
