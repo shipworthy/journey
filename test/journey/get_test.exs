@@ -1,10 +1,79 @@
 defmodule Journey.GetTest do
   use ExUnit.Case, async: true
 
+  import Journey.Helpers.Random, only: [random_string: 0]
   import Journey.Node
 
   import Journey.Scheduler.Background.Periodic,
     only: [start_background_sweeps_in_test: 1, stop_background_sweeps_in_test: 1]
+
+  describe "get/3 with binary execution ID" do
+    test "immediate (default) returns same result as struct" do
+      execution =
+        simple_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set(:name, "Alice")
+
+      result_from_struct = Journey.get(execution, :name)
+      result_from_id = Journey.get(execution.id, :name)
+
+      assert {:ok, "Alice", _revision} = result_from_struct
+      assert result_from_struct == result_from_id
+    end
+
+    test "wait: :any works" do
+      execution =
+        simple_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set(:name, "Alice")
+
+      assert {:ok, "Alice", _revision} = Journey.get(execution.id, :name, wait: :any)
+    end
+
+    test "{:newer_than, revision} works" do
+      execution =
+        simple_graph(random_string())
+        |> Journey.start_execution()
+        |> Journey.set(:name, "Alice")
+
+      assert {:ok, "Alice", revision} = Journey.get(execution.id, :name)
+
+      execution = Journey.set(execution, :name, "Bob")
+
+      assert {:ok, "Bob", new_revision} =
+               Journey.get(execution.id, :name, wait: {:newer_than, revision})
+
+      assert new_revision > revision
+    end
+
+    test "returns {:error, :not_set} for unset node" do
+      execution =
+        simple_graph(random_string())
+        |> Journey.start_execution()
+
+      assert {:error, :not_set} = Journey.get(execution.id, :name)
+    end
+
+    test "raises ArgumentError when wait: :newer is passed" do
+      execution =
+        simple_graph(random_string())
+        |> Journey.start_execution()
+
+      assert_raise ArgumentError,
+                   ~r/newer.*requires.*%Execution\{\}/,
+                   fn ->
+                     Journey.get(execution.id, :name, wait: :newer)
+                   end
+    end
+  end
+
+  defp simple_graph(test_id) do
+    Journey.new_graph(
+      "get binary id test #{__MODULE__} #{test_id}",
+      "1.0.0",
+      [input(:name)]
+    )
+  end
 
   describe "Journey.get/3" do
     test "returns value and revision for set input node" do
