@@ -17,7 +17,9 @@ defmodule Journey.Node do
     :max_retries,
     :abandon_after_seconds,
     :heartbeat_interval_seconds,
-    :heartbeat_timeout_seconds
+    :heartbeat_timeout_seconds,
+    :keep_latest_completed_computations,
+    :keep_oldest_completed_computations
   ]
 
   @doc """
@@ -176,13 +178,30 @@ defmodule Journey.Node do
   ```
 
   ## Return Values
-  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms 
+  The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms
   in the returned `value` and `reason` will be converted to strings when persisted.
+
+  ## Computation Retention
+
+  By default, all completed computation records are kept in the database. For nodes that
+  accumulate many computations over time (especially downstream of `tick_recurring` nodes),
+  you can limit how many are retained:
+
+      compute(:send_summary, deps, &send/1,
+        keep_latest_completed_computations: 50
+      )
+
+  After each successful completion, this deletes older computations beyond the retention
+  window, while always preserving the 10 oldest successful computations. Set to `:all` to
+  explicitly keep everything, or `nil` (default) to inherit from the graph-level setting.
+
+  Can also be set graph-wide via `Journey.new_graph/4`'s `:keep_latest_completed_computations` option.
 
   """
   def compute(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     check_options(opts, @common_step_options)
+    validate_retention_options(opts)
 
     %Graph.Step{
       name: name,
@@ -193,7 +212,9 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
-      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240),
+      keep_latest_completed_computations: Keyword.get(opts, :keep_latest_completed_computations),
+      keep_oldest_completed_computations: Keyword.get(opts, :keep_oldest_completed_computations)
     }
   end
 
@@ -272,6 +293,7 @@ defmodule Journey.Node do
   def mutate(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     check_options(opts, @common_step_options ++ [:mutates, :update_revision_on_change])
+    validate_retention_options(opts)
 
     %Graph.Step{
       name: name,
@@ -284,7 +306,9 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
-      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240),
+      keep_latest_completed_computations: Keyword.get(opts, :keep_latest_completed_computations),
+      keep_oldest_completed_computations: Keyword.get(opts, :keep_oldest_completed_computations)
     }
   end
 
@@ -320,6 +344,7 @@ defmodule Journey.Node do
   def archive(name, gated_by, opts \\ [])
       when is_atom(name) do
     check_options(opts, @common_step_options)
+    validate_retention_options(opts)
 
     %Graph.Step{
       name: name,
@@ -330,7 +355,9 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
-      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240),
+      keep_latest_completed_computations: Keyword.get(opts, :keep_latest_completed_computations),
+      keep_oldest_completed_computations: Keyword.get(opts, :keep_oldest_completed_computations)
     }
   end
 
@@ -479,6 +506,7 @@ defmodule Journey.Node do
   """
   def historian(name, gated_by, opts \\ []) when is_atom(name) do
     check_options(opts, @common_step_options ++ [:max_entries])
+    validate_retention_options(opts)
 
     max_entries = Keyword.get(opts, :max_entries, 1000)
 
@@ -493,7 +521,9 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
-      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240),
+      keep_latest_completed_computations: Keyword.get(opts, :keep_latest_completed_computations),
+      keep_oldest_completed_computations: Keyword.get(opts, :keep_oldest_completed_computations)
     }
   end
 
@@ -661,6 +691,7 @@ defmodule Journey.Node do
   def tick_once(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     check_options(opts, @common_step_options)
+    validate_retention_options(opts)
 
     %Graph.Step{
       name: name,
@@ -671,7 +702,9 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
-      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240),
+      keep_latest_completed_computations: Keyword.get(opts, :keep_latest_completed_computations),
+      keep_oldest_completed_computations: Keyword.get(opts, :keep_oldest_completed_computations)
     }
   end
 
@@ -740,11 +773,21 @@ defmodule Journey.Node do
   in the returned `value` and `reason` will be converted to strings when persisted.
 
   Returning `{:ok, 0}` indicates that the schedule should not trigger downstream computations.
+
+  ## Computation Retention
+
+  Recurring nodes accumulate computation records over time. Use `:keep_latest_completed_computations`
+  to limit retention. See `compute/4` for details.
+
+      tick_recurring(:schedule, deps, &next_time/1,
+        keep_latest_completed_computations: 200
+      )
   """
 
   def tick_recurring(name, gated_by, f_compute, opts \\ [])
       when is_atom(name) and is_function(f_compute) do
     check_options(opts, @common_step_options)
+    validate_retention_options(opts)
 
     %Graph.Step{
       name: name,
@@ -755,7 +798,9 @@ defmodule Journey.Node do
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
-      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240)
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240),
+      keep_latest_completed_computations: Keyword.get(opts, :keep_latest_completed_computations),
+      keep_oldest_completed_computations: Keyword.get(opts, :keep_oldest_completed_computations)
     }
   end
 
@@ -828,5 +873,27 @@ defmodule Journey.Node do
       raise ArgumentError,
             "Unknown options: #{inspect(Enum.sort(MapSet.to_list(unexpected)))}. Known options: #{inspect(Enum.sort(known_opts))}."
     end
+  end
+
+  defp validate_retention_options(opts) do
+    validate_keep_latest!(Keyword.get(opts, :keep_latest_completed_computations))
+    validate_keep_oldest!(Keyword.get(opts, :keep_oldest_completed_computations))
+  end
+
+  defp validate_keep_latest!(nil), do: :ok
+  defp validate_keep_latest!(:all), do: :ok
+  defp validate_keep_latest!(n) when is_integer(n) and n > 0, do: :ok
+
+  defp validate_keep_latest!(other) do
+    raise ArgumentError,
+          "keep_latest_completed_computations must be :all or a positive integer, got: #{inspect(other)}"
+  end
+
+  defp validate_keep_oldest!(nil), do: :ok
+  defp validate_keep_oldest!(n) when is_integer(n) and n > 0, do: :ok
+
+  defp validate_keep_oldest!(other) do
+    raise ArgumentError,
+          "keep_oldest_completed_computations must be a positive integer, got: #{inspect(other)}"
   end
 end

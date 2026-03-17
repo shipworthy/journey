@@ -122,6 +122,13 @@ defmodule Journey do
     * `:execution_id_prefix` - Custom prefix for execution IDs created from this graph.
       Will be normalized to uppercase. Defaults to "EXEC" if not specified.
       Example: "mygraph" becomes "MYGRAPH1A2B3D4E5G6H7J8L9M"
+    * `:singleton` - When `true`, only one non-archived execution can exist for this graph.
+      Defaults to `false`.
+    * `:keep_latest_completed_computations` - Graph-wide default for computation retention.
+      Sets the maximum number of most-recent successful computations to keep per node.
+      Older computations beyond this window are automatically deleted after each successful
+      completion, with the exception of the 10 oldest computations which are always preserved.
+      `nil` (default) means no cleanup. Can be overridden per-node. Example: `keep_latest_completed_computations: 200`
 
   ## Returns
   * `%Journey.Graph{}` struct representing the validated and registered computation graph

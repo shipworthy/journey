@@ -3,7 +3,16 @@ defmodule Journey.Graph do
 
   import Journey.Node, only: [input: 1]
 
-  defstruct [:name, :version, :nodes, :f_on_save, :hash, :execution_id_prefix, singleton: false]
+  defstruct [
+    :name,
+    :version,
+    :nodes,
+    :f_on_save,
+    :hash,
+    :execution_id_prefix,
+    :keep_latest_completed_computations,
+    singleton: false
+  ]
 
   @type t :: %__MODULE__{
           name: String.t(),
@@ -12,7 +21,8 @@ defmodule Journey.Graph do
           f_on_save: function() | nil,
           hash: String.t(),
           execution_id_prefix: String.t(),
-          singleton: boolean()
+          singleton: boolean(),
+          keep_latest_completed_computations: :all | pos_integer() | nil
         }
 
   def new(name, version, nodes, opts \\ [])
@@ -37,6 +47,10 @@ defmodule Journey.Graph do
       ]
     ]
 
+    # Pop keep_latest_completed_computations before KeywordValidator (it doesn't support union types).
+    {keep_latest, opts} = Keyword.pop(opts, :keep_latest_completed_computations)
+    validate_keep_latest!(keep_latest)
+
     KeywordValidator.validate!(opts, opts_schema)
 
     all_nodes = [input(:execution_id), input(:last_updated_at)] ++ nodes
@@ -52,7 +66,8 @@ defmodule Journey.Graph do
       f_on_save: Keyword.get(opts, :f_on_save),
       execution_id_prefix: Keyword.get(opts, :execution_id_prefix, "EXEC"),
       hash: hash,
-      singleton: Keyword.get(opts, :singleton, false)
+      singleton: Keyword.get(opts, :singleton, false),
+      keep_latest_completed_computations: keep_latest
     }
   end
 
@@ -63,6 +78,15 @@ defmodule Journey.Graph do
   def find_node_by_name(graph, node_name) when is_struct(graph, Journey.Graph) and is_atom(node_name) do
     graph.nodes
     |> Enum.find(fn n -> n.name == node_name end)
+  end
+
+  defp validate_keep_latest!(nil), do: :ok
+  defp validate_keep_latest!(:all), do: :ok
+  defp validate_keep_latest!(n) when is_integer(n) and n > 0, do: :ok
+
+  defp validate_keep_latest!(other) do
+    raise ArgumentError,
+          "keep_latest_completed_computations must be :all or a positive integer, got: #{inspect(other)}"
   end
 
   defp compute_hash(nodes) do

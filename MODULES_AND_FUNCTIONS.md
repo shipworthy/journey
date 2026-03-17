@@ -6,7 +6,7 @@ Here is a brief summary of the modules and functions exposed by Journey.
 The entry point for the Journey library. Provides functions for creating and managing computation graphs, starting and managing executions, and retrieving values from executions.
 
 ### Graph Management
-- `Journey.new_graph/4` - Creates a new computation graph with the given name, version, and node definitions. Accepts options including `singleton: true` for singleton graphs.
+- `Journey.new_graph/4` - Creates a new computation graph with the given name, version, and node definitions. Accepts options including `singleton: true` for singleton graphs and `keep_latest_completed_computations: N` for graph-wide computation retention.
 
 ### Execution Lifecycle
 - `Journey.start_execution/1` - Starts a new execution instance of a computation graph (raises for singleton graphs)

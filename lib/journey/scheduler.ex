@@ -147,6 +147,12 @@ defmodule Journey.Scheduler do
     requires_invalidation_check?(r, graph_node) &&
       Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(execution.id, graph)
 
+    # Clean up old completed computations if retention is configured.
+    # Runs synchronously but is fast at steady state (~1 row deleted).
+    if match?({:ok, _}, r) do
+      Journey.Scheduler.Retention.maybe_cleanup(execution.id, graph_node, graph)
+    end
+
     advance(execution)
   end
 

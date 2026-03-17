@@ -233,7 +233,7 @@ defmodule Journey.GraphTest do
   describe "option validation" do
     test "compute raises on unknown options" do
       assert_raise ArgumentError,
-                   "Unknown options: [:typo]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
+                   "Unknown options: [:typo]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :keep_latest_completed_computations, :keep_oldest_completed_computations, :max_retries].",
                    fn ->
                      Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
@@ -262,7 +262,7 @@ defmodule Journey.GraphTest do
 
     test "mutate raises on unknown options" do
       assert_raise ArgumentError,
-                   "Unknown options: [:bogus]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries, :mutates, :update_revision_on_change].",
+                   "Unknown options: [:bogus]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :keep_latest_completed_computations, :keep_oldest_completed_computations, :max_retries, :mutates, :update_revision_on_change].",
                    fn ->
                      Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
@@ -290,7 +290,7 @@ defmodule Journey.GraphTest do
 
     test "archive raises on unknown options" do
       assert_raise ArgumentError,
-                   "Unknown options: [:nope]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
+                   "Unknown options: [:nope]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :keep_latest_completed_computations, :keep_oldest_completed_computations, :max_retries].",
                    fn ->
                      Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
@@ -301,7 +301,7 @@ defmodule Journey.GraphTest do
 
     test "historian raises on unknown options" do
       assert_raise ArgumentError,
-                   "Unknown options: [:bad_opt]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_entries, :max_retries].",
+                   "Unknown options: [:bad_opt]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :keep_latest_completed_computations, :keep_oldest_completed_computations, :max_entries, :max_retries].",
                    fn ->
                      Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
@@ -324,7 +324,7 @@ defmodule Journey.GraphTest do
 
     test "tick_once raises on unknown options" do
       assert_raise ArgumentError,
-                   "Unknown options: [:wrong]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
+                   "Unknown options: [:wrong]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :keep_latest_completed_computations, :keep_oldest_completed_computations, :max_retries].",
                    fn ->
                      Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
@@ -335,7 +335,7 @@ defmodule Journey.GraphTest do
 
     test "tick_recurring raises on unknown options" do
       assert_raise ArgumentError,
-                   "Unknown options: [:invalid]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :max_retries].",
+                   "Unknown options: [:invalid]. Known options: [:abandon_after_seconds, :f_on_save, :heartbeat_interval_seconds, :heartbeat_timeout_seconds, :keep_latest_completed_computations, :keep_oldest_completed_computations, :max_retries].",
                    fn ->
                      Journey.new_graph("test graph #{random_string()}", "1.0", [
                        input(:bar),
