@@ -289,7 +289,8 @@ defmodule Journey.Node do
   end
 
   @doc """
-  Creates a graph node that mutates the value of another node.
+  Creates a graph node that archives the execution when unblocked. Archived
+  executions are excluded from `load/2` unless `include_archived: true` is passed.
 
   ## Examples:
 
