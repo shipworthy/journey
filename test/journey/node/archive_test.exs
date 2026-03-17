@@ -46,4 +46,18 @@ defmodule Journey.Node.ArchiveTest do
                               |> Enum.map(& &1.id))
     end
   end
+
+  describe "non-existent execution ID" do
+    test "archive/1 raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.archive("EXEC_NONEXISTENT")
+      end
+    end
+
+    test "unarchive/1 raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.unarchive("EXEC_NONEXISTENT")
+      end
+    end
+  end
 end

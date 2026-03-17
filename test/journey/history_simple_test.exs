@@ -258,4 +258,12 @@ defmodule Journey.HistorySimpleTest do
       ]
     )
   end
+
+  describe "non-existent execution ID" do
+    test "history/1 raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.history("EXEC_NONEXISTENT")
+      end
+    end
+  end
 end

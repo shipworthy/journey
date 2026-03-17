@@ -65,6 +65,12 @@ defmodule Journey.GetTest do
                      Journey.get(execution.id, :name, wait: :newer)
                    end
     end
+
+    test "raises ArgumentError for non-existent execution ID" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.get("EXEC_NONEXISTENT", :name)
+      end
+    end
   end
 
   defp simple_graph(test_id) do

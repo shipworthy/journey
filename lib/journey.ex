@@ -1164,7 +1164,7 @@ defmodule Journey do
     end
 
     execution_id
-    |> Journey.load()
+    |> load!()
     |> values_all(Keyword.put(opts, :reload, false))
   end
 
@@ -1265,7 +1265,7 @@ defmodule Journey do
     end
 
     execution_id
-    |> Journey.load()
+    |> load!()
     |> values(Keyword.put(opts, :reload, false))
   end
 
@@ -1610,7 +1610,11 @@ defmodule Journey do
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
     metadata = Keyword.get(opts, :metadata, nil)
-    execution = Journey.Repo.get!(Execution, execution_id)
+
+    execution =
+      Journey.Repo.get(Execution, execution_id) ||
+        raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution.id, node_name, value, metadata)
@@ -1630,7 +1634,7 @@ defmodule Journey do
   @doc group: "Value Operations"
   def set(execution_id, values_map, opts, _unused)
       when is_binary(execution_id) and is_map(values_map) do
-    execution = Journey.load(execution_id)
+    execution = load!(execution_id)
     set(execution, values_map, opts, [])
   end
 
@@ -1878,7 +1882,10 @@ defmodule Journey do
   """
   def unset(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
-    execution = Journey.Repo.get!(Execution, execution_id)
+    execution =
+      Journey.Repo.get(Execution, execution_id) ||
+        raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.unset_value(execution, node_name)
@@ -1894,7 +1901,7 @@ defmodule Journey do
   # Multiple values via list
   def unset(execution_id, node_names)
       when is_binary(execution_id) and is_list(node_names) and node_names != [] do
-    execution = Journey.load(execution_id)
+    execution = load!(execution_id)
     unset(execution, node_names)
   end
 
@@ -1995,7 +2002,7 @@ defmodule Journey do
     end
 
     execution_id
-    |> Journey.load()
+    |> load!()
     |> get(node_name, opts)
   end
 
@@ -2239,8 +2246,15 @@ defmodule Journey do
   @doc false
   def kick(execution_id) when is_binary(execution_id) do
     execution_id
-    |> Journey.load()
+    |> load!()
     |> Journey.Scheduler.advance()
+  end
+
+  defp load!(execution_id) when is_binary(execution_id) do
+    case Journey.load(execution_id) do
+      nil -> raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+      execution -> execution
+    end
   end
 
   defp determine_timeout(false, false), do: nil
