@@ -171,4 +171,18 @@ defmodule Journey.JourneySetValueTest do
       ]
     )
   end
+
+  describe "non-existent execution ID" do
+    test "set/3 with single value raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.set("EXEC_NONEXISTENT", :name, "Alice")
+      end
+    end
+
+    test "set/3 with map raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.set("EXEC_NONEXISTENT", %{name: "Alice"})
+      end
+    end
+  end
 end

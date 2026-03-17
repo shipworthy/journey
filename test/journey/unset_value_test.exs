@@ -510,4 +510,18 @@ defmodule Journey.JourneyUnsetValueTest do
       assert Journey.get(execution_after_unset, :abc) == {:error, :not_set}
     end
   end
+
+  describe "non-existent execution ID" do
+    test "unset/2 with single atom raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.unset("EXEC_NONEXISTENT", :name)
+      end
+    end
+
+    test "unset/2 with list raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.unset("EXEC_NONEXISTENT", [:name])
+      end
+    end
+  end
 end

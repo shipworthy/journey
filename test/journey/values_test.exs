@@ -93,6 +93,20 @@ defmodule Journey.ValuesTest do
     end
   end
 
+  describe "non-existent execution ID" do
+    test "values/2 raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.values("EXEC_NONEXISTENT")
+      end
+    end
+
+    test "values_all/2 raises ArgumentError" do
+      assert_raise ArgumentError, ~r/execution not found/, fn ->
+        Journey.values_all("EXEC_NONEXISTENT")
+      end
+    end
+  end
+
   defp basic_graph(test_id) do
     Journey.new_graph(
       "values test #{__MODULE__} #{test_id}",

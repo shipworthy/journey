@@ -1132,6 +1132,9 @@ defmodule Journey do
   * Map with all nodes showing status: `:not_set` or `{:set, value}`
   * Includes all nodes defined in the graph, regardless of current state
 
+  ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
+
   ## Examples
 
   Basic usage showing status progression:
@@ -1164,7 +1167,7 @@ defmodule Journey do
     end
 
     execution_id
-    |> Journey.load()
+    |> load!()
     |> values_all(Keyword.put(opts, :reload, false))
   end
 
@@ -1222,6 +1225,9 @@ defmodule Journey do
   * When `include_unset_as_nil: false` (default): Only includes set nodes
   * When `include_unset_as_nil: true`: Includes all nodes, with unset ones as `nil`
 
+  ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
+
   ## Examples
 
   Basic usage:
@@ -1265,7 +1271,7 @@ defmodule Journey do
     end
 
     execution_id
-    |> Journey.load()
+    |> load!()
     |> values(Keyword.put(opts, :reload, false))
   end
 
@@ -1335,6 +1341,9 @@ defmodule Journey do
 
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
+
+  ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
 
   ## Returns
   * List of maps sorted by revision, where each map contains:
@@ -1422,6 +1431,7 @@ defmodule Journey do
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if any value changed)
 
   ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
   * Raises `RuntimeError` if any node name does not exist in the execution's graph
   * Raises `RuntimeError` if attempting to set compute nodes (only input nodes can be set)
 
@@ -1610,7 +1620,11 @@ defmodule Journey do
              (value == nil or is_binary(value) or is_number(value) or is_map(value) or is_list(value) or
                 is_boolean(value)) do
     metadata = Keyword.get(opts, :metadata, nil)
-    execution = Journey.Repo.get!(Execution, execution_id)
+
+    execution =
+      Journey.Repo.get(Execution, execution_id) ||
+        raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.set_value(execution.id, node_name, value, metadata)
@@ -1630,7 +1644,7 @@ defmodule Journey do
   @doc group: "Value Operations"
   def set(execution_id, values_map, opts, _unused)
       when is_binary(execution_id) and is_map(values_map) do
-    execution = Journey.load(execution_id)
+    execution = load!(execution_id)
     set(execution, values_map, opts, [])
   end
 
@@ -1767,6 +1781,7 @@ defmodule Journey do
   * Updated `%Journey.Persistence.Schema.Execution{}` struct with incremented revision (if value was set)
 
   ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
   * Raises `RuntimeError` if attempting to unset a compute node (only input nodes can be unset)
 
@@ -1878,7 +1893,10 @@ defmodule Journey do
   """
   def unset(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
-    execution = Journey.Repo.get!(Execution, execution_id)
+    execution =
+      Journey.Repo.get(Execution, execution_id) ||
+        raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
     Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
     Journey.Executions.unset_value(execution, node_name)
@@ -1894,7 +1912,7 @@ defmodule Journey do
   # Multiple values via list
   def unset(execution_id, node_names)
       when is_binary(execution_id) and is_list(node_names) and node_names != [] do
-    execution = Journey.load(execution_id)
+    execution = load!(execution_id)
     unset(execution, node_names)
   end
 
@@ -1947,6 +1965,7 @@ defmodule Journey do
   * `{:error, :computation_failed}` – the computation permanently failed
 
   ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
   * Raises `RuntimeError` if the node name does not exist in the execution's graph
   * Raises `ArgumentError` if an invalid `:wait` option is provided
   * Raises `ArgumentError` if `wait: :newer` is used with a binary execution ID
@@ -1995,7 +2014,7 @@ defmodule Journey do
     end
 
     execution_id
-    |> Journey.load()
+    |> load!()
     |> get(node_name, opts)
   end
 
@@ -2153,6 +2172,9 @@ defmodule Journey do
   ## Returns
   * Integer timestamp (Unix epoch seconds) when the execution was archived
 
+  ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
+
   ## Key Behaviors
   * **Scheduler exclusion** - Archived executions are excluded from all background sweeps and processing
   * **Hidden by default** - Not returned by `list_executions/1` or `load/2` unless explicitly included
@@ -2205,7 +2227,10 @@ defmodule Journey do
   ## Parameters:
   - `execution` or `execution_id`: The execution to un-archive, or the ID of the execution to un-archive.
 
-  Returns
+  ## Errors
+  * Raises if the supplied execution ID does not correspond to an existing execution
+
+  ## Returns
   * :ok
 
   ## Examples
@@ -2239,8 +2264,15 @@ defmodule Journey do
   @doc false
   def kick(execution_id) when is_binary(execution_id) do
     execution_id
-    |> Journey.load()
+    |> load!()
     |> Journey.Scheduler.advance()
+  end
+
+  defp load!(execution_id) when is_binary(execution_id) do
+    case Journey.load(execution_id) do
+      nil -> raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+      execution -> execution
+    end
   end
 
   defp determine_timeout(false, false), do: nil

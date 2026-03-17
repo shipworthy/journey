@@ -218,7 +218,11 @@ defmodule Journey.Executions do
       Journey.Repo.transaction(fn repo ->
         current_execution =
           from(e in Execution, where: e.id == ^execution_id)
-          |> repo.one!()
+          |> repo.one()
+
+        if is_nil(current_execution) do
+          raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+        end
 
         if current_execution.archived_at != nil do
           Logger.info("#{prefix}: execution already archived (#{current_execution.archived_at})")
@@ -246,7 +250,11 @@ defmodule Journey.Executions do
       Journey.Repo.transaction(fn repo ->
         current_execution =
           from(e in Execution, where: e.id == ^execution_id)
-          |> repo.one!()
+          |> repo.one()
+
+        if is_nil(current_execution) do
+          raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+        end
 
         if current_execution.archived_at == nil do
           Logger.info("#{prefix}: execution not archived, nothing to do")
@@ -329,9 +337,14 @@ defmodule Journey.Executions do
   end
 
   def history(execution_id) do
+    execution = Journey.load(execution_id)
+
+    if is_nil(execution) do
+      raise ArgumentError, "execution not found: #{inspect(execution_id)}"
+    end
+
     history_of_computations =
-      execution_id
-      |> Journey.load()
+      execution
       |> Map.get(:computations)
       |> Enum.filter(fn %{state: s} -> s == :success end)
       |> Enum.sort_by(fn %{ex_revision_at_completion: ex_revision_at_completion} -> ex_revision_at_completion end)
@@ -346,8 +359,7 @@ defmodule Journey.Executions do
       end)
 
     history_of_values =
-      execution_id
-      |> Journey.load()
+      execution
       |> Map.get(:values)
       |> Enum.filter(fn %{set_time: st} -> st != nil end)
       |> Enum.sort_by(fn %{ex_revision: r} -> r end, :asc)
