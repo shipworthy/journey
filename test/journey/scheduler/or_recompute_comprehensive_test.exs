@@ -304,7 +304,7 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
 
       # The node should be unset now (NOT condition no longer met).
       # Uses wait/poll because a background recomputation worker may briefly
-      # write a stale value before self-healing clears it (see tickets/race_condition1).
+      # write a stale value before self-healing clears it.
       assert wait(
                match?({:error, :not_set}, Journey.get(e, :when_disabled)),
                timeout: 2_000,
