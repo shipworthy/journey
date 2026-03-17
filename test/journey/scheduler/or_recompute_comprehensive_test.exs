@@ -5,6 +5,7 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
   import Journey.Node
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
+  import WaitForIt
 
   describe "OR condition recomputation" do
     test "basic OR - setting second input triggers recomputation" do
@@ -301,8 +302,14 @@ defmodule Journey.Scheduler.OrRecomputeComprehensiveTest do
       # Change enabled to true - NOT is no longer satisfied
       e = Journey.set(e, :enabled, true)
 
-      # The node should be unset now (NOT condition no longer met)
-      assert {:error, :not_set} = Journey.get(e, :when_disabled)
+      # The node should be unset now (NOT condition no longer met).
+      # Uses wait/poll because a background recomputation worker may briefly
+      # write a stale value before self-healing clears it.
+      assert wait(
+               match?({:error, :not_set}, Journey.get(e, :when_disabled)),
+               timeout: 2_000,
+               frequency: 50
+             )
     end
   end
 
