@@ -162,6 +162,7 @@ defmodule Journey.ToolsTest do
         |> redact_text_timestamps()
         |> redact_text_duration()
         |> redact_text_seconds_ago()
+        |> redact_text_computation_timing()
         |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
 
       expected_output = """
@@ -203,13 +204,16 @@ defmodule Journey.ToolsTest do
       Computations:
       - Completed:
         - :reminder (CMPREDACTED): ✅ :success | :compute | rev 7
-          inputs used: 
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
              :time_to_issue_reminder_schedule (rev 5)
         - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :tick_once | rev 5
-          inputs used: 
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
              :greeting (rev 3)
         - :greeting (CMPREDACTED): ✅ :success | :compute | rev 3
-          inputs used: 
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
              :user_name (rev 1)
 
       - Outstanding:
@@ -348,6 +352,7 @@ defmodule Journey.ToolsTest do
         |> redact_text_timestamps()
         |> redact_text_duration()
         |> redact_text_seconds_ago()
+        |> redact_text_computation_timing()
         |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
 
       # Complete expected output as living documentation for engineers
@@ -392,11 +397,13 @@ defmodule Journey.ToolsTest do
       Computations:
       - Completed:
         - :send_follow_up (CMPREDACTED): ✅ :success | :compute | rev 4
-          inputs used: 
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
              :user_applied (rev 0)
              :card_mailed (rev 0)
         - :send_reminder (CMPREDACTED): ✅ :success | :compute | rev 3
-          inputs used: 
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
              :user_requested_card (rev 0)
 
       - Outstanding:
@@ -460,10 +467,12 @@ defmodule Journey.ToolsTest do
       Computations:
       - Completed:
         - :send_reminder (CMPREDACTED): ✅ :success | :compute | rev 4
-          inputs used: 
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
              :user_requested_card (rev 0)
         - :send_follow_up (CMPREDACTED): ✅ :success | :compute | rev 3
-          inputs used: 
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
              :user_applied (rev 0)
              :card_mailed (rev 0)
 
@@ -486,6 +495,26 @@ defmodule Journey.ToolsTest do
                String.trim(expected_output),
                String.trim(expected_output_alt)
              ]
+    end
+
+    test "completed computations include start and completion timestamps" do
+      graph =
+        Journey.new_graph("timestamps test #{random_string()}", "v1.0.0", [
+          input(:value),
+          compute(:doubled, [:value], fn %{value: v} -> {:ok, v * 2} end)
+        ])
+
+      execution =
+        Journey.start_execution(graph)
+        |> Journey.set(:value, 5)
+
+      {:ok, _, _} = Journey.get(execution, :doubled, wait: :any)
+
+      result = Journey.Tools.introspect(execution.id)
+
+      # Assert that the completed computation includes timestamp information
+      assert result =~
+               ~r/started: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z \| completed: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z \(\d+s\)/
     end
   end
 
@@ -887,6 +916,16 @@ defmodule Journey.ToolsTest do
   defp redact_text_seconds_ago(text) do
     text
     |> String.replace(~r/\d+ seconds ago/, "REDACTED seconds ago")
+  end
+
+  defp redact_text_computation_timing(text) do
+    text
+    |> String.replace(~r/\(\d+s\)/, "(REDACTED)")
+    |> String.replace(~r/\(\d+m \d+s\)/, "(REDACTED)")
+    |> String.replace(~r/\(\d+h \d+m \d+s\)/, "(REDACTED)")
+    |> String.replace(~r/running for \d+s/, "running for REDACTED")
+    |> String.replace(~r/running for \d+m \d+s/, "running for REDACTED")
+    |> String.replace(~r/running for \d+h \d+m \d+s/, "running for REDACTED")
   end
 
   # Helper to reliably wait for a computation to reach a specific state.

@@ -826,10 +826,15 @@ defmodule Journey.Tools do
          state: state,
          computation_type: computation_type,
          computed_with: computed_with,
-         ex_revision_at_completion: ex_revision_at_completion
+         ex_revision_at_completion: ex_revision_at_completion,
+         start_time: start_time,
+         completion_time: completion_time
        }) do
+    timing_line = format_computation_timing(start_time, completion_time)
+
     "  - :#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
-      "    inputs used: \n" <>
+      timing_line <>
+      "    inputs used:\n" <>
       case computed_with do
         nil ->
           "       <none>\n"
@@ -848,7 +853,7 @@ defmodule Journey.Tools do
   defp outstanding_computation(
          graph,
          values,
-         %{node_name: node_name, state: state, computation_type: computation_type},
+         %{node_name: node_name, state: state, computation_type: computation_type, start_time: start_time},
          with_header?
        ) do
     case Graph.find_node_by_name(graph, node_name) do
@@ -875,10 +880,45 @@ defmodule Journey.Tools do
             ""
           end
 
+        timing_line = format_outstanding_timing(state, start_time)
+
         formatted_conditions = format_condition_tree(readiness.structure, "       ")
 
-        header <> formatted_conditions
+        header <> timing_line <> formatted_conditions
     end
+  end
+
+  defp format_computation_timing(start_time, completion_time)
+       when is_integer(start_time) and is_integer(completion_time) do
+    duration = completion_time - start_time
+
+    "    started: #{DateTime.from_unix!(start_time)} | completed: #{DateTime.from_unix!(completion_time)} (#{format_duration_seconds(duration)})\n"
+  end
+
+  defp format_computation_timing(_start_time, _completion_time), do: ""
+
+  defp format_outstanding_timing(:computing, start_time) when is_integer(start_time) do
+    now = System.system_time(:second)
+    elapsed = now - start_time
+    "    started: #{DateTime.from_unix!(start_time)} | running for #{format_duration_seconds(elapsed)}\n"
+  end
+
+  defp format_outstanding_timing(_state, _start_time), do: ""
+
+  defp format_duration_seconds(seconds) when seconds < 60, do: "#{seconds}s"
+
+  defp format_duration_seconds(seconds) when seconds < 3600 do
+    minutes = div(seconds, 60)
+    remaining = rem(seconds, 60)
+    "#{minutes}m #{remaining}s"
+  end
+
+  defp format_duration_seconds(seconds) do
+    hours = div(seconds, 3600)
+    remaining = rem(seconds, 3600)
+    minutes = div(remaining, 60)
+    secs = rem(remaining, 60)
+    "#{hours}h #{minutes}m #{secs}s"
   end
 
   # Helper function to format node values appropriately
