@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.10.48
+
+- **Introspection: computation times**: `Journey.Tools.introspect/1` output now includes computations' times (#274)
+- **Garbage collection for old computations**: implementing garbage collection for old computations (#273)
+- **Documentation fix**: fixing docs for the `archive()` node (#272)
+- **Consistent error handling**: various `Journey.*` functions now raise a consistent `ArgumentError` when the supplied execution id does not match an existing execution (#271)
+- **More deterministic OR recompute test**: making an OR recompute step more deterministic (#270)
+- **API ergonomics**: allow `Journey.get(execution_id, ...)`, `Journey.values()` and `values_all()` to also accept execution id (#268, #269)
+- **Idempotent nil re-set**: making re-setting nil value idempotent, just like any other value (#267)
+
 ## v0.10.47
 
 - **Assorted scheduler refinements**: scoping retry counter to current cycle (#264); quieted sweeper "no work" logging, log config on startup, test coverage (#265)
