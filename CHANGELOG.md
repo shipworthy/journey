@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.10.49
+
+- **Scheduler: fix max_retries edge condition**: fixing an edge condition where `max_retries` had no effect, test updates (#276)
+
 ## v0.10.48
 
 - **Introspection: computation times**: `Journey.Tools.introspect/1` output now includes computations' times (#274)

@@ -1,7 +1,7 @@
 defmodule Journey.MixProject do
   use Mix.Project
 
-  @version "0.10.48"
+  @version "0.10.49"
 
   def project do
     [
