@@ -47,7 +47,8 @@ defmodule Journey.Scheduler.MutateUpdateRevisionTest do
       {:ok, "updated :temperature", mutation_rev1} = Journey.get(execution, :update_temperature, wait: :any)
 
       # Temperature alert should compute with the mutated value (30)
-      {:ok, "Normal temperature: 30°C", alert_rev1} = Journey.get(execution, :temperature_alert, wait: :any)
+      {:ok, "Normal temperature: 30°C", alert_rev1} =
+        Journey.get(execution, :temperature_alert, wait: {:newer_than, mutation_rev1})
 
       # Trigger another update
       execution = Journey.set(execution, :trigger, 2)
