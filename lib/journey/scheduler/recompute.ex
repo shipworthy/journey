@@ -63,7 +63,9 @@ defmodule Journey.Scheduler.Recompute do
               unblocked?(all_values, Graph.find_node_by_name(graph, c.node_name).gated_by, :computation)
           end)
           |> Enum.flat_map(fn c ->
-            atomic_insert_if_no_duplicate(prefix, execution.id, c, repo)
+            graph_node = Graph.find_node_by_name(graph, c.node_name)
+            max_upstream_rev = Journey.Scheduler.Helpers.max_upstream_revision(all_values, graph_node)
+            atomic_insert_if_no_duplicate(prefix, execution.id, c, max_upstream_rev, repo)
           end)
         end,
         prefix
@@ -156,7 +158,7 @@ defmodule Journey.Scheduler.Recompute do
   # (:not_set/:computing) or newer :success computation exists for this node.
   # Using INSERT...SELECT...WHERE NOT EXISTS ensures the check and insert happen
   # in a single SQL statement, which sees one consistent READ COMMITTED snapshot.
-  defp atomic_insert_if_no_duplicate(prefix, execution_id, computation, repo) do
+  defp atomic_insert_if_no_duplicate(prefix, execution_id, computation, max_upstream_rev, repo) do
     new_id = Journey.Helpers.Random.object_id("CMP")
     node_name_str = Atom.to_string(computation.node_name)
     comp_type_str = Atom.to_string(computation.computation_type)
@@ -174,10 +176,11 @@ defmodule Journey.Scheduler.Recompute do
             AND (
               state IN ('not_set', 'computing')
               OR (state = 'success' AND ex_revision_at_start > $6)
+              OR (state = 'failed' AND ex_revision_at_start >= $7)
             )
         )
         """,
-        [new_id, execution_id, node_name_str, comp_type_str, now, computation.ex_revision_at_start]
+        [new_id, execution_id, node_name_str, comp_type_str, now, computation.ex_revision_at_start, max_upstream_rev]
       )
 
     if num_rows == 1 do
