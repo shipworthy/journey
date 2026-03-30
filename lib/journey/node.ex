@@ -105,10 +105,10 @@ defmodule Journey.Node do
   ...>           end,
   ...>           max_retries: 4, # Optional (default: 3)
   ...>           abandon_after_seconds: 60, # Optional (default: 60)
-  ...>           f_on_save: fn _execution_id, _params ->
-  ...>             # Optional callback to be called when the value is saved.
-  ...>             # This is useful for notifying other systems (e.g. a LiveView
-  ...>             # via PubSub.notify()) – that the value has been saved.
+  ...>           f_on_save: fn _execution_id, _node_name, _result ->
+  ...>             # Optional callback invoked when the value is saved.
+  ...>             # Useful for notifying other systems (e.g. a LiveView
+  ...>             # via PubSub.notify()). The 2-arity form is deprecated.
   ...>             :ok
   ...>           end
   ...>         )

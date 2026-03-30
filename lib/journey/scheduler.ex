@@ -189,7 +189,10 @@ defmodule Journey.Scheduler do
         Logger.debug("#{prefix}: calling node-specific f_on_save")
 
         try do
-          node_f_on_save.(execution_id, result)
+          case node_f_on_save do
+            f when is_function(f, 3) -> f.(execution_id, node_name, result)
+            f when is_function(f, 2) -> f.(execution_id, result)
+          end
         rescue
           e ->
             Logger.error("#{prefix}: node-specific f_on_save raised an exception: '#{inspect(e)}'")
