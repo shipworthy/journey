@@ -25,7 +25,7 @@ iex> graph = Journey.new_graph(
 ...>         :large_value_alert,
 ...>         [sum: fn sum_node -> sum_node.node_value > 40 end],
 ...>         fn %{sum: sum} -> {:ok, "🚨, at #{sum}"} end,
-...>         f_on_save: fn _execution_id, _result ->
+...>         f_on_save: fn _execution_id, _node_name, _result ->
 ...>            # (e.g. send a pubsub notification to the LiveView process to update the UI)
 ...>            :ok
 ...>         end
