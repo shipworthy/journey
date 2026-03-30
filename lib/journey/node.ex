@@ -22,8 +22,16 @@ defmodule Journey.Node do
     :keep_oldest_completed_computations
   ]
 
+  @input_options [:f_on_save]
+
   @doc """
   Creates a graph input node. The value of an input node is set with `Journey.set/3`. The name of the node must be an atom.
+
+  Accepts an optional keyword list of options:
+
+  * `:f_on_save` - A callback function invoked after the input value is persisted via `Journey.set/3`.
+    The function receives `(execution_id, node_name, {:ok, value})`. The callback runs asynchronously
+    and does not affect the return value of `set/3`. Not invoked when the value is unchanged.
 
   ## Examples:
 
@@ -43,9 +51,17 @@ defmodule Journey.Node do
   %{first_name: "Mario", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
 
+  With `f_on_save`:
+
+      input(:comment, f_on_save: fn execution_id, node_name, {:ok, value} ->
+        Phoenix.PubSub.broadcast(MyApp.PubSub, "execution:\#{execution_id}", {node_name, value})
+        :ok
+      end)
+
   """
-  def input(name) when is_atom(name) do
-    %Graph.Input{name: name}
+  def input(name, opts \\ []) when is_atom(name) do
+    check_options(opts, @input_options)
+    %Graph.Input{name: name, f_on_save: Keyword.get(opts, :f_on_save)}
   end
 
   @doc """

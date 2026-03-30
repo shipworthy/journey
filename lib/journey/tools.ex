@@ -451,9 +451,12 @@ defmodule Journey.Tools do
   @doc false
   def set_computed_node_value(execution_id, computation_node_name, value)
       when is_binary(execution_id) and is_atom(computation_node_name) do
-    execution_id
-    |> Journey.load()
-    |> Journey.Executions.set_value(computation_node_name, value)
+    {execution, _changed_keys} =
+      execution_id
+      |> Journey.load()
+      |> Journey.Executions.set_value(computation_node_name, value)
+
+    execution
   end
 
   @doc false

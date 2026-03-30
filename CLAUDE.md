@@ -46,6 +46,10 @@ Before declaring a change "done", ask yourself the following questions:
 - did I run `make test-performance` a few times, and assessed the performance impact of the change?
 - can this functionality be implemented in a simpler fashion, or does this change strike a good balance of simplicity and functionality?
 
+# Running Tests
+
+Running tests is a time consuming part of the process, so we want to get the most out of every test run. One way to do this is to capture the output of every test run. This way, if you need to examine the output to troubleshoot a failure (non-zero return code) or just to understand what happened during the run, you don't need to re-run tests – you already have the output. Review the `test:` target in `Makefile` to see a possible way to capture output into a file without losing the return code. And, of course, `make test` and `make validate` already capture test output in a file, ./test.log  – overwriting it on every run.
+
 ### Quality Standards
 - **Idiomatic Elixir**: Favor Elixir patterns over concepts from other languages
 - **Minimal changes**: Simple, focused modifications with basic tests

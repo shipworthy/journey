@@ -152,7 +152,7 @@ defmodule Journey.JourneySetValueMultiTest do
         |> Journey.start_execution()
 
       assert_raise RuntimeError,
-                   ~r"':unknown_node' is not a valid input node in execution",
+                   ~r"':unknown_node' is not a valid input node in graph",
                    fn ->
                      Journey.set(execution, %{unknown_node: "value"})
                    end

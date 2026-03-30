@@ -200,7 +200,7 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
       assert exec_id == execution.id
     end
 
-    test "graph-wide f_on_save is not called for input nodes" do
+    test "graph-wide f_on_save is called for input nodes" do
       {_result, log} =
         with_log(fn ->
           graph =
@@ -228,9 +228,9 @@ defmodule Journey.Scheduler.GraphWideOnSaveTest do
           Process.sleep(2000)
         end)
 
-      # Should only be called for compute node, not input node
+      # Should be called for both input and compute nodes
       assert log =~ "GRAPH_WIDE called for: test_compute"
-      refute log =~ "GRAPH_WIDE called for: test_input"
+      assert log =~ "GRAPH_WIDE called for: test_input"
     end
 
     test "graph-wide f_on_save works with tick_once nodes" do

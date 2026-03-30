@@ -1,6 +1,6 @@
 defmodule Journey.Graph.Input do
   @moduledoc false
 
-  defstruct [:name, type: :input]
-  @type t :: %__MODULE__{name: atom, type: :input}
+  defstruct [:name, :f_on_save, type: :input]
+  @type t :: %__MODULE__{name: atom, type: :input, f_on_save: function() | nil}
 end
