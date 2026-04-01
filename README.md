@@ -174,7 +174,7 @@ The examples above demonstrated Journey's basic functionality:
 * **running executions** of the workflow, and watching computations run their course when unblocked (`Journey.start_execution/1`, `Journey.set/3`, `Journey.values/2`),
 * **introspecting** the state of an execution with `Journey.Tools.introspect/1`,
 * **reloading** an execution after an interruption with `Journey.load/2`,
-* getting basic aggregated **analytics** with `Journey.Insights.FlowAnalytics.flow_analytics/2`.
+* getting basic aggregated **analytics** with `Journey.Insights.FlowAnalytics.flow_analytics/3`.
 
 Also, notice the **code structure** that comes with an application's orchestration logic captured in its (somewhat self-documenting) graph.
 
@@ -182,10 +182,11 @@ Also, notice the **code structure** that comes with an application's orchestrati
 
 Here are some of the more complex scenarios that are outside of the scope of this introductory example:
 
-- executing one-time or recurring scheduled events with `Journey.Node.tick_once/3` and `Journey.Node.tick_recurring/3` nodes, 
-- mutating values with `Journey.Node.mutate/3` nodes, 
+- executing one-time or recurring scheduled events with `Journey.Node.tick_once/4` and `Journey.Node.tick_recurring/4` nodes, 
+- mutating values with `Journey.Node.mutate/4` nodes, 
 - defining conditional workflows with `Journey.Node.UpstreamDependencies.unblocked_when/2`, 
-- automatically recording the history of changes with `Journey.Node.historian/3` nodes,
+- recording the history of changes with `Journey.Node.historian/3` nodes,
+- archiving executions with `Journey.Node.archive/3` nodes,
 - emitting change notification events with `f_on_save/3`
 
 You can see some of this functionality in JourDash, a play-demo food delivery service, running on https://jourdash.gojourney.dev Its source code is available on GitHub: https://github.com/shipworthy/jour_dash

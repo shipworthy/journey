@@ -78,18 +78,20 @@ Make sure that the list of public modules and functions in MODULES_AND_FUNCTIONS
 input/1           # User-provided data
 compute/4         # Self-computing with dependencies
 mutate/4          # Modifies other node values
+historian/3       # Chronological log of node changes
+archive/3         # Archives execution when unblocked
 tick_once/3       # One-time scheduled execution
 tick_recurring/3  # Recurring execution
 ```
 
 ### Key APIs
 ```elixir
-Journey.new_graph/3      # Define computation graph
+Journey.new_graph/4      # Define computation graph
 Journey.start_execution/1 # Execute graph instance
 Journey.load/2           # Load existing execution
 Journey.set/3            # Set node values
 Journey.unset/2          # Unset node values (single or multiple)
-Journey.get_value/3      # Retrieve node values
+Journey.get/3            # Retrieve node values (preferred over get_value)
 ```
 
 Please read lib/journey.ex and lib/journey/node.ex for Journey's API functions, their documentation and usage examples.
@@ -101,6 +103,8 @@ Please read MODULES_AND_FUNCTIONS.md for a high-level description of modules and
 - `Journey.Persistence.Schema.Execution` - State management (Ecto schema)
 - `Journey.Scheduler` - Background processing
 - `Journey.Executions` - Persistence layer
+- `Journey.Tools` - Debugging and introspection
+- `Journey.Insights` - Analytics and system health
 
 ## Database & Testing
 
