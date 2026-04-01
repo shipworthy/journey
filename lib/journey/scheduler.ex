@@ -182,7 +182,8 @@ defmodule Journey.Scheduler do
     r
   end
 
-  defp invoke_f_on_save(prefix, node_f_on_save, graph_f_on_save, execution_id, node_name, result) do
+  @doc false
+  def invoke_f_on_save(prefix, node_f_on_save, graph_f_on_save, execution_id, node_name, result) do
     # First invoke node-specific f_on_save if defined
     if node_f_on_save do
       Task.start(fn ->

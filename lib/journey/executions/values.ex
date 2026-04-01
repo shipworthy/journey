@@ -259,16 +259,17 @@ defmodule Journey.Executions.Values do
         Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution.id, graph)
         # Reload to get the updated revision after invalidation
         updated_execution = Journey.load(updated_execution.id)
-        Journey.Scheduler.advance(updated_execution)
+        advanced_execution = Journey.Scheduler.advance(updated_execution)
+        {advanced_execution, [node_name]}
 
       {:error, {:no_change, original_execution}} ->
         Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
-        original_execution
+        {original_execution, []}
 
       {:error, _} ->
         Logger.error("#{prefix}: value not set, transaction rolled back")
         {:ok, execution} = Journey.load(execution_id)
-        execution
+        {execution, []}
     end
   end
 
@@ -345,15 +346,16 @@ defmodule Journey.Executions.Values do
         Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(updated_execution.id, graph)
         # Reload to get the updated revision after invalidation
         updated_execution = Journey.load(updated_execution.id)
-        Journey.Scheduler.advance(updated_execution)
+        advanced_execution = Journey.Scheduler.advance(updated_execution)
+        {advanced_execution, [node_name]}
 
       {:error, {:no_change, original_execution}} ->
         Logger.debug("#{prefix}: value not set (updating for the same value), transaction rolled back")
-        original_execution
+        {original_execution, []}
 
       {:error, _} ->
         Logger.error("#{prefix}: value not set, transaction rolled back")
-        Journey.load(execution)
+        {Journey.load(execution), []}
     end
   end
 
@@ -374,8 +376,9 @@ defmodule Journey.Executions.Values do
     if map_size(changed_values) == 0 do
       # Complete no-op: nothing changed, return execution as-is
       Logger.debug("#{prefix}: no values changed, skipping update")
-      execution
+      {execution, []}
     else
+      changed_keys = Map.keys(changed_values)
       Logger.debug("#{prefix}: #{map_size(changed_values)} values changed, proceeding with transaction")
 
       # Proceed with transaction only for changed values
@@ -401,7 +404,7 @@ defmodule Journey.Executions.Values do
           # Reload to get the updated revision after invalidation
           updated_execution = Journey.load(updated_execution.id)
           Journey.Scheduler.advance(updated_execution)
-          updated_execution
+          {updated_execution, changed_keys}
 
         {:error, reason} ->
           Logger.error("#{prefix}: transaction failed: #{inspect(reason)}")

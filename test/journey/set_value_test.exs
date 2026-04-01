@@ -113,7 +113,7 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
 
       assert_raise RuntimeError,
-                   "':last_name' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
+                   "':last_name' is not a valid input node in graph '#{execution.graph_name}'.'#{execution.graph_version}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
                    fn ->
                      Journey.set(execution, :last_name, "Bowser")
                    end
@@ -125,7 +125,7 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
 
       assert_raise RuntimeError,
-                   "':greeting' is not a valid input node in execution '#{execution.id}' / graph '#{execution.graph_name}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
+                   "':greeting' is not a valid input node in graph '#{execution.graph_name}'.'#{execution.graph_version}'. Valid input node names: [:execution_id, :first_name, :last_updated_at].",
                    fn ->
                      Journey.set(execution, :greeting, "Hello!")
                    end

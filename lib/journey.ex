@@ -116,7 +116,8 @@ defmodule Journey do
   * `version` - String version identifier following semantic versioning (e.g., "v1.0.0")
   * `nodes` - List of node definitions created with `Journey.Node` functions (`input/1`, `compute/4`, etc.)
   * `opts` - Optional keyword list of options:
-    * `:f_on_save` - Graph-wide callback function invoked after any node computation succeeds.
+    * `:f_on_save` - Graph-wide callback function invoked after any node value is saved,
+      including input nodes set via `Journey.set/3` and computed nodes.
       Receives `(execution_id, node_name, result)` where result is `{:ok, value}` or `{:error, reason}`.
       This callback is called after any node-specific `f_on_save` callbacks.
     * `:execution_id_prefix` - Custom prefix for execution IDs created from this graph.
@@ -143,7 +144,7 @@ defmodule Journey do
   * **Registration** - Registers graph in catalog for execution tracking and reloading
   * **Immutable** - Graph definition is immutable once created; create new versions for changes
   * **Node types** - Supports input, compute, mutate, tick_once, and tick_recurring nodes
-  * **`f_on_save` Callbacks** - If defined, the graph-wide `f_on_save` callback is called after Node-specific `f_on_save`s (if defined)
+  * **`f_on_save` Callbacks** - If defined, the graph-wide `f_on_save` callback is called after node-specific `f_on_save`s (if defined), for both computed and input nodes
 
   ## Examples
 
@@ -1633,8 +1634,14 @@ defmodule Journey do
         raise ArgumentError, "execution not found: #{inspect(execution_id)}"
 
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
-    Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
-    Journey.Executions.set_value(execution.id, node_name, value, metadata)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+    Journey.Graph.Validations.ensure_known_input_node_name(graph, node_name)
+
+    {result_execution, changed_keys} =
+      Journey.Executions.set_value(execution.id, node_name, value, metadata)
+
+    invoke_f_on_save_for_inputs(graph, result_execution.id, changed_keys, %{node_name => value})
+    result_execution
   end
 
   @doc group: "Value Operations"
@@ -1644,8 +1651,14 @@ defmodule Journey do
                 is_boolean(value)) do
     metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
-    Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
-    Journey.Executions.set_value(execution, node_name, value, metadata)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+    Journey.Graph.Validations.ensure_known_input_node_name(graph, node_name)
+
+    {result_execution, changed_keys} =
+      Journey.Executions.set_value(execution, node_name, value, metadata)
+
+    invoke_f_on_save_for_inputs(graph, result_execution.id, changed_keys, %{node_name => value})
+    result_execution
   end
 
   @doc group: "Value Operations"
@@ -1660,11 +1673,16 @@ defmodule Journey do
       when is_struct(execution, Execution) and is_map(values_map) do
     metadata = Keyword.get(opts, :metadata, nil)
     execution = Journey.Executions.migrate_to_current_graph_if_needed(execution)
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
     # Validate all node names and values first
-    validate_values_map(execution, values_map)
+    validate_values_map(graph, values_map)
 
-    Journey.Executions.set_values(execution, values_map, metadata)
+    {result_execution, changed_keys} =
+      Journey.Executions.set_values(execution, values_map, metadata)
+
+    invoke_f_on_save_for_inputs(graph, result_execution.id, changed_keys, values_map)
+    result_execution
   end
 
   # Multiple values via keyword list - converts to map
@@ -2309,11 +2327,30 @@ defmodule Journey do
     end
   end
 
-  defp validate_values_map(execution, values_map) do
+  defp invoke_f_on_save_for_inputs(_graph, _execution_id, [], _values_map), do: :ok
+
+  defp invoke_f_on_save_for_inputs(graph, execution_id, changed_keys, values_map) do
+    Enum.each(changed_keys, fn node_name ->
+      graph_node = Journey.Graph.find_node_by_name(graph, node_name)
+      node_f_on_save = if graph_node, do: Map.get(graph_node, :f_on_save), else: nil
+      value = Map.get(values_map, node_name)
+
+      Journey.Scheduler.invoke_f_on_save(
+        "[#{execution_id}] [#{node_name}] [set]",
+        node_f_on_save,
+        graph.f_on_save,
+        execution_id,
+        node_name,
+        {:ok, value}
+      )
+    end)
+  end
+
+  defp validate_values_map(graph, values_map) when is_struct(graph, Journey.Graph) do
     Enum.each(values_map, fn {node_name, value} ->
       validate_node_name(node_name)
       validate_value_type(node_name, value)
-      Journey.Graph.Validations.ensure_known_input_node_name(execution, node_name)
+      Journey.Graph.Validations.ensure_known_input_node_name(graph, node_name)
     end)
   end
 
