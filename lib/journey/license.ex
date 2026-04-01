@@ -48,48 +48,42 @@ defmodule Journey.License.Functions do
 
   defp print_license_info() do
     IO.puts("""
-    🚀 Journey is free for "small" projects (≤$10k/month in revenue).
-    🔑 All other uses require a commercial build key.
-    ⚙️ Set your Journey build key via #{@license_key_env_var_name} env variable (e.g. `export JOURNEY_BUILD_KEY=B...`).
-    ⚙️ Get and manage your free and commercial build keys at #{keys_url()}
-    🙏 Thank you for using Journey!
+    🚀 Journey is free for projects with ≤$10k/month in revenue.
+    🛠️ Set your key via `JOURNEY_BUILD_KEY` env var (e.g. `export JOURNEY_BUILD_KEY=B...`).
+    🔗 Get your free or commercial build key at #{keys_url()}
     """)
   end
 
   defp message_from_response("valid_commercial"),
-    do: "🙏 Thank you for supporting Journey development with a valid commercial build key!"
+    do: "✅ You are using a valid commercial build key. Thank you for supporting Journey development! 🙏"
 
   defp message_from_response("valid"),
-    do: "🙏 Thank you for supporting Journey development with a valid free build key!"
+    do: "✅ You are using a valid free build key. Thank you for supporting Journey development! 🙏"
 
   defp message_from_response("expired"),
-    do: "❓ The supplied Journey build key has expired."
+    do: "🛑 The supplied Journey build key has expired."
 
   defp message_from_response("user_inactive"),
-    do: "❓ The owner of the supplied Journey build key is inactive."
+    do: "🛑 The owner of the supplied Journey build key is inactive."
 
   defp message_from_response("inactive"),
-    do: "❓ The supplied Journey build key is inactive."
+    do: "🛑 The supplied Journey build key is inactive."
 
   defp message_from_response("verification_skipped"),
     do:
-      "❓ Skipping Journey build key verification (because #{@license_key_skip_verification_env_var_name} is set to 'true')."
+      "ℹ️ Skipping Journey build key verification (because #{@license_key_skip_verification_env_var_name} is set to 'true')."
 
   defp message_from_response("not_set"),
-    do: "❓ The Journey build key is not provided."
+    do: "🛑 No Journey build key provided."
 
   defp message_from_response("invalid"),
-    do: "❓ The Journey build key is not valid."
+    do: "🛑 The Journey build key is not valid."
 
   defp message_from_response("network_error"),
-    do:
-      """
-      ❓ Unable to verify your Journey build key due to a network error.
-      """
-      |> String.trim()
+    do: "⚠️ Unable to verify your Journey build key due to a network error."
 
   defp message_from_response(status),
-    do: "❓ Unable to verify Journey build key. (status: #{inspect(status)})"
+    do: "🛑 Unable to verify Journey build key. (status: #{inspect(status)})"
 
   defp keys_url() do
     "#{@license_key_service}/keys"
