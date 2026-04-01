@@ -1,7 +1,3 @@
-SHELL := /bin/bash -o pipefail
-
-TEST_LOG := test.log
-
 .PHONY: \
 	all \
 	build \
@@ -107,12 +103,8 @@ lint:
 
 test:
 	MIX_ENV=test mix clean
-	MIX_ENV=test mix ecto.drop && MIX_ENV=test mix ecto.create
-	if command -v unbuffer >/dev/null; then \
-		unbuffer mix test --warnings-as-errors --cover 2>&1 | tee $(TEST_LOG); \
-	else \
-		mix test --warnings-as-errors --cover 2>&1 | tee $(TEST_LOG); \
-	fi
+	MIX_ENV=test mix ecto.create
+	mix test --warnings-as-errors --cover
 
 
 test-load:
