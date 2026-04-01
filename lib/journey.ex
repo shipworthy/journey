@@ -2336,7 +2336,7 @@ defmodule Journey do
       value = Map.get(values_map, node_name)
 
       Journey.Scheduler.invoke_f_on_save(
-        "[#{execution_id}] [set/3]",
+        "[#{execution_id}] [#{node_name}] [set]",
         node_f_on_save,
         graph.f_on_save,
         execution_id,
