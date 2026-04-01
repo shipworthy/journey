@@ -40,10 +40,11 @@ The project relies heavily on `make` to orchestrate common tasks.
 ### Core Modules
 
 *   `Journey` (`lib/journey.ex`): The main public API for interacting with executions (start, set, get, load).
-*   `Journey.Node` (`lib/journey/node.ex`): Helper functions for defining graph nodes (`input`, `compute`, `mutate`, `tick_once`, `tick_recurring`).
+*   `Journey.Node` (`lib/journey/node.ex`): Helper functions for defining graph nodes (`input`, `compute`, `mutate`, `historian`, `archive`, `tick_once`, `tick_recurring`).
 *   `Journey.Graph`: Logic for graph definition and validation.
 *   `Journey.Repo`: Ecto repository configuration.
 *   `Journey.Scheduler`: Handles background processing and job execution.
+*   `Journey.Tools` (`lib/journey/tools.ex`): Utility functions for debugging and introspection.
 
 ### Key Concepts
 
@@ -53,6 +54,8 @@ The project relies heavily on `make` to orchestrate common tasks.
     *   `input`: Data provided from outside.
     *   `compute`: Data derived from other nodes via a function.
     *   `mutate`: Modifies the value of another node.
+    *   `historian`: Maintains a chronological log of changes to one or more nodes.
+    *   `archive`: Archives the execution when unblocked.
     *   `tick_*`: Time-based triggers.
 4.  **Persistence:** All state transitions (setting a value, computing a result) are immediately persisted to PostgreSQL.
 
