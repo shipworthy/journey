@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.10.50
+
+- **`f_on_save` for `input()` nodes**: `input()` nodes now support `f_on_save` callbacks; graph-wide `f_on_save` is now also invoked when input node values change. This might be a breaking change for some graphs. (#279)
+- **`f_on_save/3` API**: adding `f_on_save/3` and deprecating `f_on_save/2`, for a simpler API (#278)
+- **`compute()` docs**: improving documentation for `f_compute` (#282)
+- **Misc updates**: docs, deps, Elixir 1.19.5, license verbiage (#280)
+- **README fix**: fixing the name of Sasa Juric's talk (#281)
+
 ## v0.10.49
 
 - **Scheduler: fix max_retries edge condition**: fixing an edge condition where `max_retries` had no effect, test updates (#276)
