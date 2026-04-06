@@ -79,7 +79,7 @@ defmodule Journey.Node do
 
   `f_compute` is the function that computes the value of the node, once the upstream dependencies are satisfied.
   The function can accept either one or two arguments:
-   - **Arity 1**: `fn values_map -> ... end` - Receives a map of upstream node names to their values
+   - **Arity 1**: `fn values_map -> ... end` - Receives a map of node names to their values, for all nodes whose value has been set or computed
    - **Arity 2**: `fn values_map, value_nodes_map -> ... end` - Additionally receives value node data from upstream nodes
 
   The function must return a tuple:
@@ -93,16 +93,14 @@ defmodule Journey.Node do
    - `:revision` - The revision number when this value was set
    - `:set_time` - Unix timestamp when the value was set
 
-  This is useful for accessing contextual information like author IDs, timestamps, revision tracking, or data provenance.
+  This is useful for accessing contextual information like author IDs, timestamps, or revision tracking.
   The function is called when the upstream nodes are set, and the value is set to the result of the function.
 
-  Note that return values are JSON-serialized for storage. If the returned `value` or `reason` contains atoms 
-  (e.g., `{:ok, :pending}` or `{:ok, %{status: :active}}`), those atoms will be converted to 
-  strings when retrieved via `get_value/3`.
+  Note that return values will be JSON-serialized for storage. If the returned `value` or `reason` contains atoms (e.g., `{:ok, :pending}` or `{:ok, %{status: :active}}`), those atoms will be converted to strings when retrieved via `get_value/3`.
 
-  In the case of a failure, the function is automatically retried, up to `max_retries` times.
-  If the function fails after `max_retries` attempts, the node is marked as failed.
-  If the function does not return within `abandon_after_seconds`, it is considered abandoned, and it will be retried (up to `max_retries` times).
+  In the case of a failure, the function is automatically retried, up to `max_retries` times (default: 3).
+  If the function still fails after all retry attempts, the node's value remains unset.
+  If the function does not return within `abandon_after_seconds` (default: 60), it is considered abandoned, and it will be retried (up to `max_retries` times).
 
   ## Examples:
 
