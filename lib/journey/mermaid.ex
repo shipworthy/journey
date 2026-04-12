@@ -38,6 +38,98 @@ defmodule JourneyMermaidConverter do
     compose_mermaid(graph, legend: false)
   end
 
+  def compose_mermaid_execution(graph, node_statuses, opts \\ [])
+      when is_struct(graph, Journey.Graph) and is_map(node_statuses) do
+    show_legend = Keyword.get(opts, :legend, false)
+    show_timestamp = Keyword.get(opts, :timestamp, false)
+    nodes = graph.nodes
+
+    legend_section = if show_legend, do: [build_execution_legend(), ""], else: []
+    timestamp_section = if show_timestamp, do: generated_at(), else: []
+
+    [
+      "graph TD",
+      graph_section_with_status(nodes, graph.name, graph.version, node_statuses),
+      legend_section,
+      timestamp_section,
+      build_styling_with_nodes(nodes, show_legend)
+    ]
+    |> List.flatten()
+    |> Enum.join("\n")
+  end
+
+  defp graph_section_with_status(nodes, graph_name, graph_version, node_statuses) do
+    [
+      "    %% Graph",
+      "    subgraph Graph[\"🧩 '#{graph_name}', version #{graph_version}\"]",
+      build_node_definitions_with_status(nodes, node_statuses),
+      "",
+      build_connections(nodes),
+      "    end",
+      ""
+    ]
+  end
+
+  defp build_node_definitions_with_status(nodes, node_statuses) do
+    Enum.map(nodes, fn node -> build_node_definition_with_status(node, node_statuses) end)
+  end
+
+  defp build_node_definition_with_status(%Journey.Graph.Input{name: name}, node_statuses) do
+    emoji = Map.get(node_statuses, name, "")
+    "        #{sanitize_name(name)}[\"#{emoji} #{name}\"]"
+  end
+
+  defp build_node_definition_with_status(
+         %Journey.Graph.Step{name: name, type: type, f_compute: f_compute, mutates: mutates},
+         node_statuses
+       ) do
+    emoji = Map.get(node_statuses, name, "")
+    function_name = extract_function_name(f_compute)
+
+    cond do
+      mutates != nil ->
+        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]"
+
+      type == :compute ->
+        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})\"]"
+
+      type in [:schedule_once, :tick_once] ->
+        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_once node\"]"
+
+      type in [:schedule_recurring, :tick_recurring] ->
+        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_recurring node\"]"
+
+      true ->
+        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})\"]"
+    end
+  end
+
+  defp build_node_definition_with_status(%{name: name}, node_statuses) do
+    emoji = Map.get(node_statuses, name, "")
+    "        #{sanitize_name(name)}[\"#{emoji} #{name}\"]"
+  end
+
+  defp build_execution_legend do
+    [
+      "    %% Legend",
+      "    subgraph Legend[\"📖 Legend\"]",
+      "        LegendInput[\"Input Node<br/>User-provided data\"]",
+      "        LegendCompute[\"Compute Node<br/>Self-computing value\"]",
+      "        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]",
+      "        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]",
+      "    end",
+      "    subgraph StatusLegend[\"🏷️ Status\"]",
+      "        StatusSuccess[\"✅ Success / Set\"]",
+      "        StatusComputing[\"⏳ Computing\"]",
+      "        StatusBlocked[\"🚫 Blocked\"]",
+      "        StatusNotSet[\"⬜ Not yet set / picked up\"]",
+      "        StatusFailed[\"❌ Failed\"]",
+      "        StatusAbandoned[\"❓ Abandoned\"]",
+      "        StatusCancelled[\"🛑 Cancelled\"]",
+      "    end"
+    ]
+  end
+
   defp build_legend do
     [
       "    %% Legend",

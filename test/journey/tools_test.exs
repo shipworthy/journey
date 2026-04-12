@@ -667,6 +667,192 @@ defmodule Journey.ToolsTest do
     end
   end
 
+  describe "generate_mermaid_execution/2" do
+    test "all inputs unset - inputs show ⬜, computes show 🚫 (blocked)" do
+      graph =
+        Journey.new_graph("mermaid_execution_test_1_#{random_string()}", "v1", [
+          input(:name),
+          input(:title),
+          compute(:greeting, [:name, :title], fn %{name: name, title: title} ->
+            {:ok, "Hello, #{title} #{name}!"}
+          end)
+        ])
+
+      execution = Journey.start_execution(graph)
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+
+      assert mermaid =~ "⬜ name"
+      assert mermaid =~ "⬜ title"
+      assert mermaid =~ "🚫 greeting"
+    end
+
+    test "partial inputs set - set input shows ✅, compute still 🚫" do
+      graph =
+        Journey.new_graph("mermaid_execution_test_2_#{random_string()}", "v1", [
+          input(:name),
+          input(:title),
+          compute(:greeting, [:name, :title], fn %{name: name, title: title} ->
+            {:ok, "Hello, #{title} #{name}!"}
+          end)
+        ])
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set(execution, :name, "Alice")
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+
+      assert mermaid =~ "✅ name"
+      assert mermaid =~ "⬜ title"
+      assert mermaid =~ "🚫 greeting"
+    end
+
+    test "all inputs set, compute completes - all ✅" do
+      graph =
+        Journey.new_graph("mermaid_execution_test_3_#{random_string()}", "v1", [
+          input(:name),
+          input(:title),
+          compute(:greeting, [:name, :title], fn %{name: name, title: title} ->
+            {:ok, "Hello, #{title} #{name}!"}
+          end)
+        ])
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set(execution, :name, "Alice")
+      execution = Journey.set(execution, :title, "Dr.")
+      {:ok, _, _} = Journey.get(execution, :greeting, wait: :any)
+
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+
+      assert mermaid =~ "✅ name"
+      assert mermaid =~ "✅ title"
+      assert mermaid =~ "✅ greeting"
+    end
+
+    test "tick_once node gets status emoji" do
+      graph = Journey.Test.Support.create_test_graph1()
+      execution = Journey.start_execution(graph)
+
+      # Before setting input - tick_once should be blocked
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      assert mermaid =~ "🚫 time_to_issue_reminder_schedule"
+      assert mermaid =~ "tick_once node"
+
+      # Set input and wait for greeting to compute
+      execution = Journey.set(execution, :user_name, "Alice")
+      {:ok, _, _} = Journey.get(execution, :greeting, wait: :any)
+
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      assert mermaid =~ "✅ greeting"
+      # tick_once should now be unblocked (⬜) or computing (⏳) or done (✅)
+      refute mermaid =~ "🚫 time_to_issue_reminder_schedule"
+    end
+
+    test "mutate node gets status emoji" do
+      graph =
+        Journey.new_graph("mermaid_execution_mutate_#{random_string()}", "v1", [
+          input(:counter),
+          mutate(
+            :incrementer,
+            [:counter],
+            fn %{counter: c} ->
+              {:ok, c + 1}
+            end,
+            mutates: :counter
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Before setting input - mutate should be blocked
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      assert mermaid =~ "🚫 incrementer"
+      assert mermaid =~ "mutates: counter"
+
+      # Set input and wait for mutate to complete
+      execution = Journey.set(execution, :counter, 0)
+      {:ok, _, _} = Journey.get(execution, :incrementer, wait: :any)
+
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      assert mermaid =~ "✅ incrementer"
+    end
+
+    test "basic structure - graph TD, subgraph, edges, styling" do
+      graph =
+        Journey.new_graph("mermaid_execution_structure_#{random_string()}", "v1", [
+          input(:x),
+          compute(:y, [:x], fn %{x: x} -> {:ok, x * 2} end)
+        ])
+
+      execution = Journey.start_execution(graph)
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+
+      assert mermaid =~ "graph TD"
+      assert mermaid =~ "subgraph Graph["
+      assert mermaid =~ "-->"
+      assert mermaid =~ "classDef inputNode"
+      assert mermaid =~ "classDef computeNode"
+    end
+
+    test "include_legend option adds legend with status section" do
+      graph =
+        Journey.new_graph("mermaid_execution_legend_#{random_string()}", "v1", [
+          input(:x),
+          compute(:y, [:x], fn %{x: x} -> {:ok, x} end)
+        ])
+
+      execution = Journey.start_execution(graph)
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id, include_legend: true)
+
+      assert mermaid =~ "Legend["
+      assert mermaid =~ "StatusLegend["
+      assert mermaid =~ "✅ Success / Set"
+      assert mermaid =~ "🚫 Blocked"
+      assert mermaid =~ "⬜ Not yet set / picked up"
+    end
+
+    test "include_timestamp option adds timestamp" do
+      graph =
+        Journey.new_graph("mermaid_execution_ts_#{random_string()}", "v1", [
+          input(:x)
+        ])
+
+      execution = Journey.start_execution(graph)
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id, include_timestamp: true)
+
+      assert mermaid =~ "Generated at"
+      assert mermaid =~ "UTC"
+    end
+
+    test "no legend or timestamp by default" do
+      graph =
+        Journey.new_graph("mermaid_execution_defaults_#{random_string()}", "v1", [
+          input(:x)
+        ])
+
+      execution = Journey.start_execution(graph)
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+
+      refute mermaid =~ "Legend["
+      refute mermaid =~ "Generated at"
+    end
+
+    test "raises ArgumentError for invalid options" do
+      graph =
+        Journey.new_graph("mermaid_execution_invalid_#{random_string()}", "v1", [
+          input(:x)
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      assert_raise ArgumentError, fn ->
+        Journey.Tools.generate_mermaid_execution(execution.id, invalid_option: true)
+      end
+
+      assert_raise ArgumentError, fn ->
+        Journey.Tools.generate_mermaid_execution(execution.id, include_legend: "not_boolean")
+      end
+    end
+  end
+
   describe "outstanding_computations/1" do
     test "basic validation" do
       graph = Journey.Test.Support.create_test_graph1()

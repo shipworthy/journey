@@ -67,6 +67,7 @@ Functions:
 - `Journey.Tools.computation_state_to_text/1` - Converts a computation state atom to human-readable text with visual symbols
 - `Journey.Tools.computation_status_as_text/2` - Shows the status and dependencies for a single computation node
 - `Journey.Tools.generate_mermaid_graph/2` - Generates a Mermaid diagram representation of a Journey graph
+- `Journey.Tools.generate_mermaid_execution/2` - Generates a Mermaid diagram of an execution with runtime status emojis overlaid on each node
 - `Journey.Tools.introspect/1` - Introspects an execution's current state with a human-readable text summary including computation timing. This is the primary debugging and introspection tool
 - `Journey.Tools.retry_computation/2` - Retries a failed computation by making previous attempts stale
 - `Journey.Tools.summarize_as_data/1` - Generates structured data about an execution's current state
