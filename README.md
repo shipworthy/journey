@@ -12,7 +12,7 @@ Journey is a package for defining and running durable workflows, with persistenc
 
 ## Example
 
-The example below illustrates just that – defining and running a durable workflow.
+*(some output omitted for brevity)*
 
 ### Defining a Workflow as a Graph
 
@@ -39,8 +39,6 @@ iex> graph = Journey.new_graph(
 
 ### Running an execution of the graph:
 
-(some output omitted for brevity)
-
 ```elixir
 iex> execution = 
   graph
@@ -58,9 +56,9 @@ iex> Journey.values(execution) |> IO.inspect()
 }
 ```
 
-Each of the values is persisted to PostgreSQL as soon as it is set (`:name`, `:email_address`) or computed (`:greeting`).
+Each value is persisted to PostgreSQL as soon as it is set (`:name`, `:email_address`) or computed (`:greeting`).
 
-The function that computes (and prints) the greeting executes reliably (with retries, if needed), on any of the replicas of the application, across system restarts, re-deployments, and infrastructure outages.
+The greeting function executes reliably — with retries if needed — on any replica, across restarts, re-deployments, and outages.
 
 ### Introspecting an in-flight execution
 
@@ -111,7 +109,7 @@ Computations:
 
 ### "My infrastructure is back after an outage. Can I resume executions?"
 
-Sure! With Journey's durable workflows, as long as you have the ID of the execution, you can simply reload it and continue, as if nothing happened.
+Sure! As long as you have the ID of an execution, you can simply reload it and continue, as if nothing happened.
 
 Handling interruptions – infrastructure outages, re-deployments, scaling events, users reloading pages, or leaving and coming back later – is as easy as calling `Journey.load/1`.
 
@@ -176,11 +174,11 @@ The examples above demonstrated Journey's basic functionality:
 * **reloading** an execution after an interruption with `Journey.load/2`,
 * getting basic aggregated **analytics** with `Journey.Insights.FlowAnalytics.flow_analytics/3`.
 
-Also, notice the **code structure** that comes with an application's orchestration logic captured in its (somewhat self-documenting) graph.
+Notice how the graph captures your orchestration logic in a readable, self-documenting structure.
 
 ### What Did I Not See?
 
-Here are some of the more complex scenarios that are outside of the scope of this introductory example:
+Some features not shown in this example:
 
 - executing one-time or recurring scheduled events with `Journey.Node.tick_once/4` and `Journey.Node.tick_recurring/4` nodes, 
 - mutating values with `Journey.Node.mutate/4` nodes, 
@@ -189,35 +187,31 @@ Here are some of the more complex scenarios that are outside of the scope of thi
 - archiving executions with `Journey.Node.archive/3` nodes,
 - emitting change notification events with `f_on_save/3`
 
-You can see some of this functionality in JourDash, a play-demo food delivery service, running on https://jourdash.gojourney.dev Its source code is available on GitHub: https://github.com/shipworthy/jour_dash
+These features are covered in [Basic Concepts](BASIC_CONCEPTS.md) and demonstrated in the [example applications](#explore-the-demos) below.
 
 
 ## Can I Just Write This by Hand?
 
 Absolutely!
 
-Implementing persistence, retries, orchestrations, the logic for resuming things after crashes, horizontal scalability, scheduling, tracking the history of changes, helper functions for introspecting the state of individual executions and of the system, figuring out ways to structure the code... many of us have implemented – and debugged – this important non-trivial plumbing multiple times!
+Implementing persistence, retries, orchestrations, the logic for resuming after a crash, horizontal scalability, scheduling, tracking the history of changes, tooling for introspecting the state of individual executions and of the system, figuring out ways to structure the code... many of us have implemented – and debugged – this important non-trivial plumbing multiple times!
 
-Journey handles those things for you, saving you the complexity of thousands of lines of this non-trivial plumbing code.
+Journey handles those things for you, saving you the complexity of writing and maintaining thousands of lines of non-trivial plumbing code.
 
-Instead, you can spend your attention on building your actual application – whether its workflows are tiny and linear or large and conditional.
+Instead, you can give your attention to building your actual application.
 
 
 ## Is Journey a SaaS? Nope.
 
-Is Journey ("Durable Workflows as a Package") a SaaS? Do I need to ship my data to the cloud? Do I need to somehow deploy Journey in my infrastructure?
-
-Absolutely not!
-
 Journey is merely a package, so you get all the goodies of executing durable workflows by simply importing it in your application and pointing it to a PostgreSQL database.
 
-No SaaS solution to subscribe to, no third-party services to ship your customers' data to, no remote runtime dependencies to take on, no need to deploy and operate a separate solution in your own infrastructure. All your data stays with you.
+No third-party services, no extra infrastructure, no remote runtime dependencies. All your data stays with you.
 
 Journey is durable workflows in a package.
 
 ## Installation and Configuration
 
-To use Journey in your application, you will need to install the package, configure its database, optionally configure its logging, and tell it about the graphs you want Journey to be aware of.
+Journey setup has four steps:
 
 1. The package can be installed by adding `journey` to your list of dependencies in `mix.exs`:
 
@@ -302,31 +296,34 @@ config :journey, :graphs, [
 To get in touch, report an issue, or ask a question, please create a GitHub issue: https://github.com/shipworthy/journey/issues
 
 
-## Full Documentation
+## What's Next
 
-Documentation can be found at <https://hexdocs.pm/journey>.
+### Learn the Concepts
 
+[Basic Concepts](BASIC_CONCEPTS.md) walks through graph structure, persistence, conditional
+flows, scheduling, and data removal with worked examples.
 
-## Example Applications
+[Migration Strategy](MIGRATION_STRATEGY.md) covers when to version a graph vs. modify it
+in place.
 
-There are a couple of open-source example applications that demonstrate the use of Journey: JourDash Food Delivery Service and Horoscopes.
+### See It in Action
 
+Three blog posts, from simple to advanced:
 
-### JourDash Food Delivery Service
+1. [Building a Useless Machine in Elixir](https://dev.to/markmark/building-a-useless-machine-in-elixir-42i1) — reactivity in 15 lines of code
+2. [The Mystery of a Missing Greeting](https://dev.to/markmark/the-mystery-of-a-missing-greeting-3ebf) — debugging with introspection
+3. [Recruiting with AI and Elixir](https://dev.to/markmark/recruiting-with-ai-and-elixir-4cc5) — conditional workflows, `f_on_save` callbacks, AI integration
 
-JourDash is a play-demo food delivery service. It uses Journey to conduct its food "deliveries" – from pickup to drop-off (or handoff!).
+### Explore the Demos
 
-You can see the application running on https://jourdash.gojourney.dev/
+| App | What it shows | Live | Source |
+|-----|---------------|------|--------|
+| [JourDash](https://jourdash.gojourney.dev) | Multi-step delivery workflow with analytics | [demo](https://jourdash.gojourney.dev) | [source](https://github.com/shipworthy/jour_dash) |
+| [Horoscopes](https://horoscopes.gojourney.dev) | Session orchestration with user interaction | [demo](https://horoscopes.gojourney.dev) | [source](https://github.com/shipworthy/journey_horoscopes) |
+| [Recruit](https://github.com/shipworthy/recruit) | AI-powered resume screening with conditional workflows | — | [source](https://github.com/shipworthy/recruit) |
 
-The source is available on GitHub: https://github.com/shipworthy/jour_dash
+### Reference
 
-
-### Horoscopes
-
-Horoscopes is a Phoenix application for computing "horoscopes".
-
-It uses Journey to orchestrate the visitor experience, while giving the user a chance to peek behind the scenes.
-
-The application is running at https://horoscopes.gojourney.dev
-
-Its source is available on GitHub: https://github.com/shipworthy/journey_horoscopes
+- [Modules and Functions](MODULES_AND_FUNCTIONS.md) — quick API reference
+- [Changelog](CHANGELOG.md)
+- [gojourney.dev](https://gojourney.dev) — project home, licensing, and FAQ
