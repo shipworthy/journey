@@ -187,7 +187,7 @@ Some features not shown in this example:
 - archiving executions with `Journey.Node.archive/3` nodes,
 - emitting change notification events with `f_on_save/3`
 
-You can see some of this functionality in JourDash, a play-demo food delivery service, running on https://jourdash.gojourney.dev Its source code is available on GitHub: https://github.com/shipworthy/jour_dash
+These features are covered in [Basic Concepts](BASIC_CONCEPTS.md) and demonstrated in the [example applications](#explore-the-demos) below.
 
 
 ## Can I Just Write This by Hand?
@@ -296,31 +296,34 @@ config :journey, :graphs, [
 To get in touch, report an issue, or ask a question, please create a GitHub issue: https://github.com/shipworthy/journey/issues
 
 
-## Full Documentation
+## What's Next
 
-Documentation can be found at <https://hexdocs.pm/journey>.
+### Learn the Concepts
 
+[Basic Concepts](BASIC_CONCEPTS.md) walks through graph structure, persistence, conditional
+flows, scheduling, and data removal with worked examples.
 
-## Example Applications
+[Migration Strategy](MIGRATION_STRATEGY.md) covers when to version a graph vs. modify it
+in place.
 
-Two open-source demo apps:
+### See It in Action
 
+Three blog posts, from simple to advanced:
 
-### JourDash Food Delivery Service
+1. [Building a Useless Machine in Elixir](https://dev.to/markmark/building-a-useless-machine-in-elixir-42i1) — reactivity in 15 lines of code
+2. [The Mystery of a Missing Greeting](https://dev.to/markmark/the-mystery-of-a-missing-greeting-3ebf) — debugging with introspection
+3. [Recruiting with AI and Elixir](https://dev.to/markmark/recruiting-with-ai-and-elixir-4cc5) — conditional workflows, `f_on_save` callbacks, AI integration
 
-JourDash is a play-demo food delivery service. It uses Journey to conduct its food "deliveries" – from pickup to drop-off (or handoff!).
+### Explore the Demos
 
-You can see the application running on https://jourdash.gojourney.dev/
+| App | What it shows | Live | Source |
+|-----|---------------|------|--------|
+| [JourDash](https://jourdash.gojourney.dev) | Multi-step delivery workflow with analytics | [demo](https://jourdash.gojourney.dev) | [source](https://github.com/shipworthy/jour_dash) |
+| [Horoscopes](https://horoscopes.gojourney.dev) | Session orchestration with user interaction | [demo](https://horoscopes.gojourney.dev) | [source](https://github.com/shipworthy/journey_horoscopes) |
+| [Recruit](https://github.com/shipworthy/recruit) | AI-powered resume screening with conditional workflows | — | [source](https://github.com/shipworthy/recruit) |
 
-The source is available on GitHub: https://github.com/shipworthy/jour_dash
+### Reference
 
-
-### Horoscopes
-
-Horoscopes is a Phoenix application for computing "horoscopes".
-
-It uses Journey to orchestrate the visitor experience, while giving the user a chance to peek behind the scenes.
-
-The application is running at https://horoscopes.gojourney.dev
-
-Its source is available on GitHub: https://github.com/shipworthy/journey_horoscopes
+- [Modules and Functions](MODULES_AND_FUNCTIONS.md) — quick API reference
+- [Changelog](CHANGELOG.md)
+- [gojourney.dev](https://gojourney.dev) — project home, licensing, and FAQ
