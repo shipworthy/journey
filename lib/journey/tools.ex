@@ -726,6 +726,118 @@ defmodule Journey.Tools do
     JourneyMermaidConverter.compose_mermaid(graph, mermaid_opts)
   end
 
+  @doc """
+  Generates a Mermaid diagram of an execution with runtime status emojis overlaid on each node.
+
+  Similar to `generate_mermaid_graph/2`, but takes an execution ID and shows the current
+  state of each node using status emojis:
+
+  - ✅ Success / Set (input with value, or compute with `:success`)
+  - ⏳ Computing (currently executing)
+  - 🚫 Blocked (upstream dependencies not satisfied)
+  - ⬜ Not yet set / picked up (input without value, or unblocked compute awaiting pickup)
+  - ❌ Failed
+  - ❓ Abandoned
+  - 🛑 Cancelled
+
+  ## Example
+
+      iex> Journey.Tools.generate_mermaid_execution("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
+      graph TD
+          %% Graph
+          subgraph Graph["🧩 'my_graph', version v1"]
+              ...
+          end
+      ...
+      :ok
+
+  ## Parameters
+  - `execution_id` - The ID of the execution to visualize
+
+  ## Options
+  * `:include_legend` - Include node type and status legend (default: `false`)
+  * `:include_timestamp` - Include generation timestamp (default: `false`)
+  """
+  def generate_mermaid_execution(execution_id, opts \\ []) when is_binary(execution_id) do
+    opts_schema = [
+      include_legend: [is: :boolean],
+      include_timestamp: [is: :boolean]
+    ]
+
+    KeywordValidator.validate!(opts, opts_schema)
+
+    execution =
+      case Journey.load(execution_id) do
+        nil -> raise ArgumentError, "Execution '#{execution_id}' not found"
+        exec -> exec
+      end
+
+    graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
+
+    if graph == nil do
+      raise "Graph '#{execution.graph_name}' not found in catalog."
+    end
+
+    node_statuses = build_node_status_map(graph, execution)
+
+    mermaid_opts =
+      opts
+      |> Keyword.take([:include_legend, :include_timestamp])
+      |> Enum.map(fn
+        {:include_legend, value} -> {:legend, value}
+        {:include_timestamp, value} -> {:timestamp, value}
+      end)
+
+    JourneyMermaidConverter.compose_mermaid_execution(graph, node_statuses, mermaid_opts)
+  end
+
+  defp build_node_status_map(graph, execution) do
+    graph.nodes
+    |> Enum.map(fn node -> {node.name, node_status_emoji(node, execution)} end)
+    |> Map.new()
+  end
+
+  defp node_status_emoji(%Graph.Input{name: name}, execution) do
+    value = Enum.find(execution.values, fn v -> v.node_name == name end)
+
+    if value != nil and value.set_time != nil do
+      "✅"
+    else
+      "⬜"
+    end
+  end
+
+  defp node_status_emoji(%Graph.Step{name: name, gated_by: gated_by}, execution) do
+    state = most_recent_computation_state(execution, name)
+    computation_state_to_emoji(state, execution.values, gated_by)
+  end
+
+  defp most_recent_computation_state(execution, node_name) do
+    execution.computations
+    |> Enum.filter(fn c -> c.node_name == node_name end)
+    |> case do
+      [] -> :no_computations
+      comps -> comps |> Enum.max_by(fn c -> {c.ex_revision_at_completion || -1, c.id} end) |> Map.get(:state)
+    end
+  end
+
+  defp computation_state_to_emoji(:success, _values, _gated_by), do: "✅"
+  defp computation_state_to_emoji(:computing, _values, _gated_by), do: "⏳"
+  defp computation_state_to_emoji(:failed, _values, _gated_by), do: "❌"
+  defp computation_state_to_emoji(:abandoned, _values, _gated_by), do: "❓"
+  defp computation_state_to_emoji(:cancelled, _values, _gated_by), do: "🛑"
+
+  defp computation_state_to_emoji(not_started, values, gated_by)
+       when not_started in [:not_set, :no_computations] do
+    readiness =
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        values,
+        gated_by
+      )
+
+    if readiness.ready?, do: "⬜", else: "🚫"
+  end
+
   defp f_name(fun) when is_function(fun) do
     fi =
       fun
