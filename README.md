@@ -111,7 +111,7 @@ Computations:
 
 ### "My infrastructure is back after an outage. Can I resume executions?"
 
-Sure! With Journey's durable workflows, as long as you have the ID of the execution, you can simply reload it and continue, as if nothing happened.
+Sure! As long as you have the ID of an execution, you can simply reload it and continue, as if nothing happened.
 
 Handling interruptions – infrastructure outages, re-deployments, scaling events, users reloading pages, or leaving and coming back later – is as easy as calling `Journey.load/1`.
 
@@ -196,11 +196,11 @@ You can see some of this functionality in JourDash, a play-demo food delivery se
 
 Absolutely!
 
-Implementing persistence, retries, orchestrations, the logic for resuming things after crashes, horizontal scalability, scheduling, tracking the history of changes, helper functions for introspecting the state of individual executions and of the system, figuring out ways to structure the code... many of us have implemented – and debugged – this important non-trivial plumbing multiple times!
+Implementing persistence, retries, orchestrations, the logic for resuming after a crash, horizontal scalability, scheduling, tracking the history of changes, tooling for introspecting the state of individual executions and of the system, figuring out ways to structure the code... many of us have implemented – and debugged – this important non-trivial plumbing multiple times!
 
-Journey handles those things for you, saving you the complexity of thousands of lines of this non-trivial plumbing code.
+Journey handles those things for you, saving you the complexity of writing and maintaining thousands of lines of non-trivial plumbing code.
 
-Instead, you can spend your attention on building your actual application – whether its workflows are tiny and linear or large and conditional.
+Instead, you can give your attention to building your actual application.
 
 
 ## Is Journey a SaaS? Nope.
