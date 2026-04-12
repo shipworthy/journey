@@ -561,11 +561,11 @@ defmodule Journey.ToolsTest do
   end
 
   describe "generate_mermaid_graph/2" do
-    test "backward compatibility - with legend (for existing behavior)" do
+    test "full output with timestamp" do
       graph = Journey.Test.Support.create_test_graph1()
 
       mermaid_graph =
-        Journey.Tools.generate_mermaid_graph(graph, include_legend: true, include_timestamp: true)
+        Journey.Tools.generate_mermaid_graph(graph, include_timestamp: true)
         |> String.split("\n")
         |> Enum.filter(fn line ->
           !String.contains?(line, "Generated at")
@@ -573,7 +573,7 @@ defmodule Journey.ToolsTest do
         |> Enum.join("\n")
 
       assert mermaid_graph ==
-               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[\"greeting<br/>(anonymous fn)\"]\n        time_to_issue_reminder_schedule[\"time_to_issue_reminder_schedule<br/>(anonymous fn)<br/>tick_once node\"]\n        reminder[\"reminder<br/>(anonymous fn)\"]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Legend\n    subgraph Legend[\"📖 Legend\"]\n        LegendInput[\"Input Node<br/>User-provided data\"]\n        LegendCompute[\"Compute Node<br/>Self-computing value\"]\n        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]\n        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000\n    classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000\n    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000\n    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000\n\n    %% Apply styles to legend nodes\n    class LegendInput inputNode\n    class LegendCompute computeNode\n    class LegendSchedule scheduleNode\n    class LegendMutate mutateNode\n\n    %% Apply styles to actual nodes\n    class user_name,last_updated_at,execution_id inputNode\n    class reminder,greeting computeNode\n    class time_to_issue_reminder_schedule scheduleNode"
+               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[[\"greeting<br/>(anonymous fn)\"]]\n        time_to_issue_reminder_schedule[[\"time_to_issue_reminder_schedule<br/>(anonymous fn)<br/>tick_once node\"]]\n        reminder[[\"reminder<br/>(anonymous fn)\"]]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000\n\n    %% Apply styles to nodes\n    class execution_id,last_updated_at,user_name,greeting,time_to_issue_reminder_schedule,reminder defaultNode"
     end
 
     test "default - flow only (no legend, no timestamp)" do
@@ -596,22 +596,14 @@ defmodule Journey.ToolsTest do
       assert mermaid_graph =~ "reminder"
     end
 
-    test "with include_legend: true only" do
+    test "include_legend is accepted but ignored with a deprecation warning" do
       graph = Journey.Test.Support.create_test_graph1()
 
-      mermaid_graph = Journey.Tools.generate_mermaid_graph(graph, include_legend: true)
-
-      # Should contain legend
-      assert mermaid_graph =~ "Legend["
-      assert mermaid_graph =~ "LegendInput"
-      assert mermaid_graph =~ "LegendCompute"
-
-      # Should not contain timestamp
-      refute mermaid_graph =~ "Generated at"
-
-      # Should contain the main graph
-      assert mermaid_graph =~ "graph TD"
-      assert mermaid_graph =~ "subgraph Graph["
+      assert ExUnit.CaptureLog.capture_log(fn ->
+               mermaid_graph = Journey.Tools.generate_mermaid_graph(graph, include_legend: true)
+               refute mermaid_graph =~ "Legend["
+               assert mermaid_graph =~ "graph TD"
+             end) =~ "include_legend option is deprecated"
     end
 
     test "with include_timestamp: true only" do
@@ -632,26 +624,20 @@ defmodule Journey.ToolsTest do
       assert mermaid_graph =~ "subgraph Graph["
     end
 
-    test "with both include_legend and include_timestamp" do
+    test "include_legend with include_timestamp - legend ignored, timestamp included" do
       graph = Journey.Test.Support.create_test_graph1()
 
-      mermaid_graph =
-        Journey.Tools.generate_mermaid_graph(graph,
-          include_legend: true,
-          include_timestamp: true
-        )
+      assert ExUnit.CaptureLog.capture_log(fn ->
+               mermaid_graph =
+                 Journey.Tools.generate_mermaid_graph(graph,
+                   include_legend: true,
+                   include_timestamp: true
+                 )
 
-      # Should contain legend
-      assert mermaid_graph =~ "Legend["
-      assert mermaid_graph =~ "LegendInput"
-
-      # Should contain timestamp
-      assert mermaid_graph =~ "Generated at"
-      assert mermaid_graph =~ "UTC"
-
-      # Should contain the main graph
-      assert mermaid_graph =~ "graph TD"
-      assert mermaid_graph =~ "subgraph Graph["
+               refute mermaid_graph =~ "Legend["
+               assert mermaid_graph =~ "Generated at"
+               assert mermaid_graph =~ "graph TD"
+             end) =~ "include_legend option is deprecated"
     end
 
     test "raises error for invalid options" do
@@ -788,8 +774,10 @@ defmodule Journey.ToolsTest do
       assert mermaid =~ "graph TD"
       assert mermaid =~ "subgraph Graph["
       assert mermaid =~ "-->"
-      assert mermaid =~ "classDef inputNode"
-      assert mermaid =~ "classDef computeNode"
+      assert mermaid =~ "classDef setNode"
+      assert mermaid =~ "classDef computingNode"
+      assert mermaid =~ "classDef errorNode"
+      assert mermaid =~ "classDef neutralNode"
     end
 
     test "include_legend option adds legend with status section" do
@@ -802,7 +790,7 @@ defmodule Journey.ToolsTest do
       execution = Journey.start_execution(graph)
       mermaid = Journey.Tools.generate_mermaid_execution(execution.id, include_legend: true)
 
-      assert mermaid =~ "Legend["
+      refute mermaid =~ "Legend[\"📖"
       assert mermaid =~ "StatusLegend["
       assert mermaid =~ "✅ Success / Set"
       assert mermaid =~ "🚫 Blocked"

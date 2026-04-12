@@ -2,20 +2,17 @@ defmodule JourneyMermaidConverter do
   @moduledoc false
 
   def compose_mermaid(graph, opts \\ []) when is_struct(graph, Journey.Graph) do
-    show_legend = Keyword.get(opts, :legend, false)
     show_timestamp = Keyword.get(opts, :timestamp, false)
     nodes = graph.nodes
 
-    legend_section = if show_legend, do: [build_legend(), ""], else: []
     timestamp_section = if show_timestamp, do: generated_at(), else: []
 
     # Build the mermaid definition
     [
       "graph TD",
       graph_section(nodes, graph.name, graph.version),
-      legend_section,
       timestamp_section,
-      build_styling_with_nodes(nodes, show_legend)
+      build_graph_styling(nodes)
     ]
     |> List.flatten()
     |> Enum.join("\n")
@@ -33,11 +30,6 @@ defmodule JourneyMermaidConverter do
     ]
   end
 
-  # Add a version without legend for cleaner graphs
-  def compose_mermaid_no_legend(graph) when is_struct(graph, Journey.Graph) do
-    compose_mermaid(graph, legend: false)
-  end
-
   def compose_mermaid_execution(graph, node_statuses, opts \\ [])
       when is_struct(graph, Journey.Graph) and is_map(node_statuses) do
     show_legend = Keyword.get(opts, :legend, false)
@@ -52,7 +44,7 @@ defmodule JourneyMermaidConverter do
       graph_section_with_status(nodes, graph.name, graph.version, node_statuses),
       legend_section,
       timestamp_section,
-      build_styling_with_nodes(nodes, show_legend)
+      build_execution_styling(nodes, node_statuses)
     ]
     |> List.flatten()
     |> Enum.join("\n")
@@ -88,19 +80,19 @@ defmodule JourneyMermaidConverter do
 
     cond do
       mutates != nil ->
-        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]]"
 
       type == :compute ->
-        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})\"]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})\"]]"
 
       type in [:schedule_once, :tick_once] ->
-        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_once node\"]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_once node\"]]"
 
       type in [:schedule_recurring, :tick_recurring] ->
-        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_recurring node\"]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_recurring node\"]]"
 
       true ->
-        "        #{sanitize_name(name)}[\"#{emoji} #{name}<br/>(#{function_name})\"]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})\"]]"
     end
   end
 
@@ -112,12 +104,6 @@ defmodule JourneyMermaidConverter do
   defp build_execution_legend do
     [
       "    %% Legend",
-      "    subgraph Legend[\"📖 Legend\"]",
-      "        LegendInput[\"Input Node<br/>User-provided data\"]",
-      "        LegendCompute[\"Compute Node<br/>Self-computing value\"]",
-      "        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]",
-      "        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]",
-      "    end",
       "    subgraph StatusLegend[\"🏷️ Status\"]",
       "        StatusSuccess[\"✅ Success / Set\"]",
       "        StatusComputing[\"⏳ Computing\"]",
@@ -126,18 +112,6 @@ defmodule JourneyMermaidConverter do
       "        StatusFailed[\"❌ Failed\"]",
       "        StatusAbandoned[\"❓ Abandoned\"]",
       "        StatusCancelled[\"🛑 Cancelled\"]",
-      "    end"
-    ]
-  end
-
-  defp build_legend do
-    [
-      "    %% Legend",
-      "    subgraph Legend[\"📖 Legend\"]",
-      "        LegendInput[\"Input Node<br/>User-provided data\"]",
-      "        LegendCompute[\"Compute Node<br/>Self-computing value\"]",
-      "        LegendSchedule[\"Schedule Node<br/>Scheduled trigger\"]",
-      "        LegendMutate[\"Mutate Node<br/>Mutates the value of another node\"]",
       "    end"
     ]
   end
@@ -156,25 +130,19 @@ defmodule JourneyMermaidConverter do
 
     cond do
       mutates != nil ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]"
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]]"
 
       type == :compute ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})\"]]"
 
-      type == :schedule_once ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_once node\"]"
+      type in [:schedule_once, :tick_once] ->
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>tick_once node\"]]"
 
-      type == :tick_once ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_once node\"]"
-
-      type == :schedule_recurring ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_recurring node\"]"
-
-      type == :tick_recurring ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})<br/>tick_recurring node\"]"
+      type in [:schedule_recurring, :tick_recurring] ->
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>tick_recurring node\"]]"
 
       true ->
-        "        #{sanitize_name(name)}[\"#{name}<br/>(#{function_name})\"]"
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})\"]]"
     end
   end
 
@@ -255,73 +223,49 @@ defmodule JourneyMermaidConverter do
     |> String.replace(~r/[^a-zA-Z0-9_]/, "_")
   end
 
-  defp build_styling_with_nodes(nodes, show_legend) do
-    # Categorize nodes by type
-    {input_nodes, compute_nodes, schedule_nodes, mutate_nodes} =
-      categorize_nodes(nodes)
-
-    legend_styles =
-      if show_legend do
-        [
-          "    %% Apply styles to legend nodes",
-          "    class LegendInput inputNode",
-          "    class LegendCompute computeNode",
-          "    class LegendSchedule scheduleNode",
-          "    class LegendMutate mutateNode",
-          ""
-        ]
-      else
-        []
-      end
+  defp build_graph_styling(nodes) do
+    all_nodes = Enum.map(nodes, fn node -> sanitize_name(node.name) end)
 
     [
       "    %% Styling",
-      "    classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000",
-      "    classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000",
-      "    classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000",
-      "    classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000",
+      "    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000",
       "",
-      legend_styles,
-      "    %% Apply styles to actual nodes",
-      build_class_assignment("inputNode", input_nodes),
-      build_class_assignment("computeNode", compute_nodes),
-      build_class_assignment("scheduleNode", schedule_nodes),
-      build_class_assignment("mutateNode", mutate_nodes)
+      "    %% Apply styles to nodes",
+      build_class_assignment("defaultNode", all_nodes)
     ]
     |> List.flatten()
     |> Enum.reject(&(&1 == []))
   end
 
-  defp categorize_nodes(nodes) do
-    Enum.reduce(nodes, {[], [], [], []}, fn node, {input, compute, schedule, mutate} ->
-      sanitized_name = sanitize_name(node.name)
+  defp build_execution_styling(nodes, node_statuses) do
+    {set_nodes, computing_nodes, error_nodes, neutral_nodes} =
+      Enum.reduce(nodes, {[], [], [], []}, fn node, {set, computing, error, neutral} ->
+        sanitized_name = sanitize_name(node.name)
+        emoji = Map.get(node_statuses, node.name, "")
 
-      case node do
-        %Journey.Graph.Input{} ->
-          {[sanitized_name | input], compute, schedule, mutate}
+        case emoji do
+          "✅" -> {[sanitized_name | set], computing, error, neutral}
+          "⏳" -> {set, [sanitized_name | computing], error, neutral}
+          e when e in ["❌", "🛑", "❓"] -> {set, computing, [sanitized_name | error], neutral}
+          _ -> {set, computing, error, [sanitized_name | neutral]}
+        end
+      end)
 
-        %Journey.Graph.Step{mutates: mutates} when mutates != nil ->
-          {input, compute, schedule, [sanitized_name | mutate]}
-
-        %Journey.Graph.Step{type: :compute} ->
-          {input, [sanitized_name | compute], schedule, mutate}
-
-        %Journey.Graph.Step{type: :schedule_once} ->
-          {input, compute, [sanitized_name | schedule], mutate}
-
-        %Journey.Graph.Step{type: :tick_once} ->
-          {input, compute, [sanitized_name | schedule], mutate}
-
-        %Journey.Graph.Step{type: :schedule_recurring} ->
-          {input, compute, [sanitized_name | schedule], mutate}
-
-        %Journey.Graph.Step{type: :tick_recurring} ->
-          {input, compute, [sanitized_name | schedule], mutate}
-
-        _ ->
-          {input, [sanitized_name | compute], schedule, mutate}
-      end
-    end)
+    [
+      "    %% Styling",
+      "    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000",
+      "    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000",
+      "    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000",
+      "    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000",
+      "",
+      "    %% Apply styles to nodes",
+      build_class_assignment("setNode", set_nodes),
+      build_class_assignment("computingNode", computing_nodes),
+      build_class_assignment("errorNode", error_nodes),
+      build_class_assignment("neutralNode", neutral_nodes)
+    ]
+    |> List.flatten()
+    |> Enum.reject(&(&1 == []))
   end
 
   defp build_class_assignment(_class_name, []), do: []

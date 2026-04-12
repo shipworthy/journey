@@ -688,7 +688,7 @@ defmodule Journey.Tools do
   Generates a Mermaid diagram representation of a Journey graph.
 
   Converts a graph into Mermaid syntax for visualization. By default returns only
-  the flow diagram without legend or timestamp.
+  the flow diagram without timestamp.
 
   ## Quick Example
 
@@ -696,15 +696,13 @@ defmodule Journey.Tools do
   # Just the flow
   mermaid = Journey.Tools.generate_mermaid_graph(graph)
 
-  # Include legend and timestamp
+  # Include timestamp
   mermaid = Journey.Tools.generate_mermaid_graph(graph,
-    include_legend: true,
     include_timestamp: true
   )
   ```
 
   ## Options
-  * `:include_legend` - Include node type legend (default: `false`)
   * `:include_timestamp` - Include generation timestamp (default: `false`)
   """
   def generate_mermaid_graph(graph, opts \\ []) do
@@ -715,11 +713,14 @@ defmodule Journey.Tools do
 
     KeywordValidator.validate!(opts, opts_schema)
 
+    if Keyword.get(opts, :include_legend) do
+      Logger.warning("include_legend option is deprecated for generate_mermaid_graph/2 and will be removed in a future version")
+    end
+
     mermaid_opts =
       opts
-      |> Keyword.take([:include_legend, :include_timestamp])
+      |> Keyword.take([:include_timestamp])
       |> Enum.map(fn
-        {:include_legend, value} -> {:legend, value}
         {:include_timestamp, value} -> {:timestamp, value}
       end)
 
