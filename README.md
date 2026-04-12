@@ -12,7 +12,7 @@ Journey is a package for defining and running durable workflows, with persistenc
 
 ## Example
 
-The example below illustrates just that – defining and running a durable workflow.
+*(some output omitted for brevity)*
 
 ### Defining a Workflow as a Graph
 
@@ -39,8 +39,6 @@ iex> graph = Journey.new_graph(
 
 ### Running an execution of the graph:
 
-(some output omitted for brevity)
-
 ```elixir
 iex> execution = 
   graph
@@ -58,9 +56,9 @@ iex> Journey.values(execution) |> IO.inspect()
 }
 ```
 
-Each of the values is persisted to PostgreSQL as soon as it is set (`:name`, `:email_address`) or computed (`:greeting`).
+Each value is persisted to PostgreSQL as soon as it is set (`:name`, `:email_address`) or computed (`:greeting`).
 
-The function that computes (and prints) the greeting executes reliably (with retries, if needed), on any of the replicas of the application, across system restarts, re-deployments, and infrastructure outages.
+The greeting function executes reliably — with retries if needed — on any replica, across restarts, re-deployments, and outages.
 
 ### Introspecting an in-flight execution
 
@@ -176,11 +174,11 @@ The examples above demonstrated Journey's basic functionality:
 * **reloading** an execution after an interruption with `Journey.load/2`,
 * getting basic aggregated **analytics** with `Journey.Insights.FlowAnalytics.flow_analytics/3`.
 
-Also, notice the **code structure** that comes with an application's orchestration logic captured in its (somewhat self-documenting) graph.
+Notice how the graph captures your orchestration logic in a readable, self-documenting structure.
 
 ### What Did I Not See?
 
-Here are some of the more complex scenarios that are outside of the scope of this introductory example:
+Some features not shown in this example:
 
 - executing one-time or recurring scheduled events with `Journey.Node.tick_once/4` and `Journey.Node.tick_recurring/4` nodes, 
 - mutating values with `Journey.Node.mutate/4` nodes, 
@@ -205,19 +203,15 @@ Instead, you can give your attention to building your actual application.
 
 ## Is Journey a SaaS? Nope.
 
-Is Journey ("Durable Workflows as a Package") a SaaS? Do I need to ship my data to the cloud? Do I need to somehow deploy Journey in my infrastructure?
-
-Absolutely not!
-
 Journey is merely a package, so you get all the goodies of executing durable workflows by simply importing it in your application and pointing it to a PostgreSQL database.
 
-No SaaS solution to subscribe to, no third-party services to ship your customers' data to, no remote runtime dependencies to take on, no need to deploy and operate a separate solution in your own infrastructure. All your data stays with you.
+No third-party services, no extra infrastructure, no remote runtime dependencies. All your data stays with you.
 
 Journey is durable workflows in a package.
 
 ## Installation and Configuration
 
-To use Journey in your application, you will need to install the package, configure its database, optionally configure its logging, and tell it about the graphs you want Journey to be aware of.
+Journey setup has four steps:
 
 1. The package can be installed by adding `journey` to your list of dependencies in `mix.exs`:
 
@@ -309,7 +303,7 @@ Documentation can be found at <https://hexdocs.pm/journey>.
 
 ## Example Applications
 
-There are a couple of open-source example applications that demonstrate the use of Journey: JourDash Food Delivery Service and Horoscopes.
+Two open-source demo apps:
 
 
 ### JourDash Food Delivery Service
