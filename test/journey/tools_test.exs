@@ -773,6 +773,7 @@ defmodule Journey.ToolsTest do
 
       assert mermaid =~ "graph TD"
       assert mermaid =~ "subgraph Graph["
+      assert mermaid =~ execution.id
       assert mermaid =~ "-->"
       assert mermaid =~ "classDef setNode"
       assert mermaid =~ "classDef computingNode"

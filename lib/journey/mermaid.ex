@@ -30,8 +30,8 @@ defmodule JourneyMermaidConverter do
     ]
   end
 
-  def compose_mermaid_execution(graph, node_statuses, opts \\ [])
-      when is_struct(graph, Journey.Graph) and is_map(node_statuses) do
+  def compose_mermaid_execution(graph, execution_id, node_statuses, opts \\ [])
+      when is_struct(graph, Journey.Graph) and is_binary(execution_id) and is_map(node_statuses) do
     show_legend = Keyword.get(opts, :legend, false)
     show_timestamp = Keyword.get(opts, :timestamp, false)
     nodes = graph.nodes
@@ -41,7 +41,7 @@ defmodule JourneyMermaidConverter do
 
     [
       "graph TD",
-      graph_section_with_status(nodes, graph.name, graph.version, node_statuses),
+      graph_section_with_status(nodes, graph.name, graph.version, execution_id, node_statuses),
       legend_section,
       timestamp_section,
       build_execution_styling(nodes, node_statuses)
@@ -50,10 +50,10 @@ defmodule JourneyMermaidConverter do
     |> Enum.join("\n")
   end
 
-  defp graph_section_with_status(nodes, graph_name, graph_version, node_statuses) do
+  defp graph_section_with_status(nodes, graph_name, graph_version, execution_id, node_statuses) do
     [
       "    %% Graph",
-      "    subgraph Graph[\"🧩 '#{graph_name}', version #{graph_version}\"]",
+      "    subgraph Graph[\"🧩 '#{graph_name}', version #{graph_version}, #{execution_id}\"]",
       build_node_definitions_with_status(nodes, node_statuses),
       "",
       build_connections(nodes),
