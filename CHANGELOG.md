@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.10.52
+
+- **Mermaid diagrams**: more robust rendering of compute function names (#289)
+- **Build key check**: adding `:inets` and `:ssl` to `extra_applications` for proper OTP startup (#290)
+
 ## v0.10.51
 
 - **Mermaid diagram improvements**: adding `Journey.Tools.generate_mermaid_execution/2` for visualizing executions (#285, #287), streamlined colors, shapes, and legend (#286)
