@@ -192,29 +192,28 @@ defmodule JourneyMermaidConverter do
   end
 
   defp extract_function_name(f) when is_function(f) do
-    case Function.info(f) do
-      [module: _module, name: name, arity: _arity, env: _, type: :external] ->
-        "#{name}"
+    {:name, name} = Function.info(f, :name)
 
-      _ ->
-        "anonymous fn"
+    if named_function?(name) do
+      "#{name}"
+    else
+      "anonymous fn"
     end
   end
 
   defp extract_condition_function_name(f) when is_function(f) do
-    f
-    |> Function.info()
-    |> case do
-      [module: _module, name: name, arity: _arity, env: _, type: :external] ->
-        if name == :provided? do
-          ""
-        else
-          "#{name}"
-        end
+    {:name, name} = Function.info(f, :name)
 
-      _ ->
-        ""
+    cond do
+      !named_function?(name) -> ""
+      name == :provided? -> ""
+      true -> "#{name}"
     end
+  end
+
+  defp named_function?(name) when is_atom(name) do
+    name_str = Atom.to_string(name)
+    not String.starts_with?(name_str, "-")
   end
 
   defp sanitize_name(name) when is_atom(name) do
