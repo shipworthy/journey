@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.10.51
+
+- **Mermaid diagram improvements**: adding `Journey.Tools.generate_mermaid_execution/2` for visualizing executions (#285, #287), streamlined colors, shapes, and legend (#286)
+- **README improvements**: streamlining content, better structured links to resources (blogs, examples, references) (#284)
+
 ## v0.10.50
 
 - **`f_on_save` for `input()` nodes**: `input()` nodes now support `f_on_save` callbacks; graph-wide `f_on_save` is now also invoked when input node values change. This might be a breaking change for some graphs. (#279)
