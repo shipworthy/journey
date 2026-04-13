@@ -27,9 +27,6 @@ defmodule Journey.License.Functions do
   defp handle_not_set(result, _build_key), do: result
 
   defp validate_key(service_url, build_key) do
-    :inets.start()
-    :ssl.start()
-
     :httpc.request(:get, {"#{service_url}/api/validation/key/#{build_key}?format=text", []}, [{:timeout, 1000}], [])
     |> case do
       {:ok, {{_, 200, _}, _headers, body}} ->
