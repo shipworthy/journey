@@ -714,7 +714,9 @@ defmodule Journey.Tools do
     KeywordValidator.validate!(opts, opts_schema)
 
     if Keyword.get(opts, :include_legend) do
-      Logger.warning("include_legend option is deprecated for generate_mermaid_graph/2 and will be removed in a future version")
+      Logger.warning(
+        "include_legend option is deprecated for generate_mermaid_graph/2 and will be removed in a future version"
+      )
     end
 
     mermaid_opts =
@@ -746,7 +748,7 @@ defmodule Journey.Tools do
       iex> Journey.Tools.generate_mermaid_execution("EXEC07B2H0H7J1LTAE0VJDAL") |> IO.puts()
       graph TD
           %% Graph
-          subgraph Graph["🧩 'my_graph', version v1"]
+          subgraph Graph["🧩 'my_graph', version v1, EXEC07B2H0H7J1LTAE0VJDAL"]
               ...
           end
       ...
@@ -789,7 +791,7 @@ defmodule Journey.Tools do
         {:include_timestamp, value} -> {:timestamp, value}
       end)
 
-    JourneyMermaidConverter.compose_mermaid_execution(graph, node_statuses, mermaid_opts)
+    JourneyMermaidConverter.compose_mermaid_execution(graph, execution.id, node_statuses, mermaid_opts)
   end
 
   defp build_node_status_map(graph, execution) do
