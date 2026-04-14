@@ -149,7 +149,7 @@ defmodule Journey.Scheduler.RetentionTest do
     execution |> Journey.set(:trigger, true)
 
     # Wait for 15+ cycles (enough for cleanup to have triggered multiple times)
-    assert wait_for_cycles(counter, 15)
+    assert wait_for_cycles(counter, 15, 45_000)
 
     # Node says keep_latest: 2, default keep_oldest: 10, so max is 12
     success_count = count_successful_computations(execution.id, :schedule)

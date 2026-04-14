@@ -521,6 +521,9 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
         {:ok, _} = Journey.get_value(execution, :batch_schedule, wait_any: true)
       end
 
+      # Delete any sweep_runs created by concurrent background sweeps to prevent throttle interference
+      Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :missed_schedules_catchall))
+
       # Run global sweep (not execution-specific) to test batch processing
       {count, sweep_run_id} = MissedSchedulesCatchall.sweep()
 
