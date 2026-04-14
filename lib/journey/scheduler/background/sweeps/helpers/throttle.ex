@@ -98,16 +98,21 @@ defmodule Journey.Scheduler.Background.Sweeps.Helpers.Throttle do
   def complete_started_sweep_run(sweep_run_id, executions_processed, current_time)
       when is_binary(sweep_run_id) and is_integer(executions_processed) and
              is_integer(current_time) do
-    sweep_run = Journey.Repo.get!(SweepRun, sweep_run_id)
+    case Journey.Repo.get(SweepRun, sweep_run_id) do
+      nil ->
+        Logger.warning("sweep run #{sweep_run_id} not found (may have been deleted externally), skipping completion")
+        nil
 
-    Logger.debug("[#{sweep_run.sweep_type}]: sweep #{sweep_run_id}, processed #{executions_processed} executions")
+      sweep_run ->
+        Logger.debug("[#{sweep_run.sweep_type}]: sweep #{sweep_run_id}, processed #{executions_processed} executions")
 
-    sweep_run
-    |> SweepRun.changeset(%{
-      completed_at: current_time,
-      executions_processed: executions_processed
-    })
-    |> Journey.Repo.update!()
+        sweep_run
+        |> SweepRun.changeset(%{
+          completed_at: current_time,
+          executions_processed: executions_processed
+        })
+        |> Journey.Repo.update!()
+    end
   end
 
   @doc """

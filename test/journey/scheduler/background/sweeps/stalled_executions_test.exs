@@ -135,6 +135,9 @@ defmodule Journey.Scheduler.Background.Sweeps.StalledExecutionsTest do
         assert values[:input_value] == "test_input"
         assert values[:computed_result] == nil
 
+        # Delete any sweep_runs created by concurrent background sweeps to prevent throttle interference
+        Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :stalled_executions))
+
         # Run sweep on this specific execution
         {count, sweep_run_id} = StalledExecutions.sweep(execution.id)
         assert count == 1

@@ -83,8 +83,10 @@ defmodule Journey.Scheduler.Background.Sweeps.ScheduleNodesOptimizationTest do
       # Create execution
       _exec = create_execution_with_schedule()
 
-      # Insert incomplete sweep (no completed_at) - use time in the past
+      # Delete any sweep_runs created by concurrent background sweeps to prevent throttle interference,
+      # then insert incomplete sweep (no completed_at) with time in the past
       past_time = System.os_time(:second) - 200
+      Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :schedule_nodes))
       insert_incomplete_sweep_run(:schedule_nodes, past_time)
 
       # Should process at least our execution (uses beginning of time fallback)
