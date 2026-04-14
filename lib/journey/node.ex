@@ -277,25 +277,25 @@ defmodule Journey.Node do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph(
-  ...>       "external polling example",
+  ...>       "current market pricing graph",
   ...>       "v1.0.0",
   ...>       [
   ...>         tick_recurring(:poll_schedule, [], fn _ -> {:ok, System.system_time(:second) + 2} end),
-  ...>         input(:cached_data),
-  ...>         mutate(:update_from_api, [:poll_schedule],
-  ...>           fn %{cached_data: current} -> {:ok, (current || 0) + 1} end,
-  ...>           mutates: :cached_data,
+  ...>         input(:cached_price),
+  ...>         mutate(:fetch_current_price, [:poll_schedule],
+  ...>           fn %{cached_price: cached_price} -> {:ok, (cached_price || 0) + 1} end,
+  ...>           mutates: :cached_price,
   ...>           update_revision_on_change: true
   ...>         ),
-  ...>         compute(:processed_data, [:cached_data],
-  ...>           fn %{cached_data: data} -> {:ok, data * 2} end
+  ...>         compute(:on_cached_price_update, [:cached_price],
+  ...>           fn %{cached_price: new_price} -> {:ok, "price changed to \#{new_price}"} end
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution() |> Journey.set(:cached_data, 5)
+  iex> execution = graph |> Journey.start_execution() |> Journey.set(:cached_price, 5)
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
-  iex> {:ok, "updated :cached_data", _} = Journey.get(execution, :update_from_api, wait: :any)
-  iex> {:ok, 12, _} = Journey.get(execution, :processed_data, wait: :any)
+  iex> {:ok, "updated :cached_price", _} = Journey.get(execution, :fetch_current_price, wait: :any)
+  iex> {:ok, "price changed to 6", _} = Journey.get(execution, :on_cached_price_update, wait: :any)
   iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
   ```
 
