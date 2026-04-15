@@ -1,0 +1,367 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# "historian" nodes
+
+```elixir
+# [Optional] Setting Build Key, see https://gojourney.dev/your_keys
+# (Using "Journey Livebook Demo" build key)
+System.put_env("JOURNEY_BUILD_KEY", "B27AXHMERm2Z6ehZhL49v")
+
+Mix.install(
+  [
+    {:ecto_sql, "~> 3.13"},
+    {:postgrex, "~> 0.22"},
+    {:jason, "~> 1.4"},
+    {:journey, "~> 0.10"},
+    {:kino, "~> 0.19"}
+  ],
+  start_applications: false
+)
+
+Application.put_env(:journey, :log_level, :warning)
+
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
+# Update this configuration to point to your database server
+Application.put_env(:journey, Journey.Repo,
+  database: "journey_historian_nodes",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  log: false,
+  port: 5432
+)
+
+Application.put_env(:journey, :ecto_repos, [Journey.Repo])
+
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
+
+Application.loaded_applications()
+|> Enum.map(fn {app, _, _} -> app end)
+|> Enum.each(&Application.ensure_all_started/1)
+```
+
+## DB Setup
+
+This livebook requires a PostgreSQL database. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
+## What We'll Cover
+
+This tutorial focuses on the `historian` node type.
+
+A `historian` node reactively records changes to the nodes it watches. Every time a watched node gets a new value, the historian appends an entry to its history list. No function is needed — you just declare what to watch.
+
+We'll build a simple price tracker: an input node for the current price, and a historian that records every price change.
+
+This tutorial will:
+
+1. define a graph with an `input` node for `:current_price` and a `historian` node that watches it,
+2. update the price and inspect the history,
+3. update the price two more times (also capturing some metadata connected to the 3rd update), and watch the history accumulate,
+4. visualize and introspect the execution.
+
+## Define the Graph
+
+```elixir
+import Journey.Node
+
+graph = Journey.new_graph(
+  "Price Tracker",
+  "v1",
+  [
+    input(:current_price),
+    historian(:price_history, [:current_price])
+  ]
+); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Two nodes: `:current_price` is an input, and `:price_history` is a historian that watches it. Every time `:current_price` gets a new value, the historian appends an entry to its history.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Visualize the graph:
+
+```elixir
+graph
+|> Journey.Tools.generate_mermaid_graph()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Price Tracker', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        current_price[current_price]
+        price_history[["price_history<br/>(anonymous fn)"]]
+
+        current_price -->  price_history
+    end
+
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,current_price,price_history defaultNode
+```
+
+## Start an Execution
+
+```elixir
+execution = Journey.start(graph); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## First Price Update
+
+```elixir
+execution = Journey.set(execution, :current_price, 100)
+{:ok, history, revision} = Journey.get(execution, :price_history, wait: :any)
+history
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %{
+    "metadata" => nil,
+    "node" => "current_price",
+    "revision" => 1,
+    "timestamp" => 1776282255,
+    "value" => 100
+  }
+]
+```
+
+The historian has one entry. Each entry is a map with `"value"`, `"node"`, `"timestamp"`, and `"revision"` — telling you what changed, which node it was, and when.
+
+## Second Price Update
+
+```elixir
+execution = Journey.set(execution, :current_price, 105)
+{:ok, history, revision} = Journey.get(execution, :price_history, wait: {:newer_than, revision})
+history
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %{
+    "metadata" => nil,
+    "node" => "current_price",
+    "revision" => 4,
+    "timestamp" => 1776282256,
+    "value" => 105
+  },
+  %{
+    "metadata" => nil,
+    "node" => "current_price",
+    "revision" => 1,
+    "timestamp" => 1776282255,
+    "value" => 100
+  }
+]
+```
+
+The history now has two entries, newest first. The historian accumulated this automatically — we didn't write any logging code.
+
+## Third Price Update
+
+In this update, `Journey.set()` will supply optional `metadata:` – the name of the person who requested the update.
+
+The metadata will be captured by the historian.
+
+```elixir
+execution = Journey.set(execution, :current_price, 98, metadata: %{"author" => "mario"})
+{:ok, history, revision} = Journey.get(execution, :price_history, wait: {:newer_than, revision})
+history
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %{
+    "metadata" => %{"author" => "mario"},
+    "node" => "current_price",
+    "revision" => 7,
+    "timestamp" => 1776282256,
+    "value" => 98
+  },
+  %{
+    "metadata" => nil,
+    "node" => "current_price",
+    "revision" => 4,
+    "timestamp" => 1776282256,
+    "value" => 105
+  },
+  %{
+    "metadata" => nil,
+    "node" => "current_price",
+    "revision" => 1,
+    "timestamp" => 1776282255,
+    "value" => 100
+  }
+]
+```
+
+Three entries, newest first. The pattern is clear: every price change is recorded, building a complete history of how the price moved over time.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Diagram
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Price Tracker', version v1, EXEC7BTTZ34DJ8XT70RYL07M"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        current_price["✅ current_price"]
+        price_history[["✅ price_history<br/>(anonymous fn)"]]
+
+        current_price -->  price_history
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class price_history,current_price,last_updated_at,execution_id setNode
+```
+
+### Detailed Introspection
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXEC7BTTZ34DJ8XT70RYL07M'
+- Graph: 'Price Tracker' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-15 19:44:15Z UTC | 1 seconds ago
+- Last updated at: 2026-04-15 19:44:16Z UTC | 0 seconds ago
+- Duration: 1 seconds
+- Revision: 9
+- # of Values: 4 (set) / 4 (total)
+- # of Computations: 3
+
+Values:
+- Set:
+  - last_updated_at: '1776282256' | :input
+    set at 2026-04-15 19:44:16Z | rev: 9
+
+  - price_history: '[%{"metadata" => %{"author" => "mario"}, "node" => "current_price", "revision" => 7, "timestamp" => 1776282256, "value" => 98}, %{"metadata" => nil, "node" => "current_price", "revision" => 4, "timestamp" => 1776282256, "value" => 105}, %{"metadata" => nil, "node" => "current_price", "revision" => 1, "timestamp" => 1776282255, "value" => 100}]' | :historian
+    computed at 2026-04-15 19:44:16Z | rev: 9
+
+  - current_price: '98' | :input
+    set at 2026-04-15 19:44:16Z | rev: 7
+
+  - execution_id: 'EXEC7BTTZ34DJ8XT70RYL07M' | :input
+    set at 2026-04-15 19:44:15Z | rev: 0
+
+
+- Not set:
+  
+
+Computations:
+- Completed:
+  - :price_history (CMP4H4G7B64441VRJ054R8T): ✅ :success | :historian | rev 9
+    started: 2026-04-15 19:44:16Z | completed: 2026-04-15 19:44:16Z (0s)
+    inputs used:
+       :current_price (rev 7)
+  - :price_history (CMPLVJL4D5HA44RJRRME43J): ✅ :success | :historian | rev 6
+    started: 2026-04-15 19:44:16Z | completed: 2026-04-15 19:44:16Z (0s)
+    inputs used:
+       :current_price (rev 4)
+  - :price_history (CMPA3G3420TD9625AEZRAH8): ✅ :success | :historian | rev 3
+    started: 2026-04-15 19:44:15Z | completed: 2026-04-15 19:44:15Z (0s)
+    inputs used:
+       :current_price (rev 1)
+
+- Outstanding:
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Going Further: `max_entries`
+
+By default, a historian keeps up to 1000 entries. When the limit is reached, the oldest entries are dropped. You can customize this with the `max_entries` option:
+
+<!-- livebook:{"break_markdown":true} -->
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# Keep only the 50 most recent price updates
+historian(:price_history, [:current_price], max_entries: 50)
+
+# Keep unlimited history (use with caution)
+historian(:audit_log, [:audit_event], max_entries: nil)
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+See the `historian/3` documentation for more examples.
+
+## Summary
+
+In this Livebook, we saw how `historian` nodes reactively record changes to the nodes they watch.
+
+We built a price tracker with just two nodes — an input and a historian — and watched the history grow as we updated the price.
+
+Key takeaways:
+
+* A `historian` node records changes automatically — you declare what to watch, and it keeps the log.
+
+* Each history entry captures the value, the node name, a timestamp, and optional metadata.
+
+* A historian can watch multiple nodes, recording the history of changes for every one of them. Ours watched `:current_price`.
+
+* History is stored newest-first.
+
+* `max_entries` controls how many entries to keep (default: 1000). Set to `nil` for unlimited.
+
+* Adding a historian doesn't affect the rest of the graph — it's a passive observer on its own branch.
