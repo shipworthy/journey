@@ -19,11 +19,15 @@ defmodule Journey.MixProject do
         extras: [
           "README.md",
           "lib/examples/compute.livemd",
+          "lib/examples/mutate.livemd",
           "BASIC_CONCEPTS.md",
           "MODULES_AND_FUNCTIONS.md",
           "LICENSE.md",
           "CHANGELOG.md",
           "MIGRATION_STRATEGY.md"
+        ],
+        groups_for_extras: [
+          Livebooks: ~r/lib\/examples\/.*/
         ],
         groups_for_docs: [
           "Graph Management": &(&1[:group] == "Graph Management"),

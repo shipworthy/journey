@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Livebook: Compute Nodes
+# "compute" nodes
 
 ```elixir
 # [Optional] Setting Build Key, see https://gojourney.dev/your_keys
@@ -36,7 +36,7 @@ Application.put_env(:journey, Journey.Repo,
 
 Application.put_env(:journey, :ecto_repos, [Journey.Repo])
 
-Journey.Repo.__adapter__().storage_up(Journey.Repo.config()) |> IO.inspect(label: :db_result)
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
 
 Application.loaded_applications()
 |> Enum.map(fn {app, _, _} -> app end)
@@ -161,7 +161,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXECZBJVTV467G09Y57076VM"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXEC7E34MJEDV9GY18G79331"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["⬜ name"]
@@ -194,10 +194,10 @@ Journey.values_all(execution)
 ```
 %{
   name: :not_set,
-  last_updated_at: {:set, 1776222169},
-  execution_id: {:set, "EXECZBJVTV467G09Y57076VM"},
   email_address: :not_set,
-  greeting: :not_set
+  greeting: :not_set,
+  execution_id: {:set, "EXEC7E34MJEDV9GY18G79331"},
+  last_updated_at: {:set, 1776239701}
 }
 ```
 
@@ -211,11 +211,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECZBJVTV467G09Y57076VM'
+- ID: 'EXEC7E34MJEDV9GY18G79331'
 - Graph: 'Onboarding' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
-- Last updated at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
+- Created at: 2026-04-15 07:55:01Z UTC | 0 seconds ago
+- Last updated at: 2026-04-15 07:55:01Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 0
 - # of Values: 2 (set) / 5 (total)
@@ -223,11 +223,11 @@ Execution summary:
 
 Values:
 - Set:
-  - execution_id: 'EXECZBJVTV467G09Y57076VM' | :input
-    set at 2026-04-15 03:02:49Z | rev: 0
+  - execution_id: 'EXEC7E34MJEDV9GY18G79331' | :input
+    set at 2026-04-15 07:55:01Z | rev: 0
 
-  - last_updated_at: '1776222169' | :input
-    set at 2026-04-15 03:02:49Z | rev: 0
+  - last_updated_at: '1776239701' | :input
+    set at 2026-04-15 07:55:01Z | rev: 0
 
 
 - Not set:
@@ -273,7 +273,7 @@ Journey.values(execution)
 <!-- livebook:{"output":true} -->
 
 ```
-%{name: "Luigi", last_updated_at: 1776222169, execution_id: "EXECZBJVTV467G09Y57076VM"}
+%{name: "Luigi", execution_id: "EXEC7E34MJEDV9GY18G79331", last_updated_at: 1776239701}
 ```
 
 Notice that `:greeting` is still blocked, waiting for `:email_address`:
@@ -289,7 +289,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXECZBJVTV467G09Y57076VM"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXEC7E34MJEDV9GY18G79331"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -319,11 +319,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECZBJVTV467G09Y57076VM'
+- ID: 'EXEC7E34MJEDV9GY18G79331'
 - Graph: 'Onboarding' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
-- Last updated at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
+- Created at: 2026-04-15 07:55:01Z UTC | 0 seconds ago
+- Last updated at: 2026-04-15 07:55:01Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 1
 - # of Values: 3 (set) / 5 (total)
@@ -331,14 +331,14 @@ Execution summary:
 
 Values:
 - Set:
-  - last_updated_at: '1776222169' | :input
-    set at 2026-04-15 03:02:49Z | rev: 1
+  - last_updated_at: '1776239701' | :input
+    set at 2026-04-15 07:55:01Z | rev: 1
 
   - name: '"Luigi"' | :input
-    set at 2026-04-15 03:02:49Z | rev: 1
+    set at 2026-04-15 07:55:01Z | rev: 1
 
-  - execution_id: 'EXECZBJVTV467G09Y57076VM' | :input
-    set at 2026-04-15 03:02:49Z | rev: 0
+  - execution_id: 'EXEC7E34MJEDV9GY18G79331' | :input
+    set at 2026-04-15 07:55:01Z | rev: 0
 
 
 - Not set:
@@ -373,7 +373,7 @@ execution_id = execution.id
 <!-- livebook:{"output":true} -->
 
 ```
-"EXECZBJVTV467G09Y57076VM"
+"EXEC7E34MJEDV9GY18G79331"
 ```
 
 ```elixir
@@ -397,7 +397,7 @@ Journey.values(execution)
 <!-- livebook:{"output":true} -->
 
 ```
-%{name: "Luigi", last_updated_at: 1776222169, execution_id: "EXECZBJVTV467G09Y57076VM"}
+%{name: "Luigi", execution_id: "EXEC7E34MJEDV9GY18G79331", last_updated_at: 1776239701}
 ```
 
 ## Set `:email_address`, Watch `:greeting` Become Unblocked
@@ -435,10 +435,10 @@ Journey.values_all(execution)
 ```
 %{
   name: {:set, "Luigi"},
-  last_updated_at: {:set, 1776222169},
-  execution_id: {:set, "EXECZBJVTV467G09Y57076VM"},
   email_address: {:set, "luigi@example.com"},
-  greeting: {:set, "Welcome, Luigi at luigi@example.com"}
+  greeting: {:set, "Welcome, Luigi at luigi@example.com"},
+  execution_id: {:set, "EXEC7E34MJEDV9GY18G79331"},
+  last_updated_at: {:set, 1776239701}
 }
 ```
 
@@ -453,7 +453,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXECZBJVTV467G09Y57076VM"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXEC7E34MJEDV9GY18G79331"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
