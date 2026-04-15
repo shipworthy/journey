@@ -27,7 +27,9 @@ defmodule Journey.MixProject do
           "MIGRATION_STRATEGY.md"
         ],
         groups_for_extras: [
-          Livebooks: ~r/lib\/examples\/.*/
+          Guides: ["BASIC_CONCEPTS.md", "MODULES_AND_FUNCTIONS.md", "MIGRATION_STRATEGY.md"],
+          Livebooks: ~r/lib\/examples\/.*/,
+          About: ["LICENSE.md", "CHANGELOG.md"]
         ],
         groups_for_docs: [
           "Graph Management": &(&1[:group] == "Graph Management"),
