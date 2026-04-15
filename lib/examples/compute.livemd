@@ -51,11 +51,11 @@ This livebook requires a PostgreSQL database. If you don't have one running, you
 docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
 ```
 
-## Summary
+## What We'll Cover
 
 In this example, we will create a simple graph with `input` and `compute` nodes and play with them.
 
-This tiny tutorial demonstrates:
+This tiny tutorial will demonstrate:
 
 1. defining a graph
 2. starting an execution of the graph
@@ -95,9 +95,7 @@ graph = Journey.new_graph(
 :ok
 ```
 
-Note that the computation requires both inputs, so it will be blocked until both :name and :email_address are provided.
-
-This is because the compute node is defined to be unblocked when `[:name, :email_address]` are both supplied.
+Note that the computation is defined to be unblocked when both inputs, `[:name, :email_address]`, are provided. It will be blocked until then.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -144,7 +142,13 @@ execution = Journey.start(graph); :ok
 :ok
 ```
 
-## Peek into the Execution (diagram, values, introspect)
+## Peek into the Execution
+
+We can examine the state of an execution from a few different angles – a diagram, values, and detailed introspection.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Diagram
 
 ```elixir
 execution.id
@@ -157,7 +161,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXEC38MMHVZY1D4EMYTZD774"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXECZBJVTV467G09Y57076VM"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["⬜ name"]
@@ -179,6 +183,8 @@ graph TD
     class greeting,email_address,name neutralNode
 ```
 
+### Values
+
 ```elixir
 Journey.values_all(execution)
 ```
@@ -188,12 +194,14 @@ Journey.values_all(execution)
 ```
 %{
   name: :not_set,
-  last_updated_at: {:set, 1776219838},
-  execution_id: {:set, "EXEC38MMHVZY1D4EMYTZD774"},
+  last_updated_at: {:set, 1776222169},
+  execution_id: {:set, "EXECZBJVTV467G09Y57076VM"},
   email_address: :not_set,
   greeting: :not_set
 }
 ```
+
+### Detailed Introspection
 
 ```elixir
 Journey.Tools.introspect(execution.id) |> IO.puts()
@@ -203,11 +211,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXEC38MMHVZY1D4EMYTZD774'
+- ID: 'EXECZBJVTV467G09Y57076VM'
 - Graph: 'Onboarding' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
-- Last updated at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
+- Created at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
+- Last updated at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 0
 - # of Values: 2 (set) / 5 (total)
@@ -215,11 +223,11 @@ Execution summary:
 
 Values:
 - Set:
-  - execution_id: 'EXEC38MMHVZY1D4EMYTZD774' | :input
-    set at 2026-04-15 02:23:58Z | rev: 0
+  - execution_id: 'EXECZBJVTV467G09Y57076VM' | :input
+    set at 2026-04-15 03:02:49Z | rev: 0
 
-  - last_updated_at: '1776219838' | :input
-    set at 2026-04-15 02:23:58Z | rev: 0
+  - last_updated_at: '1776222169' | :input
+    set at 2026-04-15 03:02:49Z | rev: 0
 
 
 - Not set:
@@ -244,7 +252,7 @@ Computations:
 :ok
 ```
 
-## Set `:name`. `:greeting` is still blocked
+## `:name` Is Set, `:greeting` Is Still Blocked
 
 ```elixir
 execution = 
@@ -265,10 +273,10 @@ Journey.values(execution)
 <!-- livebook:{"output":true} -->
 
 ```
-%{name: "Luigi", last_updated_at: 1776219838, execution_id: "EXEC38MMHVZY1D4EMYTZD774"}
+%{name: "Luigi", last_updated_at: 1776222169, execution_id: "EXECZBJVTV467G09Y57076VM"}
 ```
 
-Notice that :greeting is still blocked, waiting for `email_address`:
+Notice that `:greeting` is still blocked, waiting for `:email_address`:
 
 ```elixir
 execution.id
@@ -281,7 +289,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXEC38MMHVZY1D4EMYTZD774"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXECZBJVTV467G09Y57076VM"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -311,11 +319,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXEC38MMHVZY1D4EMYTZD774'
+- ID: 'EXECZBJVTV467G09Y57076VM'
 - Graph: 'Onboarding' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
-- Last updated at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
+- Created at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
+- Last updated at: 2026-04-15 03:02:49Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 1
 - # of Values: 3 (set) / 5 (total)
@@ -323,14 +331,14 @@ Execution summary:
 
 Values:
 - Set:
-  - last_updated_at: '1776219838' | :input
-    set at 2026-04-15 02:23:58Z | rev: 1
+  - last_updated_at: '1776222169' | :input
+    set at 2026-04-15 03:02:49Z | rev: 1
 
   - name: '"Luigi"' | :input
-    set at 2026-04-15 02:23:58Z | rev: 1
+    set at 2026-04-15 03:02:49Z | rev: 1
 
-  - execution_id: 'EXEC38MMHVZY1D4EMYTZD774' | :input
-    set at 2026-04-15 02:23:58Z | rev: 0
+  - execution_id: 'EXECZBJVTV467G09Y57076VM' | :input
+    set at 2026-04-15 03:02:49Z | rev: 0
 
 
 - Not set:
@@ -354,9 +362,9 @@ Computations:
 :ok
 ```
 
-## Reload an Execution After a Crash and Continue
+## Reload the Execution After a Crash and Continue
 
-As long as you have the ID of an execution, you can always load it, and continue, as if nothing happened – even if the infrastructure suffered an outage and everything was down for a week.
+As long as you have the ID of an execution, you can load it and continue as if nothing happened – even if the infrastructure suffered an outage and everything was down for a week.
 
 ```elixir
 execution_id = execution.id
@@ -365,7 +373,7 @@ execution_id = execution.id
 <!-- livebook:{"output":true} -->
 
 ```
-"EXEC38MMHVZY1D4EMYTZD774"
+"EXECZBJVTV467G09Y57076VM"
 ```
 
 ```elixir
@@ -380,7 +388,7 @@ execution = Journey.load(execution_id); :ok
 
 Note that the `:name` value that we set before "the crash" is still here, even after the execution was reloaded.
 
-This is because as soon as an execution value is set or computed, it is persisted in PostgreSQL:
+This is because as soon as an execution value is set or computed, it is persisted in PostgreSQL.
 
 ```elixir
 Journey.values(execution)
@@ -389,7 +397,7 @@ Journey.values(execution)
 <!-- livebook:{"output":true} -->
 
 ```
-%{name: "Luigi", last_updated_at: 1776219838, execution_id: "EXEC38MMHVZY1D4EMYTZD774"}
+%{name: "Luigi", last_updated_at: 1776222169, execution_id: "EXECZBJVTV467G09Y57076VM"}
 ```
 
 ## Set `:email_address`, Watch `:greeting` Become Unblocked
@@ -416,7 +424,7 @@ Welcome, Luigi at luigi@example.com
 "Welcome, Luigi at luigi@example.com"
 ```
 
-If you are wondering why you are seeing the string repeated twice – one is the IO.puts from the `:greeting` computation function, and the other is the cell's return.
+Note that the string appears twice – one is the IO.puts from the `:greeting` compute function; and the other is the cell's return value.
 
 ```elixir
 Journey.values_all(execution)
@@ -427,8 +435,8 @@ Journey.values_all(execution)
 ```
 %{
   name: {:set, "Luigi"},
-  last_updated_at: {:set, 1776219838},
-  execution_id: {:set, "EXEC38MMHVZY1D4EMYTZD774"},
+  last_updated_at: {:set, 1776222169},
+  execution_id: {:set, "EXECZBJVTV467G09Y57076VM"},
   email_address: {:set, "luigi@example.com"},
   greeting: {:set, "Welcome, Luigi at luigi@example.com"}
 }
@@ -445,7 +453,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXEC38MMHVZY1D4EMYTZD774"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXECZBJVTV467G09Y57076VM"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -468,18 +476,18 @@ graph TD
 
 ## Summary
 
-In this Livebook we played with Journey's basic functionality: defining and executing reactive graphs with input and compute nodes.
+In this Livebook, we played with Journey's basic functionality: defining and executing reactive graphs with input and compute nodes.
 
 More specifically:
 
-* We defined a graph with two input nodes, and one self-computing node. We then started an execution of the graph, and set a value for :name. Then we set another value for :email_address, and watched the greeting computation kick off and compute the greeting.
+* We defined a graph with two input nodes and one self-computing node. We then started an execution of the graph, and set a value for `:name`. Then we set another value for `:email_address`, and watched the greeting computation kick off and compute the greeting.
 
-* In the process, we reloaded the execution after an imagined infrastructure crash, and continued with it as if nothing happened.
+* In the process, we reloaded the execution after an imagined infrastructure crash, and continued with the execution as if nothing happened.
 
-* We also fetched execution's values with `Journey.values()` and `Journey.values_all()`.
+* We fetched the execution's values with `Journey.values()` and `Journey.values_all()`.
 
-* We fetched a particular value of :greeting, waiting for it to become available, with `Journey.get()`.
+* We fetched a particular value of `:greeting`, waiting for it to become available, with `Journey.get()`.
 
-* We also visualized the graph (`Journey.Tools.generate_mermaid_graph()`) and the execution (`Journey.Tools.generate_mermaid_execution()`), at its various stages.
+* We visualized the graph (`Journey.Tools.generate_mermaid_graph()`) and the execution (`Journey.Tools.generate_mermaid_execution()`), at its various stages.
 
-* We also introspected the execution's current state with `Journey.Tools.introspect()` -- what values are set, which values are not set. Has the computation completed? If not, what is it blocking on?
+* We introspected the execution's current state with `Journey.Tools.introspect()` -- what values are set, which values are not set. Has the computation completed? If not, what is it blocking on?
