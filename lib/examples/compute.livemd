@@ -20,9 +20,13 @@ Mix.install(
 
 Application.put_env(:journey, :log_level, :warning)
 
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
 # Update this configuration to point to your database server
 Application.put_env(:journey, Journey.Repo,
-  database: "journey_dev",
+  database: "journey_compute_nodes",
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
@@ -39,11 +43,19 @@ Application.loaded_applications()
 |> Enum.each(&Application.ensure_all_started/1)
 ```
 
+## DB Setup
+
+This livebook requires a PostgreSQL database. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
 ## Summary
 
 In this example, we will create a simple graph with `input` and `compute` nodes and play with them.
 
-This tiny tutorial will demonstrate:
+This tiny tutorial demonstrates:
 
 1. defining a graph
 2. starting an execution of the graph
@@ -145,7 +157,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXECGXZ9AAL6RHD7M67R99EE"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXEC38MMHVZY1D4EMYTZD774"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["⬜ name"]
@@ -176,8 +188,8 @@ Journey.values_all(execution)
 ```
 %{
   name: :not_set,
-  execution_id: {:set, "EXECGXZ9AAL6RHD7M67R99EE"},
-  last_updated_at: {:set, 1776210258},
+  last_updated_at: {:set, 1776219838},
+  execution_id: {:set, "EXEC38MMHVZY1D4EMYTZD774"},
   email_address: :not_set,
   greeting: :not_set
 }
@@ -191,11 +203,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECGXZ9AAL6RHD7M67R99EE'
+- ID: 'EXEC38MMHVZY1D4EMYTZD774'
 - Graph: 'Onboarding' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-14 23:44:18Z UTC | 0 seconds ago
-- Last updated at: 2026-04-14 23:44:18Z UTC | 0 seconds ago
+- Created at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
+- Last updated at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 0
 - # of Values: 2 (set) / 5 (total)
@@ -203,11 +215,11 @@ Execution summary:
 
 Values:
 - Set:
-  - execution_id: 'EXECGXZ9AAL6RHD7M67R99EE' | :input
-    set at 2026-04-14 23:44:18Z | rev: 0
+  - execution_id: 'EXEC38MMHVZY1D4EMYTZD774' | :input
+    set at 2026-04-15 02:23:58Z | rev: 0
 
-  - last_updated_at: '1776210258' | :input
-    set at 2026-04-14 23:44:18Z | rev: 0
+  - last_updated_at: '1776219838' | :input
+    set at 2026-04-15 02:23:58Z | rev: 0
 
 
 - Not set:
@@ -253,7 +265,7 @@ Journey.values(execution)
 <!-- livebook:{"output":true} -->
 
 ```
-%{name: "Luigi", execution_id: "EXECGXZ9AAL6RHD7M67R99EE", last_updated_at: 1776210258}
+%{name: "Luigi", last_updated_at: 1776219838, execution_id: "EXEC38MMHVZY1D4EMYTZD774"}
 ```
 
 Notice that :greeting is still blocked, waiting for `email_address`:
@@ -269,7 +281,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXECGXZ9AAL6RHD7M67R99EE"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXEC38MMHVZY1D4EMYTZD774"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -299,11 +311,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECGXZ9AAL6RHD7M67R99EE'
+- ID: 'EXEC38MMHVZY1D4EMYTZD774'
 - Graph: 'Onboarding' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-14 23:44:18Z UTC | 0 seconds ago
-- Last updated at: 2026-04-14 23:44:18Z UTC | 0 seconds ago
+- Created at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
+- Last updated at: 2026-04-15 02:23:58Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 1
 - # of Values: 3 (set) / 5 (total)
@@ -311,14 +323,14 @@ Execution summary:
 
 Values:
 - Set:
-  - last_updated_at: '1776210258' | :input
-    set at 2026-04-14 23:44:18Z | rev: 1
+  - last_updated_at: '1776219838' | :input
+    set at 2026-04-15 02:23:58Z | rev: 1
 
   - name: '"Luigi"' | :input
-    set at 2026-04-14 23:44:18Z | rev: 1
+    set at 2026-04-15 02:23:58Z | rev: 1
 
-  - execution_id: 'EXECGXZ9AAL6RHD7M67R99EE' | :input
-    set at 2026-04-14 23:44:18Z | rev: 0
+  - execution_id: 'EXEC38MMHVZY1D4EMYTZD774' | :input
+    set at 2026-04-15 02:23:58Z | rev: 0
 
 
 - Not set:
@@ -353,7 +365,7 @@ execution_id = execution.id
 <!-- livebook:{"output":true} -->
 
 ```
-"EXECGXZ9AAL6RHD7M67R99EE"
+"EXEC38MMHVZY1D4EMYTZD774"
 ```
 
 ```elixir
@@ -377,7 +389,7 @@ Journey.values(execution)
 <!-- livebook:{"output":true} -->
 
 ```
-%{name: "Luigi", execution_id: "EXECGXZ9AAL6RHD7M67R99EE", last_updated_at: 1776210258}
+%{name: "Luigi", last_updated_at: 1776219838, execution_id: "EXEC38MMHVZY1D4EMYTZD774"}
 ```
 
 ## Set `:email_address`, Watch `:greeting` Become Unblocked
@@ -415,8 +427,8 @@ Journey.values_all(execution)
 ```
 %{
   name: {:set, "Luigi"},
-  execution_id: {:set, "EXECGXZ9AAL6RHD7M67R99EE"},
-  last_updated_at: {:set, 1776210258},
+  last_updated_at: {:set, 1776219838},
+  execution_id: {:set, "EXEC38MMHVZY1D4EMYTZD774"},
   email_address: {:set, "luigi@example.com"},
   greeting: {:set, "Welcome, Luigi at luigi@example.com"}
 }
@@ -433,7 +445,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Onboarding', version v1, EXECGXZ9AAL6RHD7M67R99EE"]
+    subgraph Graph["🧩 'Onboarding', version v1, EXEC38MMHVZY1D4EMYTZD774"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
