@@ -20,6 +20,7 @@ defmodule Journey.MixProject do
           "README.md",
           "lib/examples/compute.livemd",
           "lib/examples/mutate.livemd",
+          "lib/examples/historian.livemd",
           "BASIC_CONCEPTS.md",
           "MODULES_AND_FUNCTIONS.md",
           "LICENSE.md",
