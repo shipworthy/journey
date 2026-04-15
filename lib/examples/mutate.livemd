@@ -1,0 +1,356 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# "mutate" nodes
+
+```elixir
+# [Optional] Setting Build Key, see https://gojourney.dev/your_keys
+# (Using "Journey Livebook Demo" build key)
+System.put_env("JOURNEY_BUILD_KEY", "B27AXHMERm2Z6ehZhL49v")
+
+Mix.install(
+  [
+    {:ecto_sql, "~> 3.13"},
+    {:postgrex, "~> 0.22"},
+    {:jason, "~> 1.4"},
+    {:journey, "~> 0.10"},
+    {:kino, "~> 0.19"}
+  ],
+  start_applications: false
+)
+
+Application.put_env(:journey, :log_level, :warning)
+
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
+# Update this configuration to point to your database server
+Application.put_env(:journey, Journey.Repo,
+  database: "journey_mutate_nodes",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  log: false,
+  port: 5432
+)
+
+Application.put_env(:journey, :ecto_repos, [Journey.Repo])
+
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
+
+Application.loaded_applications()
+|> Enum.map(fn {app, _, _} -> app end)
+|> Enum.each(&Application.ensure_all_started/1)
+```
+
+## DB Setup
+
+This livebook requires a PostgreSQL database. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
+## What We'll Cover
+
+This tutorial focuses on the `mutate` node type.
+
+A `mutate` node is like a `compute` node, but instead of storing its own value, it overwrites the value of another node.
+
+We'll illustrate the use of a `mutate` node with a practical PII redaction scenario: a user-supplied SSN is used to compute the user's credit score, then automatically redacted.
+
+This tutorial will:
+
+1. define a graph that includes an `input` node with sensitive data (`:ssn`), a computation (`:credit_score`), and a `mutate` node (`:redact_ssn`) targeting `:ssn`,
+2. start an execution of the graph,
+3. set `:ssn`, watch `:credit_score` compute, and watch the `:redact_ssn` node mutate `:ssn`, redacting its sensitive data,
+4. read values from the execution,
+5. visualize and introspect the execution.
+
+## Define the Graph
+
+```elixir
+import Journey.Node
+
+graph = Journey.new_graph(
+  "Credit Check",
+  "v1",
+  [
+    input(:name),
+    input(:ssn),
+    compute(:credit_score, [:name, :ssn],
+      fn %{name: name, ssn: ssn} ->
+        seed = :erlang.phash2({name, ssn})
+        score = 300 + rem(seed, 551)
+        {:ok, score}
+      end
+    ),
+    mutate(:redact_ssn, [:credit_score],
+      fn _ -> IO.puts("redacting :ssn"); {:ok, "<redacted>"} end,
+      mutates: :ssn
+    )
+  ]
+); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+The `:credit_score` compute node depends on both `:name` and `:ssn`. Once the credit score is computed, the `:redact_ssn` mutate node fires and overwrites `:ssn` with `"<redacted>"`.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Visualize the graph:
+
+```elixir
+graph
+|> Journey.Tools.generate_mermaid_graph()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Credit Check', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        name[name]
+        ssn[ssn]
+        credit_score[["credit_score<br/>(anonymous fn)"]]
+        redact_ssn[["redact_ssn<br/>(anonymous fn)<br/>mutates: ssn"]]
+
+        name -->  credit_score
+        ssn -->  credit_score
+        credit_score -->  redact_ssn
+    end
+
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,name,ssn,credit_score,redact_ssn defaultNode
+```
+
+## Start an Execution
+
+```elixir
+execution = Journey.start(graph); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Set Inputs
+
+```elixir
+execution =
+  execution
+  |> Journey.set(:name, "Luigi")
+  |> Journey.set(:ssn, "123-45-6789"); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Setting `:name` and `:ssn` unblocks `:credit_score`, which in turn unblocks `:redact_ssn`, which overwrites `:ssn`.
+
+## Watch It Unfold
+
+```elixir
+{:ok, score, _revision} = Journey.get(execution, :credit_score, wait: :any)
+score
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+redacting :ssn
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+728
+```
+
+The credit score was computed using the original `:ssn`, and `:redact_ssn`'s function provided the new value for `:ssn`:
+
+```elixir
+Journey.values(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  name: "Luigi",
+  ssn: "<redacted>",
+  credit_score: 728,
+  last_updated_at: 1776239756,
+  execution_id: "EXECXMG9Z4682R8Y8GL609TE",
+  redact_ssn: "updated :ssn"
+}
+```
+
+The value of `:ssn` has been replaced with `"<redacted>"`.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Diagram
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Credit Check', version v1, EXECXMG9Z4682R8Y8GL609TE"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        ssn["✅ ssn"]
+        credit_score[["✅ credit_score<br/>(anonymous fn)"]]
+        redact_ssn[["✅ redact_ssn<br/>(anonymous fn)<br/>mutates: ssn"]]
+
+        name -->  credit_score
+        ssn -->  credit_score
+        credit_score -->  redact_ssn
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class redact_ssn,credit_score,ssn,name,last_updated_at,execution_id setNode
+```
+
+### Detailed Introspection
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXECXMG9Z4682R8Y8GL609TE'
+- Graph: 'Credit Check' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-15 07:55:56Z UTC | 0 seconds ago
+- Last updated at: 2026-04-15 07:55:56Z UTC | 0 seconds ago
+- Duration: 0 seconds
+- Revision: 6
+- # of Values: 6 (set) / 6 (total)
+- # of Computations: 2
+
+Values:
+- Set:
+  - last_updated_at: '1776239756' | :input
+    set at 2026-04-15 07:55:56Z | rev: 6
+
+  - redact_ssn: '"updated :ssn"' | :mutate
+    computed at 2026-04-15 07:55:56Z | rev: 6
+
+  - credit_score: '728' | :compute
+    computed at 2026-04-15 07:55:56Z | rev: 4
+
+  - ssn: '"<redacted>"' | :input
+    set at 2026-04-15 07:55:56Z | rev: 2
+
+  - name: '"Luigi"' | :input
+    set at 2026-04-15 07:55:56Z | rev: 1
+
+  - execution_id: 'EXECXMG9Z4682R8Y8GL609TE' | :input
+    set at 2026-04-15 07:55:56Z | rev: 0
+
+
+- Not set:
+  
+
+Computations:
+- Completed:
+  - :redact_ssn (CMP6E5721X6B17MVHAL7T71): ✅ :success | :mutate | rev 6
+    started: 2026-04-15 07:55:56Z | completed: 2026-04-15 07:55:56Z (0s)
+    inputs used:
+       :credit_score (rev 4)
+  - :credit_score (CMP0A2R1151B01AX0G2R6AE): ✅ :success | :compute | rev 4
+    started: 2026-04-15 07:55:56Z | completed: 2026-04-15 07:55:56Z (0s)
+    inputs used:
+       :name (rev 1)
+       :ssn (rev 2)
+
+- Outstanding:
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Going Further: `update_revision_on_change`
+
+By default, a mutation overwrites the target node's value without triggering downstream recomputation. If you want the mutation to also trigger downstream nodes to recompute, pass `update_revision_on_change: true`:
+
+<!-- livebook:{"break_markdown":true} -->
+
+Here is an example:
+
+<!-- livebook:{"break_markdown":true} -->
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+...
+input(:cached_price),
+mutate(:fetch_current_price, [:polling_schedule],
+  fn _ -> {:ok, fetch_current_market_price()} end,
+  mutates: :cached_price,
+  update_revision_on_change: true
+),
+compute(
+  :report_price_update,
+  [:cached_price],
+  fn %{cached_price: new_price} -> send_price_update_notification(new_price) end
+)
+...
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+See the `mutate/4` documentation for a working example.
+
+## Summary
+
+In this Livebook, we saw how `mutate` nodes overwrite another node's value.
+
+We used this functionality to automatically redact an SSN after it was used to compute a credit score.
+
+Key takeaways:
+
+* A `mutate` node writes to another node (specified by `mutates:`), unlike `compute` which stores its own result.
+
+* Mutate nodes are gated by their upstream dependencies just like `compute` nodes — `:redact_ssn` only fired after `:credit_score` was computed.
+
+* This pattern is useful for PII redaction, cache updates, and any scenario where you need to update an `input` node.
