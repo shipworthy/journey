@@ -14,8 +14,11 @@ defmodule Journey.MixProject do
       name: "Journey",
       docs: [
         main: "readme",
+        source_url: "https://github.com/shipworthy/journey",
+        source_ref: "main",
         extras: [
           "README.md",
+          "lib/examples/compute.livemd",
           "BASIC_CONCEPTS.md",
           "MODULES_AND_FUNCTIONS.md",
           "LICENSE.md",
