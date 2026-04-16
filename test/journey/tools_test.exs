@@ -4,6 +4,7 @@ defmodule Journey.ToolsTest do
   import Journey.Helpers.Random, only: [random_string: 0]
   import Journey.Node
   import Journey.Node.Conditions
+  import Journey.Node.UpstreamDependencies
   import Journey.Executions, only: [find_computations_by_node_name: 2]
   import WaitForIt
 
@@ -839,6 +840,75 @@ defmodule Journey.ToolsTest do
       assert_raise ArgumentError, fn ->
         Journey.Tools.generate_mermaid_execution(execution.id, include_legend: "not_boolean")
       end
+    end
+
+    test "compute node shows 🚫 when last computation succeeded but value was cleared" do
+      graph =
+        Journey.new_graph("mermaid_cleared_compute_#{random_string()}", "v1", [
+          input(:flag),
+          compute(
+            :conditional,
+            unblocked_when({:and, [{:flag, &true?/1}]}),
+            fn _values -> {:ok, "computed"} end
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Set flag to true, wait for compute to succeed
+      execution = Journey.set(execution, :flag, true)
+      {:ok, "computed", _} = Journey.get(execution, :conditional, wait: :any)
+
+      # Verify mermaid shows ✅ while value is set
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      assert mermaid =~ "✅ conditional"
+
+      # Set flag to false, which should clear the compute value
+      execution = Journey.set(execution, :flag, false)
+      execution = Journey.load(execution)
+
+      # Verify the value is actually cleared
+      assert {:error, :not_set} = Journey.get_value(execution, :conditional)
+
+      # Verify mermaid no longer shows ✅ for the cleared node
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      refute mermaid =~ "✅ conditional"
+      assert mermaid =~ "🚫 conditional"
+    end
+
+    test "node shows 🚫 when last computation succeeded but conditions are no longer met" do
+      graph =
+        Journey.new_graph("mermaid_blocked_tick_#{random_string()}", "v1", [
+          input(:name),
+          input(:enable),
+          tick_recurring(
+            :my_tick,
+            unblocked_when({:and, [{:name, &provided?/1}, {:enable, &true?/1}]}),
+            fn %{name: _name} ->
+              {:ok, System.os_time(:second) + 60}
+            end
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Enable the tick and wait for it to fire
+      execution = Journey.set(execution, :name, "Alice")
+      execution = Journey.set(execution, :enable, true)
+      {:ok, _, _} = Journey.get(execution, :my_tick, wait: :any)
+
+      # Verify mermaid shows ✅ while active
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      assert mermaid =~ "✅ my_tick"
+
+      # Disable — value persists but conditions are no longer met
+      execution = Journey.set(execution, :enable, false)
+      execution = Journey.load(execution)
+
+      # Verify mermaid shows 🚫 (blocked), not ✅
+      mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
+      refute mermaid =~ "✅ my_tick"
+      assert mermaid =~ "🚫 my_tick"
     end
   end
 
