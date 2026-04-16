@@ -1,0 +1,383 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# "tick_once" nodes
+
+```elixir
+# [Optional] Setting Build Key, see https://gojourney.dev/your_keys
+# (Using "Journey Livebook Demo" build key)
+System.put_env("JOURNEY_BUILD_KEY", "B27AXHMERm2Z6ehZhL49v")
+
+Mix.install(
+  [
+    {:ecto_sql, "~> 3.13"},
+    {:postgrex, "~> 0.22"},
+    {:jason, "~> 1.4"},
+    {:journey, "~> 0.10"},
+    {:kino, "~> 0.19"}
+  ],
+  start_applications: false
+)
+
+Application.put_env(:journey, :log_level, :warning)
+
+# Configure more frequent background sweeper runs (the default is 60 seconds).
+# The precision of the timer is determined by the granularity of the sweeper.
+Application.put_env(:journey, :background_sweeper, period_seconds: 5)
+
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
+# Update this configuration to point to your database server
+Application.put_env(:journey, Journey.Repo,
+  database: "journey_tick_once_nodes",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  log: false,
+  port: 5432
+)
+
+Application.put_env(:journey, :ecto_repos, [Journey.Repo])
+
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
+
+Application.loaded_applications()
+|> Enum.map(fn {app, _, _} -> app end)
+|> Enum.each(&Application.ensure_all_started/1)
+```
+
+## DB Setup
+
+This livebook requires a PostgreSQL service. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
+## What We'll Cover
+
+This tutorial focuses on the `tick_once` node type, which is used for scheduling future events.
+
+A `tick_once` node computes a future timestamp (in unix seconds).
+
+Its downstream nodes become unblocked and fire when that future time arrives.
+
+In this livebook, we'll build a nap scheduler: spin up an execution, tell it your name, `tick_once` will compute the scheduled nap time, and a `compute` node fires when the time arrives.
+
+We will also look at the execution's values, diagram, and detailed introspection.
+
+## Define the Graph
+
+```elixir
+import Journey.Node
+
+schedule_nap_in_seconds = 30
+
+graph = Journey.new_graph(
+  "Nap Scheduler",
+  "v1",
+  [
+    input(:name),
+    tick_once(:schedule_nap, [:name],
+      fn %{name: name} ->
+        IO.puts("schedule_nap: scheduling a nap for #{name} in #{schedule_nap_in_seconds} seconds")
+        {:ok, System.os_time(:second) + schedule_nap_in_seconds}
+      end
+    ),
+    compute(:start_nap, [:name, :schedule_nap],
+      fn %{name: name} ->
+        {:ok, "time for a nap, #{name}!"}
+      end
+    )
+  ]
+); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Three nodes:
+
+* `:name` is an input node, setting it kicks everything off,
+* `:schedule_nap` fires as soon as `:name` is set, and returns the time (unix epoch seconds) at which the nap should start, and
+* `:start_nap` fires when the time returned by `:schedule_nap` has arrived.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Visualize the graph:
+
+```elixir
+graph
+|> Journey.Tools.generate_mermaid_graph()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Nap Scheduler', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        name[name]
+        schedule_nap[["schedule_nap<br/>(anonymous fn)<br/>tick_once node"]]
+        start_nap[["start_nap<br/>(anonymous fn)"]]
+
+        name -->  schedule_nap
+        name -->  start_nap
+        schedule_nap -->  start_nap
+    end
+
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,name,schedule_nap,start_nap defaultNode
+```
+
+## Start an Execution and Request a Nap
+
+```elixir
+execution = 
+  graph 
+  |> Journey.start()
+  |> Journey.set(:name, "Luigi");
+:ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Schedule That Nap
+
+The tick fires immediately, but it's not time to start a nap just yet:
+
+```elixir
+{:ok, scheduled_time, revision} = Journey.get(execution, :schedule_nap, wait: :any)
+now = System.os_time(:second)
+scheduled_at_string = scheduled_time |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
+"scheduled_time: #{scheduled_at_string}, in #{scheduled_time-now} seconds"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+schedule_nap: scheduling a nap for Luigi in 30 seconds
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"scheduled_time: 06:48:21 UTC, in 29 seconds"
+```
+
+`:schedule_nap` has computed — its value is a unix timestamp, containing the scheduled time.
+
+`:start_nap` hasn't fired yet. It's waiting for the scheduled time:
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Nap Scheduler', version v1, EXECDZM2RAH4XBADHXLBY4M5"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        schedule_nap[["✅ schedule_nap<br/>(anonymous fn)<br/>tick_once node"]]
+        start_nap[["🚫 start_nap<br/>(anonymous fn)"]]
+
+        name -->  schedule_nap
+        name -->  start_nap
+        schedule_nap -->  start_nap
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class schedule_nap,name,last_updated_at,execution_id setNode
+    class start_nap neutralNode
+```
+
+## Wait for Nap Time to Start
+
+```elixir
+"Waiting for #{scheduled_at_string}..."
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Waiting for 06:48:21 UTC..."
+```
+
+This will block until it's time:
+
+```elixir
+{:ok, value, _revision} = Journey.get(execution, :start_nap, wait: {:newer_than, revision}, timeout: 60_000)
+now = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S UTC")
+"#{now}: #{value}"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"06:48:25 UTC: time for a nap, Luigi!"
+```
+
+The actual event might occur a few seconds after its scheduled time. The precision of the timer is determined by the configured granularity of the sweeper – see `background_sweeper` configuration in the setup section.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Examining the execution, we can see that `:start_nap` has been "computed."
+
+```elixir
+Journey.values(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  name: "Luigi",
+  execution_id: "EXECDZM2RAH4XBADHXLBY4M5",
+  last_updated_at: 1776322101,
+  start_nap: "time for a nap, Luigi!",
+  schedule_nap: 1776322101
+}
+```
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Nap Scheduler', version v1, EXECDZM2RAH4XBADHXLBY4M5"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        schedule_nap[["✅ schedule_nap<br/>(anonymous fn)<br/>tick_once node"]]
+        start_nap[["✅ start_nap<br/>(anonymous fn)"]]
+
+        name -->  schedule_nap
+        name -->  start_nap
+        schedule_nap -->  start_nap
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class start_nap,schedule_nap,name,last_updated_at,execution_id setNode
+```
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXECDZM2RAH4XBADHXLBY4M5'
+- Graph: 'Nap Scheduler' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-16 06:47:51Z UTC | 34 seconds ago
+- Last updated at: 2026-04-16 06:48:21Z UTC | 4 seconds ago
+- Duration: 30 seconds
+- Revision: 5
+- # of Values: 5 (set) / 5 (total)
+- # of Computations: 2
+
+Values:
+- Set:
+  - last_updated_at: '1776322101' | :input
+    set at 2026-04-16 06:48:21Z | rev: 5
+
+  - start_nap: '"time for a nap, Luigi!"' | :compute
+    computed at 2026-04-16 06:48:21Z | rev: 5
+
+  - schedule_nap: '1776322101' | :tick_once
+    computed at 2026-04-16 06:47:51Z | rev: 3
+
+  - name: '"Luigi"' | :input
+    set at 2026-04-16 06:47:51Z | rev: 1
+
+  - execution_id: 'EXECDZM2RAH4XBADHXLBY4M5' | :input
+    set at 2026-04-16 06:47:51Z | rev: 0
+
+
+- Not set:
+  
+
+Computations:
+- Completed:
+  - :start_nap (CMPL5MYX8BRJZ0RDH54A3A1): ✅ :success | :compute | rev 5
+    started: 2026-04-16 06:48:21Z | completed: 2026-04-16 06:48:21Z (0s)
+    inputs used:
+       :name (rev 1)
+       :schedule_nap (rev 3)
+  - :schedule_nap (CMP0A5JX812L6DV896DA3H7): ✅ :success | :tick_once | rev 3
+    started: 2026-04-16 06:47:51Z | completed: 2026-04-16 06:47:51Z (0s)
+    inputs used:
+       :name (rev 1)
+
+- Outstanding:
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Beyond Naps
+
+`tick_once` is useful when you need to schedule an action at a specific future time. Things like:
+
+* issue a reminder a day before the due date,
+* send the user a reminder email 2 weeks after their last visit,
+* archive user information 1 month after their last engagement,
+* ... any other place where you need to schedule a future event.
+
+See the `tick_once/4` documentation for more details and examples.
+
+## Summary
+
+In this Livebook, we saw how `tick_once` nodes schedule actions for a specific future time.
+
+We built a nap scheduler with three nodes — an `input`, a `tick_once`, and a `compute` — and watched the compute node wait until the scheduled time before firing.
+
+Key takeaways:
+
+* A `tick_once` node computes immediately, but its value is a future timestamp (in unix seconds).
+* Downstream nodes will be unblocked when that time arrives.
+* Use `tick_once` for reminders, delayed actions, scheduled cleanup — any time something should happen at a later point.
