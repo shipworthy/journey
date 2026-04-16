@@ -5,6 +5,28 @@ defmodule Journey.Scheduler.ConditionalClearingTest do
   import Journey.Node.Conditions
   import Journey.Node.UpstreamDependencies
 
+  # Polls until a node becomes :not_set or max attempts are exhausted.
+  # Needed because conditional clearing runs asynchronously in the scheduler
+  # after a computation is recorded, so there's a brief window where the
+  # upstream value is updated but downstream invalidation hasn't propagated.
+  defp poll_until_cleared(execution, node_name, max_attempts \\ 50) do
+    Enum.reduce_while(1..max_attempts, execution, fn attempt, _exec ->
+      reloaded = Journey.load(execution)
+
+      case Journey.get_value(reloaded, node_name) do
+        {:error, :not_set} ->
+          {:halt, reloaded}
+
+        other when attempt == max_attempts ->
+          flunk("#{node_name} was not cleared after #{max_attempts} attempts, last value: #{inspect(other)}")
+
+        _ ->
+          Process.sleep(100)
+          {:cont, reloaded}
+      end
+    end)
+  end
+
   describe "conditional clearing when upstream values change" do
     test "downstream node should be cleared when its condition is no longer met" do
       f_add = fn %{x: x, y: y} -> {:ok, x + y} end
@@ -51,8 +73,8 @@ defmodule Journey.Scheduler.ConditionalClearingTest do
       # Wait for sum to be recomputed
       {:ok, 13, _} = Journey.get(execution, :sum, wait: {:newer_than, sum_rev2})
 
-      # Reload execution to get latest state
-      execution = Journey.load(execution)
+      # Wait for conditional clearing to propagate (async after sum recomputation)
+      execution = poll_until_cleared(execution, :large_value_alert)
 
       # CRITICAL: Alert should be cleared since condition is no longer met
       assert {:error, :not_set} = Journey.get_value(execution, :large_value_alert),
@@ -95,6 +117,9 @@ defmodule Journey.Scheduler.ConditionalClearingTest do
       # Change weather to sunny (false)
       execution = Journey.set(execution, :weather, false)
       assert {:ok, "🕶️"} = Journey.get_value(execution, :bring_sunglasses, wait_any: true)
+
+      # Wait for conditional clearing to propagate
+      execution = poll_until_cleared(execution, :bring_umbrella)
 
       # CRITICAL: Umbrella should now be cleared
       assert {:error, :not_set} = Journey.get_value(execution, :bring_umbrella),
