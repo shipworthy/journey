@@ -812,6 +812,23 @@ defmodule Journey.Tools do
 
   defp node_status_emoji(%Graph.Step{name: name, gated_by: gated_by}, execution) do
     state = most_recent_computation_state(execution, name)
+
+    state =
+      if state == :success do
+        value = Enum.find(execution.values, fn v -> v.node_name == name end)
+        value_is_set = value != nil and value.set_time != nil
+
+        readiness =
+          Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+            execution.values,
+            gated_by
+          )
+
+        if value_is_set and readiness.ready?, do: :success, else: :not_set
+      else
+        state
+      end
+
     computation_state_to_emoji(state, execution.values, gated_by)
   end
 
