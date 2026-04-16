@@ -1,0 +1,606 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# "tick_recurring" nodes
+
+```elixir
+# [Optional] Setting Build Key, see https://gojourney.dev/your_keys
+# (Using "Journey Livebook Demo" build key)
+System.put_env("JOURNEY_BUILD_KEY", "B27AXHMERm2Z6ehZhL49v")
+
+Mix.install(
+  [
+    {:ecto_sql, "~> 3.13"},
+    {:postgrex, "~> 0.22"},
+    {:jason, "~> 1.4"},
+    {:journey, "~> 0.10"},
+    {:kino, "~> 0.19"}
+  ],
+  start_applications: false
+)
+
+Application.put_env(:journey, :log_level, :warning)
+
+# Configure more frequent background sweeper runs (the default is 60 seconds).
+# The precision of the timer is determined by the granularity of the sweeper.
+Application.put_env(:journey, :background_sweeper, period_seconds: 5)
+
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
+# Update this configuration to point to your database server
+Application.put_env(:journey, Journey.Repo,
+  database: "journey_tick_recurring_nodes",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  log: false,
+  port: 5432
+)
+
+Application.put_env(:journey, :ecto_repos, [Journey.Repo])
+
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
+
+Application.loaded_applications()
+|> Enum.map(fn {app, _, _} -> app end)
+|> Enum.each(&Application.ensure_all_started/1)
+```
+
+## DB Setup
+
+This livebook requires a PostgreSQL database. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
+## What We'll Cover
+
+This tutorial focuses on the `tick_recurring` node type.
+
+A `tick_recurring` node is like `tick_once`, but instead of firing once, it fires repeatedly. Each time, it computes the next future timestamp, and when that time arrives, its downstream nodes fire again. Then it schedules the next tick, and so on.
+
+We will
+
+* define a hydration reminder graph,
+* start an execution of the graph,
+* set the `:name` value,
+* use the value of `:enable_reminders` to control whether new reminders fire or get scheduled,
+* watch `tick_recurring` periodically schedule the next `:remind_to_hydrate`, and
+* watch `:remind_to_hydrate` keep firing at the scheduled time.
+
+## Define the Graph
+
+```elixir
+import Journey.Node
+import Journey.Node.Conditions
+import Journey.Node.UpstreamDependencies
+
+reminder_interval_seconds = 15
+
+graph =
+  Journey.new_graph(
+    "Hydration Reminder",
+    "v1",
+    [
+      input(:name),
+      input(:enable_reminders),
+      tick_recurring(
+        :reminder_tick,
+        unblocked_when({
+          :and,
+          [
+            {:name, &provided?/1},
+            {:enable_reminders, &true?/1}
+          ]
+        }),
+        fn %{name: name} ->
+          scheduled_time = System.os_time(:second) + reminder_interval_seconds
+
+          scheduled_time_str =
+            scheduled_time 
+            |> DateTime.from_unix!() 
+            |> Calendar.strftime("%H:%M:%S UTC")
+
+          IO.puts("reminder_tick: scheduling a reminder for #{name} for #{scheduled_time_str}")
+          {:ok, scheduled_time}
+        end
+      ),
+      compute(
+        :remind_to_hydrate,
+        unblocked_when({
+          :and,
+          [
+            {:reminder_tick, &provided?/1},
+            {:enable_reminders, &true?/1}
+          ]
+        }),
+        fn values ->
+          count = Map.get(values, :remind_to_hydrate, 0) + 1
+          {:ok, count}
+        end
+      )
+    ]
+  )
+
+:ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Four nodes:
+
+* `:name` and `:enable_reminders` are inputs,
+* `:reminder_tick` is a `tick_recurring` node — it fires repeatedly, every 15 seconds, but only while both `:name` is provided and `:enable_reminders` is `true`,
+* `:remind_to_hydrate` fires each time `:reminder_tick` ticks, incrementing a counter and printing a reminder.
+
+Note the `unblocked_when` condition: it uses `{:and, [...]}` to require multiple conditions. `&provided?/1` checks that a value is set, and `&true?/1` checks that a value is exactly `true`. These are imported from `Journey.Node.Conditions`.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Visualize the graph:
+
+```elixir
+graph
+|> Journey.Tools.generate_mermaid_graph()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Hydration Reminder', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        name[name]
+        enable_reminders[enable_reminders]
+        reminder_tick[["reminder_tick<br/>(anonymous fn)<br/>tick_recurring node"]]
+        remind_to_hydrate[["remind_to_hydrate<br/>(anonymous fn)"]]
+
+        name -->  reminder_tick
+        enable_reminders --> |true?| reminder_tick
+        reminder_tick -->  remind_to_hydrate
+        enable_reminders --> |true?| remind_to_hydrate
+    end
+
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,name,enable_reminders,reminder_tick,remind_to_hydrate defaultNode
+```
+
+## Start an Execution
+
+```elixir
+execution =
+  graph
+  |> Journey.start()
+  |> Journey.set(:name, "Luigi"); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+`:name` is set, but `:enable_reminders` is not — so `:reminder_tick` is still blocked:
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECX2MGJDVJYAJ5RX0X8R64"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        enable_reminders["⬜ enable_reminders"]
+        reminder_tick[["🚫 reminder_tick<br/>(anonymous fn)<br/>tick_recurring node"]]
+        remind_to_hydrate[["🚫 remind_to_hydrate<br/>(anonymous fn)"]]
+
+        name -->  reminder_tick
+        enable_reminders --> |true?| reminder_tick
+        reminder_tick -->  remind_to_hydrate
+        enable_reminders --> |true?| remind_to_hydrate
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class name,last_updated_at,execution_id setNode
+    class remind_to_hydrate,reminder_tick,enable_reminders neutralNode
+```
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXECX2MGJDVJYAJ5RX0X8R64'
+- Graph: 'Hydration Reminder' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-16 09:22:40Z UTC | 0 seconds ago
+- Last updated at: 2026-04-16 09:22:40Z UTC | 0 seconds ago
+- Duration: 0 seconds
+- Revision: 1
+- # of Values: 3 (set) / 6 (total)
+- # of Computations: 2
+
+Values:
+- Set:
+  - last_updated_at: '1776331360' | :input
+    set at 2026-04-16 09:22:40Z | rev: 1
+
+  - name: '"Luigi"' | :input
+    set at 2026-04-16 09:22:40Z | rev: 1
+
+  - execution_id: 'EXECX2MGJDVJYAJ5RX0X8R64' | :input
+    set at 2026-04-16 09:22:40Z | rev: 0
+
+
+- Not set:
+  - enable_reminders: <unk> | :input
+  - remind_to_hydrate: <unk> | :compute
+  - reminder_tick: <unk> | :tick_recurring  
+
+Computations:
+- Completed:
+
+
+- Outstanding:
+  - reminder_tick: ⬜ :not_set (not yet attempted) | :tick_recurring
+       :and
+        ├─ ✅ :name | &provided?/1 | rev 1
+        └─ 🛑 :enable_reminders | &true?/1
+  - remind_to_hydrate: ⬜ :not_set (not yet attempted) | :compute
+       :and
+        ├─ 🛑 :reminder_tick | &provided?/1
+        └─ 🛑 :enable_reminders | &true?/1
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Enable Reminders
+
+```elixir
+execution = Journey.set(execution, :enable_reminders, true); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+The `tick_recurring` is now unblocked, and it computes the time for the reminder.
+
+```elixir
+{:ok, scheduled_time, revision} = Journey.get(execution, :reminder_tick, wait: :any)
+now = System.os_time(:second)
+scheduled_at_string = scheduled_time |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
+"scheduled_time: #{scheduled_at_string}, in #{scheduled_time-now} seconds"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+reminder_tick: scheduling a reminder for Luigi for 09:22:55 UTC
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"scheduled_time: 09:22:55 UTC, in 14 seconds"
+```
+
+## Wait for the First Reminder
+
+```elixir
+"Waiting for #{scheduled_at_string}..."
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Waiting for 09:22:55 UTC..."
+```
+
+This will block until it's time...
+
+```elixir
+{:ok, count, revision} = Journey.get(execution, :remind_to_hydrate, wait: :any, timeout: 60_000)
+now = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S UTC")
+"Reminder to hydrate fired: #{now}: count: #{count}"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Reminder to hydrate fired: 09:22:58 UTC: count: 1"
+```
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECX2MGJDVJYAJ5RX0X8R64"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        enable_reminders["✅ enable_reminders"]
+        reminder_tick[["✅ reminder_tick<br/>(anonymous fn)<br/>tick_recurring node"]]
+        remind_to_hydrate[["🚫 remind_to_hydrate<br/>(anonymous fn)"]]
+
+        name -->  reminder_tick
+        enable_reminders --> |true?| reminder_tick
+        reminder_tick -->  remind_to_hydrate
+        enable_reminders --> |true?| remind_to_hydrate
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class reminder_tick,enable_reminders,name,last_updated_at,execution_id setNode
+    class remind_to_hydrate neutralNode
+```
+
+## Wait for the Second Reminder
+
+Now we wait for the next tick. The `tick_recurring` has already scheduled it:
+
+```elixir
+{:ok, scheduled_time, revision} = Journey.get(execution, :reminder_tick, wait: {:newer_than, revision})
+now = System.os_time(:second)
+scheduled_at_string = scheduled_time |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
+"Waiting for scheduled_time: #{scheduled_at_string}, in #{scheduled_time-now} seconds"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Waiting for scheduled_time: 09:23:11 UTC, in 13 seconds"
+```
+
+```elixir
+{:ok, count, _revision} = Journey.get(execution, :remind_to_hydrate, wait: {:newer_than, revision}, timeout: 60_000)
+now = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S UTC")
+"Reminder to hydrate fired: #{now}: count: #{count}"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Reminder to hydrate fired: 09:23:14 UTC: count: 2"
+```
+
+As long as reminders are enabled, this will keep happening every 15+ seconds (the granularity is subject to sweeper's configuration).
+
+## Disable Reminders
+
+```elixir
+execution = Journey.set(execution, :enable_reminders, false); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Setting `:enable_reminders` to `false` means the `unblocked_when` condition on both `:reminder_tick` and `:remind_to_hydrate` is no longer satisfied. The tick stops firing, no more reminders will be sent.
+
+## New Execution State
+
+```elixir
+Journey.values(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  name: "Luigi",
+  last_updated_at: 1776331394,
+  execution_id: "EXECX2MGJDVJYAJ5RX0X8R64",
+  enable_reminders: false,
+  reminder_tick: 1776331406
+}
+```
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECX2MGJDVJYAJ5RX0X8R64"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        enable_reminders["✅ enable_reminders"]
+        reminder_tick[["🚫 reminder_tick<br/>(anonymous fn)<br/>tick_recurring node"]]
+        remind_to_hydrate[["🚫 remind_to_hydrate<br/>(anonymous fn)"]]
+
+        name -->  reminder_tick
+        enable_reminders --> |true?| reminder_tick
+        reminder_tick -->  remind_to_hydrate
+        enable_reminders --> |true?| remind_to_hydrate
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class enable_reminders,name,last_updated_at,execution_id setNode
+    class remind_to_hydrate,reminder_tick neutralNode
+```
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXECX2MGJDVJYAJ5RX0X8R64'
+- Graph: 'Hydration Reminder' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-16 09:22:40Z UTC | 34 seconds ago
+- Last updated at: 2026-04-16 09:23:14Z UTC | 0 seconds ago
+- Duration: 34 seconds
+- Revision: 14
+- # of Values: 5 (set) / 6 (total)
+- # of Computations: 6
+
+Values:
+- Set:
+  - last_updated_at: '1776331394' | :input
+    set at 2026-04-16 09:23:14Z | rev: 14
+
+  - enable_reminders: 'false' | :input
+    set at 2026-04-16 09:23:14Z | rev: 13
+
+  - reminder_tick: '1776331406' | :tick_recurring
+    computed at 2026-04-16 09:23:11Z | rev: 12
+
+  - name: '"Luigi"' | :input
+    set at 2026-04-16 09:22:40Z | rev: 1
+
+  - execution_id: 'EXECX2MGJDVJYAJ5RX0X8R64' | :input
+    set at 2026-04-16 09:22:40Z | rev: 0
+
+
+- Not set:
+  - remind_to_hydrate: <unk> | :compute  
+
+Computations:
+- Completed:
+  - :reminder_tick (CMP35ZY49079RLT4DHH51J5): ✅ :success | :tick_recurring | rev 12
+    started: 2026-04-16 09:23:11Z | completed: 2026-04-16 09:23:11Z (0s)
+    inputs used:
+       :name (rev 1)
+       :enable_reminders (rev 2)
+  - :remind_to_hydrate (CMPXY31HT7YT39R5MHRG9Y5): ✅ :success | :compute | rev 10
+    started: 2026-04-16 09:23:11Z | completed: 2026-04-16 09:23:11Z (0s)
+    inputs used:
+       :enable_reminders (rev 2)
+       :reminder_tick (rev 8)
+  - :reminder_tick (CMPV1D80ERG7L27YEGZ2J02): ✅ :success | :tick_recurring | rev 8
+    started: 2026-04-16 09:22:56Z | completed: 2026-04-16 09:22:56Z (0s)
+    inputs used:
+       :name (rev 1)
+       :enable_reminders (rev 2)
+  - :remind_to_hydrate (CMPZRH28ADBA82THDRMT7A0): ✅ :success | :compute | rev 6
+    started: 2026-04-16 09:22:56Z | completed: 2026-04-16 09:22:56Z (0s)
+    inputs used:
+       :enable_reminders (rev 2)
+       :reminder_tick (rev 4)
+  - :reminder_tick (CMPJ8XVJZ96TG0HD0B4H7GY): ✅ :success | :tick_recurring | rev 4
+    started: 2026-04-16 09:22:40Z | completed: 2026-04-16 09:22:40Z (0s)
+    inputs used:
+       :name (rev 1)
+       :enable_reminders (rev 2)
+
+- Outstanding:
+  - remind_to_hydrate: ⬜ :not_set (not yet attempted) | :compute
+       :and
+        ├─ 🛑 :reminder_tick | &provided?/1
+        └─ 🛑 :enable_reminders | &true?/1
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## History Growing? `keep_latest_completed_computations: 100`
+
+You may notice that execution introspection above has multiple historical records for computations that have already taken place. This is useful for understanding what happened, but if your recurring events repeat in perpetuity, those records can add up, and start taking up database and memory space. Use `:keep_latest_completed_computations` to limit how many are kept:
+
+<!-- livebook:{"break_markdown":true} -->
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+tick_recurring(:reminder_tick, deps, &next_time/1,
+  keep_latest_completed_computations: 100
+)
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+After each successful completion, older computation records beyond the retention window are deleted. The default is unlimited; set this option on any node whose computation count will grow larger than you want.
+
+See the `tick_recurring/3` documentation for more details.
+
+## Beyond Hydration
+
+`tick_recurring` is useful when you need to schedule recurring actions, things like:
+
+* sending your users a weekly activity summary,
+* sending your customers a monthly statement,
+* having an agent scan logs every few minutes, checking for problems and handling issues,
+* ... any other place you want to reliably schedule a recurring action.
+
+## Summary
+
+In this Livebook, we saw how `tick_recurring` nodes fire repeatedly on a schedule.
+
+We built a hydration reminder with four nodes — two inputs, a `tick_recurring`, and a `compute` — and watched the compute node fire twice as the tick kept scheduling the next reminder.
+
+Key takeaways:
+
+* A `tick_recurring` node computes a future timestamp, and when that time arrives, its downstream nodes fire. Then it schedules the next tick, and so on.
+
+* Downstream nodes re-fire on every tick — the same `:remind_to_hydrate` compute ran each time, incrementing its counter.
+
+* Use `unblocked_when` to conditionally start and stop the recurring schedule. In our example, setting `:enable_reminders` to `false` stopped the tick.
+
+* Use `keep_latest_completed_computations` to manage retention in long-running recurring schedules.
