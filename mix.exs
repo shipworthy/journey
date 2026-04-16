@@ -22,6 +22,7 @@ defmodule Journey.MixProject do
           "lib/examples/mutate.livemd",
           "lib/examples/historian.livemd",
           "lib/examples/tick_once.livemd",
+          "lib/examples/tick_recurring.livemd",
           "BASIC_CONCEPTS.md",
           "MODULES_AND_FUNCTIONS.md",
           "LICENSE.md",

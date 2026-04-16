@@ -37,7 +37,7 @@ Hello from Elixir
 
 Please see Makefile for other useful commands and shortcuts.
 
-Note that `make` commands generally return non-zero exit codes on failure.
+Note that `make` commands return non-zero exit codes on failure. A successful run (exit code 0) means everything passed — do not re-run to scan for errors in the output.
 
 ### Checklist for making changes
 
