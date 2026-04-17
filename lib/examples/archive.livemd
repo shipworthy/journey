@@ -1,0 +1,382 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# "archive" nodes
+
+```elixir
+# [Optional] Setting Build Key, see https://gojourney.dev/your_keys
+# (Using "Journey Livebook Demo" build key)
+System.put_env("JOURNEY_BUILD_KEY", "B27AXHMERm2Z6ehZhL49v")
+
+Mix.install(
+  [
+    {:ecto_sql, "~> 3.13"},
+    {:postgrex, "~> 0.22"},
+    {:jason, "~> 1.4"},
+    {:journey, "~> 0.10"},
+    {:kino, "~> 0.19"}
+  ],
+  start_applications: false
+)
+
+Application.put_env(:journey, :log_level, :warning)
+
+# Configure more frequent background sweeper runs (the default is 60 seconds).
+# The precision of the timer is determined by the granularity of the sweeper.
+Application.put_env(:journey, :background_sweeper, period_seconds: 5)
+
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
+# Update this configuration to point to your database server
+Application.put_env(:journey, Journey.Repo,
+  database: "journey_archive_nodes",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  log: false,
+  port: 5432
+)
+
+Application.put_env(:journey, :ecto_repos, [Journey.Repo])
+
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
+
+Application.loaded_applications()
+|> Enum.map(fn {app, _, _} -> app end)
+|> Enum.each(&Application.ensure_all_started/1)
+```
+
+## DB Setup
+
+This livebook requires a PostgreSQL service. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
+## What We'll Cover
+
+This tutorial focuses on the `archive` node type.
+
+An `archive` node marks its execution as, well, archived. This is the graph equivalent of calling `Journey.archive/1` on the execution.
+
+Once archived, the execution is, in effect, soft-deleted, and removed from normal use:
+
+* excluded from `Journey.load/2` by default (unless you explicitly ask for it with `include_archived: true`).
+* excluded from `Journey.list_executions/1` / `Journey.count_executions/1`, unless explicitly requested with `include_archived: true`.
+* excluded from sweeper processing: its timers won't fire.
+
+We'll build an execution that archives itself 30 seconds after the customer's name is provided, using a `tick_once` to schedule the cleanup.
+
+An archived execution can be unarchived, with `Journey.unarchive/1`.
+
+## Define the Graph
+
+```elixir
+import Journey.Node
+
+archive_after_seconds = 30
+
+graph = Journey.new_graph(
+  "Customer Order",
+  "v1",
+  [
+    input(:customer_name),
+    tick_once(:schedule_cleanup, [:customer_name],
+      fn %{customer_name: name} ->
+        IO.puts("schedule_cleanup: archiving order for #{name} in #{archive_after_seconds} seconds")
+        {:ok, System.os_time(:second) + archive_after_seconds}
+      end
+    ),
+    archive(:archive_order, [:schedule_cleanup])
+  ]
+); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Three nodes:
+
+* `:customer_name` is an input node,
+* `:schedule_cleanup` fires as soon as `:customer_name` is set, and returns the time (unix epoch seconds) at which the order should be archived, and
+* `:archive_order` fires when the time returned by `:schedule_cleanup` has arrived, and archives the execution.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Visualize the graph:
+
+```elixir
+graph
+|> Journey.Tools.generate_mermaid_graph()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Customer Order', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        customer_name[customer_name]
+        schedule_cleanup[["schedule_cleanup<br/>(anonymous fn)<br/>tick_once node"]]
+        archive_order[["archive_order<br/>(archive_graph)"]]
+
+        customer_name -->  schedule_cleanup
+        schedule_cleanup -->  archive_order
+    end
+
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,customer_name,schedule_cleanup,archive_order defaultNode
+```
+
+## Start an Execution
+
+```elixir
+execution =
+  graph
+  |> Journey.start()
+  |> Journey.set(:customer_name, "Luigi");
+:ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Schedule the Cleanup
+
+The tick fires immediately, scheduling the archive for 30 seconds from now:
+
+```elixir
+{:ok, scheduled_time, _revision} = Journey.get(execution, :schedule_cleanup, wait: :any)
+now = System.os_time(:second)
+scheduled_at_string = scheduled_time |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
+"scheduled_time: #{scheduled_at_string}, in #{scheduled_time - now} seconds"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+schedule_cleanup: archiving order for Luigi in 30 seconds
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"scheduled_time: 07:59:05 UTC, in 29 seconds"
+```
+
+## The Execution Is Still Here
+
+The archive hasn't fired yet. The execution is alive and loadable:
+
+```elixir
+loaded = Journey.load(execution.id)
+loaded != nil
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+true
+```
+
+```elixir
+Journey.values(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  customer_name: "Luigi",
+  schedule_cleanup: 1776412745,
+  execution_id: "EXECJ1TEZGRE3272JEY75MB9",
+  last_updated_at: 1776412715
+}
+```
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Customer Order', version v1, EXECJ1TEZGRE3272JEY75MB9"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        customer_name["✅ customer_name"]
+        schedule_cleanup[["✅ schedule_cleanup<br/>(anonymous fn)<br/>tick_once node"]]
+        archive_order[["🚫 archive_order<br/>(archive_graph)"]]
+
+        customer_name -->  schedule_cleanup
+        schedule_cleanup -->  archive_order
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class schedule_cleanup,customer_name,last_updated_at,execution_id setNode
+    class archive_order neutralNode
+```
+
+## Wait for Cleanup
+
+```elixir
+"Waiting for #{scheduled_at_string}..."
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Waiting for 07:59:05 UTC..."
+```
+
+This will block until the archive fires:
+
+```elixir
+{:ok, archived_at, _revision} = Journey.get(execution, :archive_order, wait: :any, timeout: 60_000)
+now = archived_at |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
+"#{now}: order archived"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"07:59:07 UTC: order archived"
+```
+
+## The Execution Has Been Archived
+
+```elixir
+Journey.load(execution.id)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+nil
+```
+
+`nil` — the execution is no longer returned by `Journey.load/2`. It has been archived.
+
+## It's Still There If You Need It
+
+Archived executions aren't deleted. Pass `include_archived: true` to retrieve them:
+
+```elixir
+execution = Journey.load(execution.id, include_archived: true)
+execution != nil
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+true
+```
+
+```elixir
+execution.archived_at |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"07:59:07 UTC"
+```
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXECJ1TEZGRE3272JEY75MB9'
+- Graph: 'Customer Order' | 'v1'
+- Archived at: 2026-04-17 07:59:07Z
+- Created at: 2026-04-17 07:58:35Z UTC | 34 seconds ago
+- Last updated at: 2026-04-17 07:59:07Z UTC | 2 seconds ago
+- Duration: 32 seconds
+- Revision: 6
+- # of Values: 5 (set) / 5 (total)
+- # of Computations: 2
+
+Values:
+- Set:
+  - archive_order: '1776412747' | :compute
+    computed at 2026-04-17 07:59:07Z | rev: 6
+
+  - last_updated_at: '1776412747' | :input
+    set at 2026-04-17 07:59:07Z | rev: 6
+
+  - schedule_cleanup: '1776412745' | :tick_once
+    computed at 2026-04-17 07:58:35Z | rev: 3
+
+  - customer_name: '"Luigi"' | :input
+    set at 2026-04-17 07:58:35Z | rev: 1
+
+  - execution_id: 'EXECJ1TEZGRE3272JEY75MB9' | :input
+    set at 2026-04-17 07:58:35Z | rev: 0
+
+
+- Not set:
+  
+
+Computations:
+- Completed:
+  - :archive_order (CMPL2B5TM14XA82R5ETY315): ✅ :success | :compute | rev 6
+    started: 2026-04-17 07:59:07Z | completed: 2026-04-17 07:59:07Z (0s)
+    inputs used:
+       :schedule_cleanup (rev 3)
+  - :schedule_cleanup (CMP2EV0Z9AMRD8M4G3XR8E4): ✅ :success | :tick_once | rev 3
+    started: 2026-04-17 07:58:35Z | completed: 2026-04-17 07:58:35Z (0s)
+    inputs used:
+       :customer_name (rev 1)
+
+- Outstanding:
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Summary
+
+In this Livebook, we saw how an `archive` node soft-deleted the execution, removing it from default queries.
+
+We built a simple graph with three nodes — an `input`, a `tick_once`, and an `archive` — and watched the execution disappear from `Journey.load/2` after the scheduled cleanup time.
+
+Key takeaways:
+
+* An `archive` node, when unblocked, marks the execution as "archived," effectively soft-deleting the execution.
+* Archived executions are excluded from normal processing by default — they're still in the database, just out of sight and not consuming Journey's background processing resources.
+* Archived executions can still be accessed by various functions (`Journey.load/2`, `Journey.list_executions/1` / `Journey.count_executions/1`), by giving them an explicit flag, `include_archived: true`.
+* An execution can also be archived by passing it to `Journey.archive/1`.
+* An archived execution can be unarchived by passing its id to `Journey.unarchive/1`.
+* Use `archive` when you want to remove an execution from circulation (a credit card application, a pizza delivery order, etc.)
