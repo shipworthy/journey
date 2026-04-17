@@ -11,7 +11,7 @@ defmodule Journey.Examples.CreditCardApplication do
   iex> # The customer starts the application process and provides their personal information.
   iex> import Journey.Node
   iex> graph = Journey.Examples.CreditCardApplication.graph()
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex>
   iex> # This is only needed in a test, to perform background processing that happens automatically outside of tests.
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)

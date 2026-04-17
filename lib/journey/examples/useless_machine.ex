@@ -8,7 +8,7 @@ defmodule Journey.Examples.UselessMachine do
 
   ```elixir
   iex> graph = Journey.Examples.UselessMachine.graph()
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> Journey.get_value(execution, :switch)
   {:error, :not_set}
   iex> Journey.get_value(execution, :paw)

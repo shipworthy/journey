@@ -49,7 +49,7 @@ The project relies heavily on `make` to orchestrate common tasks.
 ### Key Concepts
 
 1.  **Graph:** A static definition of a workflow, consisting of nodes and dependencies. Defined via `Journey.new_graph/3`.
-2.  **Execution:** A running instance of a Graph. Started via `Journey.start_execution/1`.
+2.  **Execution:** A running instance of a Graph. Started via `Journey.start/1`.
 3.  **Nodes:**
     *   `input`: Data provided from outside.
     *   `compute`: Data derived from other nodes via a function.
