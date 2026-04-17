@@ -35,18 +35,18 @@ defmodule Journey.Tools do
       ...>     {:ok, "Hello, \#{title} \#{name}!"}
       ...>   end)
       ...> ])
-      iex> {:ok, execution} = Journey.start_execution(graph)
+      iex> execution = Journey.start(graph)
       iex> Journey.Tools.what_am_i_waiting_for(execution.id, :greeting) |> IO.puts()
       🛑 :name | &is_set/1
       🛑 :title | &is_set/1
       :ok
-      iex> {:ok, execution} = Journey.set(execution, :name, "Alice")
+      iex> execution = Journey.set(execution, :name, "Alice")
       iex> Journey.Tools.what_am_i_waiting_for(execution.id, :greeting) |> IO.puts()
       ✅ :name | &is_set/1 | rev 1
       🛑 :title | &is_set/1
       :ok
-      iex> {:ok, execution} = Journey.set(execution, :title, "Dr.")
-      iex> {:ok, %{value: _greeting_value}} = Journey.get_value(execution, :greeting, wait: :newer)
+      iex> execution = Journey.set(execution, :title, "Dr.")
+      iex> {:ok, _greeting_value, _revision} = Journey.get(execution, :greeting, wait: :newer)
       iex> Journey.Tools.what_am_i_waiting_for(execution.id, :greeting) |> IO.puts()
       ✅ :name | &is_set/1 | rev 1
       ✅ :title | &is_set/1 | rev 2
@@ -109,13 +109,13 @@ defmodule Journey.Tools do
       ...>   input(:value),
       ...>   compute(:double, [:value], fn %{value: v} -> {:ok, v * 2} end)
       ...> ])
-      iex> execution = Journey.start_execution(graph)
+      iex> execution = Journey.start(graph)
       iex> Journey.Tools.computation_state(execution.id, :double)
       :not_set
       iex> Journey.Tools.computation_state(execution.id, :value)
       :not_compute_node
       iex> execution = Journey.set(execution, :value, 5)
-      iex> {:ok, %{value: _result}} = Journey.get_value(execution, :double, wait: :newer)
+      iex> {:ok, _result, _revision} = Journey.get(execution, :double, wait: :newer)
       iex> Journey.Tools.computation_state(execution.id, :double)
       :success
   """
@@ -233,7 +233,7 @@ defmodule Journey.Tools do
       ...>   input(:value),
       ...>   compute(:double, [:value], fn %{value: v} -> {:ok, v * 2} end)
       ...> ])
-      iex> execution = Journey.start_execution(graph)
+      iex> execution = Journey.start(graph)
       iex> Journey.Tools.computation_status_as_text(execution.id, :double)
       ":double: ⬜ :not_set (not yet attempted) | :compute\\n       ✅ :value | &is_set/1"
 
@@ -242,9 +242,9 @@ defmodule Journey.Tools do
       ...>   input(:value),
       ...>   compute(:triple, [:value], fn %{value: v} -> {:ok, v * 3} end)
       ...> ])
-      iex> execution = Journey.start_execution(graph)
+      iex> execution = Journey.start(graph)
       iex> execution = Journey.set(execution, :value, 5)
-      iex> {:ok, %{}} = Journey.get_value(execution, :triple, wait: :newer)
+      iex> {:ok, _result, _revision} = Journey.get(execution, :triple, wait: :newer)
       iex> result = Journey.Tools.computation_status_as_text(execution.id, :triple)
       iex> result =~ ":triple"
       true

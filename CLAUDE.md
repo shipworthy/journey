@@ -87,7 +87,7 @@ tick_recurring/3  # Recurring execution
 ### Key APIs
 ```elixir
 Journey.new_graph/4      # Define computation graph
-Journey.start_execution/1 # Execute graph instance
+Journey.start/1           # Execute graph instance
 Journey.load/2           # Load existing execution
 Journey.set/3            # Set node values
 Journey.unset/2          # Unset node values (single or multiple)

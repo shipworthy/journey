@@ -37,7 +37,7 @@ defmodule Journey do
   ...>     )
   iex>
   iex> # 2. For every customer visiting your website, start a new execution of the graph:
-  iex> e = Journey.start_execution(graph)
+  iex> e = Journey.start(graph)
   iex>
   iex> # 3. Populate the execution's nodes with the data as provided by the visitor:
   iex> e = Journey.set(e, :birth_day, 26)
@@ -89,7 +89,7 @@ defmodule Journey do
   options
 
   This is the foundational function for defining Journey graphs. It creates a validated
-  graph structure that can be used to start executions with `start_execution/1`. The graph
+  graph structure that can be used to start executions with `start/1`. The graph
   defines the data flow, dependencies, and computations for your application workflow.
 
   ## Quick Example
@@ -106,10 +106,10 @@ defmodule Journey do
       end)
     ]
   )
-  execution = Journey.start_execution(graph)
+  execution = Journey.start(graph)
   ```
 
-  Use `start_execution/1` to create executions and `set/3` to populate input values.
+  Use `start/1` to create executions and `set/3` to populate input values.
 
   ## Parameters
   * `name` - String identifying the graph (e.g., "user registration workflow")
@@ -162,7 +162,7 @@ defmodule Journey do
   ...> )
   iex> graph.name
   "greeting workflow"
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :name, "Alice")
   iex> {:ok, "Hello, Alice!", 3} = Journey.get(execution, :greeting, wait: :any)
   ```
@@ -226,7 +226,7 @@ defmodule Journey do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :birth_day, 15)
   iex> execution = Journey.set(execution, :birth_month, "May")
   iex> {:ok, "Taurus", _revision} = Journey.get(execution, :zodiac_sign, wait: :any)
@@ -251,7 +251,7 @@ defmodule Journey do
   ...>     end)
   ...>   ]
   ...> )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :raw_data, "hello world")
   iex> {:ok, "HELLO WORLD", 3} = Journey.get(execution, :upper_case, wait: :any)
   iex> {:ok, "HELLO WORLD omg yay", 5} = Journey.get(execution, :suffix, wait: :any)
@@ -272,7 +272,7 @@ defmodule Journey do
   ...>   ],
   ...>   execution_id_prefix: "onboard"
   ...> )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> String.starts_with?(execution.id, "ONBOARD")
   true
   iex> execution = Journey.set(execution, :email, "user@example.com")
@@ -369,7 +369,7 @@ defmodule Journey do
   ...>         compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
   ...>       ]
   ...>     )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution.revision
   0
   iex> execution = Journey.set(execution, :name, "Alice")
@@ -390,7 +390,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:data)]
   ...>     )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution_id = execution.id
   iex> reloaded = Journey.load(execution_id)
   iex> reloaded.id == execution_id
@@ -406,7 +406,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:data)]
   ...>     )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> fast_load = Journey.load(execution, preload: false)
   iex> fast_load.id == execution.id
   true
@@ -421,7 +421,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:data)]
   ...>     )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> Journey.archive(execution)
   iex> Journey.load(execution)
   nil
@@ -484,7 +484,7 @@ defmodule Journey do
   )
   ```
 
-  Use with `start_execution/1` to create executions and `load/2` to get individual execution details.
+  Use with `start/1` to create executions and `load/2` to get individual execution details.
 
   ## Parameters
     * `options` - Keyword list of query options (all optional):
@@ -539,8 +539,8 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:status)]
   ...> )
-  iex> Journey.start_execution(graph) |> Journey.set(:status, "active")
-  iex> Journey.start_execution(graph) |> Journey.set(:status, "pending")
+  iex> Journey.start(graph) |> Journey.set(:status, "active")
+  iex> Journey.start(graph) |> Journey.set(:status, "pending")
   iex> executions = Journey.list_executions(graph_name: graph.name)
   iex> length(executions)
   2
@@ -561,8 +561,8 @@ defmodule Journey do
   ...>   "v2.0.0",
   ...>   [input(:data), input(:new_field)]
   ...> )
-  iex> Journey.start_execution(graph_v1) |> Journey.set(:data, "v1 data")
-  iex> Journey.start_execution(graph_v2) |> Journey.set(:data, "v2 data")
+  iex> Journey.start(graph_v1) |> Journey.set(:data, "v1 data")
+  iex> Journey.start(graph_v2) |> Journey.set(:data, "v2 data")
   iex> Journey.list_executions(graph_name: graph_v1.name, graph_version: "v1.0.0") |> length()
   1
   iex> Journey.list_executions(graph_name: graph_v1.name, graph_version: "v2.0.0") |> length()
@@ -587,9 +587,9 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:priority)]
   ...> )
-  iex> Journey.start_execution(graph) |> Journey.set(:priority, "high")
-  iex> Journey.start_execution(graph) |> Journey.set(:priority, "low")
-  iex> Journey.start_execution(graph) |> Journey.set(:priority, "medium")
+  iex> Journey.start(graph) |> Journey.set(:priority, "high")
+  iex> Journey.start(graph) |> Journey.set(:priority, "low")
+  iex> Journey.start(graph) |> Journey.set(:priority, "medium")
   iex> # Sort by priority descending - shows the actual sorted values
   iex> Journey.list_executions(graph_name: graph.name, sort_by: [priority: :desc]) |> Enum.map(fn e -> Journey.values(e) |> Map.get(:priority) end)
   ["medium", "low", "high"]
@@ -599,7 +599,7 @@ defmodule Journey do
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
-  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set(:birth_day, day) |> Journey.set(:birth_month, 4) |> Journey.set(:first_name, "Mario")
+  iex> for day <- 1..20, do: Journey.start(graph) |> Journey.set(:birth_day, day) |> Journey.set(:birth_month, 4) |> Journey.set(:first_name, "Mario")
   iex> # Various filtering examples
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:birth_day, :eq, 10}]) |> Enum.count()
   1
@@ -626,9 +626,9 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:recipients)]
   ...> )
-  iex> Journey.start_execution(graph) |> Journey.set(:recipients, ["user1", "user2", "admin"])
-  iex> Journey.start_execution(graph) |> Journey.set(:recipients, ["user3", "user4"])
-  iex> Journey.start_execution(graph) |> Journey.set(:recipients, [1, 2, 3])
+  iex> Journey.start(graph) |> Journey.set(:recipients, ["user1", "user2", "admin"])
+  iex> Journey.start(graph) |> Journey.set(:recipients, ["user3", "user4"])
+  iex> Journey.start(graph) |> Journey.set(:recipients, [1, 2, 3])
   iex> # Find executions where recipients list contains "user1"
   iex> Journey.list_executions(graph_name: graph.name, filter_by: [{:recipients, :list_contains, "user1"}]) |> Enum.count()
   1
@@ -641,7 +641,7 @@ defmodule Journey do
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
-  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set(:birth_day, day) |> Journey.set(:birth_month, 4) |> Journey.set(:first_name, "Mario")
+  iex> for day <- 1..20, do: Journey.start(graph) |> Journey.set(:birth_day, day) |> Journey.set(:birth_month, 4) |> Journey.set(:first_name, "Mario")
   iex> # Multiple filters combined
   iex> Journey.list_executions(
   ...>   graph_name: graph.name,
@@ -666,8 +666,8 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:status)]
   ...> )
-  iex> e1 = Journey.start_execution(graph)
-  iex> _e2 = Journey.start_execution(graph)
+  iex> e1 = Journey.start(graph)
+  iex> _e2 = Journey.start(graph)
   iex> Journey.archive(e1)
   iex> Journey.list_executions(graph_name: graph.name) |> length()
   1
@@ -767,9 +767,9 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:status)]
   ...> )
-  iex> Journey.start_execution(graph) |> Journey.set(:status, "active")
-  iex> Journey.start_execution(graph) |> Journey.set(:status, "pending")
-  iex> Journey.start_execution(graph) |> Journey.set(:status, "active")
+  iex> Journey.start(graph) |> Journey.set(:status, "active")
+  iex> Journey.start(graph) |> Journey.set(:status, "pending")
+  iex> Journey.start(graph) |> Journey.set(:status, "active")
   iex> Journey.count_executions(graph_name: graph.name)
   3
   ```
@@ -778,7 +778,7 @@ defmodule Journey do
 
   ```elixir
   iex> graph = Journey.Examples.Horoscope.graph()
-  iex> for day <- 1..20, do: Journey.start_execution(graph) |> Journey.set(:birth_day, day) |> Journey.set(:birth_month, 4)
+  iex> for day <- 1..20, do: Journey.start(graph) |> Journey.set(:birth_day, day) |> Journey.set(:birth_month, 4)
   iex> Journey.count_executions(graph_name: graph.name, filter_by: [{:birth_day, :lte, 5}])
   5
   iex> Journey.count_executions(graph_name: graph.name, filter_by: [{:birth_day, :gt, 10}])
@@ -796,9 +796,9 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:age), input(:status)]
   ...> )
-  iex> Journey.start_execution(graph) |> Journey.set(:age, 25) |> Journey.set(:status, "active")
-  iex> Journey.start_execution(graph) |> Journey.set(:age, 17) |> Journey.set(:status, "active")
-  iex> Journey.start_execution(graph) |> Journey.set(:age, 30) |> Journey.set(:status, "inactive")
+  iex> Journey.start(graph) |> Journey.set(:age, 25) |> Journey.set(:status, "active")
+  iex> Journey.start(graph) |> Journey.set(:age, 17) |> Journey.set(:status, "active")
+  iex> Journey.start(graph) |> Journey.set(:age, 30) |> Journey.set(:status, "inactive")
   iex> Journey.count_executions(
   ...>   graph_name: graph.name,
   ...>   filter_by: [{:age, :gte, 18}, {:status, :eq, "active"}]
@@ -815,8 +815,8 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:data)]
   ...> )
-  iex> e1 = Journey.start_execution(graph)
-  iex> _e2 = Journey.start_execution(graph)
+  iex> e1 = Journey.start(graph)
+  iex> _e2 = Journey.start(graph)
   iex> Journey.archive(e1)
   iex> Journey.count_executions(graph_name: graph.name)
   1
@@ -833,7 +833,7 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:index)]
   ...> )
-  iex> for i <- 1..25, do: Journey.start_execution(graph) |> Journey.set(:index, i)
+  iex> for i <- 1..25, do: Journey.start(graph) |> Journey.set(:index, i)
   iex> total = Journey.count_executions(graph_name: graph.name)
   iex> page_size = 10
   iex> total_pages = div(total + page_size - 1, page_size)
@@ -881,12 +881,12 @@ defmodule Journey do
   ## Quick Example
 
   ```elixir
-  execution = Journey.start_execution(graph)
+  execution = Journey.start(graph)
   execution = Journey.set(execution, :name, "Mario")
   {:ok, greeting, _} = Journey.get(execution, :greeting, wait: :any)
   ```
 
-  Use `set/3` to provide input values and `get_value/3` to retrieve computed results.
+  Use `set/3` to provide input values and `get/3` to retrieve computed results.
 
   ## Parameters
   * `graph` - A validated `%Journey.Graph{}` struct created with `new_graph/3`. The graph must
@@ -908,7 +908,7 @@ defmodule Journey do
 
   ## Singleton Graphs
   For graphs created with `singleton: true`, use `find_or_start/1` instead.
-  Calling `start_execution/1` on a singleton graph will raise an `ArgumentError`.
+  Calling `start/1` on a singleton graph will raise an `ArgumentError`.
 
   ## Examples
 
@@ -928,7 +928,7 @@ defmodule Journey do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution.graph_name
   "greeting workflow"
   iex> execution.graph_version
@@ -950,7 +950,7 @@ defmodule Journey do
   ...>         compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
   ...>       ]
   ...>     )
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> is_binary(execution.id)
   true
   iex> execution.archived_at
@@ -972,8 +972,8 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:count)]
   ...>     )
-  iex> execution1 = Journey.start_execution(graph)
-  iex> execution2 = Journey.start_execution(graph)
+  iex> execution1 = Journey.start(graph)
+  iex> execution2 = Journey.start(graph)
   iex> execution1.id != execution2.id
   true
   iex> execution1 = Journey.set(execution1, :count, 1)
@@ -983,7 +983,7 @@ defmodule Journey do
   ```
 
   """
-  def start_execution(graph) when is_struct(graph, Graph) do
+  def start(graph) when is_struct(graph, Graph) do
     if graph.singleton do
       raise ArgumentError,
             "Graph '#{graph.name}' is a singleton graph. Use find_or_start/1 instead."
@@ -999,14 +999,10 @@ defmodule Journey do
     |> Journey.Scheduler.advance()
   end
 
-  @doc group: "Execution Lifecycle"
-  @doc """
-  Alias for `start_execution/1`. Creates and starts a new execution of the given graph.
-
-  See `start_execution/1` for full documentation.
-  """
-  def start(graph) when is_struct(graph, Graph) do
-    start_execution(graph)
+  @doc group: "Deprecated"
+  @doc "Use `start/1` instead."
+  def start_execution(graph) when is_struct(graph, Graph) do
+    start(graph)
   end
 
   @doc group: "Execution Lifecycle"
@@ -1105,7 +1101,7 @@ defmodule Journey do
     unless graph.singleton do
       raise ArgumentError,
             "Graph '#{graph.name}' is not a singleton graph. " <>
-              "Use start_execution/1 for regular graphs, or create the graph with singleton: true."
+              "Use start/1 for regular graphs, or create the graph with singleton: true."
     end
 
     Executions.get_or_create(graph)
@@ -1150,7 +1146,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph("example", "v1.0.0", [input(:name), input(:age)])
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> Journey.values_all(execution) |> redact([:execution_id, :last_updated_at])
   %{name: :not_set, age: :not_set, execution_id: {:set, "..."}, last_updated_at: {:set, 1234567890}}
   iex> execution = Journey.set(execution, :name, "Alice")
@@ -1243,7 +1239,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph("example", "v1.0.0", [input(:name), input(:age)])
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
   %{execution_id: "...", last_updated_at: 1234567890}
   iex> execution = Journey.set(execution, :name, "Alice")
@@ -1256,7 +1252,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph("example", "v1.0.0", [input(:name), input(:age)])
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :name, "Alice")
   iex> Journey.values(execution, include_unset_as_nil: true) |> redact([:execution_id, :last_updated_at])
   %{name: "Alice", age: nil, execution_id: "...", last_updated_at: 1234567890}
@@ -1372,7 +1368,7 @@ defmodule Journey do
   ...>   input(:y),
   ...>   compute(:sum, [:x, :y], fn %{x: x, y: y} -> {:ok, x + y} end)
   ...> ])
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :x, 10)
   iex> execution = Journey.set(execution, :y, 20)
   iex> {:ok, 30, _revision} = Journey.get(execution, :sum, wait: :any)
@@ -1481,7 +1477,7 @@ defmodule Journey do
   ...>         compute(:greeting, [:name], fn %{name: name} -> {:ok, "Hello, \#{name}!"} end)
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :name, "Mario")
   iex> {:ok, "Hello, Mario!", rev1} = Journey.get(execution, :greeting, wait: :any)
   iex> execution = Journey.set(execution, :name, "Luigi")
@@ -1497,7 +1493,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:name)]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :name, "Mario")
   iex> first_revision = execution.revision
   iex> execution = Journey.set(execution, :name, "Mario")
@@ -1514,7 +1510,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:number), input(:flag), input(:data)]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :number, 42)
   iex> execution = Journey.set(execution, :flag, true)
   iex> execution = Journey.set(execution, :data, %{"key" => "value"})
@@ -1531,7 +1527,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:name)]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> updated_execution = Journey.set(execution.id, :name, "Luigi")
   iex> {:ok, "Luigi", _revision} = Journey.get(updated_execution, :name)
   ```
@@ -1551,7 +1547,7 @@ defmodule Journey do
   ...>         end)
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros"})
   iex> {:ok, "Mario", 1} = Journey.get(execution, :first_name)
   iex> {:ok, "Bros", 1} = Journey.get(execution, :last_name)
@@ -1567,7 +1563,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:name), input(:age), input(:active)]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, name: "Mario", age: 35, active: true)
   iex> {:ok, "Mario", 1} = Journey.get(execution, :name)
   iex> {:ok, 35, 1} = Journey.get(execution, :age)
@@ -1586,7 +1582,7 @@ defmodule Journey do
   ...>         historian(:title_history, [:document_title])
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :document_title, "Draft v1", metadata: %{"author_id" => "user123"})
   iex> {:ok, history1, history1_rev} = Journey.get(execution, :title_history, wait: :any)
   iex> length(history1)
@@ -1608,7 +1604,7 @@ defmodule Journey do
   ...>       "v1.0.0",
   ...>       [input(:field)]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> # String metadata
   iex> execution = Journey.set(execution, :field, "value1", metadata: "version-1")
   iex> # Map metadata (keys must be strings, not atoms)
@@ -1834,7 +1830,7 @@ defmodule Journey do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :name, "Mario")
   iex> {:ok, "Hello, Mario!", 3} = Journey.get(execution, :greeting, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, :name)
@@ -1857,7 +1853,7 @@ defmodule Journey do
   ...>         compute(:c, [:b], fn %{b: b} -> {:ok, "C:\#{b}"} end)
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :a, "value")
   iex> {:ok, "B:value", 3} = Journey.get(execution, :b, wait: :any)
   iex> {:ok, "C:B:value", 5} = Journey.get(execution, :c, wait: :any)
@@ -1879,7 +1875,7 @@ defmodule Journey do
   ...>   "v1.0.0",
   ...>   [input(:name)]
   ...> )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> original_revision = execution.revision
   iex> execution_after_unset = Journey.unset(execution, :name)
   iex> execution_after_unset.revision == original_revision
@@ -1902,7 +1898,7 @@ defmodule Journey do
   ...>     end)
   ...>   ]
   ...> )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, %{first_name: "Mario", last_name: "Bros", email: "mario@example.com"})
   iex> {:ok, "Mario Bros", 3} = Journey.get(execution, :full_name, wait: :any)
   iex> execution_after_unset = Journey.unset(execution, [:first_name, :last_name])
@@ -2007,7 +2003,7 @@ defmodule Journey do
     ```elixir
     iex> execution =
     ...>    Journey.Examples.Horoscope.graph() |>
-    ...>    Journey.start_execution() |>
+    ...>    Journey.start() |>
     ...>    Journey.set(:birth_day, 26)
     iex> {:ok, 26, _revision} = Journey.get(execution, :birth_day)
     iex> Journey.get(execution, :birth_month)
@@ -2213,7 +2209,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph("archive example", "v1.0.0", [input(:data)])
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> execution.archived_at
   nil
   iex> archived_at = Journey.archive(execution)
@@ -2230,7 +2226,7 @@ defmodule Journey do
   ```elixir
   iex> import Journey.Node
   iex> graph = Journey.new_graph("archive idempotent", "v1.0.0", [input(:data)])
-  iex> execution = Journey.start_execution(graph)
+  iex> execution = Journey.start(graph)
   iex> first_archive = Journey.archive(execution)
   iex> second_archive = Journey.archive(execution)
   iex> first_archive == second_archive
@@ -2263,7 +2259,7 @@ defmodule Journey do
     ```elixir
     iex> execution =
     ...>    Journey.Examples.Horoscope.graph() |>
-    ...>    Journey.start_execution() |>
+    ...>    Journey.start() |>
     ...>    Journey.set(:birth_day, 26)
     iex> _archived_at = Journey.archive(execution)
     iex> # The execution is now archived, and it is no longer visible.

@@ -46,7 +46,7 @@ defmodule Journey.Node do
   ...>         input(:zip_code)
   ...>        ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution() |> Journey.set(:first_name, "Mario")
+  iex> execution = graph |> Journey.start() |> Journey.set(:first_name, "Mario")
   iex> Journey.values(execution) |> redact([:execution_id, :last_updated_at])
   %{first_name: "Mario", execution_id: "...", last_updated_at: 1_234_567_890}
   ```
@@ -128,7 +128,7 @@ defmodule Journey.Node do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution() |> Journey.set(:name, "Alice")
+  iex> execution = graph |> Journey.start() |> Journey.set(:name, "Alice")
   iex> {:ok, "Alice-ay", 3} = execution |> Journey.get(:pig_latin_ish_name, wait: :any)
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
   %{name: "Alice", pig_latin_ish_name: "Alice-ay", execution_id: "...", last_updated_at: 1_234_567_890}
@@ -153,7 +153,7 @@ defmodule Journey.Node do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :temperature, 25)
   iex> Journey.get(execution, :high_temp_alert)
   {:error, :not_set}
@@ -184,7 +184,7 @@ defmodule Journey.Node do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :title, "Hello", metadata: %{"author_id" => "user123"})
   iex> {:ok, result, _} = Journey.get(execution, :title_with_author, wait: :any)
   iex> result
@@ -257,7 +257,7 @@ defmodule Journey.Node do
   ...>     )
   iex> execution =
   ...>     graph
-  ...>     |> Journey.start_execution()
+  ...>     |> Journey.start()
   ...>     |> Journey.set(:name, "Mario")
   iex> {:ok, "updated :name", 3} = execution |> Journey.get(:remove_pii, wait: :any)
   iex> execution |> Journey.values() |> redact([:execution_id, :last_updated_at])
@@ -292,7 +292,7 @@ defmodule Journey.Node do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution() |> Journey.set(:cached_price, 5)
+  iex> execution = graph |> Journey.start() |> Journey.set(:cached_price, 5)
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex> {:ok, "updated :cached_price", _} = Journey.get(execution, :fetch_current_price, wait: :any)
   iex> {:ok, "price changed to 6", _} = Journey.get(execution, :on_cached_price_update, wait: :any)
@@ -342,7 +342,7 @@ defmodule Journey.Node do
   ...>         archive(:archive, [:name])
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution.archived_at == nil
   true
   iex> execution = Journey.set(execution, :name, "Mario")
@@ -418,7 +418,7 @@ defmodule Journey.Node do
   ...>         historian(:content_history, [:content])
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :content, "First version")
   iex> {:ok, history1, history1_rev} = Journey.get(execution, :content_history, wait: :any)
   iex> length(history1)
@@ -443,7 +443,7 @@ defmodule Journey.Node do
   ...>         historian(:status_history, [:status], max_entries: 2)
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :status, "pending")
   iex> {:ok, history, rev1} = Journey.get(execution, :status_history, wait: :any)
   iex> Enum.map(history, fn entry -> entry["value"] end)
@@ -473,7 +473,7 @@ defmodule Journey.Node do
   ...>         historian(:audit_log, [:audit_event], max_entries: nil)
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :audit_event, "login")
   iex> {:ok, history, _} = Journey.get(execution, :audit_log, wait: :any)
   iex> length(history)
@@ -503,7 +503,7 @@ defmodule Journey.Node do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> execution = Journey.set(execution, :email, "user@example.com")
   iex> {:ok, history1, history1_rev} = Journey.get(execution, :contact_history, wait: :any)
   iex> length(history1)
@@ -637,7 +637,7 @@ defmodule Journey.Node do
   ...>     )
   iex> execution =
   ...>     graph
-  ...>     |> Journey.start_execution()
+  ...>     |> Journey.start()
   ...>     |> Journey.set(:name, "Mario")
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"
@@ -688,7 +688,7 @@ defmodule Journey.Node do
   ...>         )
   ...>       ]
   ...>     )
-  iex> execution = graph |> Journey.start_execution()
+  iex> execution = graph |> Journey.start()
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex> # User doesn't want reminders - schedule returns 0
   iex> execution = Journey.set(execution, :user_name, "Mario")
@@ -759,7 +759,7 @@ defmodule Journey.Node do
   ...>     )
   iex> execution =
   ...>     graph
-  ...>     |> Journey.start_execution()
+  ...>     |> Journey.start()
   ...>     |> Journey.set(:name, "Mario")
   iex> execution |> Journey.values() |> Map.get(:name)
   "Mario"

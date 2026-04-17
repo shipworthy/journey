@@ -42,7 +42,7 @@ iex> graph = Journey.new_graph(
 ```elixir
 iex> execution = 
   graph
-  |> Journey.start_execution()
+  |> Journey.start()
   |> Journey.set(:name, "Mario")
   |> Journey.set(:email_address, "mario@example.com")
 
@@ -68,7 +68,7 @@ The greeting function executes reliably — with retries if needed — on any re
 ```elixir
 iex> execution = 
   graph
-  |> Journey.start_execution() 
+  |> Journey.start() 
   |> Journey.set(:name, "Luigi")
 
 iex> Journey.values(execution)
@@ -169,7 +169,7 @@ Flow ends here: 0 executions (0.0% of all, 0.0% of reached)
 The examples above demonstrated Journey's basic functionality:
 
 * **defining a workflow** with its data points, its computations, and its dependencies, with `Journey.new_graph/4`,
-* **running executions** of the workflow, and watching computations run their course when unblocked (`Journey.start_execution/1`, `Journey.set/3`, `Journey.values/2`),
+* **running executions** of the workflow, and watching computations run their course when unblocked (`Journey.start/1`, `Journey.set/3`, `Journey.values/2`),
 * **introspecting** the state of an execution with `Journey.Tools.introspect/1`,
 * **reloading** an execution after an interruption with `Journey.load/2`,
 * getting basic aggregated **analytics** with `Journey.Insights.FlowAnalytics.flow_analytics/3`.

@@ -33,7 +33,7 @@ iex> graph = Journey.new_graph(
 ...>   ]
 ...> )
 iex> # Start an execution of this graph, set input values, read computed values.
-iex> execution = Journey.start_execution(graph)
+iex> execution = Journey.start(graph)
 iex> execution = Journey.set(execution, :x, 12)
 iex> execution = Journey.set(execution, :y, 2)
 iex> {:ok, 14, _rev} = Journey.get(execution, :sum, wait: :any)
@@ -157,7 +157,7 @@ graph = Journey.new_graph(
 When a customer lands on your web page, and starts a new flow, your application will start a new execution of the graph,
 
 ```elixir
-execution = Journey.start_execution(graph)
+execution = Journey.start(graph)
 ```
 
 and it will populate the execution with the input values (name, birthday) as the customer provides them:
@@ -215,7 +215,7 @@ iex> graph = Journey.new_graph(
 ...>     )
 iex>
 iex> # 2. For every customer visiting your website, start a new execution of the graph:
-iex> e = Journey.start_execution(graph)
+iex> e = Journey.start(graph)
 iex>
 iex> # 3. Populate the execution's nodes with the data as provided by the visitor:
 iex> e = Journey.set(e, :birth_day, 26)
