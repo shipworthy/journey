@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.10.53
+
+- **Livebook examples**: adding livebooks for `compute()`, `mutate()`, `historian()`, `tick_once()`, `tick_recurring()`, and `archive()` nodes (#294, #295, #296, #297, #300, #301, #304, #306); retiring `basic.livemd` (#299)
+- **`Journey.start/1`**: documenting `Journey.start/1` as the preferred API for starting executions; soft-deprecating `Journey.start_execution/1` (old code continues to work without warnings) (#307)
+- **`archive()` node type**: `archive()` nodes now have their own underlying `:archive` node type; existing archive nodes continue to operate unchanged (#305)
+- **Mermaid diagrams**: nodes rendered as inactive when their dependencies aren't met (#303)
+- **Documentation**: defining groups for extras and function docs (#298), tidying docs for `mutate()` (#292)
+- **Test stability**: more resilient sweeper and conditional-clearing tests (#293, #302)
+
 ## v0.10.52
 
 - **Mermaid diagrams**: more robust rendering of compute function names (#289)
