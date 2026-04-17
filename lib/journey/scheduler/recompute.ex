@@ -39,7 +39,8 @@ defmodule Journey.Scheduler.Recompute do
                     :schedule_once,
                     :tick_once,
                     :schedule_recurring,
-                    :tick_recurring
+                    :tick_recurring,
+                    :archive
                   ] and
                   c.state == :success,
               order_by: [desc: c.ex_revision_at_start],

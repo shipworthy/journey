@@ -85,6 +85,9 @@ defmodule JourneyMermaidConverter do
       type == :compute ->
         "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})\"]]"
 
+      type == :archive ->
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>archive node\"]]"
+
       type in [:schedule_once, :tick_once] ->
         "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_once node\"]]"
 
@@ -134,6 +137,9 @@ defmodule JourneyMermaidConverter do
 
       type == :compute ->
         "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})\"]]"
+
+      type == :archive ->
+        "        #{sanitize_name(name)}[[\"#{name}<br/>archive node\"]]"
 
       type in [:schedule_once, :tick_once] ->
         "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>tick_once node\"]]"
