@@ -362,7 +362,7 @@ defmodule Journey.Node do
 
     %Graph.Step{
       name: name,
-      type: :compute,
+      type: :archive,
       gated_by: normalize_gated_by(gated_by),
       f_compute: &archive_graph/1,
       f_on_save: Keyword.get(opts, :f_on_save, nil),

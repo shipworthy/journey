@@ -406,7 +406,8 @@ defmodule Journey.Tools do
               ^:schedule_once,
               ^:tick_once,
               ^:schedule_recurring,
-              ^:tick_recurring
+              ^:tick_recurring,
+              ^:archive
             ],
         lock: "FOR UPDATE"
       )
