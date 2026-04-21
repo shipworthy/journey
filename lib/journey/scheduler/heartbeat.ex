@@ -1,18 +1,18 @@
 defmodule Journey.Scheduler.Heartbeat do
-  @moduledoc """
-  Sends periodic heartbeat updates for a running computation.
+  # Sends periodic heartbeat updates for a running computation.
+  #
+  # Runs as a linked sibling to the worker process. Uses `trap_exit` to receive
+  # EXIT messages when the worker exits (normal or crash), allowing immediate
+  # cleanup without waiting for the next heartbeat interval.
+  #
+  # Exit conditions:
+  # - Worker exits → receives {:EXIT, pid, reason} → exits immediately
+  # - Worker crashes → heartbeat process receives EXIT, worker is already dead
+  # - Heartbeat process crashes → worker receives exit signal and dies (not trapping)
+  # - Computation state changes → `update_heartbeat` returns 0 rows → checks state
+  # - Deadline exceeded → marks as abandoned, exits non-normally to kill worker
 
-  Runs as a linked sibling to the worker process. Uses `trap_exit` to receive
-  EXIT messages when the worker exits (normal or crash), allowing immediate
-  cleanup without waiting for the next heartbeat interval.
-
-  Exit conditions:
-  - Worker exits → receives {:EXIT, pid, reason} → exits immediately
-  - Worker crashes → heartbeat process receives EXIT, worker is already dead
-  - Heartbeat process crashes → worker receives exit signal and dies (not trapping)
-  - Computation state changes → `update_heartbeat` returns 0 rows → checks state
-  - Deadline exceeded → marks as abandoned, exits non-normally to kill worker
-  """
+  @moduledoc false
 
   require Logger
   import Ecto.Query
