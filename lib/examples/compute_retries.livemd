@@ -53,7 +53,7 @@ docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d po
 
 ## What We'll Cover
 
-In this example, we'll look into how Journey handles failures to compute. What happens if a compute node's function tries to send an email but the email service is down?
+In this example, we'll look into how Journey handles compute failures. What happens if a compute node's function tries to send an email but the email service is down?
 
 Spoiler alert: Journey will try a few times, and give up. Once the email service is back up, you can kick off another computation using a helper function.
 
