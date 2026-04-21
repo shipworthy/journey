@@ -1,0 +1,690 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# "compute" retries
+
+```elixir
+# [Optional] Setting Build Key, see https://gojourney.dev/your_keys
+# (Using "Journey Livebook Demo" build key)
+System.put_env("JOURNEY_BUILD_KEY", "B27AXHMERm2Z6ehZhL49v")
+
+Mix.install(
+  [
+    {:ecto_sql, "~> 3.13"},
+    {:postgrex, "~> 0.22"},
+    {:jason, "~> 1.4"},
+    {:journey, "~> 0.10"},
+    {:kino, "~> 0.19"}
+  ],
+  start_applications: false
+)
+
+Application.put_env(:journey, :log_level, :warning)
+
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
+# Update this configuration to point to your database server
+Application.put_env(:journey, Journey.Repo,
+  database: "journey_compute_retries",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  log: false,
+  port: 5432
+)
+
+Application.put_env(:journey, :ecto_repos, [Journey.Repo])
+
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
+
+Application.loaded_applications()
+|> Enum.map(fn {app, _, _} -> app end)
+|> Enum.each(&Application.ensure_all_started/1)
+```
+
+## DB Setup
+
+This livebook requires a PostgreSQL database. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
+## What We'll Cover
+
+In this example, we'll look into how Journey handles failures to compute. What happens if a compute node's function tries to send an email but the email service is down?
+
+Spoiler alert: Journey will try a few times, and give up. Once the email service is back up, you can kick off another computation using a helper function.
+
+In this livebook, we will create a simple graph with a `compute` node whose computation function returns an error, and observe Journey's retry behavior:
+
+1. the failing computation will be attempted by journey, up to `max_retries` times, which we set to 4 (default: 3),
+2. once attempts are exhausted, the computation will fail,
+3. once you fixed the underlying error (or think you fixed the underlying error;), you can kick the computation to try again, with `Journey.Tools.retry_computation/2`,
+4. introspection tools (mermaid diagram - `Journey.Tools.generate_mermaid_execution/1`, execution textual introspection – `Journey.Tools.introspect/1`) show you the status,
+5. execution itself has more metadata on computations, if you need more insight.
+
+## Define the Graph
+
+```elixir
+import Journey.Node
+
+graph = Journey.new_graph(
+  "Welcome, but failing",
+  "v1",
+  [
+    input(:name),
+    compute(
+      :greeting,
+      [:name],
+      fn values ->
+        now = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S UTC")
+        welcome = "Hello, #{values.name}, at #{now}, 🤞!"
+        IO.puts(welcome)
+        {:error, "oh no, failed, #{now}"}
+      end,
+      # Overriding the default of 3 attempts.
+      max_retries: 4
+    )
+  ]
+); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+Visualize the graph:
+
+```elixir
+  graph
+  |> Journey.Tools.generate_mermaid_graph()
+  |> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Welcome, but failing', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        name[name]
+        greeting[["greeting<br/>(anonymous fn)"]]
+
+        name -->  greeting
+    end
+
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,name,greeting defaultNode
+```
+
+## Start an Execution
+
+```elixir
+execution = Journey.start(graph); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+In the new execution the :greeting computation is waiting for :name to be set.
+
+<!-- livebook:{"break_markdown":true} -->
+
+As seen on the diagram:
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Welcome, but failing', version v1, EXEC5884XEBELDZ8RE709JJ1"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["⬜ name"]
+        greeting[["🚫 greeting<br/>(anonymous fn)"]]
+
+        name -->  greeting
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class last_updated_at,execution_id setNode
+    class greeting,name neutralNode
+```
+
+As seen in the values:
+
+```elixir
+Journey.values_all(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  name: :not_set,
+  execution_id: {:set, "EXEC5884XEBELDZ8RE709JJ1"},
+  greeting: :not_set,
+  last_updated_at: {:set, 1776792895}
+}
+```
+
+As seen on the textual introspection:
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXEC5884XEBELDZ8RE709JJ1'
+- Graph: 'Welcome, but failing' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-21 17:34:55Z UTC | 0 seconds ago
+- Last updated at: 2026-04-21 17:34:55Z UTC | 0 seconds ago
+- Duration: 0 seconds
+- Revision: 0
+- # of Values: 2 (set) / 4 (total)
+- # of Computations: 1
+
+Values:
+- Set:
+  - execution_id: 'EXEC5884XEBELDZ8RE709JJ1' | :input
+    set at 2026-04-21 17:34:55Z | rev: 0
+
+  - last_updated_at: '1776792895' | :input
+    set at 2026-04-21 17:34:55Z | rev: 0
+
+
+- Not set:
+  - greeting: <unk> | :compute
+  - name: <unk> | :input  
+
+Computations:
+- Completed:
+
+
+- Outstanding:
+  - greeting: ⬜ :not_set (not yet attempted) | :compute
+       🛑 :name | &provided?/1
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## `:name` is Set -> `:greeting` is Computing with Retries
+
+We'll set the value for `:name`, and watch the `:greeting` computation get unblocked, and fail after a few attempts.
+
+```elixir
+execution = 
+  execution
+  |> Journey.set(:name, "Luigi"); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+`Journey.get` below waits for the result, and returns an error once the computation's 4 attempts are exhausted:
+
+(A side note: retries happen with a small randomized pause – a few seconds – between attempts. Proper backoff is on the roadmap.)
+
+```elixir
+Journey.get(execution, :greeting, wait: :any, timeout: 120_000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Hello, Luigi, at 17:34:55 UTC, 🤞!
+
+10:34:55.568 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPXBE23HYRL238Y1VVTB0D.greeting] [Welcome, but failing]: async computation completed with an error
+Hello, Luigi, at 17:35:00 UTC, 🤞!
+
+10:35:00.772 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMP5316816R356GYBYBGD9T.greeting] [Welcome, but failing]: async computation completed with an error
+Hello, Luigi, at 17:35:05 UTC, 🤞!
+
+10:35:05.721 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPVBARVBM42GR0XVXVYZ9D.greeting] [Welcome, but failing]: async computation completed with an error
+Hello, Luigi, at 17:35:06 UTC, 🤞!
+
+10:35:06.504 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPE4T346E14HZDVH8GEJR7.greeting] [Welcome, but failing]: async computation completed with an error
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:error, :computation_failed}
+```
+
+The computation is now failed, as seen on the diagram:
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Welcome, but failing', version v1, EXEC5884XEBELDZ8RE709JJ1"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        greeting[["❌ greeting<br/>(anonymous fn)"]]
+
+        name -->  greeting
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class name,last_updated_at,execution_id setNode
+    class greeting errorNode
+```
+
+No `:greeting` value has been set:
+
+```elixir
+Journey.values_all(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  name: {:set, "Luigi"},
+  execution_id: {:set, "EXEC5884XEBELDZ8RE709JJ1"},
+  greeting: :not_set,
+  last_updated_at: {:set, 1776792895}
+}
+```
+
+And `introspect/1` shows the failed computation attempts:
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXEC5884XEBELDZ8RE709JJ1'
+- Graph: 'Welcome, but failing' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-21 17:34:55Z UTC | 12 seconds ago
+- Last updated at: 2026-04-21 17:35:06Z UTC | 1 seconds ago
+- Duration: 11 seconds
+- Revision: 9
+- # of Values: 3 (set) / 4 (total)
+- # of Computations: 4
+
+Values:
+- Set:
+  - last_updated_at: '1776792895' | :input
+    set at 2026-04-21 17:34:55Z | rev: 1
+
+  - name: '"Luigi"' | :input
+    set at 2026-04-21 17:34:55Z | rev: 1
+
+  - execution_id: 'EXEC5884XEBELDZ8RE709JJ1' | :input
+    set at 2026-04-21 17:34:55Z | rev: 0
+
+
+- Not set:
+  - greeting: <unk> | :compute  
+
+Computations:
+- Completed:
+  - :greeting (CMPE4T346E14HZDVH8GEJR7): ❌ :failed | :compute | rev 9
+    started: 2026-04-21 17:35:06Z | completed: 2026-04-21 17:35:06Z (0s)
+    inputs used:
+       <none>
+
+  - :greeting (CMPVBARVBM42GR0XVXVYZ9D): ❌ :failed | :compute | rev 7
+    started: 2026-04-21 17:35:05Z | completed: 2026-04-21 17:35:05Z (0s)
+    inputs used:
+       <none>
+
+  - :greeting (CMP5316816R356GYBYBGD9T): ❌ :failed | :compute | rev 5
+    started: 2026-04-21 17:35:00Z | completed: 2026-04-21 17:35:00Z (0s)
+    inputs used:
+       <none>
+
+  - :greeting (CMPXBE23HYRL238Y1VVTB0D): ❌ :failed | :compute | rev 3
+    started: 2026-04-21 17:34:55Z | completed: 2026-04-21 17:34:55Z (0s)
+    inputs used:
+       <none>
+
+
+- Outstanding:
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Underlying Problem Solved? Invoke Another [re-]Computation (Spoiler: It Wasn't Solved)
+
+Now, let's say you think you fixed the root cause of the failure, and want to retry the computation. `retry_computation/2` to the rescue.
+
+Calling `retry_computation/2` creates another computation attempt:
+
+```elixir
+execution = Journey.Tools.retry_computation(execution.id, :greeting); :ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+Journey.get(execution, :greeting, wait: {:newer_than, execution.revision}, timeout: 120_000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Hello, Luigi, at 17:35:07 UTC, 🤞!
+
+10:35:07.999 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPX4044Z326HT1JJA4826G.greeting] [Welcome, but failing]: async computation completed with an error
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:error, :computation_failed}
+```
+
+Not surprisingly, the computation is still failing.
+
+```elixir
+Journey.values_all(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  name: {:set, "Luigi"},
+  execution_id: {:set, "EXEC5884XEBELDZ8RE709JJ1"},
+  greeting: :not_set,
+  last_updated_at: {:set, 1776792895}
+}
+```
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Welcome, but failing', version v1, EXEC5884XEBELDZ8RE709JJ1"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        name["✅ name"]
+        greeting[["❌ greeting<br/>(anonymous fn)"]]
+
+        name -->  greeting
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class name,last_updated_at,execution_id setNode
+    class greeting errorNode
+```
+
+Introspection now includes one more failed computation:
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXEC5884XEBELDZ8RE709JJ1'
+- Graph: 'Welcome, but failing' | 'v1'
+- Archived at: not archived
+- Created at: 2026-04-21 17:34:55Z UTC | 14 seconds ago
+- Last updated at: 2026-04-21 17:35:08Z UTC | 1 seconds ago
+- Duration: 13 seconds
+- Revision: 11
+- # of Values: 3 (set) / 4 (total)
+- # of Computations: 5
+
+Values:
+- Set:
+  - last_updated_at: '1776792895' | :input
+    set at 2026-04-21 17:34:55Z | rev: 1
+
+  - name: '"Luigi"' | :input
+    set at 2026-04-21 17:34:55Z | rev: 1
+
+  - execution_id: 'EXEC5884XEBELDZ8RE709JJ1' | :input
+    set at 2026-04-21 17:34:55Z | rev: 0
+
+
+- Not set:
+  - greeting: <unk> | :compute  
+
+Computations:
+- Completed:
+  - :greeting (CMPX4044Z326HT1JJA4826G): ❌ :failed | :compute | rev 11
+    started: 2026-04-21 17:35:07Z | completed: 2026-04-21 17:35:08Z (1s)
+    inputs used:
+       <none>
+
+  - :greeting (CMPE4T346E14HZDVH8GEJR7): ❌ :failed | :compute | rev 9
+    started: 2026-04-21 17:35:06Z | completed: 2026-04-21 17:35:06Z (0s)
+    inputs used:
+       <none>
+
+  - :greeting (CMPVBARVBM42GR0XVXVYZ9D): ❌ :failed | :compute | rev 7
+    started: 2026-04-21 17:35:05Z | completed: 2026-04-21 17:35:05Z (0s)
+    inputs used:
+       <none>
+
+  - :greeting (CMP5316816R356GYBYBGD9T): ❌ :failed | :compute | rev 5
+    started: 2026-04-21 17:35:00Z | completed: 2026-04-21 17:35:00Z (0s)
+    inputs used:
+       <none>
+
+  - :greeting (CMPXBE23HYRL238Y1VVTB0D): ❌ :failed | :compute | rev 3
+    started: 2026-04-21 17:34:55Z | completed: 2026-04-21 17:34:55Z (0s)
+    inputs used:
+       <none>
+
+
+- Outstanding:
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+If the information you get via introspection tools is not sufficient, you can load the execution itself, and examine it by hand. Notice the list of computations attached to the execution, containing some metadata around it, including `error_details`, which captured the details on the error returned by the failing computation function:
+
+```elixir
+execution = Journey.load(execution.id)
+execution.computations
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %Journey.Persistence.Schema.Execution.Computation{
+    __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
+    id: "CMPX4044Z326HT1JJA4826G",
+    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
+    node_name: :greeting,
+    computation_type: :compute,
+    state: :failed,
+    ex_revision_at_start: 10,
+    ex_revision_at_completion: 11,
+    scheduled_time: nil,
+    start_time: 1776792907,
+    completion_time: 1776792908,
+    deadline: 1776792967,
+    last_heartbeat_at: nil,
+    heartbeat_deadline: 1776793147,
+    error_details: "\"oh no, failed, 17:35:07 UTC\"",
+    computed_with: nil,
+    inserted_at: 1776792907,
+    updated_at: 1776792908
+  },
+  %Journey.Persistence.Schema.Execution.Computation{
+    __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
+    id: "CMPE4T346E14HZDVH8GEJR7",
+    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
+    node_name: :greeting,
+    computation_type: :compute,
+    state: :failed,
+    ex_revision_at_start: 8,
+    ex_revision_at_completion: 9,
+    scheduled_time: nil,
+    start_time: 1776792906,
+    completion_time: 1776792906,
+    deadline: 1776792966,
+    last_heartbeat_at: nil,
+    heartbeat_deadline: 1776793146,
+    error_details: "\"oh no, failed, 17:35:06 UTC\"",
+    computed_with: nil,
+    inserted_at: 1776792905,
+    updated_at: 1776792906
+  },
+  %Journey.Persistence.Schema.Execution.Computation{
+    __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
+    id: "CMPVBARVBM42GR0XVXVYZ9D",
+    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
+    node_name: :greeting,
+    computation_type: :compute,
+    state: :failed,
+    ex_revision_at_start: 6,
+    ex_revision_at_completion: 7,
+    scheduled_time: nil,
+    start_time: 1776792905,
+    completion_time: 1776792905,
+    deadline: 1776792965,
+    last_heartbeat_at: nil,
+    heartbeat_deadline: 1776793145,
+    error_details: "\"oh no, failed, 17:35:05 UTC\"",
+    computed_with: nil,
+    inserted_at: 1776792900,
+    updated_at: 1776792905
+  },
+  %Journey.Persistence.Schema.Execution.Computation{
+    __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
+    id: "CMP5316816R356GYBYBGD9T",
+    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
+    node_name: :greeting,
+    computation_type: :compute,
+    state: :failed,
+    ex_revision_at_start: 4,
+    ex_revision_at_completion: 5,
+    scheduled_time: nil,
+    start_time: 1776792900,
+    completion_time: 1776792900,
+    deadline: 1776792960,
+    last_heartbeat_at: nil,
+    heartbeat_deadline: 1776793140,
+    error_details: "\"oh no, failed, 17:35:00 UTC\"",
+    computed_with: nil,
+    inserted_at: 1776792895,
+    updated_at: 1776792900
+  },
+  %Journey.Persistence.Schema.Execution.Computation{
+    __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
+    id: "CMPXBE23HYRL238Y1VVTB0D",
+    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
+    node_name: :greeting,
+    computation_type: :compute,
+    state: :failed,
+    ex_revision_at_start: 2,
+    ex_revision_at_completion: 3,
+    scheduled_time: nil,
+    start_time: 1776792895,
+    completion_time: 1776792895,
+    deadline: 1776792955,
+    last_heartbeat_at: nil,
+    heartbeat_deadline: 1776793135,
+    error_details: "\"oh no, failed, 17:34:55 UTC\"",
+    computed_with: nil,
+    inserted_at: 1776792895,
+    updated_at: 1776792895
+  }
+]
+```
+
+## Summary
+
+In this Livebook, we setup a graph whose compute node's function returns an error, and we observed journey retrying the computation, subject to the node's retry policy (the `max_retries: 4` in the graph definition overrode the default value of 3).
+
+We also looked at the state of the execution, by rendering its mermaid graph, looking at its values, and doing in-depth introspection with `Journey.Tools.introspect/1`.
+
+We also kicked off a recomputation on a failed node, with `Journey.Tools.retry_computation/2`, which, given the nature of our failure mode (a hardcoded error;), predictably did not fix the problem.
+
+We also took a glimpse at the `computation` portion of the complete `execution` structure.
