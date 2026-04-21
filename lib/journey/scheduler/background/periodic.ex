@@ -1,21 +1,19 @@
 defmodule Journey.Scheduler.Background.Periodic do
-  @moduledoc """
-  Background periodic sweeper that runs all Journey sweeps at a regular interval.
+  # Background periodic sweeper that runs all Journey sweeps at a regular interval.
+  #
+  # ## Configuration
+  #
+  # Configure via `config :journey, :background_sweeper`:
+  #
+  # Example:
+  #
+  # config.exs:
+  #
+  #     config :journey, :background_sweeper, period_seconds: 60
+  #
+  # `period_seconds` is the number seconds between sweep runs. Default: 60 seconds.
 
-  ## Configuration
-
-  Configure via `config :journey, :background_sweeper`:
-
-  Example:
-
-  config.exs:
-
-  ```
-  config :journey, :background_sweeper, period_seconds: 60
-  ```
-
-  `period_seconds` is the number seconds between sweep runs. Default: 60 seconds.
-  """
+  @moduledoc false
 
   require Logger
 
