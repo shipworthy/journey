@@ -22,18 +22,16 @@ defmodule Journey.Scheduler.Heartbeat do
   # Buffer before enforcing deadline (allows sweep to act first)
   @deadline_buffer_seconds 10
 
-  @doc """
-  Runs the heartbeat loop for a computation.
-
-  Spawned as a linked sibling to the worker - exits when:
-  - Worker exits (link causes termination)
-  - Computation state changes (update_heartbeat returns 0 rows)
-
-  ## Arguments
-    - computation_id: The ID of the computation to heartbeat
-    - interval_seconds: How often to send heartbeats
-    - timeout_seconds: The heartbeat timeout (used to calculate new deadline)
-  """
+  # Runs the heartbeat loop for a computation.
+  #
+  # Spawned as a linked sibling to the worker - exits when:
+  # - Worker exits (link causes termination)
+  # - Computation state changes (update_heartbeat returns 0 rows)
+  #
+  # ## Arguments
+  #   - computation_id: The ID of the computation to heartbeat
+  #   - interval_seconds: How often to send heartbeats
+  #   - timeout_seconds: The heartbeat timeout (used to calculate new deadline)
   def run(execution_id, computation_id, node_name, interval_seconds, timeout_seconds) do
     Process.flag(:trap_exit, true)
     start_time = System.monotonic_time(:second)
