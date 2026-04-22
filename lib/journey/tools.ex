@@ -964,27 +964,50 @@ defmodule Journey.Tools do
          computed_with: computed_with,
          ex_revision_at_completion: ex_revision_at_completion,
          start_time: start_time,
-         completion_time: completion_time
+         completion_time: completion_time,
+         error_details: error_details
        }) do
     timing_line = format_computation_timing(start_time, completion_time)
 
+    inputs_block =
+      "    inputs used:\n" <>
+        case computed_with do
+          nil ->
+            "       <none>"
+
+          [] ->
+            "       <none>"
+
+          _ ->
+            Enum.map_join(computed_with, "\n", fn
+              {node_name, revision} ->
+                "       #{inspect(node_name)} (rev #{revision})"
+            end)
+        end
+
     "  - :#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
       timing_line <>
-      "    inputs used:\n" <>
-      case computed_with do
-        nil ->
-          "       <none>\n"
-
-        [] ->
-          "       <none>\n"
-
-        _ ->
-          Enum.map_join(computed_with, "\n", fn
-            {node_name, revision} ->
-              "       #{inspect(node_name)} (rev #{revision})"
-          end)
-      end
+      inputs_block <>
+      format_error_details(state, error_details)
   end
+
+  @error_preview_max_length 500
+
+  defp format_error_details(state, error_details)
+       when state in [:failed, :abandoned] and is_binary(error_details) do
+    one_line = error_details |> String.replace(~r/\s+/, " ") |> String.trim()
+
+    shown =
+      if String.length(one_line) > @error_preview_max_length do
+        String.slice(one_line, 0, @error_preview_max_length) <> "..."
+      else
+        one_line
+      end
+
+    "\n    error: #{shown}"
+  end
+
+  defp format_error_details(_state, _error_details), do: ""
 
   defp outstanding_computation(
          graph,
