@@ -72,6 +72,13 @@ defmodule Journey.ToolsTest do
   end
 
   describe "introspect/1 (text formatting)" do
+    test "accepts an execution struct and returns the same output as its id" do
+      graph = Journey.Test.Support.create_test_graph1()
+      execution = Journey.start_execution(graph)
+
+      assert Journey.Tools.introspect(execution) == Journey.Tools.introspect(execution.id)
+    end
+
     test "formats complete execution summary text for new execution" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
@@ -341,7 +348,7 @@ defmodule Journey.ToolsTest do
         - :will_fail (CMPREDACTED): ❌ :failed | :compute | rev 3
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
-             <none>
+             :trigger (rev 1)
           error: "boom: something broke"
 
       - Outstanding:

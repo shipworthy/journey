@@ -161,22 +161,22 @@ defmodule Journey.Scheduler do
     Completions.record_success(computation, input_versions_to_capture, result)
   end
 
-  defp handle_computation_result({:error, error_details}, prefix, computation, _input_versions_to_capture) do
+  defp handle_computation_result({:error, error_details}, prefix, computation, input_versions_to_capture) do
     Logger.warning("#{prefix}: async computation completed with an error")
-    r = Completions.record_error(computation, error_details)
+    r = Completions.record_error(computation, error_details, input_versions_to_capture)
     jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
     r
   end
 
-  defp handle_computation_result(unexpected_value, prefix, computation, _input_versions_to_capture) do
+  defp handle_computation_result(unexpected_value, prefix, computation, input_versions_to_capture) do
     result_truncated = "#{inspect(unexpected_value)}" |> String.trim() |> String.slice(0, 1000)
 
     Logger.error(
       "#{prefix}: #{computation.node_name}'s f_compute function was expected to return `{:ok, _}` or {:error, _} tuples, but it returned an unexpected value: '#{result_truncated}'"
     )
 
-    r = Completions.record_error(computation, "Unexpected value: '#{result_truncated}'")
+    r = Completions.record_error(computation, "Unexpected value: '#{result_truncated}'", input_versions_to_capture)
     jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
     r

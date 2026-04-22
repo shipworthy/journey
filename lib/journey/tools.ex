@@ -571,13 +571,16 @@ defmodule Journey.Tools do
       :ok
 
   ## Parameters
-  - `execution_id` - The ID of the execution to analyze
+  - `execution_or_id` - Either the ID of the execution to analyze, or a
+    `%Journey.Persistence.Schema.Execution{}` struct (its `:id` will be used).
 
   ## Returns
   A formatted string with the complete execution state summary.
 
   Use `summarize_as_data/1` to get execution summary as structured data.
   """
+  def introspect(%Journey.Persistence.Schema.Execution{id: id}), do: introspect(id)
+
   def introspect(execution_id) when is_binary(execution_id) do
     execution_id
     |> summarize_as_data()
@@ -971,18 +974,13 @@ defmodule Journey.Tools do
 
     inputs_block =
       "    inputs used:\n" <>
-        case computed_with do
-          nil ->
-            "       <none>"
-
-          [] ->
-            "       <none>"
-
-          _ ->
-            Enum.map_join(computed_with, "\n", fn
-              {node_name, revision} ->
-                "       #{inspect(node_name)} (rev #{revision})"
-            end)
+        if empty_computed_with?(computed_with) do
+          "       <none>"
+        else
+          Enum.map_join(computed_with, "\n", fn
+            {node_name, revision} ->
+              "       #{inspect(node_name)} (rev #{revision})"
+          end)
         end
 
     "  - :#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
