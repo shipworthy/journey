@@ -86,13 +86,13 @@ defmodule JourneyMermaidConverter do
         "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})\"]]"
 
       type == :archive ->
-        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>archive node\"]]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>#{inspect(type)}\"]]"
 
       type in [:schedule_once, :tick_once] ->
-        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_once node\"]]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>#{inspect(type)}\"]]"
 
       type in [:schedule_recurring, :tick_recurring] ->
-        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>tick_recurring node\"]]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>#{inspect(type)}\"]]"
 
       true ->
         "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})\"]]"
@@ -139,13 +139,13 @@ defmodule JourneyMermaidConverter do
         "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})\"]]"
 
       type == :archive ->
-        "        #{sanitize_name(name)}[[\"#{name}<br/>archive node\"]]"
+        "        #{sanitize_name(name)}[[\"#{name}<br/>#{inspect(type)}\"]]"
 
       type in [:schedule_once, :tick_once] ->
-        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>tick_once node\"]]"
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>#{inspect(type)}\"]]"
 
       type in [:schedule_recurring, :tick_recurring] ->
-        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>tick_recurring node\"]]"
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>#{inspect(type)}\"]]"
 
       true ->
         "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})\"]]"

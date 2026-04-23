@@ -665,7 +665,7 @@ defmodule Journey.ToolsTest do
         |> Enum.join("\n")
 
       assert mermaid_graph ==
-               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[[\"greeting<br/>(f_prepend_with_hello)\"]]\n        time_to_issue_reminder_schedule[[\"time_to_issue_reminder_schedule<br/>(f_in_3_seconds)<br/>tick_once node\"]]\n        reminder[[\"reminder<br/>(f_compose_reminder)\"]]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000\n\n    %% Apply styles to nodes\n    class execution_id,last_updated_at,user_name,greeting,time_to_issue_reminder_schedule,reminder defaultNode"
+               "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[[\"greeting<br/>(f_prepend_with_hello)\"]]\n        time_to_issue_reminder_schedule[[\"time_to_issue_reminder_schedule<br/>(f_in_3_seconds)<br/>:tick_once\"]]\n        reminder[[\"reminder<br/>(f_compose_reminder)\"]]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000\n\n    %% Apply styles to nodes\n    class execution_id,last_updated_at,user_name,greeting,time_to_issue_reminder_schedule,reminder defaultNode"
     end
 
     test "default - flow only (no legend, no timestamp)" do
@@ -812,7 +812,7 @@ defmodule Journey.ToolsTest do
       # Before setting input - tick_once should be blocked
       mermaid = Journey.Tools.generate_mermaid_execution(execution.id)
       assert mermaid =~ "🚫 time_to_issue_reminder_schedule"
-      assert mermaid =~ "tick_once node"
+      assert mermaid =~ ":tick_once"
 
       # Set input and wait for greeting to compute
       execution = Journey.set(execution, :user_name, "Alice")

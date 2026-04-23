@@ -130,11 +130,11 @@ defmodule Journey.Node.ArchiveTest do
         ])
 
       static = Journey.Tools.generate_mermaid_graph(graph)
-      assert static =~ "archive node"
+      assert static =~ ~s(a[["a<br/>:archive"]])
 
       execution = Journey.start_execution(graph)
       live = Journey.Tools.generate_mermaid_execution(execution.id)
-      assert live =~ "archive node"
+      assert live =~ ~s(a[["🚫 a<br/>:archive"]])
     end
   end
 end
