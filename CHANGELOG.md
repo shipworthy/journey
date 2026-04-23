@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.54
+
+- **`Journey.Tools.introspect/1`**: improved rendering of failed computations, now including inputs and error details (#311)
+- **Livebook examples**: adding a livebook illustrating Journey's retries (#310)
+- **Documentation**: setting `@doc false` for internal modules and functions (#309)
+
 ## v0.10.53
 
 - **Livebook examples**: adding livebooks for `compute()`, `mutate()`, `historian()`, `tick_once()`, `tick_recurring()`, and `archive()` nodes (#294, #295, #296, #297, #300, #301, #304, #306); retiring `basic.livemd` (#299)
