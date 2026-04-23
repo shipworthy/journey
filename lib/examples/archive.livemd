@@ -126,7 +126,7 @@ graph TD
         last_updated_at[last_updated_at]
         customer_name[customer_name]
         schedule_cleanup[["schedule_cleanup<br/>(anonymous fn)<br/>tick_once node"]]
-        archive_order[["archive_order<br/>(archive_graph)"]]
+        archive_order[["archive_order<br/>archive node"]]
 
         customer_name -->  schedule_cleanup
         schedule_cleanup -->  archive_order
@@ -175,7 +175,7 @@ schedule_cleanup: archiving order for Luigi in 30 seconds
 <!-- livebook:{"output":true} -->
 
 ```
-"scheduled_time: 07:59:05 UTC, in 29 seconds"
+"scheduled_time: 04:52:03 UTC, in 29 seconds"
 ```
 
 ## The Execution Is Still Here
@@ -201,10 +201,10 @@ Journey.values(execution)
 
 ```
 %{
+  last_updated_at: 1776919893,
+  execution_id: "EXECL65EG5T93XGL1JXJB3J5",
   customer_name: "Luigi",
-  schedule_cleanup: 1776412745,
-  execution_id: "EXECJ1TEZGRE3272JEY75MB9",
-  last_updated_at: 1776412715
+  schedule_cleanup: 1776919923
 }
 ```
 
@@ -219,12 +219,12 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Customer Order', version v1, EXECJ1TEZGRE3272JEY75MB9"]
+    subgraph Graph["🧩 'Customer Order', version v1, EXECL65EG5T93XGL1JXJB3J5"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         customer_name["✅ customer_name"]
         schedule_cleanup[["✅ schedule_cleanup<br/>(anonymous fn)<br/>tick_once node"]]
-        archive_order[["🚫 archive_order<br/>(archive_graph)"]]
+        archive_order[["🚫 archive_order<br/>archive node"]]
 
         customer_name -->  schedule_cleanup
         schedule_cleanup -->  archive_order
@@ -250,7 +250,7 @@ graph TD
 <!-- livebook:{"output":true} -->
 
 ```
-"Waiting for 07:59:05 UTC..."
+"Waiting for 04:52:03 UTC..."
 ```
 
 This will block until the archive fires:
@@ -264,7 +264,7 @@ now = archived_at |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
 <!-- livebook:{"output":true} -->
 
 ```
-"07:59:07 UTC: order archived"
+"04:52:05 UTC: order archived"
 ```
 
 ## The Execution Has Been Archived
@@ -303,7 +303,7 @@ execution.archived_at |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UT
 <!-- livebook:{"output":true} -->
 
 ```
-"07:59:07 UTC"
+"04:52:05 UTC"
 ```
 
 ```elixir
@@ -314,11 +314,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECJ1TEZGRE3272JEY75MB9'
+- ID: 'EXECL65EG5T93XGL1JXJB3J5'
 - Graph: 'Customer Order' | 'v1'
-- Archived at: 2026-04-17 07:59:07Z
-- Created at: 2026-04-17 07:58:35Z UTC | 34 seconds ago
-- Last updated at: 2026-04-17 07:59:07Z UTC | 2 seconds ago
+- Archived at: 2026-04-23 04:52:05Z
+- Created at: 2026-04-23 04:51:33Z UTC | 34 seconds ago
+- Last updated at: 2026-04-23 04:52:05Z UTC | 2 seconds ago
 - Duration: 32 seconds
 - Revision: 6
 - # of Values: 5 (set) / 5 (total)
@@ -326,20 +326,20 @@ Execution summary:
 
 Values:
 - Set:
-  - archive_order: '1776412747' | :compute
-    computed at 2026-04-17 07:59:07Z | rev: 6
+  - archive_order: '1776919925' | :archive
+    computed at 2026-04-23 04:52:05Z | rev: 6
 
-  - last_updated_at: '1776412747' | :input
-    set at 2026-04-17 07:59:07Z | rev: 6
+  - last_updated_at: '1776919925' | :input
+    set at 2026-04-23 04:52:05Z | rev: 6
 
-  - schedule_cleanup: '1776412745' | :tick_once
-    computed at 2026-04-17 07:58:35Z | rev: 3
+  - schedule_cleanup: '1776919923' | :tick_once
+    computed at 2026-04-23 04:51:33Z | rev: 3
 
   - customer_name: '"Luigi"' | :input
-    set at 2026-04-17 07:58:35Z | rev: 1
+    set at 2026-04-23 04:51:33Z | rev: 1
 
-  - execution_id: 'EXECJ1TEZGRE3272JEY75MB9' | :input
-    set at 2026-04-17 07:58:35Z | rev: 0
+  - execution_id: 'EXECL65EG5T93XGL1JXJB3J5' | :input
+    set at 2026-04-23 04:51:33Z | rev: 0
 
 
 - Not set:
@@ -347,12 +347,13 @@ Values:
 
 Computations:
 - Completed:
-  - :archive_order (CMPL2B5TM14XA82R5ETY315): ✅ :success | :compute | rev 6
-    started: 2026-04-17 07:59:07Z | completed: 2026-04-17 07:59:07Z (0s)
+  - :archive_order (CMPXG21EB0B2AGV7415EMHJ): ✅ :success | :archive | rev 6
+    started: 2026-04-23 04:52:05Z | completed: 2026-04-23 04:52:05Z (0s)
     inputs used:
        :schedule_cleanup (rev 3)
-  - :schedule_cleanup (CMP2EV0Z9AMRD8M4G3XR8E4): ✅ :success | :tick_once | rev 3
-    started: 2026-04-17 07:58:35Z | completed: 2026-04-17 07:58:35Z (0s)
+
+  - :schedule_cleanup (CMPR0Y5R3LA1DMXYVD909E2): ✅ :success | :tick_once | rev 3
+    started: 2026-04-23 04:51:33Z | completed: 2026-04-23 04:51:33Z (0s)
     inputs used:
        :customer_name (rev 1)
 
