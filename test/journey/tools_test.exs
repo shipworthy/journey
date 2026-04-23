@@ -215,10 +215,12 @@ defmodule Journey.ToolsTest do
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
              :time_to_issue_reminder_schedule (rev 5)
+
         - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :tick_once | rev 5
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
              :greeting (rev 3)
+
         - :greeting (CMPREDACTED): ✅ :success | :compute | rev 3
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
@@ -489,6 +491,7 @@ defmodule Journey.ToolsTest do
           inputs used:
              :user_applied (rev 0)
              :card_mailed (rev 0)
+
         - :send_reminder (CMPREDACTED): ✅ :success | :compute | rev 3
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
@@ -558,6 +561,7 @@ defmodule Journey.ToolsTest do
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
              :user_requested_card (rev 0)
+
         - :send_follow_up (CMPREDACTED): ✅ :success | :compute | rev 3
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:

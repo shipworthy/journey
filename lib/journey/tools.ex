@@ -942,7 +942,7 @@ defmodule Journey.Tools do
     Computations:
     - Completed:
     """ <>
-      Enum.map_join(completed_non_abandoned, "\n", &completed_computation/1) <>
+      Enum.map_join(completed_non_abandoned, "\n\n", &completed_computation/1) <>
       if Enum.empty?(abandoned) do
         ""
       else
@@ -950,7 +950,7 @@ defmodule Journey.Tools do
         \n
         - Abandoned:
         """ <>
-          Enum.map_join(abandoned, "\n", &completed_computation/1)
+          Enum.map_join(abandoned, "\n\n", &completed_computation/1)
       end <>
       """
       \n
