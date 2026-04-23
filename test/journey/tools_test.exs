@@ -72,6 +72,13 @@ defmodule Journey.ToolsTest do
   end
 
   describe "introspect/1 (text formatting)" do
+    test "accepts an execution struct and returns the same output as its id" do
+      graph = Journey.Test.Support.create_test_graph1()
+      execution = Journey.start_execution(graph)
+
+      assert Journey.Tools.introspect(execution) == Journey.Tools.introspect(execution.id)
+    end
+
     test "formats complete execution summary text for new execution" do
       graph = Journey.Test.Support.create_test_graph1()
       execution = Journey.start_execution(graph)
@@ -208,10 +215,12 @@ defmodule Journey.ToolsTest do
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
              :time_to_issue_reminder_schedule (rev 5)
+
         - :time_to_issue_reminder_schedule (CMPREDACTED): ✅ :success | :tick_once | rev 5
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
              :greeting (rev 3)
+
         - :greeting (CMPREDACTED): ✅ :success | :compute | rev 3
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
@@ -268,6 +277,86 @@ defmodule Journey.ToolsTest do
       assert Journey.Tools.computation_state_to_text(:success) == "✅ :success"
       assert Journey.Tools.computation_state_to_text(:failed) == "❌ :failed"
       assert Journey.Tools.computation_state_to_text(:not_set) == "⬜ :not_set (not yet attempted)"
+
+      stop_background_sweeps_in_test(background_sweeps_task)
+    end
+
+    test "surfaces error_details for failed computations" do
+      graph_name = "error details test #{random_string()}"
+
+      graph =
+        Journey.new_graph(graph_name, "v1.0.0", [
+          input(:trigger),
+          compute(
+            :will_fail,
+            [:trigger],
+            fn _ -> {:error, "boom: something broke"} end,
+            max_retries: 0
+          )
+        ])
+
+      execution =
+        graph
+        |> Journey.start_execution()
+        |> Journey.set(:trigger, true)
+
+      background_sweeps_task = start_background_sweeps_in_test(execution.id)
+      {:error, :computation_failed} = Journey.get(execution, :will_fail, wait: :any)
+
+      result = Journey.Tools.introspect(execution.id)
+
+      values = Journey.values(Journey.load(execution.id))
+      last_updated_at_value = Map.get(values, :last_updated_at)
+      execution_id_value = Map.get(values, :execution_id)
+
+      redacted_result =
+        result
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> redact_text_computation_timing()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+        |> String.replace(~r/[ \t]+$/m, "")
+
+      expected_output = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: '#{graph_name}' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 3
+      - # of Values: 3 (set) / 4 (total)
+      - # of Computations: 1
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 1
+
+        - trigger: 'true' | :input
+          set at REDACTED | rev: 1
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - will_fail: <unk> | :compute
+
+      Computations:
+      - Completed:
+        - :will_fail (CMPREDACTED): ❌ :failed | :compute | rev 3
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :trigger (rev 1)
+          error: "boom: something broke"
+
+      - Outstanding:
+      """
+
+      assert redacted_result == String.trim_leading(expected_output)
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
@@ -402,6 +491,7 @@ defmodule Journey.ToolsTest do
           inputs used:
              :user_applied (rev 0)
              :card_mailed (rev 0)
+
         - :send_reminder (CMPREDACTED): ✅ :success | :compute | rev 3
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
@@ -471,6 +561,7 @@ defmodule Journey.ToolsTest do
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:
              :user_requested_card (rev 0)
+
         - :send_follow_up (CMPREDACTED): ✅ :success | :compute | rev 3
           started: REDACTED | completed: REDACTED (REDACTED)
           inputs used:

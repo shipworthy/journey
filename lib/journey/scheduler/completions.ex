@@ -39,7 +39,7 @@ defmodule Journey.Scheduler.Completions do
       |> tap(fn _ -> Logger.debug("#{prefix}: done.") end)
   end
 
-  def record_error(computation, error_details) do
+  def record_error(computation, error_details, inputs_to_capture) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [:error]"
     Logger.info("#{prefix}: marking as completed. starting.")
 
@@ -65,6 +65,7 @@ defmodule Journey.Scheduler.Completions do
               completion_time: now_seconds,
               updated_at: now_seconds,
               state: :failed,
+              computed_with: inputs_to_capture,
               ex_revision_at_completion: new_revision
             })
             |> repo.update!()
