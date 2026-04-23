@@ -176,7 +176,7 @@ schedule_nap: scheduling a nap for Luigi in 30 seconds
 <!-- livebook:{"output":true} -->
 
 ```
-"scheduled_time: 06:48:21 UTC, in 29 seconds"
+"scheduled_time: 05:17:13 UTC, in 29 seconds"
 ```
 
 `:schedule_nap` has computed — its value is a unix timestamp, containing the scheduled time.
@@ -194,7 +194,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Nap Scheduler', version v1, EXECDZM2RAH4XBADHXLBY4M5"]
+    subgraph Graph["🧩 'Nap Scheduler', version v1, EXECL4Y00T46HD7MJH72R6A0"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -226,7 +226,7 @@ graph TD
 <!-- livebook:{"output":true} -->
 
 ```
-"Waiting for 06:48:21 UTC..."
+"Waiting for 05:17:13 UTC..."
 ```
 
 This will block until it's time:
@@ -240,7 +240,7 @@ now = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S UTC")
 <!-- livebook:{"output":true} -->
 
 ```
-"06:48:25 UTC: time for a nap, Luigi!"
+"05:17:17 UTC: time for a nap, Luigi!"
 ```
 
 The actual event might occur a few seconds after its scheduled time. The precision of the timer is determined by the configured granularity of the sweeper – see `background_sweeper` configuration in the setup section.
@@ -258,10 +258,10 @@ Journey.values(execution)
 ```
 %{
   name: "Luigi",
-  execution_id: "EXECDZM2RAH4XBADHXLBY4M5",
-  last_updated_at: 1776322101,
-  start_nap: "time for a nap, Luigi!",
-  schedule_nap: 1776322101
+  last_updated_at: 1776921436,
+  execution_id: "EXECL4Y00T46HD7MJH72R6A0",
+  schedule_nap: 1776921433,
+  start_nap: "time for a nap, Luigi!"
 }
 ```
 
@@ -276,7 +276,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Nap Scheduler', version v1, EXECDZM2RAH4XBADHXLBY4M5"]
+    subgraph Graph["🧩 'Nap Scheduler', version v1, EXECL4Y00T46HD7MJH72R6A0"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -306,32 +306,32 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECDZM2RAH4XBADHXLBY4M5'
+- ID: 'EXECL4Y00T46HD7MJH72R6A0'
 - Graph: 'Nap Scheduler' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-16 06:47:51Z UTC | 34 seconds ago
-- Last updated at: 2026-04-16 06:48:21Z UTC | 4 seconds ago
-- Duration: 30 seconds
+- Created at: 2026-04-23 05:16:43Z UTC | 34 seconds ago
+- Last updated at: 2026-04-23 05:17:16Z UTC | 1 seconds ago
+- Duration: 33 seconds
 - Revision: 5
 - # of Values: 5 (set) / 5 (total)
 - # of Computations: 2
 
 Values:
 - Set:
-  - last_updated_at: '1776322101' | :input
-    set at 2026-04-16 06:48:21Z | rev: 5
+  - last_updated_at: '1776921436' | :input
+    set at 2026-04-23 05:17:16Z | rev: 5
 
   - start_nap: '"time for a nap, Luigi!"' | :compute
-    computed at 2026-04-16 06:48:21Z | rev: 5
+    computed at 2026-04-23 05:17:16Z | rev: 5
 
-  - schedule_nap: '1776322101' | :tick_once
-    computed at 2026-04-16 06:47:51Z | rev: 3
+  - schedule_nap: '1776921433' | :tick_once
+    computed at 2026-04-23 05:16:43Z | rev: 3
 
   - name: '"Luigi"' | :input
-    set at 2026-04-16 06:47:51Z | rev: 1
+    set at 2026-04-23 05:16:43Z | rev: 1
 
-  - execution_id: 'EXECDZM2RAH4XBADHXLBY4M5' | :input
-    set at 2026-04-16 06:47:51Z | rev: 0
+  - execution_id: 'EXECL4Y00T46HD7MJH72R6A0' | :input
+    set at 2026-04-23 05:16:43Z | rev: 0
 
 
 - Not set:
@@ -339,13 +339,14 @@ Values:
 
 Computations:
 - Completed:
-  - :start_nap (CMPL5MYX8BRJZ0RDH54A3A1): ✅ :success | :compute | rev 5
-    started: 2026-04-16 06:48:21Z | completed: 2026-04-16 06:48:21Z (0s)
+  - :start_nap (CMPXDL51R4XEZD24YR7JG0D): ✅ :success | :compute | rev 5
+    started: 2026-04-23 05:17:16Z | completed: 2026-04-23 05:17:16Z (0s)
     inputs used:
        :name (rev 1)
        :schedule_nap (rev 3)
-  - :schedule_nap (CMP0A5JX812L6DV896DA3H7): ✅ :success | :tick_once | rev 3
-    started: 2026-04-16 06:47:51Z | completed: 2026-04-16 06:47:51Z (0s)
+
+  - :schedule_nap (CMP4A4LTR1L38R80X9RATGJ): ✅ :success | :tick_once | rev 3
+    started: 2026-04-23 05:16:43Z | completed: 2026-04-23 05:16:43Z (0s)
     inputs used:
        :name (rev 1)
 

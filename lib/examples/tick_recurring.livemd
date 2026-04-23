@@ -205,7 +205,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECX2MGJDVJYAJ5RX0X8R64"]
+    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECA66D9728GRHYLLE2ZJ3G"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -238,11 +238,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECX2MGJDVJYAJ5RX0X8R64'
+- ID: 'EXECA66D9728GRHYLLE2ZJ3G'
 - Graph: 'Hydration Reminder' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-16 09:22:40Z UTC | 0 seconds ago
-- Last updated at: 2026-04-16 09:22:40Z UTC | 0 seconds ago
+- Created at: 2026-04-23 05:21:19Z UTC | 0 seconds ago
+- Last updated at: 2026-04-23 05:21:19Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 1
 - # of Values: 3 (set) / 6 (total)
@@ -250,14 +250,14 @@ Execution summary:
 
 Values:
 - Set:
-  - last_updated_at: '1776331360' | :input
-    set at 2026-04-16 09:22:40Z | rev: 1
+  - last_updated_at: '1776921679' | :input
+    set at 2026-04-23 05:21:19Z | rev: 1
 
   - name: '"Luigi"' | :input
-    set at 2026-04-16 09:22:40Z | rev: 1
+    set at 2026-04-23 05:21:19Z | rev: 1
 
-  - execution_id: 'EXECX2MGJDVJYAJ5RX0X8R64' | :input
-    set at 2026-04-16 09:22:40Z | rev: 0
+  - execution_id: 'EXECA66D9728GRHYLLE2ZJ3G' | :input
+    set at 2026-04-23 05:21:19Z | rev: 0
 
 
 - Not set:
@@ -310,13 +310,13 @@ scheduled_at_string = scheduled_time |> DateTime.from_unix!() |> Calendar.strfti
 <!-- livebook:{"output":true} -->
 
 ```
-reminder_tick: scheduling a reminder for Luigi for 09:22:55 UTC
+reminder_tick: scheduling a reminder for Luigi for 05:21:34 UTC
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-"scheduled_time: 09:22:55 UTC, in 14 seconds"
+"scheduled_time: 05:21:34 UTC, in 14 seconds"
 ```
 
 ## Wait for the First Reminder
@@ -328,7 +328,7 @@ reminder_tick: scheduling a reminder for Luigi for 09:22:55 UTC
 <!-- livebook:{"output":true} -->
 
 ```
-"Waiting for 09:22:55 UTC..."
+"Waiting for 05:21:34 UTC..."
 ```
 
 This will block until it's time...
@@ -342,7 +342,7 @@ now = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S UTC")
 <!-- livebook:{"output":true} -->
 
 ```
-"Reminder to hydrate fired: 09:22:58 UTC: count: 1"
+"Reminder to hydrate fired: 05:21:37 UTC: count: 1"
 ```
 
 ```elixir
@@ -356,7 +356,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECX2MGJDVJYAJ5RX0X8R64"]
+    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECA66D9728GRHYLLE2ZJ3G"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -395,7 +395,7 @@ scheduled_at_string = scheduled_time |> DateTime.from_unix!() |> Calendar.strfti
 <!-- livebook:{"output":true} -->
 
 ```
-"Waiting for scheduled_time: 09:23:11 UTC, in 13 seconds"
+"Waiting for scheduled_time: 05:21:51 UTC, in 14 seconds"
 ```
 
 ```elixir
@@ -407,7 +407,7 @@ now = DateTime.utc_now() |> Calendar.strftime("%H:%M:%S UTC")
 <!-- livebook:{"output":true} -->
 
 ```
-"Reminder to hydrate fired: 09:23:14 UTC: count: 2"
+"Reminder to hydrate fired: 05:21:54 UTC: count: 2"
 ```
 
 As long as reminders are enabled, this will keep happening every 15+ seconds (the granularity is subject to sweeper's configuration).
@@ -437,10 +437,10 @@ Journey.values(execution)
 ```
 %{
   name: "Luigi",
-  last_updated_at: 1776331394,
-  execution_id: "EXECX2MGJDVJYAJ5RX0X8R64",
+  last_updated_at: 1776921714,
+  execution_id: "EXECA66D9728GRHYLLE2ZJ3G",
   enable_reminders: false,
-  reminder_tick: 1776331406
+  reminder_tick: 1776921726
 }
 ```
 
@@ -455,7 +455,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECX2MGJDVJYAJ5RX0X8R64"]
+    subgraph Graph["🧩 'Hydration Reminder', version v1, EXECA66D9728GRHYLLE2ZJ3G"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -488,32 +488,32 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECX2MGJDVJYAJ5RX0X8R64'
+- ID: 'EXECA66D9728GRHYLLE2ZJ3G'
 - Graph: 'Hydration Reminder' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-16 09:22:40Z UTC | 34 seconds ago
-- Last updated at: 2026-04-16 09:23:14Z UTC | 0 seconds ago
-- Duration: 34 seconds
+- Created at: 2026-04-23 05:21:19Z UTC | 35 seconds ago
+- Last updated at: 2026-04-23 05:21:54Z UTC | 0 seconds ago
+- Duration: 35 seconds
 - Revision: 14
 - # of Values: 5 (set) / 6 (total)
 - # of Computations: 6
 
 Values:
 - Set:
-  - last_updated_at: '1776331394' | :input
-    set at 2026-04-16 09:23:14Z | rev: 14
+  - last_updated_at: '1776921714' | :input
+    set at 2026-04-23 05:21:54Z | rev: 14
 
   - enable_reminders: 'false' | :input
-    set at 2026-04-16 09:23:14Z | rev: 13
+    set at 2026-04-23 05:21:54Z | rev: 13
 
-  - reminder_tick: '1776331406' | :tick_recurring
-    computed at 2026-04-16 09:23:11Z | rev: 12
+  - reminder_tick: '1776921726' | :tick_recurring
+    computed at 2026-04-23 05:21:51Z | rev: 12
 
   - name: '"Luigi"' | :input
-    set at 2026-04-16 09:22:40Z | rev: 1
+    set at 2026-04-23 05:21:19Z | rev: 1
 
-  - execution_id: 'EXECX2MGJDVJYAJ5RX0X8R64' | :input
-    set at 2026-04-16 09:22:40Z | rev: 0
+  - execution_id: 'EXECA66D9728GRHYLLE2ZJ3G' | :input
+    set at 2026-04-23 05:21:19Z | rev: 0
 
 
 - Not set:
@@ -521,28 +521,32 @@ Values:
 
 Computations:
 - Completed:
-  - :reminder_tick (CMP35ZY49079RLT4DHH51J5): ✅ :success | :tick_recurring | rev 12
-    started: 2026-04-16 09:23:11Z | completed: 2026-04-16 09:23:11Z (0s)
+  - :reminder_tick (CMP8363RHEHLV67TDVVA5LH): ✅ :success | :tick_recurring | rev 12
+    started: 2026-04-23 05:21:51Z | completed: 2026-04-23 05:21:51Z (0s)
     inputs used:
        :name (rev 1)
        :enable_reminders (rev 2)
-  - :remind_to_hydrate (CMPXY31HT7YT39R5MHRG9Y5): ✅ :success | :compute | rev 10
-    started: 2026-04-16 09:23:11Z | completed: 2026-04-16 09:23:11Z (0s)
+
+  - :remind_to_hydrate (CMPR76XH6EZY8R6BXH60GDL): ✅ :success | :compute | rev 10
+    started: 2026-04-23 05:21:51Z | completed: 2026-04-23 05:21:51Z (0s)
     inputs used:
        :enable_reminders (rev 2)
        :reminder_tick (rev 8)
-  - :reminder_tick (CMPV1D80ERG7L27YEGZ2J02): ✅ :success | :tick_recurring | rev 8
-    started: 2026-04-16 09:22:56Z | completed: 2026-04-16 09:22:56Z (0s)
+
+  - :reminder_tick (CMPZ83L75YEZ228YX3V6HY0): ✅ :success | :tick_recurring | rev 8
+    started: 2026-04-23 05:21:36Z | completed: 2026-04-23 05:21:36Z (0s)
     inputs used:
        :name (rev 1)
        :enable_reminders (rev 2)
-  - :remind_to_hydrate (CMPZRH28ADBA82THDRMT7A0): ✅ :success | :compute | rev 6
-    started: 2026-04-16 09:22:56Z | completed: 2026-04-16 09:22:56Z (0s)
+
+  - :remind_to_hydrate (CMPY55J9EVDR1E7V509XHEJ): ✅ :success | :compute | rev 6
+    started: 2026-04-23 05:21:36Z | completed: 2026-04-23 05:21:36Z (0s)
     inputs used:
        :enable_reminders (rev 2)
        :reminder_tick (rev 4)
-  - :reminder_tick (CMPJ8XVJZ96TG0HD0B4H7GY): ✅ :success | :tick_recurring | rev 4
-    started: 2026-04-16 09:22:40Z | completed: 2026-04-16 09:22:40Z (0s)
+
+  - :reminder_tick (CMP501Y354R35LR4GMLRTDZ): ✅ :success | :tick_recurring | rev 4
+    started: 2026-04-23 05:21:19Z | completed: 2026-04-23 05:21:19Z (0s)
     inputs used:
        :name (rev 1)
        :enable_reminders (rev 2)

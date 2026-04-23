@@ -138,7 +138,7 @@ execution = Journey.start(graph); :ok
 :ok
 ```
 
-In the new execution the :greeting computation is waiting for :name to be set.
+In the new execution the `:greeting` computation is waiting for `:name` to be set.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -155,7 +155,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Welcome, but failing', version v1, EXEC5884XEBELDZ8RE709JJ1"]
+    subgraph Graph["🧩 'Welcome, but failing', version v1, EXECG5217Z92XXJA1BM8R3LG"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["⬜ name"]
@@ -186,9 +186,9 @@ Journey.values_all(execution)
 ```
 %{
   name: :not_set,
-  execution_id: {:set, "EXEC5884XEBELDZ8RE709JJ1"},
-  greeting: :not_set,
-  last_updated_at: {:set, 1776792895}
+  last_updated_at: {:set, 1776922650},
+  execution_id: {:set, "EXECG5217Z92XXJA1BM8R3LG"},
+  greeting: :not_set
 }
 ```
 
@@ -202,11 +202,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXEC5884XEBELDZ8RE709JJ1'
+- ID: 'EXECG5217Z92XXJA1BM8R3LG'
 - Graph: 'Welcome, but failing' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-21 17:34:55Z UTC | 0 seconds ago
-- Last updated at: 2026-04-21 17:34:55Z UTC | 0 seconds ago
+- Created at: 2026-04-23 05:37:30Z UTC | 0 seconds ago
+- Last updated at: 2026-04-23 05:37:30Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 0
 - # of Values: 2 (set) / 4 (total)
@@ -214,11 +214,11 @@ Execution summary:
 
 Values:
 - Set:
-  - execution_id: 'EXEC5884XEBELDZ8RE709JJ1' | :input
-    set at 2026-04-21 17:34:55Z | rev: 0
+  - execution_id: 'EXECG5217Z92XXJA1BM8R3LG' | :input
+    set at 2026-04-23 05:37:30Z | rev: 0
 
-  - last_updated_at: '1776792895' | :input
-    set at 2026-04-21 17:34:55Z | rev: 0
+  - last_updated_at: '1776922650' | :input
+    set at 2026-04-23 05:37:30Z | rev: 0
 
 
 - Not set:
@@ -267,18 +267,18 @@ Journey.get(execution, :greeting, wait: :any, timeout: 120_000)
 <!-- livebook:{"output":true} -->
 
 ```
-Hello, Luigi, at 17:34:55 UTC, 🤞!
+Hello, Luigi, at 05:37:30 UTC, 🤞!
 
-10:34:55.568 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPXBE23HYRL238Y1VVTB0D.greeting] [Welcome, but failing]: async computation completed with an error
-Hello, Luigi, at 17:35:00 UTC, 🤞!
+22:37:30.132 [warning] Worker [EXECG5217Z92XXJA1BM8R3LG.CMPET6LMRBXMXGA771YJX9E.greeting] [Welcome, but failing]: async computation completed with an error
+Hello, Luigi, at 05:37:31 UTC, 🤞!
 
-10:35:00.772 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMP5316816R356GYBYBGD9T.greeting] [Welcome, but failing]: async computation completed with an error
-Hello, Luigi, at 17:35:05 UTC, 🤞!
+22:37:31.706 [warning] Worker [EXECG5217Z92XXJA1BM8R3LG.CMP06YLV03DXGEVYLX46BD1.greeting] [Welcome, but failing]: async computation completed with an error
+Hello, Luigi, at 05:37:32 UTC, 🤞!
 
-10:35:05.721 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPVBARVBM42GR0XVXVYZ9D.greeting] [Welcome, but failing]: async computation completed with an error
-Hello, Luigi, at 17:35:06 UTC, 🤞!
+22:37:32.980 [warning] Worker [EXECG5217Z92XXJA1BM8R3LG.CMP9Y72L34RL30VXH747J21.greeting] [Welcome, but failing]: async computation completed with an error
+Hello, Luigi, at 05:37:41 UTC, 🤞!
 
-10:35:06.504 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPE4T346E14HZDVH8GEJR7.greeting] [Welcome, but failing]: async computation completed with an error
+22:37:41.175 [warning] Worker [EXECG5217Z92XXJA1BM8R3LG.CMP6RL4RJGG99AEBE4Z53T3.greeting] [Welcome, but failing]: async computation completed with an error
 ```
 
 <!-- livebook:{"output":true} -->
@@ -300,7 +300,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Welcome, but failing', version v1, EXEC5884XEBELDZ8RE709JJ1"]
+    subgraph Graph["🧩 'Welcome, but failing', version v1, EXECG5217Z92XXJA1BM8R3LG"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -331,13 +331,13 @@ Journey.values_all(execution)
 ```
 %{
   name: {:set, "Luigi"},
-  execution_id: {:set, "EXEC5884XEBELDZ8RE709JJ1"},
-  greeting: :not_set,
-  last_updated_at: {:set, 1776792895}
+  last_updated_at: {:set, 1776922650},
+  execution_id: {:set, "EXECG5217Z92XXJA1BM8R3LG"},
+  greeting: :not_set
 }
 ```
 
-And `introspect/1` shows the failed computation attempts:
+And `introspect/1` shows the failed computation attempts, including the errors reported by each of the computations:
 
 ```elixir
 Journey.Tools.introspect(execution.id) |> IO.puts()
@@ -347,11 +347,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXEC5884XEBELDZ8RE709JJ1'
+- ID: 'EXECG5217Z92XXJA1BM8R3LG'
 - Graph: 'Welcome, but failing' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-21 17:34:55Z UTC | 12 seconds ago
-- Last updated at: 2026-04-21 17:35:06Z UTC | 1 seconds ago
+- Created at: 2026-04-23 05:37:30Z UTC | 14 seconds ago
+- Last updated at: 2026-04-23 05:37:41Z UTC | 3 seconds ago
 - Duration: 11 seconds
 - Revision: 9
 - # of Values: 3 (set) / 4 (total)
@@ -359,14 +359,14 @@ Execution summary:
 
 Values:
 - Set:
-  - last_updated_at: '1776792895' | :input
-    set at 2026-04-21 17:34:55Z | rev: 1
+  - last_updated_at: '1776922650' | :input
+    set at 2026-04-23 05:37:30Z | rev: 1
 
   - name: '"Luigi"' | :input
-    set at 2026-04-21 17:34:55Z | rev: 1
+    set at 2026-04-23 05:37:30Z | rev: 1
 
-  - execution_id: 'EXEC5884XEBELDZ8RE709JJ1' | :input
-    set at 2026-04-21 17:34:55Z | rev: 0
+  - execution_id: 'EXECG5217Z92XXJA1BM8R3LG' | :input
+    set at 2026-04-23 05:37:30Z | rev: 0
 
 
 - Not set:
@@ -374,26 +374,29 @@ Values:
 
 Computations:
 - Completed:
-  - :greeting (CMPE4T346E14HZDVH8GEJR7): ❌ :failed | :compute | rev 9
-    started: 2026-04-21 17:35:06Z | completed: 2026-04-21 17:35:06Z (0s)
+  - :greeting (CMP6RL4RJGG99AEBE4Z53T3): ❌ :failed | :compute | rev 9
+    started: 2026-04-23 05:37:41Z | completed: 2026-04-23 05:37:41Z (0s)
     inputs used:
-       <none>
+       :name (rev 1)
+    error: "oh no, failed, 05:37:41 UTC"
 
-  - :greeting (CMPVBARVBM42GR0XVXVYZ9D): ❌ :failed | :compute | rev 7
-    started: 2026-04-21 17:35:05Z | completed: 2026-04-21 17:35:05Z (0s)
+  - :greeting (CMP9Y72L34RL30VXH747J21): ❌ :failed | :compute | rev 7
+    started: 2026-04-23 05:37:32Z | completed: 2026-04-23 05:37:32Z (0s)
     inputs used:
-       <none>
+       :name (rev 1)
+    error: "oh no, failed, 05:37:32 UTC"
 
-  - :greeting (CMP5316816R356GYBYBGD9T): ❌ :failed | :compute | rev 5
-    started: 2026-04-21 17:35:00Z | completed: 2026-04-21 17:35:00Z (0s)
+  - :greeting (CMP06YLV03DXGEVYLX46BD1): ❌ :failed | :compute | rev 5
+    started: 2026-04-23 05:37:31Z | completed: 2026-04-23 05:37:31Z (0s)
     inputs used:
-       <none>
+       :name (rev 1)
+    error: "oh no, failed, 05:37:31 UTC"
 
-  - :greeting (CMPXBE23HYRL238Y1VVTB0D): ❌ :failed | :compute | rev 3
-    started: 2026-04-21 17:34:55Z | completed: 2026-04-21 17:34:55Z (0s)
+  - :greeting (CMPET6LMRBXMXGA771YJX9E): ❌ :failed | :compute | rev 3
+    started: 2026-04-23 05:37:30Z | completed: 2026-04-23 05:37:30Z (0s)
     inputs used:
-       <none>
-
+       :name (rev 1)
+    error: "oh no, failed, 05:37:30 UTC"
 
 - Outstanding:
 
@@ -428,9 +431,9 @@ Journey.get(execution, :greeting, wait: {:newer_than, execution.revision}, timeo
 <!-- livebook:{"output":true} -->
 
 ```
-Hello, Luigi, at 17:35:07 UTC, 🤞!
+Hello, Luigi, at 05:37:44 UTC, 🤞!
 
-10:35:07.999 [warning] Worker [EXEC5884XEBELDZ8RE709JJ1.CMPX4044Z326HT1JJA4826G.greeting] [Welcome, but failing]: async computation completed with an error
+22:37:44.837 [warning] Worker [EXECG5217Z92XXJA1BM8R3LG.CMPBTHXTZ61EG875VG2Y9HB.greeting] [Welcome, but failing]: async computation completed with an error
 ```
 
 <!-- livebook:{"output":true} -->
@@ -450,9 +453,9 @@ Journey.values_all(execution)
 ```
 %{
   name: {:set, "Luigi"},
-  execution_id: {:set, "EXEC5884XEBELDZ8RE709JJ1"},
-  greeting: :not_set,
-  last_updated_at: {:set, 1776792895}
+  last_updated_at: {:set, 1776922650},
+  execution_id: {:set, "EXECG5217Z92XXJA1BM8R3LG"},
+  greeting: :not_set
 }
 ```
 
@@ -467,7 +470,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Welcome, but failing', version v1, EXEC5884XEBELDZ8RE709JJ1"]
+    subgraph Graph["🧩 'Welcome, but failing', version v1, EXECG5217Z92XXJA1BM8R3LG"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -497,26 +500,26 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXEC5884XEBELDZ8RE709JJ1'
+- ID: 'EXECG5217Z92XXJA1BM8R3LG'
 - Graph: 'Welcome, but failing' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-21 17:34:55Z UTC | 14 seconds ago
-- Last updated at: 2026-04-21 17:35:08Z UTC | 1 seconds ago
-- Duration: 13 seconds
+- Created at: 2026-04-23 05:37:30Z UTC | 15 seconds ago
+- Last updated at: 2026-04-23 05:37:44Z UTC | 1 seconds ago
+- Duration: 14 seconds
 - Revision: 11
 - # of Values: 3 (set) / 4 (total)
 - # of Computations: 5
 
 Values:
 - Set:
-  - last_updated_at: '1776792895' | :input
-    set at 2026-04-21 17:34:55Z | rev: 1
+  - last_updated_at: '1776922650' | :input
+    set at 2026-04-23 05:37:30Z | rev: 1
 
   - name: '"Luigi"' | :input
-    set at 2026-04-21 17:34:55Z | rev: 1
+    set at 2026-04-23 05:37:30Z | rev: 1
 
-  - execution_id: 'EXEC5884XEBELDZ8RE709JJ1' | :input
-    set at 2026-04-21 17:34:55Z | rev: 0
+  - execution_id: 'EXECG5217Z92XXJA1BM8R3LG' | :input
+    set at 2026-04-23 05:37:30Z | rev: 0
 
 
 - Not set:
@@ -524,31 +527,35 @@ Values:
 
 Computations:
 - Completed:
-  - :greeting (CMPX4044Z326HT1JJA4826G): ❌ :failed | :compute | rev 11
-    started: 2026-04-21 17:35:07Z | completed: 2026-04-21 17:35:08Z (1s)
+  - :greeting (CMPBTHXTZ61EG875VG2Y9HB): ❌ :failed | :compute | rev 11
+    started: 2026-04-23 05:37:44Z | completed: 2026-04-23 05:37:44Z (0s)
     inputs used:
-       <none>
+       :name (rev 1)
+    error: "oh no, failed, 05:37:44 UTC"
 
-  - :greeting (CMPE4T346E14HZDVH8GEJR7): ❌ :failed | :compute | rev 9
-    started: 2026-04-21 17:35:06Z | completed: 2026-04-21 17:35:06Z (0s)
+  - :greeting (CMP6RL4RJGG99AEBE4Z53T3): ❌ :failed | :compute | rev 9
+    started: 2026-04-23 05:37:41Z | completed: 2026-04-23 05:37:41Z (0s)
     inputs used:
-       <none>
+       :name (rev 1)
+    error: "oh no, failed, 05:37:41 UTC"
 
-  - :greeting (CMPVBARVBM42GR0XVXVYZ9D): ❌ :failed | :compute | rev 7
-    started: 2026-04-21 17:35:05Z | completed: 2026-04-21 17:35:05Z (0s)
+  - :greeting (CMP9Y72L34RL30VXH747J21): ❌ :failed | :compute | rev 7
+    started: 2026-04-23 05:37:32Z | completed: 2026-04-23 05:37:32Z (0s)
     inputs used:
-       <none>
+       :name (rev 1)
+    error: "oh no, failed, 05:37:32 UTC"
 
-  - :greeting (CMP5316816R356GYBYBGD9T): ❌ :failed | :compute | rev 5
-    started: 2026-04-21 17:35:00Z | completed: 2026-04-21 17:35:00Z (0s)
+  - :greeting (CMP06YLV03DXGEVYLX46BD1): ❌ :failed | :compute | rev 5
+    started: 2026-04-23 05:37:31Z | completed: 2026-04-23 05:37:31Z (0s)
     inputs used:
-       <none>
+       :name (rev 1)
+    error: "oh no, failed, 05:37:31 UTC"
 
-  - :greeting (CMPXBE23HYRL238Y1VVTB0D): ❌ :failed | :compute | rev 3
-    started: 2026-04-21 17:34:55Z | completed: 2026-04-21 17:34:55Z (0s)
+  - :greeting (CMPET6LMRBXMXGA771YJX9E): ❌ :failed | :compute | rev 3
+    started: 2026-04-23 05:37:30Z | completed: 2026-04-23 05:37:30Z (0s)
     inputs used:
-       <none>
-
+       :name (rev 1)
+    error: "oh no, failed, 05:37:30 UTC"
 
 - Outstanding:
 
@@ -560,11 +567,11 @@ Computations:
 :ok
 ```
 
-If the information you get via introspection tools is not sufficient, you can load the execution itself, and examine it by hand. Notice the list of computations attached to the execution, containing some metadata around it, including `error_details`, which captured the details on the error returned by the failing computation function:
+If the information you get via introspection tools is not sufficient, you can load the execution itself, and examine it by hand. Here are a few most recent computations in this execution:
 
 ```elixir
 execution = Journey.load(execution.id)
-execution.computations
+execution.computations |> Enum.take(3)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -573,8 +580,8 @@ execution.computations
 [
   %Journey.Persistence.Schema.Execution.Computation{
     __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-    id: "CMPX4044Z326HT1JJA4826G",
-    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    id: "CMPBTHXTZ61EG875VG2Y9HB",
+    execution_id: "EXECG5217Z92XXJA1BM8R3LG",
     execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
     node_name: :greeting,
     computation_type: :compute,
@@ -582,20 +589,20 @@ execution.computations
     ex_revision_at_start: 10,
     ex_revision_at_completion: 11,
     scheduled_time: nil,
-    start_time: 1776792907,
-    completion_time: 1776792908,
-    deadline: 1776792967,
+    start_time: 1776922664,
+    completion_time: 1776922664,
+    deadline: 1776922724,
     last_heartbeat_at: nil,
-    heartbeat_deadline: 1776793147,
-    error_details: "\"oh no, failed, 17:35:07 UTC\"",
-    computed_with: nil,
-    inserted_at: 1776792907,
-    updated_at: 1776792908
+    heartbeat_deadline: 1776922904,
+    error_details: "\"oh no, failed, 05:37:44 UTC\"",
+    computed_with: %{name: 1},
+    inserted_at: 1776922664,
+    updated_at: 1776922664
   },
   %Journey.Persistence.Schema.Execution.Computation{
     __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-    id: "CMPE4T346E14HZDVH8GEJR7",
-    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    id: "CMP6RL4RJGG99AEBE4Z53T3",
+    execution_id: "EXECG5217Z92XXJA1BM8R3LG",
     execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
     node_name: :greeting,
     computation_type: :compute,
@@ -603,20 +610,20 @@ execution.computations
     ex_revision_at_start: 8,
     ex_revision_at_completion: 9,
     scheduled_time: nil,
-    start_time: 1776792906,
-    completion_time: 1776792906,
-    deadline: 1776792966,
+    start_time: 1776922661,
+    completion_time: 1776922661,
+    deadline: 1776922721,
     last_heartbeat_at: nil,
-    heartbeat_deadline: 1776793146,
-    error_details: "\"oh no, failed, 17:35:06 UTC\"",
-    computed_with: nil,
-    inserted_at: 1776792905,
-    updated_at: 1776792906
+    heartbeat_deadline: 1776922901,
+    error_details: "\"oh no, failed, 05:37:41 UTC\"",
+    computed_with: %{name: 1},
+    inserted_at: 1776922652,
+    updated_at: 1776922661
   },
   %Journey.Persistence.Schema.Execution.Computation{
     __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-    id: "CMPVBARVBM42GR0XVXVYZ9D",
-    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
+    id: "CMP9Y72L34RL30VXH747J21",
+    execution_id: "EXECG5217Z92XXJA1BM8R3LG",
     execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
     node_name: :greeting,
     computation_type: :compute,
@@ -624,57 +631,15 @@ execution.computations
     ex_revision_at_start: 6,
     ex_revision_at_completion: 7,
     scheduled_time: nil,
-    start_time: 1776792905,
-    completion_time: 1776792905,
-    deadline: 1776792965,
+    start_time: 1776922652,
+    completion_time: 1776922652,
+    deadline: 1776922712,
     last_heartbeat_at: nil,
-    heartbeat_deadline: 1776793145,
-    error_details: "\"oh no, failed, 17:35:05 UTC\"",
-    computed_with: nil,
-    inserted_at: 1776792900,
-    updated_at: 1776792905
-  },
-  %Journey.Persistence.Schema.Execution.Computation{
-    __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-    id: "CMP5316816R356GYBYBGD9T",
-    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
-    execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
-    node_name: :greeting,
-    computation_type: :compute,
-    state: :failed,
-    ex_revision_at_start: 4,
-    ex_revision_at_completion: 5,
-    scheduled_time: nil,
-    start_time: 1776792900,
-    completion_time: 1776792900,
-    deadline: 1776792960,
-    last_heartbeat_at: nil,
-    heartbeat_deadline: 1776793140,
-    error_details: "\"oh no, failed, 17:35:00 UTC\"",
-    computed_with: nil,
-    inserted_at: 1776792895,
-    updated_at: 1776792900
-  },
-  %Journey.Persistence.Schema.Execution.Computation{
-    __meta__: #Ecto.Schema.Metadata<:loaded, "computations">,
-    id: "CMPXBE23HYRL238Y1VVTB0D",
-    execution_id: "EXEC5884XEBELDZ8RE709JJ1",
-    execution: #Ecto.Association.NotLoaded<association :execution is not loaded>,
-    node_name: :greeting,
-    computation_type: :compute,
-    state: :failed,
-    ex_revision_at_start: 2,
-    ex_revision_at_completion: 3,
-    scheduled_time: nil,
-    start_time: 1776792895,
-    completion_time: 1776792895,
-    deadline: 1776792955,
-    last_heartbeat_at: nil,
-    heartbeat_deadline: 1776793135,
-    error_details: "\"oh no, failed, 17:34:55 UTC\"",
-    computed_with: nil,
-    inserted_at: 1776792895,
-    updated_at: 1776792895
+    heartbeat_deadline: 1776922892,
+    error_details: "\"oh no, failed, 05:37:32 UTC\"",
+    computed_with: %{name: 1},
+    inserted_at: 1776922651,
+    updated_at: 1776922652
   }
 ]
 ```

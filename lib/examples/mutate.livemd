@@ -197,8 +197,8 @@ Journey.values(execution)
   name: "Luigi",
   ssn: "<redacted>",
   credit_score: 728,
-  last_updated_at: 1776239756,
-  execution_id: "EXECXMG9Z4682R8Y8GL609TE",
+  last_updated_at: 1776919639,
+  execution_id: "EXECZ3D6J01R3T00TZ47L1JR",
   redact_ssn: "updated :ssn"
 }
 ```
@@ -220,7 +220,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Credit Check', version v1, EXECXMG9Z4682R8Y8GL609TE"]
+    subgraph Graph["🧩 'Credit Check', version v1, EXECZ3D6J01R3T00TZ47L1JR"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         name["✅ name"]
@@ -253,11 +253,11 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXECXMG9Z4682R8Y8GL609TE'
+- ID: 'EXECZ3D6J01R3T00TZ47L1JR'
 - Graph: 'Credit Check' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-15 07:55:56Z UTC | 0 seconds ago
-- Last updated at: 2026-04-15 07:55:56Z UTC | 0 seconds ago
+- Created at: 2026-04-23 04:47:19Z UTC | 0 seconds ago
+- Last updated at: 2026-04-23 04:47:19Z UTC | 0 seconds ago
 - Duration: 0 seconds
 - Revision: 6
 - # of Values: 6 (set) / 6 (total)
@@ -265,23 +265,23 @@ Execution summary:
 
 Values:
 - Set:
-  - last_updated_at: '1776239756' | :input
-    set at 2026-04-15 07:55:56Z | rev: 6
+  - last_updated_at: '1776919639' | :input
+    set at 2026-04-23 04:47:19Z | rev: 6
 
   - redact_ssn: '"updated :ssn"' | :mutate
-    computed at 2026-04-15 07:55:56Z | rev: 6
+    computed at 2026-04-23 04:47:19Z | rev: 6
 
   - credit_score: '728' | :compute
-    computed at 2026-04-15 07:55:56Z | rev: 4
+    computed at 2026-04-23 04:47:19Z | rev: 4
 
   - ssn: '"<redacted>"' | :input
-    set at 2026-04-15 07:55:56Z | rev: 2
+    set at 2026-04-23 04:47:19Z | rev: 2
 
   - name: '"Luigi"' | :input
-    set at 2026-04-15 07:55:56Z | rev: 1
+    set at 2026-04-23 04:47:19Z | rev: 1
 
-  - execution_id: 'EXECXMG9Z4682R8Y8GL609TE' | :input
-    set at 2026-04-15 07:55:56Z | rev: 0
+  - execution_id: 'EXECZ3D6J01R3T00TZ47L1JR' | :input
+    set at 2026-04-23 04:47:19Z | rev: 0
 
 
 - Not set:
@@ -289,12 +289,13 @@ Values:
 
 Computations:
 - Completed:
-  - :redact_ssn (CMP6E5721X6B17MVHAL7T71): ✅ :success | :mutate | rev 6
-    started: 2026-04-15 07:55:56Z | completed: 2026-04-15 07:55:56Z (0s)
+  - :redact_ssn (CMPT15A7643G8T1117RV36Z): ✅ :success | :mutate | rev 6
+    started: 2026-04-23 04:47:19Z | completed: 2026-04-23 04:47:19Z (0s)
     inputs used:
        :credit_score (rev 4)
-  - :credit_score (CMP0A2R1151B01AX0G2R6AE): ✅ :success | :compute | rev 4
-    started: 2026-04-15 07:55:56Z | completed: 2026-04-15 07:55:56Z (0s)
+
+  - :credit_score (CMPZ94YM19XDBB3RJL3YXTR): ✅ :success | :compute | rev 4
+    started: 2026-04-23 04:47:19Z | completed: 2026-04-23 04:47:19Z (0s)
     inputs used:
        :name (rev 1)
        :ssn (rev 2)

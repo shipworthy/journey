@@ -148,7 +148,7 @@ history
     "metadata" => nil,
     "node" => "current_price",
     "revision" => 1,
-    "timestamp" => 1776282255,
+    "timestamp" => 1776921009,
     "value" => 100
   }
 ]
@@ -172,14 +172,14 @@ history
     "metadata" => nil,
     "node" => "current_price",
     "revision" => 4,
-    "timestamp" => 1776282256,
+    "timestamp" => 1776921010,
     "value" => 105
   },
   %{
     "metadata" => nil,
     "node" => "current_price",
     "revision" => 1,
-    "timestamp" => 1776282255,
+    "timestamp" => 1776921009,
     "value" => 100
   }
 ]
@@ -207,21 +207,21 @@ history
     "metadata" => %{"author" => "mario"},
     "node" => "current_price",
     "revision" => 7,
-    "timestamp" => 1776282256,
+    "timestamp" => 1776921011,
     "value" => 98
   },
   %{
     "metadata" => nil,
     "node" => "current_price",
     "revision" => 4,
-    "timestamp" => 1776282256,
+    "timestamp" => 1776921010,
     "value" => 105
   },
   %{
     "metadata" => nil,
     "node" => "current_price",
     "revision" => 1,
-    "timestamp" => 1776282255,
+    "timestamp" => 1776921009,
     "value" => 100
   }
 ]
@@ -244,7 +244,7 @@ execution.id
 ```mermaid
 graph TD
     %% Graph
-    subgraph Graph["🧩 'Price Tracker', version v1, EXEC7BTTZ34DJ8XT70RYL07M"]
+    subgraph Graph["🧩 'Price Tracker', version v1, EXEC2A5YXLM0H6TVT24ZVZML"]
         execution_id["✅ execution_id"]
         last_updated_at["✅ last_updated_at"]
         current_price["✅ current_price"]
@@ -273,29 +273,29 @@ Journey.Tools.introspect(execution.id) |> IO.puts()
 
 ```
 Execution summary:
-- ID: 'EXEC7BTTZ34DJ8XT70RYL07M'
+- ID: 'EXEC2A5YXLM0H6TVT24ZVZML'
 - Graph: 'Price Tracker' | 'v1'
 - Archived at: not archived
-- Created at: 2026-04-15 19:44:15Z UTC | 1 seconds ago
-- Last updated at: 2026-04-15 19:44:16Z UTC | 0 seconds ago
-- Duration: 1 seconds
+- Created at: 2026-04-23 05:10:09Z UTC | 2 seconds ago
+- Last updated at: 2026-04-23 05:10:11Z UTC | 0 seconds ago
+- Duration: 2 seconds
 - Revision: 9
 - # of Values: 4 (set) / 4 (total)
 - # of Computations: 3
 
 Values:
 - Set:
-  - last_updated_at: '1776282256' | :input
-    set at 2026-04-15 19:44:16Z | rev: 9
+  - last_updated_at: '1776921011' | :input
+    set at 2026-04-23 05:10:11Z | rev: 9
 
-  - price_history: '[%{"metadata" => %{"author" => "mario"}, "node" => "current_price", "revision" => 7, "timestamp" => 1776282256, "value" => 98}, %{"metadata" => nil, "node" => "current_price", "revision" => 4, "timestamp" => 1776282256, "value" => 105}, %{"metadata" => nil, "node" => "current_price", "revision" => 1, "timestamp" => 1776282255, "value" => 100}]' | :historian
-    computed at 2026-04-15 19:44:16Z | rev: 9
+  - price_history: '[%{"metadata" => %{"author" => "mario"}, "node" => "current_price", "revision" => 7, "timestamp" => 1776921011, "value" => 98}, %{"metadata" => nil, "node" => "current_price", "revision" => 4, "timestamp" => 1776921010, "value" => 105}, %{"metadata" => nil, "node" => "current_price", "revision" => 1, "timestamp" => 1776921009, "value" => 100}]' | :historian
+    computed at 2026-04-23 05:10:11Z | rev: 9
 
   - current_price: '98' | :input
-    set at 2026-04-15 19:44:16Z | rev: 7
+    set at 2026-04-23 05:10:11Z | rev: 7
 
-  - execution_id: 'EXEC7BTTZ34DJ8XT70RYL07M' | :input
-    set at 2026-04-15 19:44:15Z | rev: 0
+  - execution_id: 'EXEC2A5YXLM0H6TVT24ZVZML' | :input
+    set at 2026-04-23 05:10:09Z | rev: 0
 
 
 - Not set:
@@ -303,16 +303,18 @@ Values:
 
 Computations:
 - Completed:
-  - :price_history (CMP4H4G7B64441VRJ054R8T): ✅ :success | :historian | rev 9
-    started: 2026-04-15 19:44:16Z | completed: 2026-04-15 19:44:16Z (0s)
+  - :price_history (CMPHJ7559ARTYXA0ZJL0VR8): ✅ :success | :historian | rev 9
+    started: 2026-04-23 05:10:11Z | completed: 2026-04-23 05:10:11Z (0s)
     inputs used:
        :current_price (rev 7)
-  - :price_history (CMPLVJL4D5HA44RJRRME43J): ✅ :success | :historian | rev 6
-    started: 2026-04-15 19:44:16Z | completed: 2026-04-15 19:44:16Z (0s)
+
+  - :price_history (CMP80H6EXHDV767AE7HXMR3): ✅ :success | :historian | rev 6
+    started: 2026-04-23 05:10:10Z | completed: 2026-04-23 05:10:10Z (0s)
     inputs used:
        :current_price (rev 4)
-  - :price_history (CMPA3G3420TD9625AEZRAH8): ✅ :success | :historian | rev 3
-    started: 2026-04-15 19:44:15Z | completed: 2026-04-15 19:44:15Z (0s)
+
+  - :price_history (CMP14JHYB9RMRJZEGVJA9AX): ✅ :success | :historian | rev 3
+    started: 2026-04-23 05:10:09Z | completed: 2026-04-23 05:10:09Z (0s)
     inputs used:
        :current_price (rev 1)
 
