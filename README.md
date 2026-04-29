@@ -8,7 +8,11 @@
 
 ## Journey: Durable Workflows, as a Package
 
-Journey is a package for defining and running durable workflows, with persistence, horizontal scalability, orchestration, retries, crash recovery, scheduling, introspection and analytics. 
+Journey is a package for defining and running durable workflows, with persistence, horizontal scalability, orchestration, retries, crash recovery, scheduling, introspection and analytics.
+
+Journey lets you model stateful things — sessions, orders, users, tickets, business processes — as persistent reactive graphs.
+
+Each graph execution's state lives in your PostgreSQL database. Computations react to changes in their upstream dependencies, run across replicas, and survive intermittent failures, restarts and deployments. The state of any execution can be introspected at any point.
 
 ## Example
 
@@ -316,11 +320,11 @@ Three blog posts, from simple to advanced:
 
 ### Explore the Demos
 
-| App | What it shows | Live | Source |
-|-----|---------------|------|--------|
-| [JourDash](https://jourdash.gojourney.dev) | Multi-step delivery workflow with analytics | [demo](https://jourdash.gojourney.dev) | [source](https://github.com/shipworthy/jour_dash) |
-| [Horoscopes](https://horoscopes.gojourney.dev) | Session orchestration with user interaction | [demo](https://horoscopes.gojourney.dev) | [source](https://github.com/shipworthy/journey_horoscopes) |
-| [Recruit](https://github.com/shipworthy/recruit) | AI-powered resume screening with conditional workflows | — | [source](https://github.com/shipworthy/recruit) |
+| App                                              | What it shows                                          | Live                                     | Source                                                     |
+| ------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------- | ---------------------------------------------------------- |
+| [JourDash](https://jourdash.gojourney.dev)       | Multi-step delivery workflow with analytics            | [demo](https://jourdash.gojourney.dev)   | [source](https://github.com/shipworthy/jour_dash)          |
+| [Horoscopes](https://horoscopes.gojourney.dev)   | Session orchestration with user interaction            | [demo](https://horoscopes.gojourney.dev) | [source](https://github.com/shipworthy/journey_horoscopes) |
+| [Recruit](https://github.com/shipworthy/recruit) | AI-powered resume screening with conditional workflows | —                                        | [source](https://github.com/shipworthy/recruit)            |
 
 ### Reference
 
