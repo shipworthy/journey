@@ -8,35 +8,44 @@ defmodule Journey.Scheduler.Completions do
 
   require Logger
 
+  @doc """
+  Records a successful computation. Returns `{:ok, :value_written}` or `{:ok, :no_value_written}`
+  indicating whether the values table was actually updated. The scheduler uses this flag to gate
+  downstream invalidation checks. On deadlock retry exhaustion, returns `{:ok, :no_value_written}`
+  (the abandoned sweeper will re-run the computation later).
+
+  For `:loop` computations, `result` is a 2-tuple `{disposition, value}` where disposition is one
+  of `:ok`, `:cont_with_fallback`, `:cont_no_fallback`. For non-loop computations, `result` is the
+  unwrapped value (the inner of `{:ok, value}`).
+  """
   def record_success(computation, inputs_to_capture, result) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [:success]"
 
     Logger.debug("#{prefix}: starting.")
 
-    {:ok, _} =
-      Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
-        fn repo ->
-          record_success_in_transaction(repo, computation, inputs_to_capture, result)
-        end,
-        prefix
-      )
-      |> case do
-        {:ok, result} ->
-          {:ok, result}
+    Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
+      fn repo ->
+        record_success_in_transaction(repo, computation, inputs_to_capture, result)
+      end,
+      prefix
+    )
+    |> case do
+      {:ok, write_outcome} ->
+        {:ok, write_outcome}
 
-        {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
-          Logger.warning(
-            "#{prefix}: Failed after retries due to deadlock, " <>
-              "computation will be retried by abandoned sweeper"
-          )
+      {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
+        Logger.warning(
+          "#{prefix}: Failed after retries due to deadlock, " <>
+            "computation will be retried by abandoned sweeper"
+        )
 
-          {:ok, nil}
+        {:ok, :no_value_written}
 
-        {:error, other} ->
-          Logger.error("#{prefix}: Transaction failed with error: #{inspect(other)}")
-          raise other
-      end
-      |> tap(fn _ -> Logger.debug("#{prefix}: done.") end)
+      {:error, other} ->
+        Logger.error("#{prefix}: Transaction failed with error: #{inspect(other)}")
+        raise other
+    end
+    |> tap(fn _ -> Logger.debug("#{prefix}: done.") end)
   end
 
   def record_error(computation, error_details, inputs_to_capture) do
@@ -142,53 +151,54 @@ defmodule Journey.Scheduler.Completions do
       new_revision =
         Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
 
-      # record_result(
-      #   repo,
-      #   graph_node.mutates,
-      #   computation.node_name,
-      #   computation.execution_id,
-      #   new_revision,
-      #   result
-      # )
+      write_outcome =
+        computation.computation_type
+        |> case do
+          type when type in [:compute, :historian, :archive] ->
+            record_result(
+              repo,
+              graph_node.mutates,
+              false,
+              computation.node_name,
+              computation.execution_id,
+              new_revision,
+              result,
+              type
+            )
 
-      computation.computation_type
-      |> case do
-        type when type in [:compute, :historian, :archive] ->
-          record_result(
-            repo,
-            graph_node.mutates,
-            false,
-            computation.node_name,
-            computation.execution_id,
-            new_revision,
-            result,
-            type
-          )
+          :mutate ->
+            record_result(
+              repo,
+              graph_node.mutates,
+              graph_node.update_revision_on_change,
+              computation.node_name,
+              computation.execution_id,
+              new_revision,
+              result,
+              :mutate
+            )
 
-        :mutate ->
-          record_result(
-            repo,
-            graph_node.mutates,
-            graph_node.update_revision_on_change,
-            computation.node_name,
-            computation.execution_id,
-            new_revision,
-            result,
-            :mutate
-          )
+          type when type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring] ->
+            record_result(
+              repo,
+              graph_node.mutates,
+              false,
+              computation.node_name,
+              computation.execution_id,
+              new_revision,
+              result,
+              type
+            )
 
-        type when type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring] ->
-          record_result(
-            repo,
-            graph_node.mutates,
-            false,
-            computation.node_name,
-            computation.execution_id,
-            new_revision,
-            result,
-            type
-          )
-      end
+          :loop ->
+            record_loop_result(
+              repo,
+              current_computation,
+              graph_node,
+              new_revision,
+              result
+            )
+        end
 
       # Mark the computation as "completed".
       now_seconds = System.system_time(:second)
@@ -204,12 +214,21 @@ defmodule Journey.Scheduler.Completions do
       |> repo.update!()
 
       Logger.debug("#{prefix}: done. marking as completed.")
+
+      write_outcome
     else
       Logger.warning(
         "#{prefix}: done. computation completed, but it is no longer :computing. (#{current_computation.state})"
       )
+
+      :no_value_written
     end
   end
+
+  # Each record_result/record_loop_result clause returns one of:
+  #   :value_written     — the values table was updated with a new revision
+  #   :no_value_written  — nothing settable was written (or only an idempotent no-op)
+  # The scheduler uses this flag to gate Invalidate.ensure_all_discardable_cleared/2.
 
   # Compute nodes: only update if value changed (idempotent, like Journey.set/3)
   defp record_result(repo, nil, _update_revision_on_change, node_name, execution_id, new_revision, result, :compute) do
@@ -218,9 +237,11 @@ defmodule Journey.Scheduler.Completions do
     if current_value != result do
       # Value changed - update with new revision to trigger downstream recomputation
       set_value(execution_id, node_name, new_revision, repo, result)
+      :value_written
     else
       # Value unchanged - skip update entirely (matching Journey.set/3 behavior)
       Logger.debug("[#{execution_id}] [#{node_name}]: compute node value unchanged, skipping update")
+      :no_value_written
     end
   end
 
@@ -234,6 +255,8 @@ defmodule Journey.Scheduler.Completions do
       repo,
       result
     )
+
+    :value_written
   end
 
   # Mutate nodes: update target node based on update_revision_on_change option
@@ -287,7 +310,66 @@ defmodule Journey.Scheduler.Completions do
         result
       )
     end
+
+    # Mutate node's own value was written (regardless of what happened to the target).
+    :value_written
   end
+
+  # Loop nodes: result is a 2-tuple {disposition, value} where disposition is one of
+  # :ok, :cont_with_fallback, :cont_no_fallback. Returns :value_written or :no_value_written.
+  defp record_loop_result(repo, current_computation, graph_node, new_revision, {disposition, returned_value}) do
+    node_name = current_computation.node_name |> to_atom_if_string()
+    execution_id = current_computation.execution_id
+    current_iter = current_computation.loop_iteration
+    max_iter = graph_node.max_iterations
+
+    cond do
+      disposition == :ok ->
+        # Terminal success. Write to values table; do not create next iteration.
+        # loop_state stays nil on this row (terminal :ok carries no continuation).
+        set_value(execution_id, node_name, new_revision, repo, returned_value)
+        :value_written
+
+      disposition == :cont_with_fallback and current_iter >= max_iter ->
+        # Cap-promotion. Record loop_state for introspection; promote value to terminal.
+        mark_loop_state(repo, current_computation, "cont_with_fallback", returned_value)
+        set_value(execution_id, node_name, new_revision, repo, returned_value)
+        :value_written
+
+      disposition == :cont_no_fallback and current_iter >= max_iter ->
+        # Cap-failure. Record loop_state for introspection; do NOT write to values.
+        mark_loop_state(repo, current_computation, "cont_no_fallback", returned_value)
+        :no_value_written
+
+      disposition in [:cont_with_fallback, :cont_no_fallback] ->
+        # Continuation. Record loop_state on this row; insert next iteration's :not_set row.
+        mark_loop_state(repo, current_computation, Atom.to_string(disposition), returned_value)
+        insert_next_loop_iteration(repo, current_computation, current_iter + 1)
+        :no_value_written
+    end
+  end
+
+  defp mark_loop_state(repo, computation, disposition_string, value) do
+    computation
+    |> Ecto.Changeset.change(%{
+      loop_state: %{"disposition" => disposition_string, "value" => value}
+    })
+    |> repo.update!()
+  end
+
+  defp insert_next_loop_iteration(repo, current_computation, next_iteration) do
+    %Journey.Persistence.Schema.Execution.Computation{
+      execution_id: current_computation.execution_id,
+      node_name: current_computation.node_name,
+      computation_type: :loop,
+      state: :not_set,
+      loop_iteration: next_iteration
+    }
+    |> repo.insert!()
+  end
+
+  defp to_atom_if_string(name) when is_atom(name), do: name
+  defp to_atom_if_string(name) when is_binary(name), do: String.to_atom(name)
 
   defp set_value(execution_id, node_name, new_revision, repo, value) do
     node_name_as_string = node_name |> Atom.to_string()

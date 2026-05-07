@@ -8,6 +8,7 @@ defmodule Journey.Node do
   * `historian/3` – a node that tracks the history of changes to another node.
   * `tick_once/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule.
   * `tick_recurring/3` – a node that, once unblocked, in its turn, unblocks others, on a schedule, time after time.
+  * `loop/4` – a node that iterates a step function durably, threading state across iterations until termination or an iteration cap.
   """
 
   alias Journey.Graph
@@ -23,6 +24,8 @@ defmodule Journey.Node do
   ]
 
   @input_options [:f_on_save]
+
+  @loop_options @common_step_options ++ [:max_iterations]
 
   @doc """
   Creates a graph input node. The value of an input node is set with `Journey.set/3`. The name of the node must be an atom.
@@ -809,6 +812,140 @@ defmodule Journey.Node do
       gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
+      heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
+      heartbeat_timeout_seconds: Keyword.get(opts, :heartbeat_timeout_seconds, 240),
+      keep_latest_completed_computations: Keyword.get(opts, :keep_latest_completed_computations),
+      keep_oldest_completed_computations: Keyword.get(opts, :keep_oldest_completed_computations)
+    }
+  end
+
+  @doc """
+  Creates a loop node — a self-iterating computation that threads state across iterations durably.
+
+  `loop/4` is the durable analogue of Elixir's `Stream.unfold/2` and `Enum.reduce_while/3`:
+  the step function `f_loop` is invoked repeatedly, threading state forward via
+  `values_map.<name>`, until either the function signals completion or `:max_iterations` is reached.
+
+  Each iteration is recorded as its own computation row, providing per-iteration durability:
+  if a worker crashes mid-iteration, retries resume from the last successful iteration rather
+  than restarting from iteration 1.
+
+  `name` is an atom uniquely identifying the node in this graph.
+
+  `gated_by` defines when the loop becomes eligible to start (same syntax as `compute/4`).
+
+  `f_loop` is the step function. It can accept either one or two arguments:
+   - **Arity 1**: `fn values_map -> ... end`
+   - **Arity 2**: `fn values_map, value_nodes_map -> ... end`
+
+  On each invocation:
+   - `values_map` contains the current values of all upstream dependencies.
+   - On the first iteration, `values_map.<name>` is unset.
+   - On subsequent iterations, `values_map.<name>` reflects the value carried by the most recent
+     `:cont_*` return.
+
+  The function must return one of four tuples:
+
+  | Return | Meaning |
+  |---|---|
+  | `{:ok, result}` | Iteration is complete; `result` becomes the loop's terminal value. Downstream nodes fire. |
+  | `{:error, reason}` | Transient failure of this iteration. Engine retries per `:max_retries`. After exhaustion, the loop fails; the node's value remains unset. |
+  | `{:cont_with_fallback, value}` | Continue iterating. If `:max_iterations` is reached before another resolution, `value` is promoted to the loop's terminal value. |
+  | `{:cont_no_fallback, value}` | Continue iterating. If `:max_iterations` is reached, the loop fails with no usable result; the node's value remains unset. |
+
+  ## Options
+
+  - `:max_iterations` (required) — positive integer; the maximum number of iterations.
+    `:infinity` is not allowed.
+  - `:max_retries` (default: 3) — per-iteration retry budget for `{:error, _}` returns.
+  - `:abandon_after_seconds` (default: 60) — per-iteration timeout.
+  - Plus `:f_on_save`, `:heartbeat_interval_seconds`, `:heartbeat_timeout_seconds`,
+    `:keep_latest_completed_computations`, `:keep_oldest_completed_computations` (same semantics
+    as `compute/4`).
+
+  ## Visibility
+
+  The loop node's value (visible via `Journey.values/1`, `unblocked_when` predicates,
+  `f_on_save` callbacks) is set in exactly two cases:
+   1. The step function returns `{:ok, value}`.
+   2. `:max_iterations` is reached and the most recent return was `{:cont_with_fallback, value}`.
+
+  During iteration, the loop's accumulating state is visible only to the step function itself
+  (via `values_map.<name>`); it is not externally visible until terminal resolution.
+
+  ## At-least-once semantics
+
+  Step functions are invoked at-least-once, identical to `compute/4`. Side effects with
+  irreversible external impact (sending email, charging a card) should be performed by nodes
+  downstream of the loop's terminal value, not inside the step function itself.
+
+  ## Example: iteratively shrink a string until it fits
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "`loop()` doctest graph (shrink a string)",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:document),
+  ...>         input(:target_length),
+  ...>         loop(
+  ...>           :summary,
+  ...>           [:document, :target_length],
+  ...>           fn values ->
+  ...>             current = values[:summary] || values.document
+  ...>
+  ...>             cond do
+  ...>               String.length(current) <= values.target_length ->
+  ...>                 {:ok, current}
+  ...>
+  ...>               String.length(current) <= 1 ->
+  ...>                 {:ok, current}
+  ...>
+  ...>               true ->
+  ...>                 shorter = String.slice(current, 0, div(String.length(current), 2))
+  ...>                 {:cont_with_fallback, shorter}
+  ...>             end
+  ...>           end,
+  ...>           max_iterations: 10
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution =
+  ...>   graph
+  ...>   |> Journey.start()
+  ...>   |> Journey.set(:document, "abcdefghijklmnop")
+  ...>   |> Journey.set(:target_length, 4)
+  iex> {:ok, "abcd", _} = Journey.get(execution, :summary, wait: :any)
+  ```
+  """
+  def loop(name, gated_by, f_loop, opts \\ [])
+      when is_atom(name) and is_function(f_loop) do
+    check_options(opts, @loop_options)
+    validate_retention_options(opts)
+
+    max_iterations =
+      case Keyword.fetch(opts, :max_iterations) do
+        {:ok, n} when is_integer(n) and n > 0 ->
+          n
+
+        {:ok, other} ->
+          raise ArgumentError,
+                "max_iterations must be a positive integer, got: #{inspect(other)}"
+
+        :error ->
+          raise ArgumentError, "loop/4 requires the :max_iterations option (a positive integer)"
+      end
+
+    %Graph.Step{
+      name: name,
+      type: :loop,
+      gated_by: normalize_gated_by(gated_by),
+      f_compute: f_loop,
+      f_on_save: Keyword.get(opts, :f_on_save, nil),
+      max_iterations: max_iterations,
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),

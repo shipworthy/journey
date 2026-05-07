@@ -89,7 +89,8 @@ defmodule Journey.Executions do
               node_name: Atom.to_string(computation.name),
               computation_type: computation.type,
               # ex_revision_at_start: execution.revision,
-              state: :not_set
+              state: :not_set,
+              loop_iteration: if(computation.type == :loop, do: 1, else: nil)
             }
             |> repo.insert!()
           end)

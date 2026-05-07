@@ -40,7 +40,8 @@ defmodule Journey.Scheduler.Recompute do
                     :tick_once,
                     :schedule_recurring,
                     :tick_recurring,
-                    :archive
+                    :archive,
+                    :loop
                   ] and
                   c.state == :success,
               order_by: [desc: c.ex_revision_at_start],
@@ -168,8 +169,10 @@ defmodule Journey.Scheduler.Recompute do
     %{num_rows: num_rows} =
       repo.query!(
         """
-        INSERT INTO computations (id, execution_id, node_name, computation_type, state, inserted_at, updated_at)
-        SELECT $1::varchar, $2::varchar, $3::varchar, $4::varchar, 'not_set', $5::bigint, $5::bigint
+        INSERT INTO computations (id, execution_id, node_name, computation_type, state, loop_iteration, inserted_at, updated_at)
+        SELECT $1::varchar, $2::varchar, $3::varchar, $4::varchar, 'not_set',
+               CASE WHEN $4 = 'loop' THEN 1 ELSE NULL END,
+               $5::bigint, $5::bigint
         WHERE NOT EXISTS (
           SELECT 1 FROM computations
           WHERE execution_id = $2

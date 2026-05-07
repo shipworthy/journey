@@ -41,7 +41,10 @@ defmodule Journey.Scheduler.Retry do
           execution_id: computation.execution_id,
           node_name: node_name_as_string,
           computation_type: computation.computation_type,
-          state: :not_set
+          state: :not_set,
+          # For :loop nodes, preserve the iteration counter so retries resume the same iteration N
+          # rather than restarting from 1. Nil for non-loop computations.
+          loop_iteration: computation.loop_iteration
         }
         |> repo.insert!()
 

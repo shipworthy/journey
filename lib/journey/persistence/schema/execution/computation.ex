@@ -23,6 +23,11 @@ defmodule Journey.Persistence.Schema.Execution.Computation do
     field(:error_details, :string, default: nil)
     # revisions of the upstream nodes used to compute this value – e.g. %{upstream_node1: 6, upstream_node2: 9}
     field(:computed_with, :map, default: nil)
+    # For :loop nodes only: the most recent :cont_* return as %{"disposition" => ..., "value" => ...}.
+    # Nil on terminal :ok and on non-loop computations.
+    field(:loop_state, :map, default: nil)
+    # For :loop nodes only: 1-indexed iteration number for this loop run. Nil on non-loop computations.
+    field(:loop_iteration, :integer, default: nil)
     timestamps()
   end
 end

@@ -1,6 +1,9 @@
 defmodule Journey.Scheduler do
   @moduledoc false
 
+  import Ecto.Query
+
+  alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Scheduler.Completions
 
   require Logger
@@ -111,13 +114,22 @@ defmodule Journey.Scheduler do
         # Build value nodes map from upstream nodes
         value_nodes_map = build_value_nodes_map(conditions_fulfilled)
 
+        # For :loop nodes, inject the previous iteration's :cont_* payload as values.<name>.
+        # This is the loop's "self-reference" — read from the computations table, not the values table.
+        params =
+          if graph_node.type == :loop do
+            inject_loop_self_reference(computation_params, computation)
+          else
+            computation_params
+          end
+
         # Introspect arity and call accordingly
         case Function.info(graph_node.f_compute)[:arity] do
           1 ->
-            graph_node.f_compute.(computation_params)
+            graph_node.f_compute.(params)
 
           2 ->
-            graph_node.f_compute.(computation_params, value_nodes_map)
+            graph_node.f_compute.(params, value_nodes_map)
 
           arity ->
             raise ArgumentError,
@@ -132,7 +144,7 @@ defmodule Journey.Scheduler do
           {:error, "Exception. #{exception_as_string}"}
       end
 
-    handle_computation_result(r, prefix, computation, input_versions_to_capture)
+    write_outcome = handle_computation_result(r, prefix, computation, graph_node, input_versions_to_capture)
 
     invoke_f_on_save(
       prefix,
@@ -143,43 +155,92 @@ defmodule Journey.Scheduler do
       r
     )
 
-    # After a compute node succeeds, check if any downstream values should be invalidated
-    requires_invalidation_check?(r, graph_node) &&
+    # If the values table was actually written, check whether downstream values should be invalidated.
+    # The `:value_written` flag is set by Completions.record_success when set_value/5 ran;
+    # for loops it includes both terminal :ok and cap-promoted :cont_with_fallback.
+    if write_outcome == :value_written and graph_node.type in [:compute, :historian, :loop] do
       Journey.Scheduler.Invalidate.ensure_all_discardable_cleared(execution.id, graph)
+    end
 
     # Clean up old completed computations if retention is configured.
     # Runs synchronously but is fast at steady state (~1 row deleted).
-    if match?({:ok, _}, r) do
+    if successful_completion?(r) do
       Journey.Scheduler.Retention.maybe_cleanup(execution.id, graph_node, graph)
     end
 
     advance(execution)
   end
 
-  defp handle_computation_result({:ok, result}, prefix, computation, input_versions_to_capture) do
-    Logger.debug("#{prefix}: async computation completed successfully")
-    Completions.record_success(computation, input_versions_to_capture, result)
+  # Successful-completion test for retention cleanup. For loop nodes, all four return shapes
+  # except {:error, _} represent a successful iteration (the iteration ran to completion).
+  defp successful_completion?({:ok, _}), do: true
+  defp successful_completion?({:cont_with_fallback, _}), do: true
+  defp successful_completion?({:cont_no_fallback, _}), do: true
+  defp successful_completion?(_), do: false
+
+  # For :loop nodes, accept the four-tuple return contract: :ok / :cont_with_fallback / :cont_no_fallback / :error.
+  # For non-loop nodes, only :ok / :error are accepted; everything else falls through to the unexpected-value path.
+  defp handle_computation_result({:ok, result}, prefix, computation, %{type: :loop}, input_versions_to_capture) do
+    Logger.debug("#{prefix}: async loop iteration completed (:ok)")
+    {:ok, write_outcome} = Completions.record_success(computation, input_versions_to_capture, {:ok, result})
+    write_outcome
   end
 
-  defp handle_computation_result({:error, error_details}, prefix, computation, input_versions_to_capture) do
+  defp handle_computation_result(
+         {:cont_with_fallback, value},
+         prefix,
+         computation,
+         %{type: :loop},
+         input_versions_to_capture
+       ) do
+    Logger.debug("#{prefix}: async loop iteration completed (:cont_with_fallback)")
+
+    {:ok, write_outcome} =
+      Completions.record_success(computation, input_versions_to_capture, {:cont_with_fallback, value})
+
+    write_outcome
+  end
+
+  defp handle_computation_result(
+         {:cont_no_fallback, value},
+         prefix,
+         computation,
+         %{type: :loop},
+         input_versions_to_capture
+       ) do
+    Logger.debug("#{prefix}: async loop iteration completed (:cont_no_fallback)")
+
+    {:ok, write_outcome} =
+      Completions.record_success(computation, input_versions_to_capture, {:cont_no_fallback, value})
+
+    write_outcome
+  end
+
+  defp handle_computation_result({:ok, result}, prefix, computation, _graph_node, input_versions_to_capture) do
+    Logger.debug("#{prefix}: async computation completed successfully")
+    {:ok, write_outcome} = Completions.record_success(computation, input_versions_to_capture, result)
+    write_outcome
+  end
+
+  defp handle_computation_result({:error, error_details}, prefix, computation, _graph_node, input_versions_to_capture) do
     Logger.warning("#{prefix}: async computation completed with an error")
-    r = Completions.record_error(computation, error_details, input_versions_to_capture)
+    Completions.record_error(computation, error_details, input_versions_to_capture)
     jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
-    r
+    :no_value_written
   end
 
-  defp handle_computation_result(unexpected_value, prefix, computation, input_versions_to_capture) do
+  defp handle_computation_result(unexpected_value, prefix, computation, _graph_node, input_versions_to_capture) do
     result_truncated = "#{inspect(unexpected_value)}" |> String.trim() |> String.slice(0, 1000)
 
     Logger.error(
-      "#{prefix}: #{computation.node_name}'s f_compute function was expected to return `{:ok, _}` or {:error, _} tuples, but it returned an unexpected value: '#{result_truncated}'"
+      "#{prefix}: #{computation.node_name}'s f_compute function returned an unexpected value: '#{result_truncated}'"
     )
 
-    r = Completions.record_error(computation, "Unexpected value: '#{result_truncated}'", input_versions_to_capture)
+    Completions.record_error(computation, "Unexpected value: '#{result_truncated}'", input_versions_to_capture)
     jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
-    r
+    :no_value_written
   end
 
   @doc false
@@ -224,8 +285,74 @@ defmodule Journey.Scheduler do
     end
   end
 
-  defp requires_invalidation_check?({:ok, _result}, graph_node), do: graph_node.type in [:compute, :historian]
-  defp requires_invalidation_check?(_other_result, _graph_node), do: false
+  # Sets `values_map.<name>` to the loop's previous-iteration :cont_* payload, or removes the
+  # entry entirely if there is no previous iteration in the current run.
+  #
+  # The clear-then-inject shape is load-bearing. The values table may carry a settled value from
+  # a previous run that terminated with :ok or cap-promotion; without `Map.delete/2`, iter 1 of a
+  # fresh run would silently inherit it, breaking the documented "iter 1 sees values.<name> as
+  # unset" contract. Clearing first makes iter 1's view structurally correct regardless of what
+  # the values table holds; iter 2+ then re-injects from the computations table.
+  defp inject_loop_self_reference(computation_params, computation) do
+    cleared = Map.delete(computation_params, computation.node_name)
+
+    case fetch_previous_loop_value(
+           computation.execution_id,
+           computation.node_name,
+           computation.loop_iteration
+         ) do
+      nil -> cleared
+      value -> Map.put(cleared, computation.node_name, value)
+    end
+  end
+
+  # Iter 1 of any run has no preceding iteration — short-circuit without a DB round-trip.
+  # This is also the most common case (every fresh run hits this path).
+  defp fetch_previous_loop_value(_execution_id, _node_name, 1), do: nil
+  defp fetch_previous_loop_value(_execution_id, _node_name, nil), do: nil
+
+  defp fetch_previous_loop_value(execution_id, node_name, current_iter) when is_atom(node_name) do
+    fetch_previous_loop_value(execution_id, Atom.to_string(node_name), current_iter)
+  end
+
+  # Filters by `loop_iteration = current_iter - 1` and orders by `ex_revision_at_completion DESC`
+  # to isolate runs from each other.
+  #
+  # Invariant: ex_revision_at_completion is monotonic per execution. When multiple runs of this
+  # loop have left :success rows at the same iteration number, the current run's row always has
+  # the largest completion revision — Run B iter 1 is only inserted strictly after Run A reaches
+  # a terminal state (Recompute's WHERE NOT EXISTS check, plus the invariant that Invalidate only
+  # creates a fresh iter 1 when no continuation is in flight), and revisions are atomically
+  # incremented per execution by Helpers.increment_execution_revision_in_transaction/2.
+  #
+  # Without this isolation, a fresh Run B iter 1 would silently inherit Run A's last :cont_*
+  # payload as its self-reference, breaking the documented "iter 1 sees values.<name> as unset"
+  # contract.
+  defp fetch_previous_loop_value(execution_id, node_name, current_iter)
+       when is_binary(node_name) and is_integer(current_iter) and current_iter > 1 do
+    execution_id
+    |> previous_loop_state_query(node_name, current_iter - 1)
+    |> Journey.Repo.one()
+    |> extract_loop_state_value()
+  end
+
+  defp previous_loop_state_query(execution_id, node_name, previous_iter) do
+    from(c in Computation,
+      where:
+        c.execution_id == ^execution_id and
+          c.node_name == ^node_name and
+          c.computation_type == ^:loop and
+          c.state == ^:success and
+          c.loop_iteration == ^previous_iter and
+          not is_nil(c.loop_state),
+      order_by: [desc: c.ex_revision_at_completion],
+      limit: 1,
+      select: c.loop_state
+    )
+  end
+
+  defp extract_loop_state_value(%{"value" => value}), do: value
+  defp extract_loop_state_value(_), do: nil
 
   defp build_value_nodes_map(conditions_fulfilled) do
     conditions_fulfilled

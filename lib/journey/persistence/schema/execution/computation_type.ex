@@ -11,6 +11,7 @@ defmodule Journey.Persistence.Schema.Execution.ComputationType do
           | :schedule_recurring
           | :tick_recurring
           | :archive
+          | :loop
 
   @doc """
   Returns all possible types of computations.
@@ -26,7 +27,8 @@ defmodule Journey.Persistence.Schema.Execution.ComputationType do
       :tick_once,
       :schedule_recurring,
       :tick_recurring,
-      :archive
+      :archive,
+      :loop
     ]
   end
 end

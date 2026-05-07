@@ -42,6 +42,7 @@ Functions:
 - `Journey.Node.archive/3` - Creates a graph node that archives the execution when unblocked
 - `Journey.Node.tick_once/4` - Creates a graph node that declares its readiness at a specific time, once
 - `Journey.Node.tick_recurring/4` - Creates a graph node that declares its readiness at specific times, repeatedly
+- `Journey.Node.loop/4` - Creates a self-iterating node that threads state across iterations durably until termination or an iteration cap (the durable analogue of `Stream.unfold/2`/`Enum.reduce_while/3`)
 
 ## `Journey.Node.Conditions`
 Helper functions for use in graph definitions, when defining upstream dependencies for compute modules.

@@ -38,7 +38,8 @@ defmodule Journey.Scheduler.Available do
                     ^:tick_once,
                     ^:schedule_recurring,
                     ^:tick_recurring,
-                    ^:archive
+                    ^:archive,
+                    ^:loop
                   ],
               lock: "FOR UPDATE"
             )
