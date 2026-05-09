@@ -198,6 +198,14 @@ defmodule Journey.Node do
   The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms
   in the returned `value` and `reason` will be converted to strings when persisted.
 
+  ## Options
+
+  - `:f_on_save` — callback invoked when the node terminally resolves: `{:ok, value}` on success
+    (when the values table is actually written), `{:error, reason}` after retries are exhausted
+    (`reason` is the last `f_compute` error, inspected/truncated) or on `:abandon_after_seconds`
+    timeout (`reason` is `"timeout"`). Not invoked per-attempt or for idempotent no-change re-runs
+    (when the new value equals the existing value).
+
   ## Computation Retention
 
   By default, all completed computation records are kept in the database. For nodes that
@@ -272,6 +280,9 @@ defmodule Journey.Node do
   - `:update_revision_on_change` (default: `false`) - When `true`, updating the mutated node's value also increments its revision,
     triggering downstream nodes to recompute. When `false`, mutations update the value without triggering recomputation.
     Setting this to `true` for a node that mutates an upstream dependency will raise a validation error to prevent cycles.
+  - `:f_on_save` — callback invoked when the mutate node terminally resolves: `{:ok, "updated :target"}`
+    on success, `{:error, reason}` after retries are exhausted or `:abandon_after_seconds` timeout. Not invoked
+    per-attempt.
 
   ## External Polling Pattern
 
@@ -357,6 +368,12 @@ defmodule Journey.Node do
   false
   ```
 
+  ## Options
+
+  - `:f_on_save` — callback invoked when the archive node terminally resolves:
+    `{:ok, archived_at}` on success, `{:error, reason}` after retries are exhausted or
+    `:abandon_after_seconds` timeout. Not invoked per-attempt.
+
   """
   def archive(name, gated_by, opts \\ [])
       when is_atom(name) do
@@ -398,6 +415,9 @@ defmodule Journey.Node do
   ## Options
   - `:max_entries` (optional) - Maximum number of history entries to keep (FIFO).
     Defaults to 1000. Set to `nil` for unlimited history.
+  - `:f_on_save` — callback invoked when the historian node terminally resolves:
+    `{:ok, history}` on success, `{:error, reason}` after retries are exhausted or
+    `:abandon_after_seconds` timeout. Not invoked per-attempt.
 
   ## History Format
 
@@ -851,9 +871,9 @@ defmodule Journey.Node do
   | Return | Meaning |
   |---|---|
   | `{:ok, result}` | Iteration is complete; `result` becomes the loop's terminal value. Downstream nodes fire. |
-  | `{:error, reason}` | Transient failure of this iteration. Engine retries per `:max_retries`. After exhaustion, the loop fails; the node's value remains unset. |
+  | `{:error, reason}` | Transient failure of this iteration. Engine retries per `:max_retries`. After exhaustion, the loop fails; the node's value remains unset and `f_on_save` fires with `{:error, reason}`. |
   | `{:cont_with_fallback, value}` | Continue iterating. If `:max_iterations` is reached before another resolution, `value` is promoted to the loop's terminal value. |
-  | `{:cont_no_fallback, value}` | Continue iterating. If `:max_iterations` is reached, the loop fails with no usable result; the node's value remains unset. |
+  | `{:cont_no_fallback, value}` | Continue iterating. If `:max_iterations` is reached, the loop fails with no usable result; the node's value remains unset and `f_on_save` fires with `{:error, "max_iterations_reached"}`. |
 
   ## Options
 
@@ -861,7 +881,14 @@ defmodule Journey.Node do
     `:infinity` is not allowed.
   - `:max_retries` (default: 3) — per-iteration retry budget for `{:error, _}` returns.
   - `:abandon_after_seconds` (default: 60) — per-iteration timeout.
-  - Plus `:f_on_save`, `:heartbeat_interval_seconds`, `:heartbeat_timeout_seconds`,
+  - `:f_on_save` — callback invoked when the loop terminally resolves:
+    - `{:ok, value}` — terminal `:ok` from the step function, or cap-promoted `:cont_with_fallback` at `:max_iterations`.
+    - `{:error, "max_iterations_reached"}` — cap-failed `:cont_no_fallback` at `:max_iterations`.
+    - `{:error, reason}` — iteration `{:error, reason}` retried up to `:max_retries` and then exhausted.
+    - `{:error, "timeout"}` — iteration exceeded `:abandon_after_seconds` and retries are exhausted.
+
+    Not invoked per-iteration or for transient errors that get retried. For per-iteration progress visibility, use `Journey.Tools.introspect/1`.
+  - Plus `:heartbeat_interval_seconds`, `:heartbeat_timeout_seconds`,
     `:keep_latest_completed_computations`, `:keep_oldest_completed_computations` (same semantics
     as `compute/4`).
 

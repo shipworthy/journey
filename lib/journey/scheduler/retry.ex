@@ -49,12 +49,13 @@ defmodule Journey.Scheduler.Retry do
         |> repo.insert!()
 
       Logger.info("#{prefix}: creating a new computation, #{new_computation.id}")
+      {:retry_scheduled, computation}
     else
       Logger.info(
         "#{prefix}: reached max retries (#{number_of_recent_tries} attempts >= max #{graph_node.max_retries}), not rescheduling"
       )
-    end
 
-    computation
+      {:retries_exhausted, computation}
+    end
   end
 end

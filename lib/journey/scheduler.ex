@@ -144,16 +144,10 @@ defmodule Journey.Scheduler do
           {:error, "Exception. #{exception_as_string}"}
       end
 
-    write_outcome = handle_computation_result(r, prefix, computation, graph_node, input_versions_to_capture)
+    {r_for_callback, write_outcome} =
+      handle_computation_result(r, prefix, computation, graph_node, input_versions_to_capture)
 
-    invoke_f_on_save(
-      prefix,
-      graph_node.f_on_save,
-      graph.f_on_save,
-      execution.id,
-      computation.node_name,
-      r
-    )
+    maybe_invoke_f_on_save(prefix, graph, graph_node, execution, computation, r_for_callback, write_outcome)
 
     # If the values table was actually written, check whether downstream values should be invalidated.
     # The `:value_written` flag is set by Completions.record_success when set_value/5 ran;
@@ -178,16 +172,65 @@ defmodule Journey.Scheduler do
   defp successful_completion?({:cont_no_fallback, _}), do: true
   defp successful_completion?(_), do: false
 
+  # Node types whose user-defined f_compute can return {:error, _} and flow through the retry/
+  # abandonment machinery. f_on_save for these fires at terminal resolution:
+  # {:ok, value} when the values table is written, {:error, reason} when retries are exhausted
+  # or :abandon_after_seconds is hit. Per-attempt transient errors and idempotent no-change
+  # re-runs (which return :no_value_written) are silent.
+  #
+  # :schedule_*/:tick_* are out of scope — their f_compute returns a schedule time and they
+  # preserve the prior pass-through behavior (fire on every completion).
+  @retry_eligible_types [:compute, :loop, :mutate, :historian, :archive]
+
+  defp maybe_invoke_f_on_save(prefix, graph, graph_node, execution, computation, r, write_outcome) do
+    case build_f_on_save_result(r, write_outcome, graph_node) do
+      nil ->
+        :ok
+
+      result ->
+        invoke_f_on_save(
+          prefix,
+          graph_node.f_on_save,
+          graph.f_on_save,
+          execution.id,
+          computation.node_name,
+          result
+        )
+    end
+  end
+
+  defp build_f_on_save_result(r, write_outcome, %{type: :loop}) do
+    case {write_outcome, r} do
+      {:value_written, {:ok, value}} -> {:ok, value}
+      {:value_written, {:cont_with_fallback, value}} -> {:ok, value}
+      {:loop_cap_failed, _} -> {:error, "max_iterations_reached"}
+      {:retries_exhausted, {:error, _} = err} -> err
+      _ -> nil
+    end
+  end
+
+  defp build_f_on_save_result({:ok, _} = r, :value_written, %{type: t}) when t in @retry_eligible_types, do: r
+
+  defp build_f_on_save_result({:error, _} = r, :retries_exhausted, %{type: t}) when t in @retry_eligible_types, do: r
+
+  defp build_f_on_save_result(_r, _write_outcome, %{type: t}) when t in @retry_eligible_types, do: nil
+
+  defp build_f_on_save_result(r, _write_outcome, _graph_node), do: r
+
+  # Each clause returns {r_for_callback, write_outcome}. r_for_callback is the value passed to the
+  # f_on_save gate; for ok/error/cont_* it equals the original f_compute return, but the unexpected-value
+  # clause synthesizes an {:error, _} so callbacks can pattern-match consistently on retry exhaustion.
+  #
   # For :loop nodes, accept the four-tuple return contract: :ok / :cont_with_fallback / :cont_no_fallback / :error.
   # For non-loop nodes, only :ok / :error are accepted; everything else falls through to the unexpected-value path.
-  defp handle_computation_result({:ok, result}, prefix, computation, %{type: :loop}, input_versions_to_capture) do
+  defp handle_computation_result({:ok, result} = r, prefix, computation, %{type: :loop}, input_versions_to_capture) do
     Logger.debug("#{prefix}: async loop iteration completed (:ok)")
     {:ok, write_outcome} = Completions.record_success(computation, input_versions_to_capture, {:ok, result})
-    write_outcome
+    {r, write_outcome}
   end
 
   defp handle_computation_result(
-         {:cont_with_fallback, value},
+         {:cont_with_fallback, _} = r,
          prefix,
          computation,
          %{type: :loop},
@@ -196,13 +239,13 @@ defmodule Journey.Scheduler do
     Logger.debug("#{prefix}: async loop iteration completed (:cont_with_fallback)")
 
     {:ok, write_outcome} =
-      Completions.record_success(computation, input_versions_to_capture, {:cont_with_fallback, value})
+      Completions.record_success(computation, input_versions_to_capture, r)
 
-    write_outcome
+    {r, write_outcome}
   end
 
   defp handle_computation_result(
-         {:cont_no_fallback, value},
+         {:cont_no_fallback, _} = r,
          prefix,
          computation,
          %{type: :loop},
@@ -211,23 +254,29 @@ defmodule Journey.Scheduler do
     Logger.debug("#{prefix}: async loop iteration completed (:cont_no_fallback)")
 
     {:ok, write_outcome} =
-      Completions.record_success(computation, input_versions_to_capture, {:cont_no_fallback, value})
+      Completions.record_success(computation, input_versions_to_capture, r)
 
-    write_outcome
+    {r, write_outcome}
   end
 
-  defp handle_computation_result({:ok, result}, prefix, computation, _graph_node, input_versions_to_capture) do
+  defp handle_computation_result({:ok, result} = r, prefix, computation, _graph_node, input_versions_to_capture) do
     Logger.debug("#{prefix}: async computation completed successfully")
     {:ok, write_outcome} = Completions.record_success(computation, input_versions_to_capture, result)
-    write_outcome
+    {r, write_outcome}
   end
 
-  defp handle_computation_result({:error, error_details}, prefix, computation, _graph_node, input_versions_to_capture) do
+  defp handle_computation_result(
+         {:error, error_details} = r,
+         prefix,
+         computation,
+         _graph_node,
+         input_versions_to_capture
+       ) do
     Logger.warning("#{prefix}: async computation completed with an error")
-    Completions.record_error(computation, error_details, input_versions_to_capture)
+    status = Completions.record_error(computation, error_details, input_versions_to_capture)
     jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
-    :no_value_written
+    {r, error_status_to_write_outcome(status)}
   end
 
   defp handle_computation_result(unexpected_value, prefix, computation, _graph_node, input_versions_to_capture) do
@@ -237,11 +286,19 @@ defmodule Journey.Scheduler do
       "#{prefix}: #{computation.node_name}'s f_compute function returned an unexpected value: '#{result_truncated}'"
     )
 
-    Completions.record_error(computation, "Unexpected value: '#{result_truncated}'", input_versions_to_capture)
+    error_details = "Unexpected value: '#{result_truncated}'"
+    status = Completions.record_error(computation, error_details, input_versions_to_capture)
     jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
-    :no_value_written
+    # Synthesize an {:error, _} so the callback gets a useful payload at retry exhaustion.
+    {{:error, error_details}, error_status_to_write_outcome(status)}
   end
+
+  # Maps record_error's :retried | :exhausted | :no_state_change return to a write_outcome the
+  # f_on_save gate can pattern-match on. Only :exhausted maps to :retries_exhausted, which fires
+  # the callback once with the original {:error, _} shape via build_f_on_save_result/3.
+  defp error_status_to_write_outcome(:exhausted), do: :retries_exhausted
+  defp error_status_to_write_outcome(_), do: :no_value_written
 
   @doc false
   def invoke_f_on_save(prefix, node_f_on_save, graph_f_on_save, execution_id, node_name, result) do

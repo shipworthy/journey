@@ -290,6 +290,123 @@ defmodule Journey.Scheduler.Scheduler.OnSaveTest do
     assert %{name: "Mario"} = Journey.values(execution)
   end
 
+  describe "compute terminal-failure semantics" do
+    @tag :capture_log
+    test "compute fires once with {:error, reason} after retry exhaustion" do
+      test_pid = self()
+
+      graph =
+        Journey.new_graph(
+          "compute retry exhaustion #{Journey.Helpers.Random.random_string()}",
+          "1.0.0",
+          [
+            input(:trigger),
+            compute(
+              :always_fails,
+              [:trigger],
+              fn _ -> {:error, "boom"} end,
+              # max_retries: 0 means: 1 attempt total, then exhaustion (count=1, 1 < 0 is false).
+              max_retries: 0,
+              f_on_save: fn _execution_id, node_name, result ->
+                send(test_pid, {:cb, node_name, result})
+                :ok
+              end
+            )
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+      Journey.set(execution, :trigger, "go")
+
+      # The {:error, _} clause in handle_computation_result sleeps with up to 10s of jitter.
+      # Allow plenty of room for the single attempt + jitter + async callback.
+      assert_receive {:cb, :always_fails, {:error, reason}}, 15_000
+      assert is_binary(reason)
+      assert reason =~ "boom"
+
+      # No second callback should arrive.
+      refute_receive {:cb, :always_fails, _}, 1_000
+    end
+
+    test "compute is silent on transient errors — fires once with {:ok, _} on eventual success" do
+      test_pid = self()
+      counter = :counters.new(1, [])
+
+      graph =
+        Journey.new_graph(
+          "compute transient then success #{Journey.Helpers.Random.random_string()}",
+          "1.0.0",
+          [
+            input(:trigger),
+            compute(
+              :flaky,
+              [:trigger],
+              fn _ ->
+                :counters.add(counter, 1, 1)
+                attempt = :counters.get(counter, 1)
+
+                if attempt >= 2 do
+                  {:ok, "succeeded on attempt #{attempt}"}
+                else
+                  {:error, "transient on attempt #{attempt}"}
+                end
+              end,
+              max_retries: 3,
+              f_on_save: fn _execution_id, node_name, result ->
+                send(test_pid, {:cb, node_name, result})
+                :ok
+              end
+            )
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+      Journey.set(execution, :trigger, "go")
+
+      # The transient {:error, _} on the first attempt should NOT fire f_on_save under the new rule.
+      # Only the eventual {:ok, _} fires. Allow generous time: jitter sleep up to 10s + 2nd attempt.
+      assert_receive {:cb, :flaky, {:ok, value}}, 20_000
+      assert value =~ "succeeded"
+
+      # Confirm the transient error did not fire.
+      refute_receive {:cb, :flaky, {:error, _}}, 500
+    end
+
+    test "compute is silent on idempotent no-change re-runs" do
+      test_pid = self()
+
+      # f_compute returns a constant regardless of upstream — so a recompute triggered by an upstream
+      # change produces an unchanged output, and record_result returns :no_value_written.
+      graph =
+        Journey.new_graph(
+          "compute idempotent re-run #{Journey.Helpers.Random.random_string()}",
+          "1.0.0",
+          [
+            input(:trigger),
+            compute(
+              :constant,
+              [:trigger],
+              fn _ -> {:ok, "always the same"} end,
+              f_on_save: fn _execution_id, node_name, result ->
+                send(test_pid, {:cb, node_name, result})
+                :ok
+              end
+            )
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set(execution, :trigger, "first")
+
+      # First computation writes the value — fires.
+      assert_receive {:cb, :constant, {:ok, "always the same"}}, 3_000
+
+      # Change upstream to trigger recompute. Output is unchanged, so :no_value_written → silent.
+      Journey.set(execution, :trigger, "second")
+      refute_receive {:cb, :constant, _}, 2_000
+    end
+  end
+
   defp simple_graph() do
     Journey.new_graph(
       "simple graph #{__MODULE__}",

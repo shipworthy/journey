@@ -372,6 +372,136 @@ defmodule Journey.LoopTest do
     end
   end
 
+  describe "f_on_save semantics" do
+    # f_on_save for :loop fires when the loop terminally resolves: {:ok, value} on terminal :ok or
+    # cap-promoted :cont_with_fallback; {:error, "max_iterations_reached"} on cap-failed
+    # :cont_no_fallback; {:error, reason} on retry-exhausted iteration errors. Mid-iteration :cont_*
+    # and transient {:error, _} that get retried do not fire.
+    test "fires once with {:ok, value} for terminal :ok" do
+      callbacks = capture_table()
+
+      graph =
+        Journey.new_graph(
+          "f_on_save_terminal_ok_#{random_string()}",
+          "v1",
+          [
+            loop(
+              :answer,
+              [],
+              fn values ->
+                state = values[:answer] || 0
+                if state >= 2, do: {:ok, state}, else: {:cont_with_fallback, state + 1}
+              end,
+              max_iterations: 5,
+              f_on_save: capture_callback(callbacks)
+            )
+          ]
+        )
+
+      execution = graph |> Journey.start_execution()
+      {:ok, 2, _} = Journey.get(execution, :answer, wait: :any)
+
+      # Wait briefly for any deferred callbacks to fire (Task.start fire-and-forget).
+      :timer.sleep(200)
+
+      observed = :ets.lookup_element(callbacks, :obs, 2) |> Enum.reverse()
+      assert observed == [{:answer, {:ok, 2}}]
+    end
+
+    test "fires once with {:ok, value} for cap-promoted :cont_with_fallback" do
+      callbacks = capture_table()
+
+      graph =
+        Journey.new_graph(
+          "f_on_save_cap_promote_#{random_string()}",
+          "v1",
+          [
+            loop(
+              :answer,
+              [],
+              fn values ->
+                n = values[:answer] || 0
+                {:cont_with_fallback, n + 1}
+              end,
+              max_iterations: 2,
+              f_on_save: capture_callback(callbacks)
+            )
+          ]
+        )
+
+      execution = graph |> Journey.start_execution()
+      {:ok, 2, _} = Journey.get(execution, :answer, wait: :any)
+
+      :timer.sleep(200)
+
+      # Cap-promotion delivers exactly one callback shaped as {:ok, value}, NOT
+      # {:cont_with_fallback, value}.
+      observed = :ets.lookup_element(callbacks, :obs, 2) |> Enum.reverse()
+      assert observed == [{:answer, {:ok, 2}}]
+    end
+
+    test "fires once with {:error, \"max_iterations_reached\"} for cap-failed :cont_no_fallback" do
+      callbacks = capture_table()
+
+      graph =
+        Journey.new_graph(
+          "f_on_save_cap_fail_#{random_string()}",
+          "v1",
+          [
+            loop(
+              :answer,
+              [],
+              fn values ->
+                n = values[:answer] || 0
+                {:cont_no_fallback, n + 1}
+              end,
+              max_iterations: 2,
+              f_on_save: capture_callback(callbacks)
+            )
+          ]
+        )
+
+      _execution = graph |> Journey.start_execution()
+
+      # Wait for both iterations to run + the cap-failure to fire f_on_save.
+      :timer.sleep(2_000)
+
+      observed = :ets.lookup_element(callbacks, :obs, 2) |> Enum.reverse()
+      assert observed == [{:answer, {:error, "max_iterations_reached"}}]
+    end
+
+    test "fires once with {:error, reason} after retry exhaustion" do
+      callbacks = capture_table()
+
+      graph =
+        Journey.new_graph(
+          "f_on_save_error_#{random_string()}",
+          "v1",
+          [
+            loop(
+              :answer,
+              [],
+              fn _ -> {:error, "always-fail"} end,
+              max_iterations: 5,
+              max_retries: 2,
+              abandon_after_seconds: 5,
+              f_on_save: capture_callback(callbacks)
+            )
+          ]
+        )
+
+      _execution = graph |> Journey.start_execution()
+      # Allow time for both retry attempts (2 attempts × jitter up to 10s) plus async callback.
+      :timer.sleep(25_000)
+
+      observed = :ets.lookup_element(callbacks, :obs, 2) |> Enum.reverse()
+      # Exactly one observation, of {:error, _} shape; reason is the inspected/truncated form.
+      assert [{:answer, {:error, reason}}] = observed
+      assert is_binary(reason)
+      assert reason =~ "always-fail"
+    end
+  end
+
   # -- helpers -------------------------------------------------------------------
 
   defp single_loop_graph(graph_name, f_loop, opts) do
@@ -382,5 +512,21 @@ defmodule Journey.LoopTest do
         loop(:answer, [], f_loop, opts)
       ]
     )
+  end
+
+  defp capture_table do
+    table = :ets.new(:f_on_save_obs, [:public, :set])
+    :ets.insert(table, {:obs, []})
+    table
+  end
+
+  defp capture_callback(table) do
+    fn _execution_id, node_name, result ->
+      :ets.update_element(
+        table,
+        :obs,
+        {2, [{node_name, result} | :ets.lookup_element(table, :obs, 2)]}
+      )
+    end
   end
 end

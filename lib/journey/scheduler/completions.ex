@@ -48,50 +48,29 @@ defmodule Journey.Scheduler.Completions do
     |> tap(fn _ -> Logger.debug("#{prefix}: done.") end)
   end
 
+  @doc """
+  Records a failed computation. Returns one of:
+   - `:retried` — `maybe_schedule_a_retry` inserted a new attempt; loop iteration N or compute will run again.
+   - `:exhausted` — retry budget reached; this is the terminal failure for this computation.
+   - `:no_state_change` — row was no longer `:computing` (sweeper or another path took over); no retry decision made here.
+
+  The scheduler uses `:exhausted` to fire `f_on_save` once with the original `{:error, _}` shape. `:retried` and
+  `:no_state_change` keep the callback silent. The return value reflects the **committed** outcome — even when the
+  inner transaction body runs multiple times under deadlock retry, the caller observes the result of the final
+  successful commit (or `:no_state_change` on deadlock-retry exhaustion).
+  """
   def record_error(computation, error_details, inputs_to_capture) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [:error]"
     Logger.info("#{prefix}: marking as completed. starting.")
 
-    {:ok, _} =
+    result =
       Journey.Scheduler.Helpers.transaction_with_deadlock_retry(
-        fn repo ->
-          Logger.info("#{prefix}: marking as completed. transaction starting.")
-
-          current_computation =
-            from(c in Computation, where: c.id == ^computation.id)
-            |> repo.one!()
-
-          if current_computation.state == :computing do
-            new_revision =
-              Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
-
-            # Mark the computation as "failed".
-            now_seconds = System.system_time(:second)
-
-            computation
-            |> Ecto.Changeset.change(%{
-              error_details: "#{inspect(error_details)}" |> String.trim() |> String.slice(0, 1000),
-              completion_time: now_seconds,
-              updated_at: now_seconds,
-              state: :failed,
-              computed_with: inputs_to_capture,
-              ex_revision_at_completion: new_revision
-            })
-            |> repo.update!()
-            |> Journey.Scheduler.Retry.maybe_schedule_a_retry(repo)
-
-            Logger.info("#{prefix}: marking as completed. transaction done.")
-          else
-            Logger.warning(
-              "#{prefix}: computation completed, but it is no longer :computing. (#{current_computation.state})"
-            )
-          end
-        end,
+        fn repo -> record_error_in_transaction(repo, computation, error_details, inputs_to_capture, prefix) end,
         prefix
       )
       |> case do
-        {:ok, result} ->
-          {:ok, result}
+        {:ok, status} ->
+          status
 
         {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}} ->
           Logger.warning(
@@ -99,7 +78,7 @@ defmodule Journey.Scheduler.Completions do
               "computation will be retried by abandoned sweeper"
           )
 
-          {:ok, nil}
+          :no_state_change
 
         {:error, other} ->
           Logger.error("#{prefix}: Transaction failed with error: #{inspect(other)}")
@@ -107,6 +86,50 @@ defmodule Journey.Scheduler.Completions do
       end
 
     Logger.info("#{prefix}: marking as completed. done.")
+    result
+  end
+
+  defp record_error_in_transaction(repo, computation, error_details, inputs_to_capture, prefix) do
+    Logger.info("#{prefix}: marking as completed. transaction starting.")
+
+    current_computation =
+      from(c in Computation, where: c.id == ^computation.id)
+      |> repo.one!()
+
+    if current_computation.state == :computing do
+      record_error_failed_state(repo, computation, error_details, inputs_to_capture, prefix)
+    else
+      Logger.warning("#{prefix}: computation completed, but it is no longer :computing. (#{current_computation.state})")
+
+      :no_state_change
+    end
+  end
+
+  defp record_error_failed_state(repo, computation, error_details, inputs_to_capture, prefix) do
+    new_revision =
+      Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
+
+    now_seconds = System.system_time(:second)
+
+    retry_outcome =
+      computation
+      |> Ecto.Changeset.change(%{
+        error_details: "#{inspect(error_details)}" |> String.trim() |> String.slice(0, 1000),
+        completion_time: now_seconds,
+        updated_at: now_seconds,
+        state: :failed,
+        computed_with: inputs_to_capture,
+        ex_revision_at_completion: new_revision
+      })
+      |> repo.update!()
+      |> Journey.Scheduler.Retry.maybe_schedule_a_retry(repo)
+
+    Logger.info("#{prefix}: marking as completed. transaction done.")
+
+    case retry_outcome do
+      {:retry_scheduled, _} -> :retried
+      {:retries_exhausted, _} -> :exhausted
+    end
   end
 
   defp record_success_in_transaction(repo, computation, inputs_to_capture, result) do
@@ -316,7 +339,8 @@ defmodule Journey.Scheduler.Completions do
   end
 
   # Loop nodes: result is a 2-tuple {disposition, value} where disposition is one of
-  # :ok, :cont_with_fallback, :cont_no_fallback. Returns :value_written or :no_value_written.
+  # :ok, :cont_with_fallback, :cont_no_fallback. Returns :value_written, :no_value_written,
+  # or :loop_cap_failed (terminal cap-failure on :cont_no_fallback at max_iterations).
   defp record_loop_result(repo, current_computation, graph_node, new_revision, {disposition, returned_value}) do
     node_name = current_computation.node_name |> to_atom_if_string()
     execution_id = current_computation.execution_id
@@ -338,8 +362,9 @@ defmodule Journey.Scheduler.Completions do
 
       disposition == :cont_no_fallback and current_iter >= max_iter ->
         # Cap-failure. Record loop_state for introspection; do NOT write to values.
+        # :loop_cap_failed signals the terminal cap-failure to the f_on_save gate.
         mark_loop_state(repo, current_computation, "cont_no_fallback", returned_value)
-        :no_value_written
+        :loop_cap_failed
 
       disposition in [:cont_with_fallback, :cont_no_fallback] ->
         # Continuation. Record loop_state on this row; insert next iteration's :not_set row.
