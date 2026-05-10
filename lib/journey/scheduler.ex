@@ -172,15 +172,10 @@ defmodule Journey.Scheduler do
   defp successful_completion?({:cont_no_fallback, _}), do: true
   defp successful_completion?(_), do: false
 
-  # Node types whose user-defined f_compute can return {:error, _} and flow through the retry/
-  # abandonment machinery. f_on_save for these fires at terminal resolution:
-  # {:ok, value} when the values table is written, {:error, reason} when retries are exhausted
-  # or :abandon_after_seconds is hit. Per-attempt transient errors and idempotent no-change
-  # re-runs (which return :no_value_written) are silent.
-  #
-  # :schedule_*/:tick_* are out of scope — their f_compute returns a schedule time and they
-  # preserve the prior pass-through behavior (fire on every completion).
-  @retry_eligible_types [:compute, :loop, :mutate, :historian, :archive]
+  # Sourced from Journey.Scheduler.Helpers at compile time so guards below can pattern-match on
+  # this list. :schedule_*/:tick_* are out of scope — their f_compute returns a schedule time and
+  # they preserve the prior pass-through behavior (fire on every completion).
+  @retry_eligible_types Journey.Scheduler.Helpers.retry_eligible_types()
 
   defp maybe_invoke_f_on_save(prefix, graph, graph_node, execution, computation, r, write_outcome) do
     case build_f_on_save_result(r, write_outcome, graph_node) do

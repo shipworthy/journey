@@ -202,9 +202,10 @@ defmodule Journey.Node do
 
   - `:f_on_save` — callback invoked when the node terminally resolves: `{:ok, value}` on success
     (when the values table is actually written), `{:error, reason}` after retries are exhausted
-    (`reason` is the last `f_compute` error, inspected/truncated) or on `:abandon_after_seconds`
-    timeout (`reason` is `"timeout"`). Not invoked per-attempt or for idempotent no-change re-runs
-    (when the new value equals the existing value).
+    (`reason` is the last `f_compute` error, or `"Unexpected value: '<inspected>'"` if `f_compute`
+    returned a non-`{:ok, _}`/`{:error, _}` shape — inspected/truncated) or on
+    `:abandon_after_seconds` timeout (`reason` is `"timeout"`). Not invoked per-attempt or for
+    idempotent no-change re-runs (when the new value equals the existing value).
 
   ## Computation Retention
 
@@ -281,8 +282,9 @@ defmodule Journey.Node do
     triggering downstream nodes to recompute. When `false`, mutations update the value without triggering recomputation.
     Setting this to `true` for a node that mutates an upstream dependency will raise a validation error to prevent cycles.
   - `:f_on_save` — callback invoked when the mutate node terminally resolves: `{:ok, "updated :target"}`
-    on success, `{:error, reason}` after retries are exhausted or `:abandon_after_seconds` timeout. Not invoked
-    per-attempt.
+    on success, `{:error, reason}` after retries are exhausted (the original `f_compute` error, or
+    `"Unexpected value: '<inspected>'"` if `f_compute` returned a non-`{:ok, _}`/`{:error, _}` shape)
+    or on `:abandon_after_seconds` timeout. Not invoked per-attempt.
 
   ## External Polling Pattern
 
@@ -371,8 +373,9 @@ defmodule Journey.Node do
   ## Options
 
   - `:f_on_save` — callback invoked when the archive node terminally resolves:
-    `{:ok, archived_at}` on success, `{:error, reason}` after retries are exhausted or
-    `:abandon_after_seconds` timeout. Not invoked per-attempt.
+    `{:ok, archived_at}` on success, `{:error, reason}` after retries are exhausted (the original
+    `f_compute` error, or `"Unexpected value: '<inspected>'"` if `f_compute` returned a non-`{:ok, _}`/`{:error, _}`
+    shape) or on `:abandon_after_seconds` timeout. Not invoked per-attempt.
 
   """
   def archive(name, gated_by, opts \\ [])
@@ -416,8 +419,9 @@ defmodule Journey.Node do
   - `:max_entries` (optional) - Maximum number of history entries to keep (FIFO).
     Defaults to 1000. Set to `nil` for unlimited history.
   - `:f_on_save` — callback invoked when the historian node terminally resolves:
-    `{:ok, history}` on success, `{:error, reason}` after retries are exhausted or
-    `:abandon_after_seconds` timeout. Not invoked per-attempt.
+    `{:ok, history}` on success, `{:error, reason}` after retries are exhausted (the original
+    `f_compute` error, or `"Unexpected value: '<inspected>'"` if `f_compute` returned a non-`{:ok, _}`/`{:error, _}`
+    shape) or on `:abandon_after_seconds` timeout. Not invoked per-attempt.
 
   ## History Format
 
@@ -884,7 +888,7 @@ defmodule Journey.Node do
   - `:f_on_save` — callback invoked when the loop terminally resolves:
     - `{:ok, value}` — terminal `:ok` from the step function, or cap-promoted `:cont_with_fallback` at `:max_iterations`.
     - `{:error, "max_iterations_reached"}` — cap-failed `:cont_no_fallback` at `:max_iterations`.
-    - `{:error, reason}` — iteration `{:error, reason}` retried up to `:max_retries` and then exhausted.
+    - `{:error, reason}` — iteration `{:error, reason}` (or an unexpected return value, surfaced as `"Unexpected value: '<inspected>'"`) retried up to `:max_retries` and then exhausted.
     - `{:error, "timeout"}` — iteration exceeded `:abandon_after_seconds` and retries are exhausted.
 
     Not invoked per-iteration or for transient errors that get retried. For per-iteration progress visibility, use `Journey.Tools.introspect/1`.

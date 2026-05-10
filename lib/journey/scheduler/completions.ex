@@ -48,17 +48,15 @@ defmodule Journey.Scheduler.Completions do
     |> tap(fn _ -> Logger.debug("#{prefix}: done.") end)
   end
 
-  @doc """
-  Records a failed computation. Returns one of:
-   - `:retried` — `maybe_schedule_a_retry` inserted a new attempt; loop iteration N or compute will run again.
-   - `:exhausted` — retry budget reached; this is the terminal failure for this computation.
-   - `:no_state_change` — row was no longer `:computing` (sweeper or another path took over); no retry decision made here.
-
-  The scheduler uses `:exhausted` to fire `f_on_save` once with the original `{:error, _}` shape. `:retried` and
-  `:no_state_change` keep the callback silent. The return value reflects the **committed** outcome — even when the
-  inner transaction body runs multiple times under deadlock retry, the caller observes the result of the final
-  successful commit (or `:no_state_change` on deadlock-retry exhaustion).
-  """
+  # Records a failed computation. Returns one of:
+  #  - :retried — maybe_schedule_a_retry inserted a new attempt; loop iteration N or compute will run again.
+  #  - :exhausted — :max_retries reached; terminal failure for this computation.
+  #  - :no_state_change — no retry decision made; either the row was no longer :computing (sweeper or
+  #    another path took over) or the inner transaction's deadlock-retry helper gave up.
+  #
+  # The scheduler uses :exhausted to fire f_on_save once with the original {:error, _} shape.
+  # :retried and :no_state_change keep the callback silent. The return reflects the committed
+  # outcome of the inner transaction body.
   def record_error(computation, error_details, inputs_to_capture) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [:error]"
     Logger.info("#{prefix}: marking as completed. starting.")

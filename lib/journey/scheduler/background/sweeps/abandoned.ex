@@ -15,9 +15,9 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
 
   @default_min_seconds_between_runs 59
 
-  # Mirrors @retry_eligible_types in Journey.Scheduler — node types whose terminal failure should
-  # fire f_on_save with {:error, "timeout"} when retries are exhausted via the abandonment path.
-  @retry_eligible_types [:compute, :loop, :mutate, :historian, :archive]
+  # Sourced from Journey.Scheduler.Helpers at compile time. Terminal failure for these types fires
+  # f_on_save with {:error, "timeout"} when retries are exhausted via the abandonment path.
+  @retry_eligible_types Journey.Scheduler.Helpers.retry_eligible_types()
 
   def sweep(execution_id, current_time \\ nil) do
     current_time = current_time || System.system_time(:second)

@@ -7,6 +7,15 @@ defmodule Journey.Scheduler.Helpers do
 
   alias Journey.Persistence.Schema.Execution
 
+  # Node types whose user-defined f_compute can return {:error, _} and flow through the retry/
+  # abandonment machinery. f_on_save for these fires once at terminal resolution (success, retry
+  # exhaustion, or :abandon_after_seconds timeout).
+  #
+  # Single source of truth: both Journey.Scheduler and Journey.Scheduler.Background.Sweeps.Abandoned
+  # evaluate this list at compile time into their own @retry_eligible_types attributes so it can be
+  # used inside guards.
+  def retry_eligible_types, do: [:compute, :loop, :mutate, :historian, :archive]
+
   def graph_from_execution_id(execution_id) do
     execution =
       execution_id
