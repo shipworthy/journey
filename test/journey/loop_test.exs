@@ -206,6 +206,38 @@ defmodule Journey.LoopTest do
     end
   end
 
+  describe "carried values go through JSONB" do
+    # The value carried by {:cont_*, value} is persisted as JSON between iterations,
+    # so atoms come back as strings. This test pins the documented behavior on loop/4.
+
+    test "an atom carried by :cont_with_fallback comes back as a string on the next iteration" do
+      test_pid = self()
+
+      graph =
+        single_loop_graph(
+          "atom_to_string_carry_#{random_string()}",
+          fn values ->
+            case values[:answer] do
+              nil ->
+                {:cont_with_fallback, :some_atom}
+
+              carried ->
+                send(test_pid, {:carried, carried})
+                {:ok, "done"}
+            end
+          end,
+          max_iterations: 5
+        )
+
+      execution = graph |> Journey.start_execution()
+      assert {:ok, "done", _} = Journey.get(execution, :answer, wait: :any)
+
+      assert_receive {:carried, carried}, 5_000
+      assert carried == "some_atom"
+      assert is_binary(carried)
+    end
+  end
+
   describe "cap behavior" do
     test ":cont_with_fallback at cap promotes the carried value" do
       # max_iterations: 2; the step function always returns :cont_with_fallback.

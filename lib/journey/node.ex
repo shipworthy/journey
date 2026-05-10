@@ -906,6 +906,15 @@ defmodule Journey.Node do
   During iteration, the loop's accumulating state is visible only to the step function itself
   (via `values_map.<name>`); it is not externally visible until terminal resolution.
 
+  ## Carried values go through JSONB
+
+  The `value` in `{:cont_with_fallback, value}` / `{:cont_no_fallback, value}` is persisted as
+  JSON between iterations, following the same rules as `Journey.set/3`: atoms become strings,
+  and map keys must be strings. Use strings (not atoms) for any value you intend to
+  pattern-match on in a later iteration — e.g. prefer `{:cont_with_fallback, "keep_going"}`
+  over `{:cont_with_fallback, :keep_going}`, since the latter will be read back as
+  `"keep_going"` on the next iteration.
+
   ## At-least-once semantics
 
   Step functions are invoked at-least-once, identical to `compute/4`. Side effects with
