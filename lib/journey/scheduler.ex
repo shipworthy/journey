@@ -353,15 +353,21 @@ defmodule Journey.Scheduler do
            computation.node_name,
            computation.loop_iteration
          ) do
-      nil -> cleared
-      value -> Map.put(cleared, computation.node_name, value)
+      :none -> cleared
+      {:ok, value} -> Map.put(cleared, computation.node_name, value)
     end
   end
 
+  # Returns `:none | {:ok, value}`. The tagged shape is load-bearing: it lets the caller
+  # distinguish "no previous-iteration row" from "row exists, carried value is nil." Without
+  # the tag, a step function returning `{:cont_*, nil}` would round-trip as a missing key on
+  # the next iteration, contradicting the documented "iter 2+ reflects the most recent :cont_*
+  # payload" contract.
+  #
   # Iter 1 of any run has no preceding iteration — short-circuit without a DB round-trip.
   # This is also the most common case (every fresh run hits this path).
-  defp fetch_previous_loop_value(_execution_id, _node_name, 1), do: nil
-  defp fetch_previous_loop_value(_execution_id, _node_name, nil), do: nil
+  defp fetch_previous_loop_value(_execution_id, _node_name, 1), do: :none
+  defp fetch_previous_loop_value(_execution_id, _node_name, nil), do: :none
 
   defp fetch_previous_loop_value(execution_id, node_name, current_iter) when is_atom(node_name) do
     fetch_previous_loop_value(execution_id, Atom.to_string(node_name), current_iter)
@@ -382,10 +388,12 @@ defmodule Journey.Scheduler do
   # contract.
   defp fetch_previous_loop_value(execution_id, node_name, current_iter)
        when is_binary(node_name) and is_integer(current_iter) and current_iter > 1 do
-    execution_id
-    |> previous_loop_state_query(node_name, current_iter - 1)
-    |> Journey.Repo.one()
-    |> extract_loop_state_value()
+    case execution_id
+         |> previous_loop_state_query(node_name, current_iter - 1)
+         |> Journey.Repo.one() do
+      nil -> :none
+      loop_state -> extract_loop_state_value(loop_state)
+    end
   end
 
   defp previous_loop_state_query(execution_id, node_name, previous_iter) do
@@ -403,8 +411,8 @@ defmodule Journey.Scheduler do
     )
   end
 
-  defp extract_loop_state_value(%{"value" => value}), do: value
-  defp extract_loop_state_value(_), do: nil
+  defp extract_loop_state_value(%{"value" => value}), do: {:ok, value}
+  defp extract_loop_state_value(_), do: :none
 
   defp build_value_nodes_map(conditions_fulfilled) do
     conditions_fulfilled

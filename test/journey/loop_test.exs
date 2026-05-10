@@ -134,6 +134,78 @@ defmodule Journey.LoopTest do
     end
   end
 
+  describe "nil-valued self-reference carries across iterations" do
+    # The step function may legitimately carry `nil` as its loop state. Iteration N+1
+    # must see the loop-self key *present* with value `nil` — distinguishable from
+    # iteration 1's "key absent" view. Asserting `values[:answer] == nil` alone is
+    # insufficient: missing-key access also returns `nil`, so this test uses
+    # `Map.has_key?` to discriminate.
+
+    test ":cont_with_fallback nil carry: iter 2 sees the key present with value nil" do
+      test_pid = self()
+
+      graph =
+        single_loop_graph(
+          "nil_carry_cwf_#{random_string()}",
+          fn values ->
+            marker =
+              cond do
+                not Map.has_key?(values, :answer) -> :iter1_no_key
+                is_nil(values[:answer]) -> :iter2_nil_present
+                true -> {:iter3_value, values[:answer]}
+              end
+
+            send(test_pid, {:saw, marker})
+
+            case marker do
+              :iter1_no_key -> {:cont_with_fallback, nil}
+              :iter2_nil_present -> {:cont_with_fallback, "non_nil"}
+              {:iter3_value, "non_nil"} -> {:ok, "done"}
+            end
+          end,
+          max_iterations: 5
+        )
+
+      execution = graph |> Journey.start_execution()
+      assert {:ok, "done", _} = Journey.get(execution, :answer, wait: :any)
+
+      assert_receive {:saw, :iter1_no_key}, 5_000
+      assert_receive {:saw, :iter2_nil_present}, 5_000
+      assert_receive {:saw, {:iter3_value, "non_nil"}}, 5_000
+    end
+
+    test ":cont_no_fallback nil carry: iter 2 sees the key present with value nil" do
+      test_pid = self()
+
+      graph =
+        single_loop_graph(
+          "nil_carry_cnf_#{random_string()}",
+          fn values ->
+            marker =
+              cond do
+                not Map.has_key?(values, :answer) -> :iter1_no_key
+                is_nil(values[:answer]) -> :iter2_nil_present
+                true -> {:iter_other, values[:answer]}
+              end
+
+            send(test_pid, {:saw, marker})
+
+            case marker do
+              :iter1_no_key -> {:cont_no_fallback, nil}
+              :iter2_nil_present -> {:ok, "done"}
+            end
+          end,
+          max_iterations: 5
+        )
+
+      execution = graph |> Journey.start_execution()
+      assert {:ok, "done", _} = Journey.get(execution, :answer, wait: :any)
+
+      assert_receive {:saw, :iter1_no_key}, 5_000
+      assert_receive {:saw, :iter2_nil_present}, 5_000
+    end
+  end
+
   describe "cap behavior" do
     test ":cont_with_fallback at cap promotes the carried value" do
       # max_iterations: 2; the step function always returns :cont_with_fallback.
