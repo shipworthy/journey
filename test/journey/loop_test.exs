@@ -405,6 +405,7 @@ defmodule Journey.LoopTest do
       {:ok, 2, _} = Journey.get(execution, :answer, wait: :any)
 
       assert_receive {:cb, :answer, {:ok, 2}}, 5_000
+      refute_receive {:cb, :answer, _}, 200
     end
 
     test "fires once with {:ok, value} for cap-promoted :cont_with_fallback" do
@@ -437,6 +438,7 @@ defmodule Journey.LoopTest do
       # Cap-promotion delivers exactly one callback shaped as {:ok, value}, NOT
       # {:cont_with_fallback, value}.
       assert_receive {:cb, :answer, {:ok, 2}}, 5_000
+      refute_receive {:cb, :answer, _}, 200
     end
 
     test "fires once with {:error, \"max_iterations_reached\"} for cap-failed :cont_no_fallback" do
@@ -466,6 +468,7 @@ defmodule Journey.LoopTest do
       _execution = graph |> Journey.start_execution()
 
       assert_receive {:cb, :answer, {:error, "max_iterations_reached"}}, 5_000
+      refute_receive {:cb, :answer, _}, 200
     end
 
     test "fires once with {:error, reason} after retry exhaustion" do
@@ -497,6 +500,7 @@ defmodule Journey.LoopTest do
       assert_receive {:cb, :answer, {:error, reason}}, 15_000
       assert is_binary(reason)
       assert reason =~ "always-fail"
+      refute_receive {:cb, :answer, _}, 200
     end
   end
 
