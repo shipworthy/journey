@@ -301,6 +301,75 @@ defmodule Journey.LoopTest do
       assert {:error, :computation_failed} =
                Journey.get(execution, :answer, wait: :any, timeout: 25_000)
     end
+
+    # Verifies that the per-iteration retry budget is per-iteration: each iteration
+    # gets its own `max_retries` worth of attempts, independent of how many prior
+    # iterations the loop has completed.
+    #
+    # `max_retries: 2` is load-bearing for the test's discrimination: with
+    # max_retries: 2 and one prior :success row, iter 2's first failure brings the
+    # total row count to 2, which is exactly at the threshold. Per-iteration scoping
+    # is the only thing keeping iter 2 alive — it scopes the count back to 1 (just
+    # iter 2's :failed row), allowing one retry. Picking max_retries: 3 here would
+    # leave room under the threshold even without scoping and silently make this
+    # test stop discriminating per-iteration vs cross-iteration counting.
+    test "iter 2's retry budget is independent of iter 1's success (per-iteration scoping)" do
+      counter = :counters.new(1, [])
+
+      graph =
+        single_loop_graph(
+          "per_iter_retry_budget_#{random_string()}",
+          fn values ->
+            # Self-reference goes through loop_state which is :map (JSON-serialized),
+            # so use strings, not atoms, for round-trip stability.
+            case values[:answer] do
+              nil ->
+                # Iter 1: continue, no retries used.
+                {:cont_with_fallback, "iter_1_done"}
+
+              "iter_1_done" ->
+                # Iter 2: fail once, then succeed. Under the bug, the first failure
+                # exhausts because iter 1's success is incorrectly counted as a try.
+                n = :counters.get(counter, 1)
+                :counters.add(counter, 1, 1)
+
+                if n == 0 do
+                  {:error, "iter-2-fail-first-call"}
+                else
+                  {:ok, "terminal"}
+                end
+            end
+          end,
+          max_iterations: 5,
+          max_retries: 2,
+          abandon_after_seconds: 5
+        )
+
+      execution = graph |> Journey.start_execution()
+
+      assert {:ok, "terminal", _} = Journey.get(execution, :answer, wait: :any, timeout: 15_000)
+
+      # Diagnostic row count: iter 1 has 1 :success row; iter 2 has 2 rows (1 :failed,
+      # 1 :success). If per-iteration scoping ever regresses, the failure surfaces as
+      # "no terminal :ok"; this assertion tells future-readers which iteration broke.
+      rows_by_iter =
+        from(c in Computation,
+          where:
+            c.execution_id == ^execution.id and
+              c.node_name == "answer" and
+              c.computation_type == :loop and
+              c.state in [:success, :failed],
+          select: {c.loop_iteration, c.state}
+        )
+        |> Journey.Repo.all()
+        |> Enum.frequencies()
+
+      assert rows_by_iter == %{
+               {1, :success} => 1,
+               {2, :failed} => 1,
+               {2, :success} => 1
+             }
+    end
   end
 
   describe "cross-run isolation" do
