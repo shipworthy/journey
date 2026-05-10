@@ -345,5 +345,76 @@ defmodule Journey.ExecutionsMigrationTest do
       # Verify migration occurred
       assert execution.graph_hash == updated_graph.hash
     end
+
+    test "loop nodes added via migration initialize loop_iteration and iterate normally" do
+      # Regression: GraphSchemaEvolution.add_node_records/3 used to insert the
+      # initial computation row without loop_iteration, leaving it nil. Since
+      # `nil >= int` is true in Elixir term ordering, the cap branches in
+      # record_loop_result fired on iter 1 — silently cap-promoting the
+      # :cont_with_fallback carry as the terminal value, with no real iteration.
+      alias Journey.Persistence.Schema.Execution.Computation
+
+      graph_name = "loop_migration_test_#{random_string()}"
+
+      # v1: just an input.
+      original_graph =
+        Journey.new_graph(
+          graph_name,
+          "v1",
+          [input(:seed)]
+        )
+
+      execution = Journey.start_execution(original_graph)
+
+      # v2 (overwrites catalog): the terminal :ok value (999) is structurally
+      # distinct from anything :cont_with_fallback can carry (1..3). Under the
+      # bug, iter 1 would cap-promote the carry (1) as terminal — a {:ok, _, _}
+      # match would pass; the exact 999 match catches it.
+      _updated_graph =
+        Journey.new_graph(
+          graph_name,
+          "v1",
+          [
+            input(:seed),
+            loop(
+              :loop_node,
+              [:seed],
+              fn values ->
+                n = values[:loop_node] || 0
+                if n >= 3, do: {:ok, 999}, else: {:cont_with_fallback, n + 1}
+              end,
+              max_iterations: 5
+            )
+          ]
+        )
+
+      # Migrate, then set :seed — the set kicks the scheduler, which sees the
+      # newly-evolved loop as runnable.
+      migrated = Journey.Executions.migrate_to_current_graph_if_needed(execution)
+      migrated = Journey.set(migrated, :seed, "go")
+
+      # First leg: exact-value match. Only the :ok branch can produce 999.
+      assert {:ok, 999, _rev} = Journey.get(migrated, :loop_node, wait: :any)
+
+      # Second leg: direct DB check. Under the bug, iter-1 row has
+      # loop_iteration: nil and no iter-2 row is ever inserted.
+      iter_rows =
+        from(c in Computation,
+          where:
+            c.execution_id == ^migrated.id and
+              c.node_name == "loop_node" and
+              c.computation_type == :loop and
+              c.state == :success,
+          order_by: [asc: c.loop_iteration],
+          select: c.loop_iteration
+        )
+        |> Journey.Repo.all()
+
+      assert 1 in iter_rows,
+             "expected an iter-1 row with loop_iteration: 1, got #{inspect(iter_rows)}"
+
+      assert Enum.any?(iter_rows, fn i -> i >= 2 end),
+             "expected at least one iter row with loop_iteration >= 2, got #{inspect(iter_rows)}"
+    end
   end
 end
