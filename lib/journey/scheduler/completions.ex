@@ -8,16 +8,14 @@ defmodule Journey.Scheduler.Completions do
 
   require Logger
 
-  @doc """
-  Records a successful computation. Returns `{:ok, :value_written}` or `{:ok, :no_value_written}`
-  indicating whether the values table was actually updated. The scheduler uses this flag to gate
-  downstream invalidation checks. On deadlock retry exhaustion, returns `{:ok, :no_value_written}`
-  (the abandoned sweeper will re-run the computation later).
-
-  For `:loop` computations, `result` is a 2-tuple `{disposition, value}` where disposition is one
-  of `:ok`, `:cont_with_fallback`, `:cont_no_fallback`. For non-loop computations, `result` is the
-  unwrapped value (the inner of `{:ok, value}`).
-  """
+  # Records a successful computation. Returns `{:ok, :value_written}` or `{:ok, :no_value_written}`
+  # indicating whether the values table was actually updated. The scheduler uses this flag to gate
+  # downstream invalidation checks. On deadlock retry exhaustion, returns `{:ok, :no_value_written}`
+  # (the abandoned sweeper will re-run the computation later).
+  #
+  # For `:loop` computations, `result` is a 2-tuple `{disposition, value}` where disposition is one
+  # of `:ok`, `:cont_with_fallback`, `:cont_no_fallback`. For non-loop computations, `result` is the
+  # unwrapped value (the inner of `{:ok, value}`).
   def record_success(computation, inputs_to_capture, result) do
     prefix = "[#{computation.execution_id}.#{computation.node_name}.#{computation.id}] [:success]"
 
