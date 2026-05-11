@@ -61,12 +61,12 @@ defmodule Journey.Scheduler.Invalidate do
   end
 
   defp clear_discardable_computations_in_transaction(execution_id, all_values, graph, repo, prefix) do
-    # Find :compute node values which might need to be cleared. Other types (eg :historian) preserve their state.
+    # Find :compute and :loop node values which might need to be cleared. Other types (eg :historian) preserve their state.
     set_computed_values =
       all_values
       |> Enum.filter(fn v ->
         v.set_time != nil and
-          match?(%{type: :compute}, Graph.find_node_by_name(graph, v.node_name))
+          match?(%{type: t} when t in [:compute, :loop], Graph.find_node_by_name(graph, v.node_name))
       end)
 
     Logger.debug("#{prefix}: checking #{length(set_computed_values)} computed values for discardability")
@@ -127,7 +127,8 @@ defmodule Journey.Scheduler.Invalidate do
         execution_id: execution_id,
         node_name: Atom.to_string(node_name),
         computation_type: graph_node.type,
-        state: :not_set
+        state: :not_set,
+        loop_iteration: if(graph_node.type == :loop, do: 1, else: nil)
       }
       |> repo.insert!()
 

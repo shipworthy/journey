@@ -46,7 +46,7 @@ defmodule Journey.MixProject do
       ],
       test_coverage: [
         summary: [
-          threshold: 82
+          threshold: 83
         ]
       ],
       deps: deps()

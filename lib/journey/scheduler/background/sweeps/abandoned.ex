@@ -15,6 +15,10 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
 
   @default_min_seconds_between_runs 59
 
+  # Sourced from Journey.Scheduler.Helpers at compile time. Terminal failure for these types fires
+  # f_on_save with {:error, "timeout"} when retries are exhausted via the abandonment path.
+  @retry_eligible_types Journey.Scheduler.Helpers.retry_eligible_types()
+
   def sweep(execution_id, current_time \\ nil) do
     current_time = current_time || System.system_time(:second)
 
@@ -73,7 +77,7 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
       Logger.warning("#{prefix}: evaluated #{batch_number * @batch_size} abandoned computations in this sweep")
     end
 
-    {:ok, processed_abandoned_computations} =
+    {:ok, {processed_abandoned_computations, terminal_failure_callbacks}} =
       Journey.Repo.transaction(fn repo ->
         find_abandoned_computations_batch(execution_id, repo, current_time)
         |> Enum.reject(fn c ->
@@ -91,6 +95,11 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
         |> process_computations(repo, prefix)
       end)
 
+    # Fire f_on_save callbacks AFTER the transaction commits. Firing inside the transaction would
+    # risk delivering a callback for a row whose :abandoned update later rolls back, leaving the
+    # next sweep to re-fire — turning at-least-once into at-least-twice in that corner.
+    fire_terminal_failure_callbacks(terminal_failure_callbacks)
+
     kicked_count = kick_all_executions_for_these_computations(processed_abandoned_computations)
     computation_ids = Enum.map(processed_abandoned_computations, fn record -> record.id end) |> MapSet.new()
 
@@ -106,6 +115,19 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
           current_time
         )
     end
+  end
+
+  defp fire_terminal_failure_callbacks(callbacks) do
+    Enum.each(callbacks, fn {prefix, node_f_on_save, graph_f_on_save, execution_id, node_name} ->
+      Journey.Scheduler.invoke_f_on_save(
+        prefix,
+        node_f_on_save,
+        graph_f_on_save,
+        execution_id,
+        node_name,
+        {:error, "timeout"}
+      )
+    end)
   end
 
   defp kick_all_executions_for_these_computations(computations) do
@@ -137,29 +159,55 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
   end
 
   defp process_computations(computations, repo, prefix) do
-    # Schedule retries
-    computations
-    |> Enum.each(fn ac ->
-      Journey.Scheduler.Retry.maybe_schedule_a_retry(ac, repo)
-    end)
+    # Schedule retries; collect tuples for retry-exhausted retry-eligible nodes so the caller can
+    # fire f_on_save with {:error, "timeout"} after the transaction commits.
+    terminal_failure_callbacks =
+      computations
+      |> Enum.flat_map(fn ac ->
+        case Journey.Scheduler.Retry.maybe_schedule_a_retry(ac, repo) do
+          {:retries_exhausted, _} -> build_terminal_failure_callback(ac, prefix)
+          {:retry_scheduled, _} -> []
+        end
+      end)
 
     # Mark as abandoned and return
-    computations
-    |> Enum.map(fn ac ->
-      updated =
-        ac
-        |> Ecto.Changeset.change(%{
-          state: :abandoned,
-          completion_time: System.system_time(:second)
-        })
-        |> repo.update!()
+    updated_computations =
+      computations
+      |> Enum.map(fn ac ->
+        updated =
+          ac
+          |> Ecto.Changeset.change(%{
+            state: :abandoned,
+            completion_time: System.system_time(:second)
+          })
+          |> repo.update!()
 
-      Logger.info(
-        "#{prefix}: processed an abandoned computation, #{updated.execution_id}.#{updated.node_name}.#{updated.id}"
-      )
+        Logger.info(
+          "#{prefix}: processed an abandoned computation, #{updated.execution_id}.#{updated.node_name}.#{updated.id}"
+        )
 
-      updated
-    end)
+        updated
+      end)
+
+    {updated_computations, terminal_failure_callbacks}
+  end
+
+  defp build_terminal_failure_callback(computation, prefix) do
+    graph = Journey.Scheduler.Helpers.graph_from_execution_id(computation.execution_id)
+
+    if graph == nil do
+      []
+    else
+      graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
+
+      if graph_node != nil and graph_node.type in @retry_eligible_types do
+        [
+          {prefix, graph_node.f_on_save, graph.f_on_save, computation.execution_id, computation.node_name}
+        ]
+      else
+        []
+      end
+    end
   end
 
   defp filter_out_graphless(computations) do

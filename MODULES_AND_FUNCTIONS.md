@@ -35,13 +35,14 @@ Functions for creating various types of nodes in a graph.
 
 Functions:
 - `Journey.Node.input/1` - Creates a graph input node whose value is set with `Journey.set/3` or `Journey.set/2`
-- `Journey.Node.input/2` - Creates a graph input node with options (e.g., `f_on_save` callback invoked after `Journey.set/3`)
+- `Journey.Node.input/2` - Creates a graph input node with options (e.g., [`f_on_save`](`Journey#module-f_on_save-callbacks`) callback invoked after `Journey.set/3`)
 - `Journey.Node.compute/4` - Creates a self-computing node that calculates its value based on upstream dependencies, when unblocked
 - `Journey.Node.mutate/4` - Creates a graph node that mutates the value of another node, when unblocked (optionally triggers downstream recomputation with `update_revision_on_change: true`)
 - `Journey.Node.historian/3` - Creates a history-tracking node that maintains a chronological log of changes to one or more nodes (default limit: 1000 entries)
 - `Journey.Node.archive/3` - Creates a graph node that archives the execution when unblocked
 - `Journey.Node.tick_once/4` - Creates a graph node that declares its readiness at a specific time, once
 - `Journey.Node.tick_recurring/4` - Creates a graph node that declares its readiness at specific times, repeatedly
+- `Journey.Node.loop/4` - Creates a self-iterating node that threads state across iterations durably until termination or an iteration cap (the durable analogue of `Stream.unfold/2`/`Enum.reduce_while/3`)
 
 ## `Journey.Node.Conditions`
 Helper functions for use in graph definitions, when defining upstream dependencies for compute modules.

@@ -942,7 +942,7 @@ defmodule Journey.Tools do
     Computations:
     - Completed:
     """ <>
-      Enum.map_join(completed_non_abandoned, "\n\n", &completed_computation/1) <>
+      Enum.map_join(completed_non_abandoned, "\n\n", fn comp -> completed_computation(comp, graph) end) <>
       if Enum.empty?(abandoned) do
         ""
       else
@@ -950,7 +950,7 @@ defmodule Journey.Tools do
         \n
         - Abandoned:
         """ <>
-          Enum.map_join(abandoned, "\n\n", &completed_computation/1)
+          Enum.map_join(abandoned, "\n\n", fn comp -> completed_computation(comp, graph) end)
       end <>
       """
       \n
@@ -959,18 +959,24 @@ defmodule Journey.Tools do
       Enum.map_join(computations_outstanding, "\n", fn oc -> outstanding_computation(graph, values, oc, true) end)
   end
 
-  defp completed_computation(%{
-         id: id,
-         node_name: node_name,
-         state: state,
-         computation_type: computation_type,
-         computed_with: computed_with,
-         ex_revision_at_completion: ex_revision_at_completion,
-         start_time: start_time,
-         completion_time: completion_time,
-         error_details: error_details
-       }) do
+  defp completed_computation(
+         %{
+           id: id,
+           node_name: node_name,
+           state: state,
+           computation_type: computation_type,
+           computed_with: computed_with,
+           ex_revision_at_completion: ex_revision_at_completion,
+           start_time: start_time,
+           completion_time: completion_time,
+           error_details: error_details,
+           loop_iteration: loop_iteration,
+           loop_state: loop_state
+         },
+         graph
+       ) do
     timing_line = format_computation_timing(start_time, completion_time)
+    max_iter = max_iterations_for(graph, node_name)
 
     inputs_block =
       "    inputs used:\n" <>
@@ -983,10 +989,44 @@ defmodule Journey.Tools do
           end)
         end
 
-    "  - :#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)} | rev #{ex_revision_at_completion}\n" <>
+    "  - :#{node_name} (#{id}): #{computation_state_to_text(state)} | #{inspect(computation_type)}#{loop_segment(computation_type, loop_iteration, loop_state, max_iter)} | rev #{ex_revision_at_completion}\n" <>
       timing_line <>
       inputs_block <>
       format_error_details(state, error_details)
+  end
+
+  # For :loop computation rows, surface loop_iteration (with the configured cap, when
+  # known) and the carried disposition. Without this, a cap-failure row (state: :success,
+  # loop_state.disposition: "cont_no_fallback") is indistinguishable in the rendered
+  # output from a terminal-:ok row, even though the loop's value is unset.
+  #
+  # max_iterations may be nil for orphaned rows whose graph node was removed via schema
+  # evolution; in that case the cap is omitted from the rendering.
+  defp loop_segment(:loop, loop_iteration, loop_state, max_iterations) do
+    iter_part =
+      case max_iterations do
+        n when is_integer(n) -> " | iter #{loop_iteration} of #{n}"
+        _ -> " | iter #{loop_iteration}"
+      end
+
+    disp_part =
+      case loop_state do
+        %{"disposition" => disposition} -> " | disposition: #{disposition}"
+        _ -> ""
+      end
+
+    iter_part <> disp_part
+  end
+
+  defp loop_segment(_other_type, _loop_iteration, _loop_state, _max_iterations), do: ""
+
+  defp max_iterations_for(graph, node_name) do
+    node_name_atom = if is_atom(node_name), do: node_name, else: String.to_atom(node_name)
+
+    case Graph.find_node_by_name(graph, node_name_atom) do
+      nil -> nil
+      graph_node -> Map.get(graph_node, :max_iterations)
+    end
   end
 
   @error_preview_max_length 500
@@ -1010,7 +1050,13 @@ defmodule Journey.Tools do
   defp outstanding_computation(
          graph,
          values,
-         %{node_name: node_name, state: state, computation_type: computation_type, start_time: start_time},
+         %{
+           node_name: node_name,
+           state: state,
+           computation_type: computation_type,
+           start_time: start_time,
+           loop_iteration: loop_iteration
+         },
          with_header?
        ) do
     case Graph.find_node_by_name(graph, node_name) do
@@ -1032,7 +1078,12 @@ defmodule Journey.Tools do
 
         header =
           if with_header? do
-            "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}\n"
+            # In-flight rows have loop_state: nil (it's only set at iteration completion
+            # by record_loop_result), so passing nil here is correct — only the iter segment
+            # appears for outstanding :loop rows.
+            max_iter = Map.get(graph_node, :max_iterations)
+
+            "  - #{node_name}: #{computation_state_to_text(state)} | #{inspect(computation_type)}#{loop_segment(computation_type, loop_iteration, nil, max_iter)}\n"
           else
             ""
           end

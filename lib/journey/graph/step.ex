@@ -14,7 +14,8 @@ defmodule Journey.Graph.Step do
     :heartbeat_interval_seconds,
     :heartbeat_timeout_seconds,
     :keep_latest_completed_computations,
-    :keep_oldest_completed_computations
+    :keep_oldest_completed_computations,
+    :max_iterations
   ]
 
   @type t :: %__MODULE__{
@@ -30,6 +31,7 @@ defmodule Journey.Graph.Step do
           heartbeat_interval_seconds: pos_integer(),
           heartbeat_timeout_seconds: pos_integer(),
           keep_latest_completed_computations: :all | pos_integer() | nil,
-          keep_oldest_completed_computations: pos_integer() | nil
+          keep_oldest_completed_computations: pos_integer() | nil,
+          max_iterations: pos_integer() | nil
         }
 end

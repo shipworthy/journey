@@ -71,6 +71,8 @@ Please read the documentation to understand what the package is expected to do. 
 
 Make sure that the list of public modules and functions in MODULES_AND_FUNCTIONS.md continues to be accurate.
 
+Only functions that are surfaced at the API level needs to be documented. Internal functions and modules can still have documentation, but as `# ...` blocks – not surfaced to package documentation.
+
 
 ### Graph Components
 ```elixir

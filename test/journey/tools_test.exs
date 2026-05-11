@@ -608,6 +608,437 @@ defmodule Journey.ToolsTest do
       assert result =~
                ~r/started: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z \| completed: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z \(\d+s\)/
     end
+
+    test "introspect renders a loop node: blocked-on-upstream then terminated-with-:ok" do
+      # Two deterministic snapshots:
+      #   (1) Just-started: loop is outstanding, blocked on its :seed dep.
+      #   (2) After Journey.set(:seed) and waiting on the terminal :ok value:
+      #       three completed :loop iteration rows (two cont_with_fallback, one
+      #       terminal :ok) plus the resulting :answer value.
+      graph =
+        Journey.new_graph("loop introspect blocked-then-ok", "v1.0.0", [
+          input(:seed),
+          loop(
+            :answer,
+            [:seed],
+            fn values ->
+              state = values[:answer] || []
+
+              if length(state) >= 2 do
+                {:ok, state}
+              else
+                {:cont_with_fallback, [length(state) | state]}
+              end
+            end,
+            max_iterations: 5
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # --- Snapshot 1: just-started, loop blocked on :seed -------------------
+      values = Journey.values(execution)
+      execution_id_value = Map.get(values, :execution_id)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+
+      snapshot_1 =
+        Journey.Tools.introspect(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> strip_trailing_whitespace_per_line()
+
+      expected_snapshot_1 = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'loop introspect blocked-then-ok' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 0
+      - # of Values: 2 (set) / 4 (total)
+      - # of Computations: 1
+
+      Values:
+      - Set:
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - answer: <unk> | :loop
+        - seed: <unk> | :input
+
+      Computations:
+      - Completed:
+
+
+      - Outstanding:
+        - answer: ⬜ :not_set (not yet attempted) | :loop | iter 1 of 5
+             🛑 :seed | &provided?/1
+      """
+
+      assert String.trim(snapshot_1) == String.trim(expected_snapshot_1),
+             "snapshot 1 (blocked) mismatch — actual was:\n#{snapshot_1}"
+
+      # --- Snapshot 2: after :seed is set and loop terminates with :ok -------
+      execution = Journey.set(execution, :seed, "go")
+      assert {:ok, [1, 0], _} = Journey.get(execution, :answer, wait: :any)
+
+      values_after = Journey.values(Journey.load(execution))
+      last_updated_at_after = Map.get(values_after, :last_updated_at)
+
+      snapshot_2 =
+        Journey.Tools.introspect(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> redact_text_computation_timing()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+        |> strip_trailing_whitespace_per_line()
+
+      expected_snapshot_2 = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'loop introspect blocked-then-ok' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 7
+      - # of Values: 4 (set) / 4 (total)
+      - # of Computations: 3
+
+      Values:
+      - Set:
+        - answer: '[1, 0]' | :loop
+          computed at REDACTED | rev: 7
+
+        - last_updated_at: '#{last_updated_at_after}' | :input
+          set at REDACTED | rev: 7
+
+        - seed: '"go"' | :input
+          set at REDACTED | rev: 1
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+
+
+      Computations:
+      - Completed:
+        - :answer (CMPREDACTED): ✅ :success | :loop | iter 3 of 5 | rev 7
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :seed (rev 1)
+
+        - :answer (CMPREDACTED): ✅ :success | :loop | iter 2 of 5 | disposition: cont_with_fallback | rev 5
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :seed (rev 1)
+
+        - :answer (CMPREDACTED): ✅ :success | :loop | iter 1 of 5 | disposition: cont_with_fallback | rev 3
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :seed (rev 1)
+
+      - Outstanding:
+      """
+
+      assert String.trim(snapshot_2) == String.trim(expected_snapshot_2),
+             "snapshot 2 (terminated) mismatch — actual was:\n#{snapshot_2}"
+    end
+
+    test "introspect renders a cap-failure loop iteration: state :success with disposition cont_no_fallback" do
+      # The cap-failure scenario the disposition rendering exists to disambiguate:
+      # the iteration's compute call ran to completion (state: :success), but the
+      # loop hit max_iterations on a :cont_no_fallback step — value never set.
+      graph =
+        Journey.new_graph("loop introspect cap-failure", "v1.0.0", [
+          loop(
+            :answer,
+            [],
+            fn _values -> {:cont_no_fallback, "tried"} end,
+            max_iterations: 1
+          )
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      # Deterministic wait: one :success row landing == cap-failure complete
+      # (max_iterations: 1 means no next-iteration row is ever inserted).
+      {:ok, _} = wait_for_computation_state(execution, :answer, :success)
+
+      # The surprising pair: iteration succeeded, but the loop's value was never
+      # written. The disposition rendering in the snapshot below disambiguates it.
+      assert {:error, :not_set} = Journey.get(execution, :answer)
+
+      values = Journey.values(Journey.load(execution))
+      execution_id_value = Map.get(values, :execution_id)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+
+      snapshot =
+        Journey.Tools.introspect(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> redact_text_computation_timing()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+        |> strip_trailing_whitespace_per_line()
+
+      expected = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'loop introspect cap-failure' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 2
+      - # of Values: 2 (set) / 3 (total)
+      - # of Computations: 1
+
+      Values:
+      - Set:
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - answer: <unk> | :loop
+
+      Computations:
+      - Completed:
+        - :answer (CMPREDACTED): ✅ :success | :loop | iter 1 of 1 | disposition: cont_no_fallback | rev 2
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             <none>
+
+      - Outstanding:
+      """
+
+      assert String.trim(snapshot) == String.trim(expected),
+             "cap-failure snapshot mismatch — actual was:\n#{snapshot}"
+    end
+
+    test "introspect renders a loop feeding a downstream compute (full graph picture)" do
+      # Living-documentation snapshot: a complete graph where a loop's terminal
+      # value is consumed by a downstream compute. After both complete, introspect
+      # should show: the loop's iteration rows, the loop's terminal value, and the
+      # downstream compute's row with `inputs used: :fib (rev N)`.
+      graph =
+        Journey.new_graph("loop introspect with downstream", "v1.0.0", [
+          input(:number),
+          loop(
+            :fib,
+            [:number],
+            fn values ->
+              [a, b, remaining] = values[:fib] || [0, 1, values.number]
+
+              if remaining == 0 do
+                {:ok, a}
+              else
+                {:cont_with_fallback, [b, a + b, remaining - 1]}
+              end
+            end,
+            max_iterations: 30
+          ),
+          compute(:print_result, [:fib], fn %{fib: f} -> {:ok, f} end)
+        ])
+
+      execution =
+        Journey.start_execution(graph)
+        |> Journey.set(:number, 2)
+
+      # Wait on the downstream compute — that's only set after the loop terminates
+      # and :print_result fires. Both must be complete for this to return.
+      assert {:ok, 1, _} = Journey.get(execution, :print_result, wait: :any)
+
+      values = Journey.values(Journey.load(execution))
+      execution_id_value = Map.get(values, :execution_id)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+
+      snapshot =
+        Journey.Tools.introspect(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> redact_text_computation_timing()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+        |> strip_trailing_whitespace_per_line()
+
+      expected = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'loop introspect with downstream' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 9
+      - # of Values: 5 (set) / 5 (total)
+      - # of Computations: 4
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 9
+
+        - print_result: '1' | :compute
+          computed at REDACTED | rev: 9
+
+        - fib: '1' | :loop
+          computed at REDACTED | rev: 7
+
+        - number: '2' | :input
+          set at REDACTED | rev: 1
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+
+
+      Computations:
+      - Completed:
+        - :print_result (CMPREDACTED): ✅ :success | :compute | rev 9
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :fib (rev 7)
+
+        - :fib (CMPREDACTED): ✅ :success | :loop | iter 3 of 30 | rev 7
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :number (rev 1)
+
+        - :fib (CMPREDACTED): ✅ :success | :loop | iter 2 of 30 | disposition: cont_with_fallback | rev 5
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :number (rev 1)
+
+        - :fib (CMPREDACTED): ✅ :success | :loop | iter 1 of 30 | disposition: cont_with_fallback | rev 3
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :number (rev 1)
+
+      - Outstanding:
+      """
+
+      assert String.trim(snapshot) == String.trim(expected),
+             "loop+downstream snapshot mismatch — actual was:\n#{snapshot}"
+    end
+
+    test "introspect renders a loop feeding a downstream compute, loop never producing a result" do
+      # The realistic debugging scenario: loop hits cap-failure, downstream compute
+      # never fires. Introspect should make the cause visible at a glance:
+      # cap-failure rows showing disposition: cont_no_fallback, :fib not set,
+      # :print_result outstanding and blocked on :fib.
+      test_pid = self()
+
+      graph =
+        Journey.new_graph("loop introspect downstream stuck", "v1.0.0", [
+          input(:number),
+          loop(
+            :fib,
+            [:number],
+            fn _values -> {:cont_no_fallback, "trying"} end,
+            max_iterations: 3,
+            f_on_save: fn _execution_id, _node_name, result ->
+              send(test_pid, {:fib_done, result})
+              :ok
+            end
+          ),
+          compute(:print_result, [:fib], fn %{fib: f} -> {:ok, f} end)
+        ])
+
+      execution =
+        Journey.start_execution(graph)
+        |> Journey.set(:number, 5)
+
+      # Deterministic wait: f_on_save fires with {:error, "max_iterations_reached"}
+      # exactly once on cap-failure (per the loop/4 contract at node.ex:880).
+      assert_receive {:fib_done, {:error, "max_iterations_reached"}}, 5_000
+
+      # The downstream compute can never fire because :fib is never set.
+      assert {:error, :not_set} = Journey.get(execution, :fib)
+      assert {:error, :not_set} = Journey.get(execution, :print_result)
+
+      values = Journey.values(Journey.load(execution))
+      execution_id_value = Map.get(values, :execution_id)
+      last_updated_at_value = Map.get(values, :last_updated_at)
+
+      snapshot =
+        Journey.Tools.introspect(execution.id)
+        |> redact_text_timestamps()
+        |> redact_text_duration()
+        |> redact_text_seconds_ago()
+        |> redact_text_computation_timing()
+        |> String.replace(~r/CMP[A-Z0-9]+/, "CMPREDACTED")
+        |> strip_trailing_whitespace_per_line()
+
+      expected = """
+      Execution summary:
+      - ID: '#{execution.id}'
+      - Graph: 'loop introspect downstream stuck' | 'v1.0.0'
+      - Archived at: not archived
+      - Created at: REDACTED UTC | REDACTED seconds ago
+      - Last updated at: REDACTED UTC | REDACTED seconds ago
+      - Duration: REDACTED seconds
+      - Revision: 7
+      - # of Values: 3 (set) / 5 (total)
+      - # of Computations: 4
+
+      Values:
+      - Set:
+        - last_updated_at: '#{last_updated_at_value}' | :input
+          set at REDACTED | rev: 1
+
+        - number: '5' | :input
+          set at REDACTED | rev: 1
+
+        - execution_id: '#{execution_id_value}' | :input
+          set at REDACTED | rev: 0
+
+
+      - Not set:
+        - fib: <unk> | :loop
+        - print_result: <unk> | :compute
+
+      Computations:
+      - Completed:
+        - :fib (CMPREDACTED): ✅ :success | :loop | iter 3 of 3 | disposition: cont_no_fallback | rev 7
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :number (rev 1)
+
+        - :fib (CMPREDACTED): ✅ :success | :loop | iter 2 of 3 | disposition: cont_no_fallback | rev 5
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :number (rev 1)
+
+        - :fib (CMPREDACTED): ✅ :success | :loop | iter 1 of 3 | disposition: cont_no_fallback | rev 3
+          started: REDACTED | completed: REDACTED (REDACTED)
+          inputs used:
+             :number (rev 1)
+
+      - Outstanding:
+        - print_result: ⬜ :not_set (not yet attempted) | :compute
+             🛑 :fib | &provided?/1
+      """
+
+      assert String.trim(snapshot) == String.trim(expected),
+             "downstream-stuck snapshot mismatch — actual was:\n#{snapshot}"
+    end
   end
 
   describe "introspect/1" do
@@ -1252,6 +1683,10 @@ defmodule Journey.ToolsTest do
   defp redact_text_seconds_ago(text) do
     text
     |> String.replace(~r/\d+ seconds ago/, "REDACTED seconds ago")
+  end
+
+  defp strip_trailing_whitespace_per_line(text) do
+    String.replace(text, ~r/[ \t]+\n/, "\n")
   end
 
   defp redact_text_computation_timing(text) do

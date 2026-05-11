@@ -153,7 +153,8 @@ defmodule Journey.Executions.GraphSchemaEvolution do
         execution_id: execution_id,
         node_name: Atom.to_string(graph_node.name),
         computation_type: graph_node.type,
-        state: :not_set
+        state: :not_set,
+        loop_iteration: if(graph_node.type == :loop, do: 1, else: nil)
       }
       |> repo.insert!()
     end
