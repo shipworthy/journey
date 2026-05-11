@@ -870,8 +870,9 @@ defmodule Journey.Node do
 
   On each invocation:
    - `values_map` contains the current values of all upstream dependencies.
-   - On the first iteration, `values_map.<name>` is unset.
-   - On subsequent iterations, `values_map.<name>` reflects the value carried by the most recent
+   - On the first iteration, the `<name>` key is absent from `values_map` — use bracket access
+     (`values_map[:<name>]`) rather than dot access to read it safely.
+   - On subsequent iterations, `values_map[:<name>]` reflects the value carried by the most recent
      `:cont_*` return.
 
   The function must return one of four tuples:
@@ -909,7 +910,7 @@ defmodule Journey.Node do
    2. `:max_iterations` is reached and the most recent return was `{:cont_with_fallback, value}`.
 
   During iteration, the loop's accumulating state is visible only to the step function itself
-  (via `values_map.<name>`); it is not externally visible until terminal resolution.
+  (via `values_map[:<name>]`); it is not externally visible until terminal resolution.
 
   ## Carried values go through JSONB
 
