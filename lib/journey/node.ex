@@ -675,6 +675,12 @@ defmodule Journey.Node do
   This might be useful for conditional scheduling - when the function determines that
   scheduling is not needed based on the current state.
 
+  ## Options
+
+  - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
+    On success, `result` is `{:ok, schedule_time}` (the unix-epoch second
+    returned by `f_compute`).
+
   ## Conditional Scheduling Example
 
   ```elixir
@@ -806,6 +812,12 @@ defmodule Journey.Node do
   in the returned `value` and `reason` will be converted to strings when persisted.
 
   Returning `{:ok, 0}` indicates that the schedule should not trigger downstream computations.
+
+  ## Options
+
+  - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
+    On success, `result` is `{:ok, schedule_time}` (the unix-epoch second
+    returned by `f_compute` for one scheduled fire).
 
   ## Computation Retention
 

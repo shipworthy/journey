@@ -173,8 +173,9 @@ defmodule Journey.Scheduler do
   defp successful_completion?(_), do: false
 
   # Sourced from Journey.Scheduler.Helpers at compile time so guards below can pattern-match on
-  # this list. :schedule_*/:tick_* are out of scope — their f_compute returns a schedule time and
-  # they preserve the prior pass-through behavior (fire on every completion).
+  # this list. Types in this list participate in retry-aware f_on_save suppression: per-attempt
+  # errors are silent, and the callback fires once at terminal resolution (success, retry
+  # exhaustion, or :abandon_after_seconds timeout).
   @retry_eligible_types Journey.Scheduler.Helpers.retry_eligible_types()
 
   defp maybe_invoke_f_on_save(prefix, graph, graph_node, execution, computation, r, write_outcome) do

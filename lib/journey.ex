@@ -103,9 +103,6 @@ defmodule Journey do
       transient iteration errors that get retried.
     - `input/2` only ever fires with `{:ok, value}` (inputs don't have an
       error path).
-    - `tick_once/4` and `tick_recurring/4` fire on every `f_compute`
-      attempt (including transient errors before retries are exhausted),
-      not just once at terminal resolution.
 
   """
 

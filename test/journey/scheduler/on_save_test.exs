@@ -407,6 +407,82 @@ defmodule Journey.Scheduler.Scheduler.OnSaveTest do
     end
   end
 
+  describe "tick_once terminal-failure semantics" do
+    @tag :capture_log
+    test "tick_once fires once with {:error, reason} after retry exhaustion" do
+      test_pid = self()
+
+      graph =
+        Journey.new_graph(
+          "tick_once retry exhaustion #{Journey.Helpers.Random.random_string()}",
+          "1.0.0",
+          [
+            input(:trigger),
+            tick_once(
+              :always_fails,
+              [:trigger],
+              fn _ -> {:error, "boom"} end,
+              max_retries: 0,
+              f_on_save: fn _execution_id, node_name, result ->
+                send(test_pid, {:cb, node_name, result})
+                :ok
+              end
+            )
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+      Journey.set(execution, :trigger, "go")
+
+      assert_receive {:cb, :always_fails, {:error, reason}}, 15_000
+      assert is_binary(reason)
+      assert reason =~ "boom"
+
+      refute_receive {:cb, :always_fails, _}, 1_000
+    end
+
+    test "tick_once is silent on transient errors — fires once with {:ok, _} on eventual success" do
+      test_pid = self()
+      counter = :counters.new(1, [])
+
+      graph =
+        Journey.new_graph(
+          "tick_once transient then success #{Journey.Helpers.Random.random_string()}",
+          "1.0.0",
+          [
+            input(:trigger),
+            tick_once(
+              :flaky,
+              [:trigger],
+              fn _ ->
+                :counters.add(counter, 1, 1)
+                attempt = :counters.get(counter, 1)
+
+                if attempt >= 2 do
+                  {:ok, System.system_time(:second) + 60}
+                else
+                  {:error, "transient on attempt #{attempt}"}
+                end
+              end,
+              max_retries: 3,
+              f_on_save: fn _execution_id, node_name, result ->
+                send(test_pid, {:cb, node_name, result})
+                :ok
+              end
+            )
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+      Journey.set(execution, :trigger, "go")
+
+      assert_receive {:cb, :flaky, {:ok, value}}, 20_000
+      assert is_integer(value)
+
+      refute_receive {:cb, :flaky, {:error, _}}, 500
+    end
+  end
+
   defp simple_graph() do
     Journey.new_graph(
       "simple graph #{__MODULE__}",
