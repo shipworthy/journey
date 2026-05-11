@@ -67,7 +67,7 @@ defmodule Journey.Scheduler.RetentionTest do
     end
   end
 
-  defp make_tick_fn(counter_ref, interval_seconds \\ 2) do
+  defp make_tick_fn(counter_ref, interval_seconds \\ 1) do
     fn _ ->
       :counters.add(counter_ref, 1, 1)
       {:ok, System.system_time(:second) + interval_seconds}

@@ -19,8 +19,13 @@ defmodule Journey.Scheduler.Heartbeat do
 
   alias Journey.Persistence.Schema.Execution.Computation
 
-  # Buffer before enforcing deadline (allows sweep to act first)
-  @deadline_buffer_seconds 10
+  # Buffer before enforcing deadline (allows sweep to act first).
+  # Configurable via `config :journey, :heartbeat_deadline_buffer_seconds` (default 10).
+  @default_deadline_buffer_seconds 10
+
+  defp deadline_buffer_seconds do
+    Application.get_env(:journey, :heartbeat_deadline_buffer_seconds, @default_deadline_buffer_seconds)
+  end
 
   # Runs the heartbeat loop for a computation.
   #
@@ -126,7 +131,7 @@ defmodule Journey.Scheduler.Heartbeat do
 
   defp update_heartbeat(computation_id, timeout_seconds) do
     now = System.system_time(:second)
-    deadline_cutoff = now - @deadline_buffer_seconds
+    deadline_cutoff = now - deadline_buffer_seconds()
 
     from(c in Computation,
       where: c.id == ^computation_id and c.state == :computing and c.deadline > ^deadline_cutoff,

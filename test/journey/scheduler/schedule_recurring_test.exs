@@ -29,7 +29,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
              user_name: {:set, "Mario"}
            }
 
-    expected_scheduled_time = System.system_time(:second) + 10
+    expected_scheduled_time = System.system_time(:second) + 3
     execution = execution |> Journey.set(:keep_sending_reminders, true)
 
     {:ok, original_scheduled_time, _} = Journey.get(execution, :schedule_a_reminder, wait: :any)
@@ -51,7 +51,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
     assert System.system_time(:second) >= original_scheduled_time
 
     assert wait_for_value(execution, :send_a_reminder, 2, frequency: 1_000)
-    assert System.system_time(:second) >= original_scheduled_time + 10
+    assert System.system_time(:second) >= original_scheduled_time + 3
 
     stop_background_sweeps_in_test(background_sweeps_task)
   end
@@ -84,7 +84,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleRecurringTest do
   end
 
   defp schedule_next_reminder(%{execution_id: execution_id}) do
-    next_reminder_time = System.system_time(:second) + 10
+    next_reminder_time = System.system_time(:second) + 3
     Logger.debug("[#{execution_id}]: scheduling for '#{DateTime.from_unix!(next_reminder_time)}'")
     {:ok, next_reminder_time}
   end
