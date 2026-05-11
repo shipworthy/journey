@@ -19,10 +19,14 @@ defmodule Journey.Scheduler.Background.Sweeps.Abandoned do
   # f_on_save with {:error, "timeout"} when retries are exhausted via the abandonment path.
   @retry_eligible_types Journey.Scheduler.Helpers.retry_eligible_types()
 
-  def sweep(execution_id, current_time \\ nil) do
+  # `force_for_tests` bypasses the `:enabled` gate so tests that have disabled the
+  # sweeper at the application-env level (to prevent sibling background tasks from
+  # racing into the throttle table) can still drive a sweep deterministically. Do
+  # not use outside of tests — there is no production reason to bypass `:enabled`.
+  def sweep(execution_id, current_time \\ nil, force_for_tests \\ false) do
     current_time = current_time || System.system_time(:second)
 
-    if get_config(:enabled, true) do
+    if get_config(:enabled, true) or force_for_tests do
       sweep_impl(execution_id, current_time)
     else
       {0, nil}

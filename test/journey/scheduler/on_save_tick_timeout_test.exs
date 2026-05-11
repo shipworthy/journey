@@ -11,6 +11,14 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
 
   setup do
     Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+
+    # See on_save_timeout_test.exs for the full rationale. Briefly: disable the
+    # abandoned sweeper so sibling background tasks don't race rows into sweep_runs;
+    # our own call passes force_for_tests: true to bypass this gate.
+    original_config = Application.get_env(:journey, :abandoned_sweep, [])
+    Application.put_env(:journey, :abandoned_sweep, Keyword.put(original_config, :enabled, false))
+    on_exit(fn -> Application.put_env(:journey, :abandoned_sweep, original_config) end)
+
     :ok
   end
 
@@ -55,8 +63,12 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
     # Wait past abandon_after_seconds so the deadline is in the past at sweep time.
     Process.sleep(2_000)
 
+    # See on_save_timeout_test.exs for rationale: re-delete in case a sibling task
+    # that was mid-sweep when setup flipped :enabled inserted a row in the meantime.
+    Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+
     current_time = System.system_time(:second)
-    assert {kicked, _sweep_id} = Abandoned.sweep(execution.id, current_time)
+    assert {kicked, _sweep_id} = Abandoned.sweep(execution.id, current_time, true)
     assert kicked >= 1
 
     assert_receive {:cb, :sleeper, {:error, "timeout"}}, 5_000
