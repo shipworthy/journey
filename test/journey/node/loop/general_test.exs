@@ -1,4 +1,4 @@
-defmodule Journey.LoopTest do
+defmodule Journey.Node.Loop.GeneralTest do
   use ExUnit.Case, async: true
 
   import Ecto.Query
@@ -545,6 +545,55 @@ defmodule Journey.LoopTest do
     end
   end
 
+  describe "cross-run cap-failure" do
+    # The loop's value node is set on terminal :ok and on cap-promoted
+    # :cont_with_fallback. It is deliberately NOT cleared on cap-failed
+    # :cont_no_fallback (lib/journey/scheduler/completions.ex). This test
+    # pins the cross-run consequence: a value Run A wrote (via :ok) survives
+    # Run B's cap-failure rather than being cleared.
+    test "Run A's terminal value lingers when a subsequent run cap-fails with :cont_no_fallback" do
+      graph =
+        Journey.new_graph(
+          "cross_run_cap_fail_#{random_string()}",
+          "v1",
+          [
+            input(:mode),
+            loop(
+              :answer,
+              [:mode],
+              fn values ->
+                case values.mode do
+                  "succeed" ->
+                    {:ok, "run_a_value"}
+
+                  "cap_fail" ->
+                    n = values[:answer] || 0
+                    {:cont_no_fallback, n + 1}
+                end
+              end,
+              max_iterations: 2
+            )
+          ]
+        )
+
+      # Run A: terminate with :ok, pinning :answer to "run_a_value".
+      execution = graph |> Journey.start_execution() |> Journey.set(:mode, "succeed")
+      assert {:ok, "run_a_value", _rev_a} = Journey.get(execution, :answer, wait: :any)
+
+      # Run B: change upstream → loop re-runs from iter 1, both iterations
+      # return :cont_no_fallback, iter 2 hits the cap → cap-failure.
+      # Cap-failure does not write to the value node, so we can't wait on it;
+      # poll for the iter-2 :success row instead.
+      execution = Journey.set(execution, :mode, "cap_fail")
+      iter_2_row = wait_for_loop_iteration_success(execution.id, "answer", 2, 10_000)
+      assert iter_2_row.loop_state == %{"disposition" => "cont_no_fallback", "value" => 2}
+
+      # The lingering: Run A's terminal value is still readable.
+      execution = Journey.load(execution)
+      assert {:ok, "run_a_value", _rev_b} = Journey.get(execution, :answer)
+    end
+  end
+
   describe "f_on_save semantics" do
     # f_on_save for :loop fires when the loop terminally resolves: {:ok, value} on terminal :ok or
     # cap-promoted :cont_with_fallback; {:error, "max_iterations_reached"} on cap-failed
@@ -690,5 +739,36 @@ defmodule Journey.LoopTest do
         loop(:answer, [], f_loop, opts)
       ]
     )
+  end
+
+  defp wait_for_loop_iteration_success(execution_id, node_name, target_iter, timeout_ms) do
+    deadline = System.monotonic_time(:millisecond) + timeout_ms
+    poll_loop_iteration_success(execution_id, node_name, target_iter, deadline)
+  end
+
+  defp poll_loop_iteration_success(execution_id, node_name, target_iter, deadline) do
+    row =
+      from(c in Computation,
+        where:
+          c.execution_id == ^execution_id and
+            c.node_name == ^node_name and
+            c.computation_type == :loop and
+            c.state == :success and
+            c.loop_iteration == ^target_iter,
+        limit: 1
+      )
+      |> Journey.Repo.one()
+
+    cond do
+      row != nil ->
+        row
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        flunk("loop iteration #{target_iter} of #{node_name} did not reach :success within deadline")
+
+      true ->
+        Process.sleep(50)
+        poll_loop_iteration_success(execution_id, node_name, target_iter, deadline)
+    end
   end
 end

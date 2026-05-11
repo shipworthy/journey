@@ -1,7 +1,7 @@
-defmodule Journey.LoopTimeoutTest do
+defmodule Journey.Node.Loop.TimeoutTest do
   # async: false — the abandoned sweeper uses a global SweepRun throttle table; running
   # in parallel with other sweep-driving tests would race on row deletes/inserts. Same
-  # reason as on_save_timeout_test.exs. Kept in its own file so loop_test.exs (30+ tests)
+  # reason as on_save_timeout_test.exs. Kept in its own file so general_test.exs (30+ tests)
   # can stay async: true.
   use ExUnit.Case, async: false
 
