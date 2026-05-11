@@ -909,6 +909,9 @@ defmodule Journey.Node do
    1. The step function returns `{:ok, value}`.
    2. `:max_iterations` is reached and the most recent return was `{:cont_with_fallback, value}`.
 
+  A loop node's value reflects the **last successful write**, not the outcome of the
+  current run — even across re-runs triggered by upstream changes.
+
   During iteration, the loop's accumulating state is visible only to the step function itself
   (via `values_map[:<name>]`); it is not externally visible until terminal resolution.
 
