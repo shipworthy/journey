@@ -220,17 +220,15 @@ defmodule Journey.Graph.Validations do
   end
 
   defp validate_heartbeat_options(graph) do
-    min_interval = min_heartbeat_interval_seconds()
-
     graph.nodes
     |> Enum.filter(fn node -> is_struct(node, Journey.Graph.Step) end)
     |> Enum.each(fn step ->
       interval = step.heartbeat_interval_seconds
       timeout = step.heartbeat_timeout_seconds
 
-      if interval < min_interval do
+      if interval < 30 do
         raise "Node '#{inspect(step.name)}' has unsupported heartbeat config. " <>
-                "heartbeat_interval_seconds must be >= #{min_interval} seconds."
+                "heartbeat_interval_seconds must be >= 30 seconds."
       end
 
       if interval > timeout / 2 do
@@ -240,11 +238,5 @@ defmodule Journey.Graph.Validations do
     end)
 
     graph
-  end
-
-  # Returns the configured minimum heartbeat interval (default 30 seconds).
-  # Lowered in :test env to allow heartbeat tests to run without 30-second floors.
-  defp min_heartbeat_interval_seconds do
-    Application.get_env(:journey, :min_heartbeat_interval_seconds, 30)
   end
 end

@@ -7,11 +7,10 @@ defmodule Journey.Scheduler.HeartbeatTest do
   alias Journey.Persistence.Schema.Execution.Computation
 
   describe "graph validation" do
-    # The configured minimum in test (config/test.exs) is 1s; in prod it remains 30s.
-    test "rejects heartbeat interval below configured minimum" do
-      assert_raise RuntimeError, ~r/heartbeat_interval_seconds must be >= 1 seconds/, fn ->
+    test "rejects heartbeat interval < 30s" do
+      assert_raise RuntimeError, ~r/heartbeat_interval_seconds must be >= 30 seconds/, fn ->
         Journey.new_graph("bad_heartbeat_1_#{random_string()}", "1", [
-          compute(:step1, [], fn _ -> {:ok, 1} end, heartbeat_interval_seconds: 0)
+          compute(:step1, [], fn _ -> {:ok, 1} end, heartbeat_interval_seconds: 29)
         ])
       end
     end
@@ -64,37 +63,35 @@ defmodule Journey.Scheduler.HeartbeatTest do
   end
 
   describe "heartbeat during execution" do
-    @tag timeout: 30_000
+    @tag timeout: 100_000
     test "heartbeat is updated during long-running computation" do
-      # Uses the lowered test-mode heartbeat floor (see config/test.exs). With
-      # interval = 2 seconds, two heartbeats fire well before the worker finishes.
-      interval = 2
-      timeout = 6
+      interval = 30
+      timeout = 70
 
       graph =
         Journey.new_graph("heartbeat_during_execution_#{random_string()}", "1", [
           compute(
-            :slow_step,
+            :slow_step_75_seconds,
             [],
             fn _ ->
-              # Sleep past two heartbeat intervals (2 × 2s + jitter buffer)
-              Process.sleep(7_000)
+              # Sleep past two heartbeat intervals (2 × 30s + jitter buffer)
+              Process.sleep(75_000)
               {:ok, "done"}
             end,
             heartbeat_interval_seconds: interval,
             heartbeat_timeout_seconds: timeout,
-            abandon_after_seconds: 20
+            abandon_after_seconds: 120
           )
         ])
 
       execution = Journey.start_execution(graph)
-      {:ok, "done", _} = Journey.get(execution, :slow_step, wait: :any, timeout: 20_000)
+      {:ok, "done", _} = Journey.get(execution, :slow_step_75_seconds, wait: :any, timeout: 90_000)
 
-      comp = get_latest_computation(execution.id, :slow_step)
+      comp = get_latest_computation(execution.id, :slow_step_75_seconds)
 
       # Verify at least 2 heartbeats fired:
-      # First heartbeat fires within ~interval × 1.2 of start
-      # If last_heartbeat_at > start_time + interval × 1.2, a second heartbeat must have occurred
+      # First heartbeat fires in 24-36s window (30s ± 20% jitter)
+      # If last_heartbeat_at > 36s, a second heartbeat must have occurred
       assert comp.last_heartbeat_at > comp.start_time + trunc(interval * 1.2)
 
       # Verify deadline was extended correctly on last heartbeat
@@ -103,12 +100,12 @@ defmodule Journey.Scheduler.HeartbeatTest do
   end
 
   describe "deadline enforcement" do
-    @tag timeout: 30_000
+    @tag timeout: 120_000
     test "kills worker when deadline exceeded" do
-      # With the lowered test-mode floor: short abandon_after_seconds and a worker
-      # that sleeps "forever". First heartbeat at ~2s succeeds; second heartbeat at
-      # ~4s sees the deadline exceeded and abandons + kills the worker.
-      # `heartbeat_deadline_buffer_seconds` is 1s in test config.
+      # Use short abandon_after_seconds (35s) with worker that sleeps forever
+      # First heartbeat at ~30s succeeds (deadline 35 > 30-10=20)
+      # Second heartbeat at ~60s fails (deadline 35 < 60-10=50)
+      # Heartbeat marks as abandoned and kills worker
 
       graph =
         Journey.new_graph("deadline_enforcement_#{random_string()}", "1", [
@@ -120,17 +117,18 @@ defmodule Journey.Scheduler.HeartbeatTest do
               Process.sleep(300_000)
               {:ok, "should not reach this"}
             end,
-            abandon_after_seconds: 3,
-            heartbeat_interval_seconds: 2,
-            heartbeat_timeout_seconds: 6
+            abandon_after_seconds: 35,
+            heartbeat_interval_seconds: 30,
+            heartbeat_timeout_seconds: 70
           )
         ])
 
       start_time = System.monotonic_time(:second)
       execution = Journey.start_execution(graph)
 
-      # Wait for computation to be killed (should happen within ~10s, not 300s)
-      comp = wait_for_state(execution.id, :runaway_worker, :abandoned, 20_000)
+      # Wait for computation to be killed (should happen around 50-70s, not 300s)
+      # Poll until abandoned or timeout
+      comp = wait_for_state(execution.id, :runaway_worker, :abandoned, 90_000)
 
       end_time = System.monotonic_time(:second)
       elapsed = end_time - start_time
@@ -139,8 +137,9 @@ defmodule Journey.Scheduler.HeartbeatTest do
       assert comp.state == :abandoned
 
       # Verify it happened much faster than the 300s sleep
-      assert elapsed < 20, "Expected worker to be killed within 20s, took #{elapsed}s"
-      assert elapsed >= 2, "Expected worker to run at least 2s before being killed, took #{elapsed}s"
+      # Should be around 50-70s (second heartbeat detects deadline exceeded)
+      assert elapsed < 90, "Expected worker to be killed within 90s, took #{elapsed}s"
+      assert elapsed > 40, "Expected worker to run at least 40s before being killed, took #{elapsed}s"
     end
   end
 

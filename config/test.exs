@@ -37,13 +37,3 @@ config :journey, :missed_schedules_catchall,
 # Overrides for the "stalled_executions" sweep
 # (to pick up executions that may have stalled due to crashes/power loss)
 config :journey, :stalled_executions_sweep, enabled: true
-
-# Lower heartbeat floors for tests so heartbeat behavior can be exercised in seconds
-# rather than tens of seconds. Production defaults (30 / 10) remain in effect outside :test.
-config :journey, :min_heartbeat_interval_seconds, 1
-config :journey, :heartbeat_deadline_buffer_seconds, 1
-
-# Shorten the post-error retry jitter so error-path tests don't spend most of their wall
-# time in `Process.sleep(:rand.uniform(10_000))`. Production default (10_000 ms) is set in
-# `Journey.Scheduler` and is unchanged outside :test.
-config :journey, :compute_error_jitter_max_ms, 100

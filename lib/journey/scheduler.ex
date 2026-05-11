@@ -270,7 +270,7 @@ defmodule Journey.Scheduler do
        ) do
     Logger.warning("#{prefix}: async computation completed with an error")
     status = Completions.record_error(computation, error_details, input_versions_to_capture)
-    jitter_ms = :rand.uniform(error_jitter_max_ms())
+    jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
     {r, error_status_to_write_outcome(status)}
   end
@@ -284,7 +284,7 @@ defmodule Journey.Scheduler do
 
     error_details = "Unexpected value: '#{result_truncated}'"
     status = Completions.record_error(computation, error_details, input_versions_to_capture)
-    jitter_ms = :rand.uniform(error_jitter_max_ms())
+    jitter_ms = :rand.uniform(10_000)
     Process.sleep(jitter_ms)
     # Synthesize an {:error, _} so the callback gets a useful payload at retry exhaustion.
     {{:error, error_details}, error_status_to_write_outcome(status)}
@@ -430,12 +430,5 @@ defmodule Journey.Scheduler do
        }}
     end)
     |> Enum.into(%{})
-  end
-
-  # Upper bound (ms) for the random jitter sleep applied after an error result in
-  # `handle_computation_result/5`. Production default 10_000. Tests override to a
-  # small value to keep retry-driven tests fast.
-  defp error_jitter_max_ms do
-    Application.get_env(:journey, :compute_error_jitter_max_ms, 10_000)
   end
 end
