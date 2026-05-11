@@ -29,8 +29,10 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
     # Worker sleep window is sized to land *after* the manual sweep + assert_receive but *inside*
     # the refute window below — so the refute actually exercises the no-double-fire path when the
     # late worker wakes, calls record_success, and hits the state != :computing early-exit in
-    # record_success_in_transaction. Sweep happens at t≈2s; refute window runs t≈2s→4s; worker
+    # record_success_in_transaction. Sweep happens at t≈2s; refute window runs t≈2s→5s; worker
     # waking at t≈3s lands inside the refute window so the no-double-fire property is exercised.
+    # The 3s refute window (not 2s) leaves margin on both sides for CI load — under load the
+    # sweep + assert_receive can take >1s, which would shift the window past the worker's wake.
     worker_sleep_ms = 3_000
 
     graph =
@@ -76,6 +78,6 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
     # Refute window spans past the worker's wake at ~t=worker_sleep_ms after start. Exercises the
     # no-double-fire architectural property: late worker calls record_success, finds state ==
     # :abandoned, takes the early-exit, returns :no_value_written, and the gate stays silent.
-    refute_receive {:cb, :sleeper, _}, 2_000
+    refute_receive {:cb, :sleeper, _}, 3_000
   end
 end
