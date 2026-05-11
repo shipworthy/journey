@@ -334,6 +334,42 @@ defmodule Journey.Scheduler.Completions do
     :value_written
   end
 
+  # ---- :loop node lifecycle --------------------------------------------------
+  #
+  # A loop is a chain of `computations` rows — one per iteration — threaded by
+  # `loop_iteration` (1-indexed). Each row transitions through the standard
+  # computation states: :not_set -> :computing -> :completed | :failed | :abandoned.
+  #
+  # At :completed, the step function's return determines what happens next:
+  #
+  #   {:ok, v}                  -> values[name] := v; chain ends.
+  #   {:cont_with_fallback, v}  -> record carried value in loop_state; insert
+  #                                next-iter :not_set row. If current row is at
+  #                                max_iterations: values[name] := v instead
+  #                                (no next row).
+  #   {:cont_no_fallback, v}    -> record carried value in loop_state; insert
+  #                                next-iter :not_set row. If at max_iterations:
+  #                                f_on_save fires {:error, "max_iterations_reached"}
+  #                                and the values table stays unset.
+  #   {:error, _}               -> row marked :failed. Retry.maybe_schedule_a_retry
+  #                                inserts a new :not_set row with the SAME
+  #                                loop_iteration (per-iteration retry budget,
+  #                                not global). On exhaustion: f_on_save fires
+  #                                the original error; values table stays unset.
+  #
+  # Heartbeat timeouts use the standard abandonment sweep. On retry exhaustion
+  # the terminal callback fires {:error, "timeout"} AFTER transaction commit,
+  # to keep at-least-once from sliding into at-least-twice.
+  #
+  # The values table is written in exactly two cases: terminal :ok and
+  # cap-promoted :cont_with_fallback. Every other outcome leaves it unset.
+  #
+  # Self-reference: on each iteration, values_map.<name> is set to the previous
+  # iteration's carried value (read from `loop_state` of the prior :completed
+  # row, not from the values table). For iteration 1, values_map.<name> is
+  # removed — the values table may hold a settled value from a previous run,
+  # but iter 1 must see it as unset.
+  #
   # Loop nodes: result is a 2-tuple {disposition, value} where disposition is one of
   # :ok, :cont_with_fallback, :cont_no_fallback. Returns :value_written, :no_value_written,
   # or :loop_cap_failed (terminal cap-failure on :cont_no_fallback at max_iterations).
