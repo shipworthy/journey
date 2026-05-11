@@ -670,7 +670,10 @@ defmodule Journey.LoopTest do
       _execution = graph |> Journey.start_execution()
 
       # Exactly one observation, of {:error, _} shape; reason is the inspected/truncated form.
-      assert_receive {:cb, :answer, {:error, reason}}, 15_000
+      # The error path in Journey.Scheduler.handle_computation_result/5 sleeps :rand.uniform(10_000)ms
+      # after each error, so the final f_on_save can be delayed by up to 10s of pure jitter on top
+      # of normal sweep latency for the 2 prior retry attempts. 30s gives generous headroom.
+      assert_receive {:cb, :answer, {:error, reason}}, 30_000
       assert is_binary(reason)
       assert reason =~ "always-fail"
       refute_receive {:cb, :answer, _}, 200
