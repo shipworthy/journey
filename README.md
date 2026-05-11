@@ -189,7 +189,7 @@ Some features not shown in this example:
 - defining conditional workflows with `Journey.Node.UpstreamDependencies.unblocked_when/2`, 
 - recording the history of changes with `Journey.Node.historian/3` nodes,
 - archiving executions with `Journey.Node.archive/3` nodes,
-- emitting change notification events with `f_on_save/3`
+- emitting change notification events with [`f_on_save/3`](`Journey#module-f_on_save-callbacks`)
 
 These features are covered in [Basic Concepts](BASIC_CONCEPTS.md) and demonstrated in the [example applications](#explore-the-demos) below.
 

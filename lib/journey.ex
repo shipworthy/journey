@@ -67,6 +67,41 @@ defmodule Journey do
   true
   ```
 
+  ## `f_on_save` callbacks
+
+  `f_on_save` is an optional callback for observing node value changes. Two
+  levels are supported, both following the same contract:
+
+  - **Graph-wide**: `Journey.new_graph(name, version, nodes, f_on_save: fn ... end)`
+    fires for every node value change in the graph (inputs and steady-state nodes).
+  - **Node-scoped**: each `Journey.Node` function (`input/1`, `compute/4`,
+    `mutate/4`, `archive/3`, `historian/3`, `loop/4`) accepts `f_on_save:` in
+    its options.
+
+  When both are defined, the node-scoped callback fires first, then the
+  graph-wide callback.
+
+  The callback receives `(execution_id, node_name, result)` and runs
+  asynchronously in a separate `Task`. Exceptions raised inside the callback
+  are caught and logged but do not affect the computation's state or
+  downstream propagation.
+
+  `result` is one of:
+
+    - `{:ok, value}` — success (the values table was written). The shape of
+      `value` depends on the node type; see each node's docs.
+    - `{:error, reason}` — retries exhausted. `reason` is the last `f_compute`
+      error, or `"Unexpected value: '<inspected>'"` if `f_compute` returned a
+      non-`{:ok, _}`/`{:error, _}` shape (inspected/truncated).
+    - `{:error, "timeout"}` — `:abandon_after_seconds` timeout, after retries
+      exhausted.
+
+  Not invoked per-attempt, nor for idempotent no-change re-runs (when the new
+  value equals the existing value). `loop/4` extends this: not invoked
+  per-iteration, nor for transient iteration errors that get retried.
+  `input/1` is special — its callback only ever fires with `{:ok, value}`
+  (inputs don't have an error path).
+
   """
 
   alias Journey.Executions
@@ -116,10 +151,10 @@ defmodule Journey do
   * `version` - String version identifier following semantic versioning (e.g., "v1.0.0")
   * `nodes` - List of node definitions created with `Journey.Node` functions (`input/1`, `compute/4`, etc.)
   * `opts` - Optional keyword list of options:
-    * `:f_on_save` - Graph-wide callback function invoked after any node value is saved,
-      including input nodes set via `Journey.set/3` and computed nodes.
-      Receives `(execution_id, node_name, result)` where result is `{:ok, value}` or `{:error, reason}`.
-      This callback is called after any node-specific `f_on_save` callbacks.
+    * `:f_on_save` - Graph-wide callback fired for every node value change in
+      the graph. Called after any node-scoped `:f_on_save`. See the
+      [`f_on_save` callbacks](#module-f_on_save-callbacks) section for the
+      shared contract.
     * `:execution_id_prefix` - Custom prefix for execution IDs created from this graph.
       Will be normalized to uppercase. Defaults to "EXEC" if not specified.
       Example: "mygraph" becomes "MYGRAPH1A2B3D4E5G6H7J8L9M"
@@ -144,7 +179,6 @@ defmodule Journey do
   * **Registration** - Registers graph in catalog for execution tracking and reloading
   * **Immutable** - Graph definition is immutable once created; create new versions for changes
   * **Node types** - Supports input, compute, mutate, tick_once, and tick_recurring nodes
-  * **`f_on_save` Callbacks** - If defined, the graph-wide `f_on_save` callback is called after node-specific `f_on_save`s (if defined), for both computed and input nodes
 
   ## Examples
 

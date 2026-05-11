@@ -32,9 +32,10 @@ defmodule Journey.Node do
 
   Accepts an optional keyword list of options:
 
-  * `:f_on_save` - A callback function invoked after the input value is persisted via `Journey.set/3`.
-    The function receives `(execution_id, node_name, {:ok, value})`. The callback runs asynchronously
-    and does not affect the return value of `set/3`. Not invoked when the value is unchanged.
+  * `:f_on_save` - Callback invoked after the input value is persisted via
+    `Journey.set/3`. Only fires with `{:ok, value}` (inputs don't error).
+    See [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`) for
+    the shared contract.
 
   ## Examples:
 
@@ -200,12 +201,9 @@ defmodule Journey.Node do
 
   ## Options
 
-  - `:f_on_save` — callback invoked when the node terminally resolves: `{:ok, value}` on success
-    (when the values table is actually written), `{:error, reason}` after retries are exhausted
-    (`reason` is the last `f_compute` error, or `"Unexpected value: '<inspected>'"` if `f_compute`
-    returned a non-`{:ok, _}`/`{:error, _}` shape — inspected/truncated) or on
-    `:abandon_after_seconds` timeout (`reason` is `"timeout"`). Not invoked per-attempt or for
-    idempotent no-change re-runs (when the new value equals the existing value).
+  - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
+    On success, `result` is `{:ok, value}` where `value` is what
+    `f_compute` returned.
 
   ## Computation Retention
 
@@ -281,10 +279,8 @@ defmodule Journey.Node do
   - `:update_revision_on_change` (default: `false`) - When `true`, updating the mutated node's value also increments its revision,
     triggering downstream nodes to recompute. When `false`, mutations update the value without triggering recomputation.
     Setting this to `true` for a node that mutates an upstream dependency will raise a validation error to prevent cycles.
-  - `:f_on_save` — callback invoked when the mutate node terminally resolves: `{:ok, "updated :target"}`
-    on success, `{:error, reason}` after retries are exhausted (the original `f_compute` error, or
-    `"Unexpected value: '<inspected>'"` if `f_compute` returned a non-`{:ok, _}`/`{:error, _}` shape)
-    or on `:abandon_after_seconds` timeout. Not invoked per-attempt.
+  - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
+    On success, `result` is `{:ok, "updated :target"}`.
 
   ## External Polling Pattern
 
@@ -372,10 +368,8 @@ defmodule Journey.Node do
 
   ## Options
 
-  - `:f_on_save` — callback invoked when the archive node terminally resolves:
-    `{:ok, archived_at}` on success, `{:error, reason}` after retries are exhausted (the original
-    `f_compute` error, or `"Unexpected value: '<inspected>'"` if `f_compute` returned a non-`{:ok, _}`/`{:error, _}`
-    shape) or on `:abandon_after_seconds` timeout. Not invoked per-attempt.
+  - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
+    On success, `result` is `{:ok, archived_at}`.
 
   """
   def archive(name, gated_by, opts \\ [])
@@ -418,10 +412,8 @@ defmodule Journey.Node do
   ## Options
   - `:max_entries` (optional) - Maximum number of history entries to keep (FIFO).
     Defaults to 1000. Set to `nil` for unlimited history.
-  - `:f_on_save` — callback invoked when the historian node terminally resolves:
-    `{:ok, history}` on success, `{:error, reason}` after retries are exhausted (the original
-    `f_compute` error, or `"Unexpected value: '<inspected>'"` if `f_compute` returned a non-`{:ok, _}`/`{:error, _}`
-    shape) or on `:abandon_after_seconds` timeout. Not invoked per-attempt.
+  - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
+    On success, `result` is `{:ok, history}`.
 
   ## History Format
 
@@ -885,13 +877,14 @@ defmodule Journey.Node do
     `:infinity` is not allowed.
   - `:max_retries` (default: 3) — per-iteration retry budget for `{:error, _}` returns.
   - `:abandon_after_seconds` (default: 60) — per-iteration timeout.
-  - `:f_on_save` — callback invoked when the loop terminally resolves:
-    - `{:ok, value}` — terminal `:ok` from the step function, or cap-promoted `:cont_with_fallback` at `:max_iterations`.
-    - `{:error, "max_iterations_reached"}` — cap-failed `:cont_no_fallback` at `:max_iterations`.
-    - `{:error, reason}` — iteration `{:error, reason}` (or an unexpected return value, surfaced as `"Unexpected value: '<inspected>'"`) retried up to `:max_retries` and then exhausted.
-    - `{:error, "timeout"}` — iteration exceeded `:abandon_after_seconds` and retries are exhausted.
+  - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
+    Loop-specific result shapes:
+    - `{:ok, value}` — terminal `:ok` from the step function, or
+      cap-promoted `:cont_with_fallback` at `:max_iterations`.
+    - `{:error, "max_iterations_reached"}` — cap-failed
+      `:cont_no_fallback` at `:max_iterations`.
 
-    Not invoked per-iteration or for transient errors that get retried. For per-iteration progress visibility, use `Journey.Tools.introspect/1`.
+    For per-iteration progress visibility, use `Journey.Tools.introspect/1`.
   - Plus `:heartbeat_interval_seconds`, `:heartbeat_timeout_seconds`,
     `:keep_latest_completed_computations`, `:keep_oldest_completed_computations` (same semantics
     as `compute/4`).
