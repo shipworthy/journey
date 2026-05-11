@@ -15,7 +15,7 @@ defmodule Journey.Test.Support do
         tick_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
-          &f_in_3_seconds/1
+          &f_in_1_second/1
         ),
         compute(
           :reminder,
@@ -30,8 +30,12 @@ defmodule Journey.Test.Support do
     {:ok, "Reminder: #{greeting}"}
   end
 
-  defp f_in_3_seconds(_) do
-    {:ok, System.system_time(:second) + 3}
+  defp f_in_1_second(_) do
+    # Why 1 here, not the historical 3: many tests just wait for downstream values to appear
+    # and don't care how soon "now" reaches the scheduled time. Tests that *do* care (e.g.
+    # `what_am_i_waiting_for/2 sunny day`, which checks the gate state while the schedule
+    # is still future) must use their own graphs so they aren't bound to this fixture.
+    {:ok, System.system_time(:second) + 1}
   end
 
   defp f_prepend_with_hello(%{user_name: user_name}) do

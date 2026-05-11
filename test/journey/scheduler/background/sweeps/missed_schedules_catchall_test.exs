@@ -411,12 +411,16 @@ defmodule Journey.Scheduler.Background.Sweeps.MissedSchedulesCatchallTest do
       execution = Journey.start_execution(graph)
       Journey.set(execution, :trigger, true)
 
-      # Spawn multiple concurrent processes that try to run the sweep
+      # Spawn multiple concurrent processes that try to run the sweep.
+      # Scope to this test's own execution_id: the throttle/advisory lock keys on
+      # sweep_type only (Throttle.attempt_to_start_sweep_run/3), so lock contention
+      # is exercised identically, but `perform_sweep`'s real work is bounded to one
+      # execution instead of walking every past-schedule execution accumulated by
+      # prior tests in the suite (which can exceed the 10s await budget).
       tasks =
         for _i <- 1..5 do
           Task.async(fn ->
-            # Each process tries to run the sweep
-            MissedSchedulesCatchall.sweep()
+            MissedSchedulesCatchall.sweep(execution.id)
           end)
         end
 

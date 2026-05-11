@@ -66,7 +66,7 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
   @tag timeout: 60_000
   test "recurring behavior continues after recomputation", %{execution: execution} do
     # Start with short interval for testing
-    execution = Journey.set(execution, :interval_seconds, 3)
+    execution = Journey.set(execution, :interval_seconds, 2)
 
     {:ok, _first_time, _} = Journey.get(execution, :recurring_schedule, wait: :any)
 
@@ -74,7 +74,7 @@ defmodule Journey.Scheduler.ScheduleRecurringRecomputationTest do
     assert wait_for_value(execution, :downstream_result, 1, frequency: 500, max_wait: 15_000)
 
     # Change the interval - this should trigger recomputation
-    execution = Journey.set(execution, :interval_seconds, 4)
+    execution = Journey.set(execution, :interval_seconds, 3)
     execution = Journey.Scheduler.advance(execution)
 
     # Wait for new scheduled time to be computed with updated interval

@@ -11,6 +11,14 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
 
   setup do
     Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+
+    # See on_save_timeout_test.exs for the full rationale. Briefly: disable the
+    # abandoned sweeper so sibling background tasks don't race rows into sweep_runs;
+    # our own call passes force_for_tests: true to bypass this gate.
+    original_config = Application.get_env(:journey, :abandoned_sweep, [])
+    Application.put_env(:journey, :abandoned_sweep, Keyword.put(original_config, :enabled, false))
+    on_exit(fn -> Application.put_env(:journey, :abandoned_sweep, original_config) end)
+
     :ok
   end
 
@@ -21,8 +29,11 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
     # Worker sleep window is sized to land *after* the manual sweep + assert_receive but *inside*
     # the refute window below — so the refute actually exercises the no-double-fire path when the
     # late worker wakes, calls record_success, and hits the state != :computing early-exit in
-    # record_success_in_transaction.
-    worker_sleep_ms = 5_000
+    # record_success_in_transaction. Sweep happens at t≈2s; refute window runs t≈2s→5s; worker
+    # waking at t≈3s lands inside the refute window so the no-double-fire property is exercised.
+    # The 3s refute window (not 2s) leaves margin on both sides for CI load — under load the
+    # sweep + assert_receive can take >1s, which would shift the window past the worker's wake.
+    worker_sleep_ms = 3_000
 
     graph =
       Journey.new_graph(
@@ -54,8 +65,12 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
     # Wait past abandon_after_seconds so the deadline is in the past at sweep time.
     Process.sleep(2_000)
 
+    # See on_save_timeout_test.exs for rationale: re-delete in case a sibling task
+    # that was mid-sweep when setup flipped :enabled inserted a row in the meantime.
+    Journey.Repo.delete_all(from(sr in SweepRun, where: sr.sweep_type == :abandoned))
+
     current_time = System.system_time(:second)
-    assert {kicked, _sweep_id} = Abandoned.sweep(execution.id, current_time)
+    assert {kicked, _sweep_id} = Abandoned.sweep(execution.id, current_time, true)
     assert kicked >= 1
 
     assert_receive {:cb, :sleeper, {:error, "timeout"}}, 5_000
@@ -63,6 +78,6 @@ defmodule Journey.Scheduler.OnSaveTickTimeoutTest do
     # Refute window spans past the worker's wake at ~t=worker_sleep_ms after start. Exercises the
     # no-double-fire architectural property: late worker calls record_success, finds state ==
     # :abandoned, takes the early-exit, returns :no_value_written, and the gate stays silent.
-    refute_receive {:cb, :sleeper, _}, 4_000
+    refute_receive {:cb, :sleeper, _}, 3_000
   end
 end

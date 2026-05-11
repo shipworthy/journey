@@ -57,7 +57,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
 
     end_time = System.system_time(:second)
 
-    assert end_time - start_time >= 10
+    assert end_time - start_time >= 3
 
     stop_background_sweeps_in_test(background_sweeps_task)
   end
@@ -78,7 +78,7 @@ defmodule Journey.Scheduler.Scheduler.ScheduleOnceTest do
         tick_once(
           :time_to_issue_reminder_schedule,
           [:greeting],
-          fn _ -> {:ok, System.system_time(:second) + 10} end
+          fn _ -> {:ok, System.system_time(:second) + 3} end
         ),
         compute(
           :reminder,

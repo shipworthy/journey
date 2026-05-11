@@ -300,8 +300,10 @@ defmodule Journey.Scheduler.ScheduleZeroSkipTest do
       # Get current reminder count
       {:ok, count_when_paused, _} = Journey.get(execution, :send_reminder)
 
-      # Wait and verify no new reminders are sent
-      :timer.sleep(5_000)
+      # Wait and verify no new reminders are sent. The recurring schedule was set with a 2-second
+      # tick (see `keep_sending: true` branch above), so a 3-second wait spans well past one
+      # would-have-been firing interval — long enough to detect a regression where pause is ignored.
+      :timer.sleep(3_000)
       execution = Journey.load(execution)
       {:ok, count_after_pause, _} = Journey.get(execution, :send_reminder)
       assert count_after_pause == count_when_paused
