@@ -303,6 +303,9 @@ defmodule Journey.Scheduler do
         Logger.debug("#{prefix}: calling node-specific f_on_save")
 
         try do
+          # Arity-3 is the canonical, documented signature. Arity-2 is deprecated
+          # but retained for backwards compatibility; consider removing in a
+          # future major release.
           case node_f_on_save do
             f when is_function(f, 3) -> f.(execution_id, node_name, result)
             f when is_function(f, 2) -> f.(execution_id, result)

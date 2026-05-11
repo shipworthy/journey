@@ -74,12 +74,12 @@ defmodule Journey do
 
   - **Graph-wide**: `Journey.new_graph(name, version, nodes, f_on_save: fn ... end)`
     fires for every node value change in the graph (inputs and steady-state nodes).
-  - **Node-scoped**: each `Journey.Node` function (`input/1`, `compute/4`,
-    `mutate/4`, `archive/3`, `historian/3`, `loop/4`) accepts `f_on_save:` in
-    its options.
+  - **Node-scoped**: each `Journey.Node` function (`input/2`, `compute/4`,
+    `mutate/4`, `archive/3`, `historian/3`, `tick_once/4`, `tick_recurring/4`,
+    `loop/4`) accepts `f_on_save:` in its options.
 
-  When both are defined, the node-scoped callback fires first, then the
-  graph-wide callback.
+  When both are defined, the node-scoped callback is dispatched first, but
+  both run as independent Tasks and may complete in any order.
 
   The callback receives `(execution_id, node_name, result)` and runs
   asynchronously in a separate `Task`. Exceptions raised inside the callback
@@ -96,11 +96,16 @@ defmodule Journey do
     - `{:error, "timeout"}` — `:abandon_after_seconds` timeout, after retries
       exhausted.
 
-  Not invoked per-attempt, nor for idempotent no-change re-runs (when the new
-  value equals the existing value). `loop/4` extends this: not invoked
-  per-iteration, nor for transient iteration errors that get retried.
-  `input/1` is special — its callback only ever fires with `{:ok, value}`
-  (inputs don't have an error path).
+  Default: not invoked per-attempt, nor for idempotent no-change re-runs
+  (when the new value equals the existing value). Exceptions:
+
+    - `loop/4` extends this — also not invoked per-iteration, nor for
+      transient iteration errors that get retried.
+    - `input/2` only ever fires with `{:ok, value}` (inputs don't have an
+      error path).
+    - `tick_once/4` and `tick_recurring/4` fire on every `f_compute`
+      attempt (including transient errors before retries are exhausted),
+      not just once at terminal resolution.
 
   """
 
