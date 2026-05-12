@@ -2,7 +2,7 @@
 
 ## v0.10.55
 
-- **`loop()` node type**: adding a `loop()` node type, with associated tightening of `f_on_save` behavior and docs. `f_on_save` is no longer fired on retries, only when the computation completes with a value or an error. This could be a breaking change if your code relied on being notified of retries. (#316)
+- **`loop()` node type**: adding a `loop()` node type, with associated tightening of `f_on_save` behavior and docs. `f_on_save` is no longer fired on retries, only when the computation completes with a value or an error. This could be a breaking change if your code relied on being notified of retries. (#316, #322)
 - **Stable ordering**: using a stable order when fetching values and computations in an execution (#318)
 - **Mermaid diagrams**: rendering node types as atoms (#314)
 - **Livebooks**: updating livebooks to reflect changes in `Journey.Tools.introspect()` (#313)
