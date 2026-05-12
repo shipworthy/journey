@@ -305,9 +305,10 @@ defmodule Journey.Node do
   ...>       ]
   ...>     )
   iex> execution = graph |> Journey.start() |> Journey.set(:cached_price, 5)
+  iex> {:ok, "price changed to 5", initial_rev} = Journey.get(execution, :on_cached_price_update, wait: :any)
   iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
   iex> {:ok, "updated :cached_price", _} = Journey.get(execution, :fetch_current_price, wait: :any)
-  iex> {:ok, "price changed to 6", _} = Journey.get(execution, :on_cached_price_update, wait: :any)
+  iex> {:ok, "price changed to 6", _} = Journey.get(execution, :on_cached_price_update, wait: {:newer_than, initial_rev})
   iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
   ```
 
