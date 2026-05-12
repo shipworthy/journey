@@ -82,7 +82,7 @@ defmodule Journey.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:credo, "~> 1.7.12", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.18", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.12 or ~> 3.13"},
       {:ecto_sql, "~> 3.12 or ~> 3.13"},
       {:ex_doc, "~> 0.38 or ~> 0.40", only: :dev, runtime: false},
