@@ -199,6 +199,18 @@ defmodule Journey.Node do
   The f_compute function must return `{:ok, value}` or `{:error, reason}`. Note that atoms
   in the returned `value` and `reason` will be converted to strings when persisted.
 
+  ## At-least-once semantics
+
+  `f_compute` is invoked **at-least-once**: retries on `{:error, _}`, abandonment after
+  `abandon_after_seconds`, and worker crashes mid-computation can all cause the same logical
+  computation to be re-invoked with the same inputs. The engine does not deduplicate
+  invocations.
+
+  This is great for pure computation, but if your function has a consequential non-idempotent
+  side effect (e.g. charging the customer's credit card), your function will need to provide
+  its own protection against duplicates. One possible approach is to compose and use an
+  idempotency key that includes the id of the execution and the node's name.
+
   ## Options
 
   - `:f_on_save` — see [`f_on_save` callbacks](`Journey#module-f_on_save-callbacks`).
@@ -927,9 +939,12 @@ defmodule Journey.Node do
 
   ## At-least-once semantics
 
-  Step functions are invoked at-least-once, identical to `compute/4`. Side effects with
-  irreversible external impact (sending email, charging a card) should be performed by nodes
-  downstream of the loop's terminal value, not inside the step function itself.
+  Step functions inherit `compute/4`'s at-least-once contract — see
+  [At-least-once semantics](#compute/4-at-least-once-semantics) for the general guidance on idempotency.
+
+  If your loop function performs non-idempotent operations with consequential side effects
+  (e.g. charging a credit card), consider moving the operation to a downstream `compute/4` node,
+  where looping doesn't complicate the semantics.
 
   ## Example: iteratively shrink a string until it fits
 
