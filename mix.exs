@@ -58,7 +58,7 @@ defmodule Journey.MixProject do
       name: "journey",
       description:
         "Journey is a library for defining and running durable workflows with persistence, reliability, and scalability.",
-      licenses: ["Journey License"],
+      licenses: ["LicenseRef-Journey"],
       links: %{
         "GitHub" => "https://github.com/shipworthy/journey",
         "License" => "https://github.com/shipworthy/journey/blob/v#{@version}/LICENSE.md",
