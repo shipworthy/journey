@@ -210,6 +210,31 @@ defmodule Journey.Tools.ComputationStateTest do
       end
     end
 
+    test "returns real state for an archived execution" do
+      graph =
+        Journey.new_graph(
+          "computation_state test graph archived #{__MODULE__}",
+          "1.0.0",
+          [
+            input(:user_name),
+            compute(:greeting, [:user_name], fn %{user_name: name} ->
+              {:ok, "Hello, #{name}"}
+            end)
+          ]
+        )
+
+      execution = Journey.start_execution(graph)
+      execution = Journey.set(execution, :user_name, "Alice")
+      {:ok, _greeting} = Journey.get_value(execution, :greeting, wait_new: true)
+
+      _archived_at = Journey.archive(execution)
+
+      # Archive is a soft delete, so the computation state remains available
+      # rather than raising "Execution not found".
+      assert Journey.Tools.computation_state(execution.id, :greeting) == :success
+      assert Journey.Tools.computation_state(execution.id, :user_name) == :not_compute_node
+    end
+
     test "handles mutate nodes" do
       graph =
         Journey.new_graph(

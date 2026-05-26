@@ -121,7 +121,7 @@ defmodule Journey.Tools do
   """
   def computation_state(execution_id, node_name)
       when is_binary(execution_id) and is_atom(node_name) do
-    case Journey.load(execution_id) do
+    case Journey.load(execution_id, include_archived: true) do
       nil ->
         raise ArgumentError, "Execution '#{execution_id}' not found"
 
