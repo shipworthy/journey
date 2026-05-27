@@ -255,7 +255,7 @@ defmodule Journey.Node do
   end
 
   @doc """
-  Creates a graph node that mutates the value of another node.
+  Creates a graph node that mutates the value of another node or nodes.
 
   ## Examples:
 
@@ -322,6 +322,7 @@ defmodule Journey.Node do
 
   ## Options
 
+  - `:mutates` (required) - The node, or non-empty list of nodes, whose value(s) this node sets with its function's returned value.
   - `:update_revision_on_change` (default: `false`) - When `true`, updating the mutated node's value also increments its revision,
     triggering downstream nodes to recompute. When `false`, mutations update the value without triggering recomputation.
     Setting this to `true` for a node that mutates an upstream dependency will raise a validation error to prevent cycles.
