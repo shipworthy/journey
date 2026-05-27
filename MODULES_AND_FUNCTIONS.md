@@ -37,7 +37,7 @@ Functions:
 - `Journey.Node.input/1` - Creates a graph input node whose value is set with `Journey.set/3` or `Journey.set/2`
 - `Journey.Node.input/2` - Creates a graph input node with options (e.g., [`f_on_save`](`Journey#module-f_on_save-callbacks`) callback invoked after `Journey.set/3`)
 - `Journey.Node.compute/4` - Creates a self-computing node that calculates its value based on upstream dependencies, when unblocked
-- `Journey.Node.mutate/4` - Creates a graph node that mutates the value of another node, when unblocked (optionally triggers downstream recomputation with `update_revision_on_change: true`)
+- `Journey.Node.mutate/4` - Creates a graph node that mutates the value of one or more other nodes (`mutates:` accepts an atom or a non-empty list of atoms; a list writes the same value to every target), when unblocked (optionally triggers downstream recomputation with `update_revision_on_change: true`)
 - `Journey.Node.historian/3` - Creates a history-tracking node that maintains a chronological log of changes to one or more nodes (default limit: 1000 entries)
 - `Journey.Node.archive/3` - Creates a graph node that archives the execution when unblocked
 - `Journey.Node.tick_once/4` - Creates a graph node that declares its readiness at a specific time, once

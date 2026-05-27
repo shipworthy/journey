@@ -298,40 +298,51 @@ defmodule Journey.Scheduler.Completions do
       "updated #{inspect(node_to_mutate)}"
     )
 
-    # Record the result in the value node being mutated.
-    # When update_revision_on_change is true, only update if the value has changed (matching Journey.set/3 behavior).
-    # When update_revision_on_change is false, always update the value without updating revision.
-    if update_revision_on_change do
-      current_value = get_current_node_value(repo, execution_id, node_to_mutate)
+    # Record the result in each value node being mutated. `node_to_mutate` is a single node
+    # (atom) or a non-empty list of nodes; a list is a same-value fan-out, writing `result`
+    # to every target at the shared `new_revision` within this one transaction.
+    node_to_mutate
+    |> List.wrap()
+    |> Enum.each(fn target ->
+      write_mutation_target(repo, target, update_revision_on_change, node_name, execution_id, new_revision, result)
+    end)
 
-      if current_value != result do
-        # Value changed - update both value and revision to trigger downstream recomputation
-        set_value(
-          execution_id,
-          node_to_mutate,
-          new_revision,
-          repo,
-          result
-        )
-      else
-        # If value unchanged, skip update entirely (matching Journey.set/3 behavior)
-        Logger.debug(
-          "[#{execution_id}] [#{node_name}]: mutation target #{inspect(node_to_mutate)} value unchanged, skipping update"
-        )
-      end
-    else
-      # update_revision_on_change: false - update value without revision (mutations don't trigger recomputation by default)
+    # Mutate node's own value was written (regardless of what happened to the targets).
+    :value_written
+  end
+
+  # Writes the mutated value to a single target node.
+  # When update_revision_on_change is true, only update if the value has changed (matching Journey.set/3 behavior).
+  # When update_revision_on_change is false, always update the value without updating revision.
+  defp write_mutation_target(repo, target, true, node_name, execution_id, new_revision, result) do
+    current_value = get_current_node_value(repo, execution_id, target)
+
+    if current_value != result do
+      # Value changed - update both value and revision to trigger downstream recomputation
       set_value(
         execution_id,
-        node_to_mutate,
-        nil,
+        target,
+        new_revision,
         repo,
         result
       )
+    else
+      # If value unchanged, skip update entirely (matching Journey.set/3 behavior)
+      Logger.debug(
+        "[#{execution_id}] [#{node_name}]: mutation target #{inspect(target)} value unchanged, skipping update"
+      )
     end
+  end
 
-    # Mutate node's own value was written (regardless of what happened to the target).
-    :value_written
+  defp write_mutation_target(repo, target, false, _node_name, execution_id, _new_revision, result) do
+    # update_revision_on_change: false - update value without revision (mutations don't trigger recomputation by default)
+    set_value(
+      execution_id,
+      target,
+      nil,
+      repo,
+      result
+    )
   end
 
   # ---- :loop node lifecycle --------------------------------------------------

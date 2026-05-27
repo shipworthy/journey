@@ -80,7 +80,7 @@ defmodule JourneyMermaidConverter do
 
     cond do
       mutates != nil ->
-        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]]"
+        "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})<br/>mutates: #{Enum.join(List.wrap(mutates), ", ")}\"]]"
 
       type == :compute ->
         "        #{sanitize_name(name)}[[\"#{emoji} #{name}<br/>(#{function_name})\"]]"
@@ -133,7 +133,7 @@ defmodule JourneyMermaidConverter do
 
     cond do
       mutates != nil ->
-        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>mutates: #{mutates}\"]]"
+        "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})<br/>mutates: #{Enum.join(List.wrap(mutates), ", ")}\"]]"
 
       type == :compute ->
         "        #{sanitize_name(name)}[[\"#{name}<br/>(#{function_name})\"]]"

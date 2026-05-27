@@ -286,6 +286,40 @@ defmodule Journey.Node do
   %{name: "redacted", remove_pii: "updated :name",  execution_id: "...", last_updated_at: 1_234_567_890}
   ```
 
+  ## Mutating multiple nodes
+
+  `:mutates` accepts either a single node (atom) or a non-empty list of nodes. When given a
+  list, the function's single returned value is written to **every** listed node, in one
+  transaction (a same-value fan-out):
+
+  ```elixir
+  iex> import Journey.Node
+  iex> graph = Journey.new_graph(
+  ...>       "`mutate()` multi-target doctest graph",
+  ...>       "v1.0.0",
+  ...>       [
+  ...>         input(:ssn),
+  ...>         input(:dob),
+  ...>         input(:trigger),
+  ...>         mutate(
+  ...>           :scrub_pii,
+  ...>           [:trigger],
+  ...>           fn _ -> {:ok, "<REDACTED>"} end,
+  ...>           mutates: [:ssn, :dob]
+  ...>         )
+  ...>       ]
+  ...>     )
+  iex> execution =
+  ...>     graph
+  ...>     |> Journey.start()
+  ...>     |> Journey.set(:ssn, "123-45-6789")
+  ...>     |> Journey.set(:dob, "2000-01-01")
+  ...>     |> Journey.set(:trigger, "go")
+  iex> {:ok, "updated [:ssn, :dob]", _} = execution |> Journey.get(:scrub_pii, wait: :any)
+  iex> {:ok, "<REDACTED>", _} = execution |> Journey.get(:ssn)
+  iex> {:ok, "<REDACTED>", _} = execution |> Journey.get(:dob)
+  ```
+
   ## Options
 
   - `:update_revision_on_change` (default: `false`) - When `true`, updating the mutated node's value also increments its revision,
@@ -340,8 +374,9 @@ defmodule Journey.Node do
       gated_by: normalize_gated_by(gated_by),
       f_compute: f_compute,
       f_on_save: Keyword.get(opts, :f_on_save, nil),
-      mutates: Keyword.fetch!(opts, :mutates),
-      update_revision_on_change: Keyword.get(opts, :update_revision_on_change, false),
+      mutates: validate_mutates!(Keyword.fetch!(opts, :mutates)),
+      update_revision_on_change:
+        validate_update_revision_on_change!(Keyword.get(opts, :update_revision_on_change, false)),
       max_retries: Keyword.get(opts, :max_retries, 3),
       abandon_after_seconds: Keyword.get(opts, :abandon_after_seconds, 60),
       heartbeat_interval_seconds: Keyword.get(opts, :heartbeat_interval_seconds, 70),
@@ -1062,6 +1097,39 @@ defmodule Journey.Node do
   defp normalize_gated_by(gated_by) do
     # Not a list - pass through unchanged (handles tuples like unblocked_when/2 results)
     gated_by
+  end
+
+  # `mutates:` accepts either a single node (atom) or a non-empty list of nodes (atoms).
+  # A list is a same-value fan-out: the function's returned value is written to every listed node.
+  defp validate_mutates!(target) when is_atom(target) and not is_nil(target), do: target
+
+  defp validate_mutates!(targets) when is_list(targets) do
+    cond do
+      targets == [] or not Enum.all?(targets, &is_atom/1) ->
+        raise ArgumentError,
+              "mutate :mutates must be an atom or a non-empty list of atoms, got: #{inspect(targets)}"
+
+      targets != Enum.uniq(targets) ->
+        duplicates = (targets -- Enum.uniq(targets)) |> Enum.uniq()
+
+        raise ArgumentError,
+              "mutate :mutates must not list a node more than once, found duplicate(s): #{inspect(duplicates)}"
+
+      true ->
+        targets
+    end
+  end
+
+  defp validate_mutates!(other) do
+    raise ArgumentError,
+          "mutate :mutates must be an atom or a non-empty list of atoms, got: #{inspect(other)}"
+  end
+
+  defp validate_update_revision_on_change!(value) when is_boolean(value), do: value
+
+  defp validate_update_revision_on_change!(other) do
+    raise ArgumentError,
+          "update_revision_on_change must be a boolean, got: #{inspect(other)}"
   end
 
   # Deprecated aliases for backward compatibility
