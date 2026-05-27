@@ -24,7 +24,7 @@ defmodule Journey.Graph.Step do
           f_compute: function,
           f_on_save: function | nil,
           type: Journey.Persistence.Schema.Execution.ComputationType.t(),
-          mutates: atom | nil,
+          mutates: atom | [atom] | nil,
           update_revision_on_change: boolean,
           max_retries: pos_integer(),
           abandon_after_seconds: pos_integer(),

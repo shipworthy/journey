@@ -107,17 +107,12 @@ defmodule Journey.Graph.Validations do
       raise "Unknown upstream nodes in input node '#{inspect(step.name)}': #{Enum.join(unknown_deps, ", ")}"
     end
 
-    if not is_nil(step.mutates) and step.mutates not in all_node_names do
-      raise "Mutation node '#{inspect(step.name)}' mutates an unknown node '#{inspect(step.mutates)}'"
-    end
-
-    if not is_nil(step.mutates) and step.mutates == step.name do
-      raise "Mutation node '#{inspect(step.name)}' attempts to mutate itself"
-    end
-
-    if not is_nil(step.mutates) and step.update_revision_on_change and
-         MapSet.member?(all_upstream_node_names, step.mutates) do
-      raise "Mutation node '#{inspect(step.name)}' with update_revision_on_change: true creates a cycle by mutating '#{inspect(step.mutates)}' which is in its upstream dependencies"
+    # `mutates` is a single node (atom) or a non-empty list of nodes. Apply the same
+    # checks to each target, naming the specific offending element on failure.
+    if not is_nil(step.mutates) do
+      step.mutates
+      |> List.wrap()
+      |> Enum.each(fn target -> validate_mutate_target(step, target, all_node_names, all_upstream_node_names) end)
     end
 
     step
@@ -125,6 +120,20 @@ defmodule Journey.Graph.Validations do
 
   defp validate_node(%Journey.Graph.Input{} = input, _all_node_names) do
     input
+  end
+
+  defp validate_mutate_target(step, target, all_node_names, all_upstream_node_names) do
+    if target not in all_node_names do
+      raise "Mutation node '#{inspect(step.name)}' mutates an unknown node '#{inspect(target)}'"
+    end
+
+    if target == step.name do
+      raise "Mutation node '#{inspect(step.name)}' attempts to mutate itself"
+    end
+
+    if step.update_revision_on_change and MapSet.member?(all_upstream_node_names, target) do
+      raise "Mutation node '#{inspect(step.name)}' with update_revision_on_change: true creates a cycle by mutating '#{inspect(target)}' which is in its upstream dependencies"
+    end
   end
 
   defp ensure_no_cycles(graph) do
