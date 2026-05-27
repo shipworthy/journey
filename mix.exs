@@ -83,14 +83,13 @@ defmodule Journey.MixProject do
   defp deps do
     [
       {:credo, "~> 1.7.18", only: [:dev, :test], runtime: false},
-      {:ecto, "~> 3.12 or ~> 3.13"},
-      {:ecto_sql, "~> 3.12 or ~> 3.13"},
+      {:ecto, "~> 3.12 or ~> 3.13 or ~> 3.14"},
+      {:ecto_sql, "~> 3.12 or ~> 3.13 or ~> 3.14"},
       {:ex_doc, "~> 0.38 or ~> 0.40", only: :dev, runtime: false},
       {:jason, "~> 1.4"},
       {:keyword_validator, "~> 2.1.0"},
       {:mix_test_watch, "~> 1.3", only: [:dev, :test], runtime: false},
       {:nanoid, "~> 2.1.0"},
-      {:number, "~> 1.0.5"},
       {:parent, "~> 0.12.1"},
       {:postgrex, "~> 0.20 or ~> 0.21 or ~> 0.22"},
       {:wait_for_it, "~> 2.1", only: [:dev, :test], runtime: false}
