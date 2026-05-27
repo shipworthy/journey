@@ -5,6 +5,7 @@
 - **`mutate()` multi-target**: `mutates:` now accepts a list of nodes, so a single `mutate()` node can mutate multiple target nodes (#325)
 - **`Journey.Tools.computation_state()`**: now handles archived executions (#324)
 - **License**: updating license metadata to include the SPDX `LicenseRef-` prefix (#323)
+- **Dependencies**: removing the dependency on `:number` (reimplemented inline); updating decimal, ecto, ecto_sql, postgrex, and ex_doc (#326)
 
 ## v0.10.55
 
