@@ -8,6 +8,7 @@ defmodule Journey.Tools do
   import Ecto.Query
 
   alias Journey.Graph
+  alias Journey.Helpers.GrabBag
   alias Journey.Persistence.Schema.Execution.Computation
   alias Journey.Persistence.Schema.Execution.Value
 
@@ -651,7 +652,7 @@ defmodule Journey.Tools do
     - Archived at: #{archived_at_text}
     - Created at: #{DateTime.from_unix!(created_at)} UTC | #{now - created_at} seconds ago
     - Last updated at: #{DateTime.from_unix!(updated_at)} UTC | #{now - updated_at} seconds ago
-    - Duration: #{Number.Delimit.number_to_delimited(duration_seconds, precision: 0)} seconds
+    - Duration: #{GrabBag.delimit_integer(duration_seconds)} seconds
     - Revision: #{revision}
     - # of Values: #{Enum.count(set_values)} (set) / #{Enum.count(set_values) + Enum.count(not_set_values)} (total)
     - # of Computations: #{Enum.count(computations_completed) + Enum.count(computations_outstanding)}
