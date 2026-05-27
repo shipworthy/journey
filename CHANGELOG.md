@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.56
+
+- **`mutate()` multi-target**: `mutates:` now accepts a list of nodes, so a single `mutate()` node can mutate multiple target nodes (#325)
+- **`Journey.Tools.computation_state()`**: now handles archived executions (#324)
+- **License**: updating license metadata to include the SPDX `LicenseRef-` prefix (#323)
+- **Dependencies**: removing the dependency on `:number` (reimplemented inline); updating decimal, ecto, ecto_sql, postgrex, and ex_doc (#326)
+
 ## v0.10.55
 
 - **`loop()` node type**: adding a `loop()` node type, with associated tightening of `f_on_save` behavior and docs. `f_on_save` is no longer fired on retries, only when the computation completes with a value or an error. This could be a breaking change if your code relied on being notified of retries. (#316, #322)
