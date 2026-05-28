@@ -77,13 +77,14 @@ Only functions that are surfaced at the API level needs to be documented. Intern
 ### Graph Components
 ```elixir
 # Nodes created with Journey.Node functions:
-input/1           # User-provided data
+input/2           # User-provided data
 compute/4         # Self-computing with dependencies
 mutate/4          # Modifies other node values
 historian/3       # Chronological log of node changes
 archive/3         # Archives execution when unblocked
-tick_once/3       # One-time scheduled execution
-tick_recurring/3  # Recurring execution
+tick_once/4       # One-time scheduled execution
+tick_recurring/4  # Recurring execution
+loop/4            # Iterative compute (requires :max_iterations)
 ```
 
 ### Key APIs
