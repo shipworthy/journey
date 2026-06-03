@@ -57,6 +57,11 @@ defmodule Journey.Scheduler.Recompute do
             |> repo.all()
             |> Journey.Executions.convert_values_to_atoms(:node_name)
 
+          # Ignore computations whose node was removed from the graph; dereferencing the (now nil)
+          # graph node below would otherwise crash.
+          all_computations =
+            Journey.Scheduler.Helpers.reject_orphaned_computations(all_computations, graph, prefix)
+
           all_values = get_all_values(execution.id, repo)
 
           all_computations

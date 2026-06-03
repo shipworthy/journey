@@ -46,6 +46,11 @@ defmodule Journey.Scheduler.Available do
             |> repo.all()
             |> Journey.Executions.convert_values_to_atoms(:node_name)
 
+          # Ignore candidates whose node was removed from the graph; dereferencing the (now nil)
+          # graph node below would otherwise fail.
+          all_candidates_for_computation =
+            Journey.Scheduler.Helpers.reject_orphaned_computations(all_candidates_for_computation, graph, prefix)
+
           all_value_nodes = Journey.Persistence.Values.load_from_db(execution.id, repo)
 
           all_candidates_for_computation

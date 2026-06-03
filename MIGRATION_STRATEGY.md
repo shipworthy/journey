@@ -9,7 +9,9 @@ As long as the old graph continues to be registered, old executions will continu
 
 Examples of changes that might **break** the flow:
 * Changing upstream dependencies on pre-existing computation nodes.
-* Removing or renaming a node.
+* Removing a node that other nodes still depend on, or renaming a node.
+
+Note that removing a node that *nothing* depends on is **not** a breaking change — you can do it in place, keeping the same graph name and version (see ["Removing a node that nothing depends on"](#removing-a-node-that-nothing-depends-on-no-new-graph-needed) below).
 
 Anything that would have the current executions go "Huh? Now what do I do??!?" is likely to be a breaking change, that would require creating a new graph.
 
@@ -53,6 +55,31 @@ graph = Journey.new_graph(
 
 If a graph was updated to include new nodes, the executions of this graph will be upgraded to include those new nodes when they are loaded.
 
+### Removing a node that nothing depends on (no new graph needed)
+
+Removing a node that **nothing else depends on** is also **not** a breaking change. You can remove it in place, keeping the same graph name and version.
+
+For example, removing `:horoscope` from the graph above (nothing depends on it):
+
+```elixir
+graph = Journey.new_graph(
+  "zodiac",
+  "v1.0.0",
+  [
+    input(:name),
+    input(:birthday),
+    input(:pet_preference),
+    compute(:zodiac_sign, [:name, :birthday], &compute_zodiac/1)
+    # :horoscope removed — nothing depended on it
+  ]
+)
+```
+
+Existing executions keep working without a new graph. A few things to keep in mind:
+
+* The removed node's previously computed value stays in existing executions' history (and is still visible via `Journey.values/2`), but it is inert — nothing reads it and nothing recomputes it.
+* Stop calling `Journey.get/3` for the removed node: it is no longer part of the graph, so that call will raise.
+* This applies to a node that **nothing depends on**. If other nodes depend on it, remove or update those nodes first — otherwise it is a breaking change (create a new graph).
 
 ### A major change (need a new graph)
 

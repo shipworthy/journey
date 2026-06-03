@@ -28,6 +28,28 @@ defmodule Journey.Scheduler.Helpers do
     |> Journey.Graph.find_node_by_name(node_name)
   end
 
+  # Drops computations whose node is no longer in the graph (e.g. a node was removed from the graph
+  # definition while this execution still has rows for it). Such computations are inert -- nothing
+  # depends on them -- and dereferencing the (now nil) graph node downstream would fail. Logs the
+  # dropped node names and returns the surviving computations.
+  def reject_orphaned_computations(computations, graph, prefix) do
+    {live, orphaned} =
+      Enum.split_with(computations, fn computation ->
+        Journey.Graph.find_node_by_name(graph, computation.node_name) != nil
+      end)
+
+    if orphaned != [] do
+      # :debug, not :info: orphaned rows persist, so this fires on every advance for the lifetime of
+      # the execution. It is a steady-state condition, not a noteworthy event.
+      Logger.debug(
+        "#{prefix}: ignoring #{length(orphaned)} computation(s) for node(s) " <>
+          "no longer in the graph: #{inspect(Enum.map(orphaned, fn computation -> computation.node_name end))}"
+      )
+    end
+
+    live
+  end
+
   @doc """
   Computes the maximum revision among a node's upstream dependencies.
 
