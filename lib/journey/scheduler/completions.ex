@@ -153,13 +153,30 @@ defmodule Journey.Scheduler.Completions do
     graph_node = Journey.Graph.find_node_by_name(graph, computation.node_name)
 
     if graph_node == nil do
-      message =
-        "#{prefix}: graph '#{execution.graph_name}' / '#{execution.graph_version}' does not have node #{computation.node_name}"
-
-      Logger.error(message)
-      raise message
+      discard_result_for_removed_node(repo, computation, execution, prefix)
+    else
+      record_success_for_node(repo, computation, graph_node, inputs_to_capture, result, prefix)
     end
+  end
 
+  # The node was removed from the graph while this computation was in flight. Its result is for a
+  # node that no longer exists and that nothing depends on, so discard it (no value written, no
+  # retry) and mark the computation abandoned. This is expected, not a fault – log at :info.
+  defp discard_result_for_removed_node(repo, computation, execution, prefix) do
+    Logger.info(
+      "#{prefix}: node #{computation.node_name} no longer in graph " <>
+        "'#{execution.graph_name}' / '#{execution.graph_version}'; discarding result, marking abandoned"
+    )
+
+    # Guarded on still-:computing (mirrors Heartbeat.mark_as_abandoned) so we don't clobber a row
+    # another process already transitioned.
+    from(c in Computation, where: c.id == ^computation.id and c.state == :computing)
+    |> repo.update_all(set: [state: :abandoned, completion_time: System.system_time(:second)])
+
+    :no_value_written
+  end
+
+  defp record_success_for_node(repo, computation, graph_node, inputs_to_capture, result, prefix) do
     Logger.debug("#{prefix}: marking as completed.")
 
     current_computation =
@@ -171,53 +188,7 @@ defmodule Journey.Scheduler.Completions do
         Journey.Scheduler.Helpers.increment_execution_revision_in_transaction(computation.execution_id, repo)
 
       write_outcome =
-        computation.computation_type
-        |> case do
-          type when type in [:compute, :historian, :archive] ->
-            record_result(
-              repo,
-              graph_node.mutates,
-              false,
-              computation.node_name,
-              computation.execution_id,
-              new_revision,
-              result,
-              type
-            )
-
-          :mutate ->
-            record_result(
-              repo,
-              graph_node.mutates,
-              graph_node.update_revision_on_change,
-              computation.node_name,
-              computation.execution_id,
-              new_revision,
-              result,
-              :mutate
-            )
-
-          type when type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring] ->
-            record_result(
-              repo,
-              graph_node.mutates,
-              false,
-              computation.node_name,
-              computation.execution_id,
-              new_revision,
-              result,
-              type
-            )
-
-          :loop ->
-            record_loop_result(
-              repo,
-              current_computation,
-              graph_node,
-              new_revision,
-              result
-            )
-        end
+        write_success_result(repo, computation, current_computation, graph_node, new_revision, result)
 
       # Mark the computation as "completed".
       now_seconds = System.system_time(:second)
@@ -241,6 +212,55 @@ defmodule Journey.Scheduler.Completions do
       )
 
       :no_value_written
+    end
+  end
+
+  defp write_success_result(repo, computation, current_computation, graph_node, new_revision, result) do
+    case computation.computation_type do
+      type when type in [:compute, :historian, :archive] ->
+        record_result(
+          repo,
+          graph_node.mutates,
+          false,
+          computation.node_name,
+          computation.execution_id,
+          new_revision,
+          result,
+          type
+        )
+
+      :mutate ->
+        record_result(
+          repo,
+          graph_node.mutates,
+          graph_node.update_revision_on_change,
+          computation.node_name,
+          computation.execution_id,
+          new_revision,
+          result,
+          :mutate
+        )
+
+      type when type in [:schedule_once, :tick_once, :schedule_recurring, :tick_recurring] ->
+        record_result(
+          repo,
+          graph_node.mutates,
+          false,
+          computation.node_name,
+          computation.execution_id,
+          new_revision,
+          result,
+          type
+        )
+
+      :loop ->
+        record_loop_result(
+          repo,
+          current_computation,
+          graph_node,
+          new_revision,
+          result
+        )
     end
   end
 

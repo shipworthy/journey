@@ -46,6 +46,21 @@ defmodule Journey.Scheduler.Available do
             |> repo.all()
             |> Journey.Executions.convert_values_to_atoms(:node_name)
 
+          # Drop candidates for nodes that are no longer in the graph (e.g. a node was removed from
+          # the graph definition while this execution still has rows for it). They are inert:
+          # nothing depends on them, and dereferencing the (now nil) graph node below would fail.
+          {all_candidates_for_computation, orphaned_candidates} =
+            Enum.split_with(all_candidates_for_computation, fn computation_candidate ->
+              Graph.find_node_by_name(graph, computation_candidate.node_name) != nil
+            end)
+
+          if orphaned_candidates != [] do
+            Logger.info(
+              "#{prefix}: ignoring #{length(orphaned_candidates)} computation(s) for node(s) " <>
+                "no longer in the graph: #{inspect(Enum.map(orphaned_candidates, fn c -> c.node_name end))}"
+            )
+          end
+
           all_value_nodes = Journey.Persistence.Values.load_from_db(execution.id, repo)
 
           all_candidates_for_computation
