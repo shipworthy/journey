@@ -1,7 +1,7 @@
 defmodule Journey.Scheduler.RemovedNodeSweepTest do
   # Removing a node from a graph definition (while keeping the same name + version) should be a
   # safe operation for executions that still carry rows for the removed node. The scheduler must
-  # treat those orphaned rows as inert (noop + info log) rather than crashing.
+  # treat those orphaned rows as inert (noop + debug log) rather than crashing.
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
@@ -29,11 +29,12 @@ defmodule Journey.Scheduler.RemovedNodeSweepTest do
     # v2: same name + version, :b removed. Re-registering overwrites the catalog entry.
     _graph_v2 = Journey.new_graph(graph_name, "v1.0.0", [input(:a)])
 
-    # The scoped sweep must not crash on the now-orphaned :b computation row, and should note it.
+    # The scoped sweep must not crash on the now-orphaned :b computation row, and should note it
+    # (at :debug -- the orphaned row persists, so this fires on every advance).
     execution = Journey.load(execution.id)
 
     log =
-      capture_log(fn ->
+      capture_log([level: :debug], fn ->
         Journey.Scheduler.advance(execution)
       end)
 

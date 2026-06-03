@@ -57,20 +57,10 @@ defmodule Journey.Scheduler.Recompute do
             |> repo.all()
             |> Journey.Executions.convert_values_to_atoms(:node_name)
 
-          # Drop computations for nodes that are no longer in the graph (e.g. a node was removed
-          # from the graph definition while this execution still has rows for it). They are inert:
-          # nothing depends on them, and dereferencing the (now nil) graph node below would crash.
-          {all_computations, orphaned_computations} =
-            Enum.split_with(all_computations, fn c ->
-              Graph.find_node_by_name(graph, c.node_name) != nil
-            end)
-
-          if orphaned_computations != [] do
-            Logger.info(
-              "#{prefix}: ignoring #{length(orphaned_computations)} computation(s) for node(s) " <>
-                "no longer in the graph: #{inspect(Enum.map(orphaned_computations, fn c -> c.node_name end))}"
-            )
-          end
+          # Ignore computations whose node was removed from the graph; dereferencing the (now nil)
+          # graph node below would otherwise crash.
+          all_computations =
+            Journey.Scheduler.Helpers.reject_orphaned_computations(all_computations, graph, prefix)
 
           all_values = get_all_values(execution.id, repo)
 
