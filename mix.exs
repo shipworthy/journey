@@ -90,7 +90,7 @@ defmodule Journey.MixProject do
       {:keyword_validator, "~> 2.1.0"},
       {:mix_test_watch, "~> 1.3", only: [:dev, :test], runtime: false},
       {:nanoid, "~> 2.1.0"},
-      {:parent, "~> 0.12.1"},
+      {:parent, "~> 0.12 or ~> 0.13"},
       {:postgrex, "~> 0.20 or ~> 0.21 or ~> 0.22"},
       {:wait_for_it, "~> 2.1", only: [:dev, :test], runtime: false}
 

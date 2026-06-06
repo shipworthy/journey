@@ -1,6 +1,4 @@
 defmodule Journey.Node.UpstreamDependencies do
-  require Logger
-
   import Journey.Node.Conditions
 
   def unblocked_when({:not, {upstream_node_name, f_condition}} = r)
