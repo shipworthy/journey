@@ -444,9 +444,12 @@ defmodule Journey.JourneyUnsetValueTest do
 
       _original_revision = execution.revision
 
-      # This should raise a function clause error due to the guard `node_names != []`
+      # This should raise a function clause error due to the guard `node_names != []`.
+      # apply/3 keeps this intentionally-invalid call (empty list) opaque to the
+      # compile-time type checker while preserving the runtime FunctionClauseError.
       assert_raise FunctionClauseError, fn ->
-        Journey.unset(execution, [])
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Journey, :unset, [execution, []])
       end
     end
 

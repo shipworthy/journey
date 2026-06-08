@@ -60,25 +60,42 @@ defmodule Journey.Scheduler.RichDependenciesBasicTest do
             input(:g2_b),
             compute(
               :one_of_each_group,
-              unblocked_when({
-                :lol,
-                [
-                  {
-                    :or,
-                    [{:g1_a, &value_provided?/1}, {:g1_b, &value_provided?/1}]
-                  },
-                  {
-                    :or,
-                    [{:g2_a, &value_provided?/1}, {:g2_b, &value_provided?/1}]
-                  }
-                ]
-              }),
+              # apply/3 keeps this intentionally-invalid unblocked_when expression opaque to
+              # the compile-time type checker (otherwise it infers none() and warns that the
+              # value flows into compute/3), while preserving the runtime ArgumentError this
+              # test asserts. See also the standalone "bad unblocked_when (direct call)" test.
+              # credo:disable-for-next-line Credo.Check.Refactor.Apply
+              apply(Journey.Node.UpstreamDependencies, :unblocked_when, [
+                {
+                  :lol,
+                  [
+                    {:or, [{:g1_a, &value_provided?/1}, {:g1_b, &value_provided?/1}]},
+                    {:or, [{:g2_a, &value_provided?/1}, {:g2_b, &value_provided?/1}]}
+                  ]
+                }
+              ]),
               fn _ ->
                 {:ok, "name set"}
               end
             )
           ]
         )
+      end
+    end
+
+    test "bad unblocked_when (direct call)" do
+      # The graph-scaffolded test above never actually runs compute/3 or new_graph/3:
+      # unblocked_when/1 raises during argument evaluation, before those run. This asserts
+      # the same validation behavior directly against unblocked_when/1, where it actually
+      # happens — and reads clearly as a unit test of that function.
+      assert_raise ArgumentError, ~r/Invalid unblocked_when expression/, fn ->
+        unblocked_when({
+          :lol,
+          [
+            {:or, [{:g1_a, &value_provided?/1}, {:g1_b, &value_provided?/1}]},
+            {:or, [{:g2_a, &value_provided?/1}, {:g2_b, &value_provided?/1}]}
+          ]
+        })
       end
     end
   end

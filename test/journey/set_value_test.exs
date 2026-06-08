@@ -146,11 +146,15 @@ defmodule Journey.JourneySetValueTest do
         |> Journey.start_execution()
 
       assert_raise FunctionClauseError, fn ->
-        Journey.set(execution, :first_name, :atom_value)
+        # apply/3 keeps this intentionally-invalid call (atom value) opaque to the
+        # compile-time type checker while preserving the runtime FunctionClauseError.
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Journey, :set, [execution, :first_name, :atom_value])
       end
 
       assert_raise FunctionClauseError, fn ->
-        Journey.set(execution.id, :first_name, :atom_value)
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Journey, :set, [execution.id, :first_name, :atom_value])
       end
     end
   end
