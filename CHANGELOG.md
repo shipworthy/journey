@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.57
+
+- **Graph evolution**: removing a leaf node no longer requires a new graph version (#330)
+- **Toolchain**: updating to OTP 28.4 and Elixir 1.20.0; loosening `:parent` to `~> 0.12 or ~> 0.13` and picking up newer packages (#332)
+- **Documentation**: clarifying `mutate()` docs (#328)
+
 ## v0.10.56
 
 - **`mutate()` multi-target**: `mutates:` now accepts a list of nodes, so a single `mutate()` node can mutate multiple target nodes (#325)
