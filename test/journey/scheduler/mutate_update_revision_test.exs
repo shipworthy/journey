@@ -1,7 +1,6 @@
 defmodule Journey.Scheduler.MutateUpdateRevisionTest do
   use ExUnit.Case, async: true
 
-  require Logger
   import Journey.Node
 
   describe "mutate with update_revision_on_change |" do

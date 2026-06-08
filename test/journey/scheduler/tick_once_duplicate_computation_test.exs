@@ -382,7 +382,7 @@ defmodule Journey.Scheduler.TickOnceDuplicateComputationTest do
                "Revision: #{first_revision} → #{result_revision}. " <>
                "Invocations: #{Agent.get(counter, & &1)}"
 
-      assert result_revision > first_revision
+      assert is_integer(result_revision) and is_integer(first_revision) and result_revision > first_revision
 
       stop_background_sweeps_in_test(sweeps_pid)
       Agent.stop(counter)
