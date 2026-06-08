@@ -1,7 +1,6 @@
 defmodule Journey.Scheduler.ComputeIdempotencyTest do
   use ExUnit.Case, async: true
 
-  require Logger
   import Journey.Node
 
   describe "compute node idempotency |" do

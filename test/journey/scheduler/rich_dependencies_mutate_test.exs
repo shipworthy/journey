@@ -50,7 +50,6 @@ defmodule Journey.Scheduler.RichDependenciesMutateTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
 
       execution = execution |> Journey.set(:last_name, "Bowser")
-      assert execution != nil
 
       assert {:ok, "updated :first_name"} =
                execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)
@@ -94,7 +93,6 @@ defmodule Journey.Scheduler.RichDependenciesMutateTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:remove_pii_for_mario, wait_any: 700)
 
       execution = execution |> Journey.set(:first_name, "Mario")
-      assert execution != nil
 
       assert {:ok, "updated :first_name"} =
                execution |> Journey.get_value(:remove_pii_for_mario, wait_any: true)

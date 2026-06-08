@@ -305,7 +305,6 @@ defmodule Journey.Insights.FlowAnalytics do
     end
   end
 
-  defp round_decimal(nil), do: 0
   defp round_decimal(decimal) when is_struct(decimal, Decimal), do: Decimal.to_integer(Decimal.round(decimal))
   defp round_decimal(number) when is_number(number), do: round(number)
 

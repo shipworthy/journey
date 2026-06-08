@@ -1,8 +1,6 @@
 defmodule Journey.Scheduler.RetryWithTickRecurringTest do
   use ExUnit.Case, async: true
 
-  require Logger
-
   import Ecto.Query
   import Journey.Test.Support.Helpers
 

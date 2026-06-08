@@ -31,7 +31,7 @@ defmodule Journey.ToolsTest do
       assert Map.has_key?(summary_data.values, :not_set)
       assert Map.has_key?(summary_data.computations, :completed)
       assert Map.has_key?(summary_data.computations, :outstanding)
-      assert summary_data.graph != nil
+      assert %Journey.Graph{} = summary_data.graph
     end
 
     test "no such execution" do
@@ -1560,7 +1560,7 @@ defmodule Journey.ToolsTest do
       {:ok, computing_computation} =
         wait_for_computation_state(execution, :slow_computation, :computing)
 
-      assert computing_computation != nil
+      assert computing_computation.state == :computing
 
       # Abandon the computation
       {:ok, abandoned_computation} = Journey.Tools.abandon_computation(computing_computation.id)
@@ -1653,7 +1653,7 @@ defmodule Journey.ToolsTest do
       {:ok, computing} =
         wait_for_computation_state(execution, :limited_retry_computation, :computing)
 
-      assert computing != nil
+      assert computing.state == :computing
 
       # Abandon - should NOT schedule retry since max_retries: 0
       {:ok, _} = Journey.Tools.abandon_computation(computing.id)

@@ -1,8 +1,6 @@
 defmodule Journey.Scheduler.RichDependenciesComplexTest do
   use ExUnit.Case, async: true
 
-  require Logger
-
   import Journey.Node
   import Journey.Node.UpstreamDependencies
 
@@ -45,7 +43,6 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:last_name)
 
       execution = execution |> Journey.set(:first_name, "Mario")
-      assert execution != nil
       assert {:ok, "name set"} = execution |> Journey.get_value(:got_name, wait_any: true)
     end
 
@@ -82,7 +79,6 @@ defmodule Journey.Scheduler.RichDependenciesComplexTest do
       assert {:error, :not_set} == execution |> Journey.get_value(:last_name)
 
       execution = execution |> Journey.set(:last_name, "Bowser")
-      assert execution != nil
       assert {:ok, "name set"} = execution |> Journey.get_value(:got_name, wait_any: true)
     end
 
