@@ -99,6 +99,7 @@ hex-pm-revert-private:
 lint:
 	mix credo --all --strict
 	mix hex.outdated || true
+	mix hex.audit
 
 
 test:
