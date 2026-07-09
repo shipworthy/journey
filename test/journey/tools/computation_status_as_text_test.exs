@@ -269,11 +269,10 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         result
         |> redact_computation_ids()
 
-      # Schedule recurring computations can be in different states depending on timing
-      # We'll check that it matches one of the expected patterns
-      #
+      # The recurring task keeps ticking while this test runs, so the revision it lands on
+      # depends on how fast the machine is. Every tick bumps the revision by two.
       expected_set_list =
-        [3, 5, 7, 9]
+        3..99//2
         |> Enum.map(fn rev ->
           """
           :recurring_task (CMPREDACTED): ✅ :success | :tick_recurring | rev #{rev}
@@ -291,7 +290,7 @@ defmodule Journey.Tools.ComputationStatusAsTextTest do
         |> String.trim()
 
       assert redacted_result in [expected_not_set | expected_set_list],
-             "Expected either success (rev 5/7) or not_set format, got: #{redacted_result}"
+             "Expected either success (at an odd revision) or not_set format, got: #{redacted_result}"
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
