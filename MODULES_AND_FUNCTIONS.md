@@ -56,8 +56,8 @@ Functions:
 Functions for defining complex conditions under which nodes are unblocked.
 
 Functions:
-- `Journey.Node.UpstreamDependencies.unblocked_when/1` - Helper function for defining unblock conditions
-- `Journey.Node.UpstreamDependencies.unblocked_when/2` - Defines conditions using predicate trees with :and, :or, :not operations
+- `Journey.Node.UpstreamDependencies.unblocked_when/1` - Defines unblock conditions using predicate trees: `:and`/`:or` operations nest recursively; `:not` applies only to a single `{node, condition}` leaf
+- `Journey.Node.UpstreamDependencies.unblocked_when/2` - Convenience form for a single `(node_name, condition)` pair
 
 ## `Journey.Tools`
 Utility functions for debugging, analysis, and visualization of Journey executions.

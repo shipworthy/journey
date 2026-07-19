@@ -55,29 +55,25 @@ The graph can be visualized as a Mermaid graph:
 ```
 > Journey.Tools.generate_mermaid_graph(graph)
 graph TD
-  %% Graph
-  subgraph Graph["🧩 'demo graph', version v1"]
-      execution_id[execution_id]
-      last_updated_at[last_updated_at]
-      x[x]
-      y[y]
-      sum["sum<br/>(anonymous fn)"]
-      large_value_alert["large_value_alert<br/>(anonymous fn)"]
+    %% Graph
+    subgraph Graph["🧩 'demo graph – doctest', version v1"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        x[x]
+        y[y]
+        sum[["sum<br/>(anonymous fn)"]]
+        large_value_alert[["large_value_alert<br/>(anonymous fn)"]]
 
-      x -->  sum
-      y -->  sum
-      sum -->  large_value_alert
-  end
+        x -->  sum
+        y -->  sum
+        sum -->  large_value_alert
+    end
 
-  %% Styling
-  classDef inputNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
-  classDef computeNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000
-  classDef scheduleNode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000
-  classDef mutateNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000000
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
 
-  %% Apply styles to actual nodes
-  class y,x,last_updated_at,execution_id inputNode
-  class large_value_alert,sum computeNode
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,x,y,sum,large_value_alert defaultNode
 ```
 
 A few things to note about this example:

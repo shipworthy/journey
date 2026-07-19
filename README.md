@@ -140,7 +140,7 @@ iex> Journey.values(execution)
 
 ```elixir
 iex> Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version) |> Journey.Insights.FlowAnalytics.to_text() |> IO.puts()
-Graph: 'Welcome'
+Graph: 'Onboarding'
 Version: 'v1'
 
 EXECUTION STATS:
