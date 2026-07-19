@@ -180,7 +180,7 @@ defmodule Journey do
   * **Validation** - Automatically validates graph structure for cycles, dependency correctness
   * **Registration** - Registers graph in catalog for execution tracking and reloading
   * **Immutable** - Graph definition is immutable once created; create new versions for changes
-  * **Node types** - Supports input, compute, mutate, tick_once, and tick_recurring nodes
+  * **Node types** - Supports input, compute, mutate, historian, archive, loop, tick_once, and tick_recurring nodes
 
   ## Examples
 

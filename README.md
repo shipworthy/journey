@@ -140,7 +140,7 @@ iex> Journey.values(execution)
 
 ```elixir
 iex> Journey.Insights.FlowAnalytics.flow_analytics(graph.name, graph.version) |> Journey.Insights.FlowAnalytics.to_text() |> IO.puts()
-Graph: 'Welcome'
+Graph: 'Onboarding'
 Version: 'v1'
 
 EXECUTION STATS:
@@ -186,6 +186,7 @@ Some features not shown in this example:
 
 - executing one-time or recurring scheduled events with `Journey.Node.tick_once/4` and `Journey.Node.tick_recurring/4` nodes, 
 - mutating values with `Journey.Node.mutate/4` nodes, 
+- running durable iterative computations (e.g. agentic LLM loops) with `Journey.Node.loop/4` nodes,
 - defining conditional workflows with `Journey.Node.UpstreamDependencies.unblocked_when/2`, 
 - recording the history of changes with `Journey.Node.historian/3` nodes,
 - archiving executions with `Journey.Node.archive/3` nodes,
