@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.58
+
+- **Toolchain**: updating to Elixir 1.20.2 and OTP/Erlang 28.5; picking up a newer `wait_for_it` (dev/test only) (#334)
+- **Dependencies**: updating ecto (3.14.1) and postgrex (0.22.3) (#337)
+- **Lint**: running `mix hex.audit` as part of `make lint` to catch retired dependencies (#335)
+- **Test stability**: relaxing an over-zealous test assertion (#336)
+
 ## v0.10.57
 
 - **Graph evolution**: removing a leaf node no longer requires a new graph version (#330)
