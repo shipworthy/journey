@@ -6,34 +6,25 @@ Choose simplicity, clarity and readability over cleverness.
 
 Read the summary of modules and functions in ./MODULES_AND_FUNCTIONS.md
 
-# CLAUDE.md
+## Journey: Durable Workflows, as a Package
 
-*This file provides project context to Claude Code for effective AI-assisted development.*
-
-## Journey: Computation Graph Library
-
-Journey is an Elixir library for building persistent and scalable reactive graphs. It manages data flows, executions, and background scheduling with PostgreSQL persistence.
-
-The library is published on hex: https://hexdocs.pm/journey
-
+Journey is an Elixir library (published on hex: https://hexdocs.pm/journey) for defining and running durable workflows as persistent reactive graphs, with PostgreSQL persistence, retries, crash recovery, horizontal scalability, scheduling, introspection and analytics. It is a package, not a service: an application adds `:journey` to its deps, configures `Journey.Repo` to point at a Postgres database, and registers its graphs via `config :journey, :graphs`.
 
 ## Development Workflow
 
 ### Essential Commands
-- `make validate` - **Run this before declaring any change complete**
-- `make test` - Full test suite with coverage
-- `mix test path/to/test.exs` - Single test file
-- `make test-performance` - Performance benchmarks 
+- `make validate` - format-check + build (warnings-as-errors) + lint + full tests. **Run this before declaring any change complete**
+- `make test` - drops/recreates/migrates the test DB, then runs the full suite with coverage (threshold set in `mix.exs`)
+- `mix test path/to/test.exs` - single test file; `mix test path/to/test.exs:42` - single test
+- `make lint` - Credo in strict mode + `mix hex.outdated` + `mix hex.audit`
+- `make format` / `make format-check`
+- `make test-performance` - performance benchmarks (`test_load/performance_benchmark.exs`, runs against the dev DB)
+- `make build-docs` - regenerate package docs into `./doc`
+- `make db-local-rebuild` - (re)create the local Postgres Docker container (`new_journey-postgres-db`)
+
 Running elixir code from CLI:
 - `elixir -e "IO.puts(\"Hello from the command line\")"`
-or
-- 
-```
-~/src/new_journey $ mix run -e "IO.puts \"Hello from Elixir\""
-Compiling 1 file (.ex)
-Generated journey app
-Hello from Elixir
-```
+- `mix run -e "IO.puts \"Hello from Elixir\""`
 
 Please see Makefile for other useful commands and shortcuts.
 
@@ -52,27 +43,29 @@ Before declaring a change "done", ask yourself the following questions:
 - **Security-first**: Protect customer data and prevent vulnerabilities
 - **Coverage**: Update `mix.exs` threshold if coverage increases
 - **Readability**: Favor simplicity, clarity and readability over cleverness. Prefer explicit anonymous functions over capture operators.
+- **Zero warnings**: builds use `--warnings-as-errors`
 
 ## Core Architecture
 
-### Documentation
+### The Data Model
 
-The generated documentation for this package lives under `./doc`, and can be rebuilt with `make build-docs`:
-```
-$ make build-docs
-mix docs --proglang elixir
-Generated journey app
-Generating docs...
-View "html" docs at "doc/index.html"
-View "epub" docs at "doc/Journey.epub"
-```
+An execution's entire state lives in Postgres (schemas in `lib/journey/persistence/schema/`):
+- `executions` — one row per graph execution, carrying a monotonically increasing `revision`
+- `values` — one row per node, recording the value and the execution revision (`ex_revision`) at which it was set
+- `computations` — one row per computation attempt, with state (`:not_set`, `:computing`, `:success`, `:failed`, ...) and the revisions of the dependencies it consumed
 
-Please read the documentation to understand what the package is expected to do. Update documentation as needed.
+This revision bookkeeping is how Journey decides what is unblocked and what needs recomputation — there is no in-memory state to lose; any replica can pick up any execution.
 
-Make sure that the list of public modules and functions in MODULES_AND_FUNCTIONS.md continues to be accurate.
+### The Reactive Loop
 
-Only functions that are surfaced at the API level needs to be documented. Internal functions and modules can still have documentation, but as `# ...` blocks – not surfaced to package documentation.
+The core flow (starting in `lib/journey/scheduler.ex`):
+1. `Journey.set/3` persists a value, bumps the execution revision, and calls `Journey.Scheduler.advance/1`.
+2. `advance/1` migrates the execution to the current graph version if needed (`Journey.Executions.GraphSchemaEvolution`), detects upstream changes and creates re-computations (`Journey.Scheduler.Recompute`), then atomically claims unblocked computations (`Journey.Scheduler.Available`, DB-locked so concurrent replicas don't double-run).
+3. Each claimed computation runs as a fire-and-forget Task; `Journey.Scheduler.Completions` records the result (scheduling retries on failure, see `Journey.Scheduler.Retry`) and calls `advance/1` again. The cycle repeats until nothing is unblocked.
 
+Background sweeps (`Journey.Scheduler.Background.Periodic`, default every 60s, configurable via `config :journey, :background_sweeper`) are the durability net that makes computations survive crashes and restarts: `lib/journey/scheduler/background/sweeps/` contains sweeps for abandoned computations, schedule nodes (`tick_once`/`tick_recurring`), missed schedules, and stalled executions.
+
+Graphs themselves are not persisted as data: they are registered at application start into `Journey.Graph.Catalog` (an in-memory registry) from the `config :journey, :graphs` list of factory functions. `priv/repo/migrations` holds Journey's own migrations, run automatically at app start via `Ecto.Migrator`.
 
 ### Graph Components
 ```elixir
@@ -87,6 +80,8 @@ tick_recurring/4  # Recurring execution
 loop/4            # Iterative compute (requires :max_iterations)
 ```
 
+Conditional dependencies are expressed with `Journey.Node.UpstreamDependencies.unblocked_when/1` predicate trees — `:and`/`:or` nest recursively; `:not` applies only to a single `{node, condition}` leaf — over `Journey.Node.Conditions` helpers (`provided?/1`, `true?/1`, `false?/1`). `unblocked_when/2` is a convenience form for a single `(node, condition)` pair.
+
 ### Key APIs
 ```elixir
 Journey.new_graph/4      # Define computation graph
@@ -95,19 +90,32 @@ Journey.load/2           # Load existing execution
 Journey.set/3            # Set node values
 Journey.unset/2          # Unset node values (single or multiple)
 Journey.get/3            # Retrieve node values (preferred over get_value)
+Journey.values/2         # Map of all set node values
+Journey.Tools.introspect/1  # Primary debugging tool for an execution's state
 ```
 
 Please read lib/journey.ex and lib/journey/node.ex for Journey's API functions, their documentation and usage examples.
 Please read MODULES_AND_FUNCTIONS.md for a high-level description of modules and functions provided by Journey.
 
 ### Module Organization
-- `Journey` - Main API
-- `Journey.Graph` - Graph definition/validation
-- `Journey.Persistence.Schema.Execution` - State management (Ecto schema)
-- `Journey.Scheduler` - Background processing
-- `Journey.Executions` - Persistence layer
+- `Journey` (lib/journey.ex) - Main API
+- `Journey.Node` (lib/journey/node.ex, lib/journey/node/) - Node types and unblock conditions
+- `Journey.Graph` (lib/journey/graph/) - Graph definition, validation (incl. cycle detection), Catalog registry
+- `Journey.Scheduler` (lib/journey/scheduler/) - advance loop, claiming, retries, background sweeps
+- `Journey.Executions` (lib/journey/executions/) - Persistence layer, list/count query building, graph schema evolution
+- `Journey.Persistence.Schema.Execution` - Ecto schemas (Execution, Value, Computation)
 - `Journey.Tools` - Debugging and introspection
-- `Journey.Insights` - Analytics and system health
+- `Journey.Insights` - FlowAnalytics (business analytics) and Status (system health)
+
+### Documentation
+
+The generated documentation for this package lives under `./doc`, and can be rebuilt with `make build-docs`.
+
+Please read the documentation to understand what the package is expected to do. Update documentation as needed. `README.md` and `BASIC_CONCEPTS.md` are part of the published docs (see `mix.exs` extras), as are the livebooks in `lib/examples/`.
+
+Make sure that the list of public modules and functions in MODULES_AND_FUNCTIONS.md continues to be accurate.
+
+Only functions that are surfaced at the API level need to be documented. Internal functions and modules can still have documentation, but as `# ...` blocks – not surfaced to package documentation.
 
 ## Database & Testing
 
@@ -116,22 +124,15 @@ Please read MODULES_AND_FUNCTIONS.md for a high-level description of modules and
 # Access development DB (for performance tests)
 docker exec -it new_journey-postgres-db psql -U postgres journey_dev
 
-# Access test DB (for make test)  
+# Access test DB (for make test)
 docker exec -it new_journey-postgres-db psql -U postgres journey_test
 ```
 
 **Testing Patterns**:
-- ExUnit with doctests in module documentation
+- ExUnit with doctests in module documentation (see `test/journey/doc_test.exs`)
 - Use `redact/2` helper for masking dynamic values (IDs, timestamps)
-- Background sweeps: `Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test/1`
-- Performance tests in `test_load/performance_benchmark.exs`
-
-## Code Quality
-
-- **Credo linting** in strict mode (`make lint`)
-- **Format enforcement** via `make format`
-- **Zero warnings** - all treated as errors
-- **Security review** required for new dependencies
+- Background sweeps in tests: `Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test/1` (and the matching `stop_background_sweeps_in_test/1`)
+- Performance tests in `test_load/performance_benchmark.exs`; load test in `test_load/sunny_day.exs`
 
 ---
 
