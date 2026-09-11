@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.59
+
+- **Documentation**: correcting the node types listed in `Journey.new_graph/4` docs and the descriptions of `unblocked_when/1` and `unblocked_when/2`; refreshing stale sample output in `README.md` and `BASIC_CONCEPTS.md` (#339)
+- **Dependencies**: updating ecto (3.14.2), postgrex (0.22.4), and ex_doc (0.40.4); picking up a newer `wait_for_it` and narrowing it to `only: :test` (#340, #341, #343)
+- **Clean up**: removing stale `specs/` and `tickets/` (#342, #344)
+
 ## v0.10.58
 
 - **Toolchain**: updating to Elixir 1.20.2 and OTP/Erlang 28.5; picking up a newer `wait_for_it` (dev/test only) (#334)
