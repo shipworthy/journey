@@ -2,8 +2,8 @@
 
 ## v0.11.0
 
-- **License**: Journey is now licensed under the Apache License 2.0 (previously a custom source-available license)
-- **Build key check removed**: removing the compile-time build key validation (`Journey.License`), the `JOURNEY_BUILD_KEY` / `JOURNEY_BUILD_KEY_SKIP_VERIFICATION` / `JOURNEY_LICENSE_KEY_SERVICE_URL` env vars, and the `:inets`/`:ssl` extra applications it required; dropping build key setup from the livebooks
+- **License**: Journey is now licensed under the Apache License 2.0 (previously a custom source-available license). Updating LICENSE.md, removing build key machinery (`JOURNEY_BUILD_KEY` env var is no longer used) (#347)
+- **Dependencies**: picking up a newer `wait_for_it` (test only) (#346)
 
 ## v0.10.59
 
