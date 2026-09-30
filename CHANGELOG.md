@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.11.0
+
+- **License**: Journey is now licensed under the Apache License 2.0 (previously a custom source-available license)
+- **Build key check removed**: removing the compile-time build key validation (`Journey.License`), the `JOURNEY_BUILD_KEY` / `JOURNEY_BUILD_KEY_SKIP_VERIFICATION` / `JOURNEY_LICENSE_KEY_SERVICE_URL` env vars, and the `:inets`/`:ssl` extra applications it required; dropping build key setup from the livebooks
+
 ## v0.10.59
 
 - **Documentation**: correcting the node types listed in `Journey.new_graph/4` docs and the descriptions of `unblocked_when/1` and `unblocked_when/2`; refreshing stale sample output in `README.md` and `BASIC_CONCEPTS.md` (#339)
