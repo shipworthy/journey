@@ -3,10 +3,6 @@
 # "compute" retries
 
 ```elixir
-# [Optional] Setting Build Key, see https://gojourney.dev/your_keys
-# (Using "Journey Livebook Demo" build key)
-System.put_env("JOURNEY_BUILD_KEY", "B27AXHMERm2Z6ehZhL49v")
-
 Mix.install(
   [
     {:ecto_sql, "~> 3.13"},

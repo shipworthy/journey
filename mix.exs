@@ -1,7 +1,7 @@
 defmodule Journey.MixProject do
   use Mix.Project
 
-  @version "0.10.59"
+  @version "0.11.0"
 
   def project do
     [
@@ -46,7 +46,7 @@ defmodule Journey.MixProject do
       ],
       test_coverage: [
         summary: [
-          threshold: 83
+          threshold: 84
         ]
       ],
       deps: deps()
@@ -58,7 +58,7 @@ defmodule Journey.MixProject do
       name: "journey",
       description:
         "Journey is a library for defining and running durable workflows with persistence, reliability, and scalability.",
-      licenses: ["LicenseRef-Journey"],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => "https://github.com/shipworthy/journey",
         "License" => "https://github.com/shipworthy/journey/blob/v#{@version}/LICENSE.md",
@@ -70,7 +70,7 @@ defmodule Journey.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :inets, :ssl],
+      extra_applications: [:logger],
       mod: {Journey.Application, []}
     ]
   end

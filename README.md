@@ -331,4 +331,8 @@ Three blog posts, from simple to advanced:
 
 - [Modules and Functions](MODULES_AND_FUNCTIONS.md) — quick API reference
 - [Changelog](CHANGELOG.md)
-- [gojourney.dev](https://gojourney.dev) — project home, licensing, and FAQ
+- [gojourney.dev](https://gojourney.dev) — project home and FAQ
+
+## License
+
+Journey is licensed under the [Apache License 2.0](LICENSE.md).
