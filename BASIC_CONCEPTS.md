@@ -236,7 +236,7 @@ iex> Journey.values(e) |> redact([:execution_id, :last_updated_at])
 %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
 iex>
 iex> # 6. ... and we can always list executions.
-iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest (all together now)", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
+iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest (all together now)", sort_by: [:inserted_at]) |> Enum.reverse() |> hd
 iex> e.id == this_execution.id
 true
 ```

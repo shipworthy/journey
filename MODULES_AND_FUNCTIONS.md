@@ -29,6 +29,9 @@ The entry point for the Journey library. Provides functions for creating and man
 
 ### Deprecated
 - `Journey.get_value/3` - Deprecated, use `Journey.get/3` instead.
+- `Journey.set_value/2`, `Journey.set_value/3` - Deprecated, use `Journey.set/2` / `Journey.set/3` instead.
+- `Journey.start_execution/1` - Deprecated, use `Journey.start/1` instead.
+- `Journey.unset_value/2` - Deprecated, use `Journey.unset/2` instead.
 
 ## `Journey.Node`
 Functions for creating various types of nodes in a graph.
@@ -43,6 +46,10 @@ Functions:
 - `Journey.Node.tick_once/4` - Creates a graph node that declares its readiness at a specific time, once
 - `Journey.Node.tick_recurring/4` - Creates a graph node that declares its readiness at specific times, repeatedly
 - `Journey.Node.loop/4` - Creates a self-iterating node that threads state across iterations durably until termination or an iteration cap (the durable analogue of `Stream.unfold/2`/`Enum.reduce_while/3`)
+
+### Deprecated
+- `Journey.Node.schedule_once/4` - Deprecated, use `Journey.Node.tick_once/4` instead.
+- `Journey.Node.schedule_recurring/4` - Deprecated, use `Journey.Node.tick_recurring/4` instead.
 
 ## `Journey.Node.Conditions`
 Helper functions for use in graph definitions, when defining upstream dependencies for compute modules.

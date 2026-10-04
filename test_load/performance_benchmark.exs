@@ -174,7 +174,7 @@ defmodule LoadTest.PerformanceBenchmark do
       1..iterations
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
-        Journey.start_execution(graph)
+        Journey.start(graph)
       end)
 
     # Set different values to create mixed computation states
@@ -248,7 +248,7 @@ defmodule LoadTest.PerformanceBenchmark do
       1..div(iterations, 4)
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
-        Journey.start_execution(graph)
+        Journey.start(graph)
       end)
 
     # Rapidly update values across executions
@@ -287,7 +287,7 @@ defmodule LoadTest.PerformanceBenchmark do
       1..div(iterations, 2)
       |> Enum.map(fn i ->
         graph = Journey.Examples.CreditCardApplication.graph()
-        execution = Journey.start_execution(graph)
+        execution = Journey.start(graph)
 
         # Stagger the value setting times slightly
         if rem(i, 5) == 0, do: Process.sleep(1)
@@ -331,7 +331,7 @@ defmodule LoadTest.PerformanceBenchmark do
       1..div(iterations, 2)
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
-        Journey.start_execution(graph)
+        Journey.start(graph)
       end)
 
     # Archive half of them
@@ -369,7 +369,7 @@ defmodule LoadTest.PerformanceBenchmark do
       1..div(iterations, 4)
       |> Enum.map(fn _ ->
         graph = Journey.Examples.CreditCardApplication.graph()
-        execution = Journey.start_execution(graph)
+        execution = Journey.start(graph)
 
         # Complete enough steps to trigger scheduled computations
         execution

@@ -25,7 +25,7 @@ defmodule Journey.Experiments do
         ]
       )
 
-    e = g |> Journey.start_execution()
+    e = g |> Journey.start()
 
     {g, e}
   end
@@ -58,7 +58,7 @@ defmodule Journey.Experiments do
         ]
       )
 
-    e = g |> Journey.start_execution()
+    e = g |> Journey.start()
 
     {g, e}
   end
@@ -107,7 +107,7 @@ defmodule Journey.Experiments do
 
     execution =
       user_onboarding_graph
-      |> Journey.start_execution()
+      |> Journey.start()
 
     # |> Journey.set(:name, "John Doe")
 
@@ -136,7 +136,7 @@ defmodule Journey.Experiments do
 
     execution =
       graph
-      |> Journey.start_execution()
+      |> Journey.start()
 
     {graph, execution}
   end
@@ -212,7 +212,7 @@ defmodule Journey.Experiments do
               if please_remind_me do
                 reminder_execution =
                   reminders_graph
-                  |> Journey.start_execution()
+                  |> Journey.start()
                   |> Journey.set(:name, name)
                   |> Journey.set(:email, email_address)
                   |> Journey.set(:enabled, true)
@@ -238,7 +238,7 @@ defmodule Journey.Experiments do
         # ]
       )
 
-    execution = Journey.start_execution(graph)
+    execution = Journey.start(graph)
     {graph, execution}
   end
 
