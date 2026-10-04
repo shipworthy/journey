@@ -8,15 +8,14 @@ defmodule Journey.Examples.CreditCardApplication do
   """
 
   defmodule Compute do
-    @moduledoc """
-    This module contains the business logic for the Credit Card Approval application, things like fetching the customer's credit score, making and communicating the credit decision, etc.
-    """
+    @moduledoc false
+
+    # The business logic for the Credit Card Application example: fetching the customer's
+    # credit score, making and communicating the credit decision, etc.
 
     require Logger
 
-    @doc """
-    This function simulates fetching a credit score from an external service.
-    """
+    # Simulates fetching a credit score from an external service.
     def fetch_credit_score(%{birth_date: _birth_date, ssn: _ssn, full_name: _full_name} = values) do
       Logger.info("fetch_credit_score: starting. for #{inspect(redact(values, :ssn))}")
       Process.sleep(1000)
@@ -25,9 +24,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, credit_score}
     end
 
-    @doc """
-    This function simulates computing the credit decision, based on the credit score.
-    """
+    # Simulates computing the credit decision, based on the credit score.
     def compute_decision(%{credit_score: credit_score}) do
       Logger.info("compute_decision: starting. Score: #{credit_score}")
       Process.sleep(1000)
@@ -36,9 +33,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, decision}
     end
 
-    @doc """
-    This function simulates sending the customer an email when their application was approved.
-    """
+    # Simulates sending the customer an email when their application was approved.
     def send_congrats(values) do
       Logger.info("send_congrats: starting. values #{inspect(values)}")
       Process.sleep(1000)
@@ -46,9 +41,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, :email_sent_congrats}
     end
 
-    @doc """
-    This function simulates sending the customer an email when their application was declined.
-    """
+    # Simulates sending the customer an email when their application was declined.
     def send_rejection(values) do
       Logger.info("send_rejection: starting. values #{inspect(values)}")
       Process.sleep(1000)
@@ -56,9 +49,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, :email_sent_rejection}
     end
 
-    @doc """
-    This function simulates scheduling sending a reminder to preapproved customers.
-    """
+    # Simulates scheduling sending a reminder to preapproved customers.
     def choose_the_time_to_send_reminder(values) do
       Logger.info("choose_the_time_to_send_reminder: starting. values #{inspect(values)}")
       when_to_send_reminder = System.system_time(:second) + 6
@@ -67,9 +58,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, when_to_send_reminder}
     end
 
-    @doc """
-    This function simulates sending the preapproved customer a reminder to request a credit card.
-    """
+    # Simulates sending the preapproved customer a reminder to request a credit card.
     def send_preapproval_reminder(values) do
       Logger.info("send_preapproval_reminder: starting. values #{inspect(values)}")
       Process.sleep(1000)
@@ -77,9 +66,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, true}
     end
 
-    @doc """
-    This function simulates initiating the issuance and mailing of a credit card.
-    """
+    # Simulates initiating the issuance and mailing of a credit card.
     def request_credit_card_issuance(values) do
       Logger.info("request_credit_card_issuance: starting. values #{inspect(values)}")
       Process.sleep(1000)
@@ -88,9 +75,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, true}
     end
 
-    @doc """
-    This function simulates emailing the customer and telling them that the card has been mailed.
-    """
+    # Simulates emailing the customer and telling them that the card has been mailed.
     def send_card_mailed_notification(values) do
       Logger.info("send_card_mailed_notification: starting. values #{inspect(values)}")
       Process.sleep(1000)
@@ -99,9 +84,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, true}
     end
 
-    @doc """
-    This function marks the flow as completed when it's all done.
-    """
+    # Marks the flow as completed when it's all done.
     def all_done(values) do
       Logger.info("all_done: starting. values #{inspect(values)}")
       Process.sleep(1000)
@@ -109,9 +92,7 @@ defmodule Journey.Examples.CreditCardApplication do
       {:ok, true}
     end
 
-    @doc """
-    This function schedules archiving the execution.
-    """
+    # Schedules archiving the execution.
     def choose_the_time_to_archive(values) do
       Logger.debug("choose_the_time_to_archive: starting. values #{inspect(values)}")
       when_to_archive = System.system_time(:second) + 5
