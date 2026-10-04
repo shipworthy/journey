@@ -105,3 +105,5 @@ Contains a simple example of building a "Useless Machine" using Journey - a reac
 
 See the full implementation: [`lib/journey/examples/useless_machine.ex`](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/useless_machine.ex)
 
+For a closer look at `mutate` nodes, see the ["mutate" nodes livebook](lib/examples/mutate.livemd).
+

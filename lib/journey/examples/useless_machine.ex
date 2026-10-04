@@ -4,21 +4,23 @@ defmodule Journey.Examples.UselessMachine do
   @moduledoc """
   This module ([lib/journey/examples/useless_machine.ex](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/useless_machine.ex)) contains an example of building a Useless Machine using Journey.
 
-  Here is an example of running the useless Machine:
+  Here is an example of running the Useless Machine:
 
   ```elixir
   iex> graph = Journey.Examples.UselessMachine.graph()
   iex> execution = Journey.start(graph)
-  iex> Journey.get_value(execution, :switch)
+  iex> Journey.get(execution, :switch)
   {:error, :not_set}
-  iex> Journey.get_value(execution, :paw)
+  iex> Journey.get(execution, :paw)
   {:error, :not_set}
   iex> Journey.set(execution, :switch, "on")
   iex> # updating switch triggers :paw
-  iex> {:ok, "updated :switch"} = Journey.get_value(execution, :paw, wait: :any)
+  iex> {:ok, "updated :switch", _revision} = Journey.get(execution, :paw, wait: :any)
   iex> # :paw set switch back to "off"
-  iex> {:ok, "off"} = Journey.get_value(execution, :switch, wait: :any)
+  iex> {:ok, "off", _revision} = Journey.get(execution, :switch, wait: :any)
   ```
+
+  For a closer look at `mutate` nodes, see the ["mutate" nodes livebook](lib/examples/mutate.livemd).
   """
 
   @doc """
@@ -37,10 +39,7 @@ defmodule Journey.Examples.UselessMachine do
     )
   end
 
-  @doc """
-  This function simulates the paw's response when the switch is toggled.
-  It prints a message and mutates the state of the :switch node to "off".
-  """
+  @doc false
   def lol_no(%{switch: switch}) do
     IO.puts("paw says: '#{switch}? lol no'")
     {:ok, "off"}
