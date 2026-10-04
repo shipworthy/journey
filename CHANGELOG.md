@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.11.1
+
+- **Livebook examples**: adding a livebook walking through the Credit Card Application example; tidying `Journey.Examples.CreditCardApplication` (removing `test_run/0`, moving its doctest walkthrough into an ExUnit test)
+
 ## v0.11.0
 
 - **License**: Journey is now licensed under the Apache License 2.0 (previously a custom source-available license). Updating LICENSE.md, removing build key machinery (`JOURNEY_BUILD_KEY` env var is no longer used) (#347)

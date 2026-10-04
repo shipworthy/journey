@@ -1,0 +1,541 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Example: a credit card application
+
+```elixir
+Mix.install(
+  [
+    {:ecto_sql, "~> 3.13"},
+    {:postgrex, "~> 0.22"},
+    {:jason, "~> 1.4"},
+    {:journey, "~> 0.11"},
+    {:kino, "~> 0.19"}
+  ],
+  start_applications: false
+)
+
+Application.put_env(:journey, :log_level, :warning)
+
+# Configure more frequent background sweeper runs (the default is 60 seconds).
+# The precision of the timer is determined by the granularity of the sweeper.
+Application.put_env(:journey, :background_sweeper, period_seconds: 5)
+
+# This livebook requires a PostgreSQL database.
+# If you don't have one running, you can start one with Docker:
+# docker run --rm --name journey-livebook-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+
+# Update this configuration to point to your database server
+Application.put_env(:journey, Journey.Repo,
+  database: "journey_credit_card_application",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  log: false,
+  port: 5432
+)
+
+Application.put_env(:journey, :ecto_repos, [Journey.Repo])
+
+Journey.Repo.__adapter__().storage_up(Journey.Repo.config())
+
+Application.loaded_applications()
+|> Enum.map(fn {app, _, _} -> app end)
+|> Enum.each(&Application.ensure_all_started/1)
+```
+
+## DB Setup
+
+This livebook requires a PostgreSQL service. If you don't have one running, you can start one with Docker:
+
+```bash
+docker run --rm --name journey-livebook-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:16
+```
+
+## What We'll Cover
+
+The other livebooks each focus on a single node type. This one puts several of them together, walking through a credit card application from start to finish:
+
+1. the customer provides their personal information, which kicks off a pre-approval process
+2. the customer's SSN is erased once it is no longer needed
+3. a pre-approved customer who hasn't requested a card gets a scheduled reminder
+4. the customer requests a card, which initiates its issuance
+5. the card gets mailed, the customer is notified, and the execution archives itself
+
+Along the way, we'll see `input`, `compute`, `mutate`, `tick_once` and `archive` nodes, and conditional dependencies (`unblocked_when`).
+
+## The Graph
+
+The graph ships with Journey, as `Journey.Examples.CreditCardApplication.graph/0`. You can read its definition, and the "business logic" functions it calls, in [lib/journey/examples/credit_card_application.ex](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/credit_card_application.ex).
+
+```elixir
+graph = Journey.Examples.CreditCardApplication.graph()
+
+graph
+|> Journey.Tools.generate_mermaid_graph()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Credit Card Application flow graph', version v1.0.0"]
+        execution_id[execution_id]
+        last_updated_at[last_updated_at]
+        full_name[full_name]
+        birth_date[birth_date]
+        ssn[ssn]
+        email_address[email_address]
+        credit_score[["credit_score<br/>(fetch_credit_score)"]]
+        ssn_redacted[["ssn_redacted<br/>(anonymous fn)<br/>mutates: ssn"]]
+        preapproval_decision[["preapproval_decision<br/>(compute_decision)"]]
+        congratulate[["congratulate<br/>(send_congrats)"]]
+        inform_of_rejection[["inform_of_rejection<br/>(send_rejection)"]]
+        preapproval_process_completed[["preapproval_process_completed<br/>(all_done)"]]
+        schedule_request_credit_card_reminder[["schedule_request_credit_card_reminder<br/>(choose_the_time_to_send_reminder)<br/>:tick_once"]]
+        credit_card_requested[credit_card_requested]
+        send_preapproval_reminder[["send_preapproval_reminder<br/>(send_preapproval_reminder)"]]
+        initiate_credit_card_issuance[["initiate_credit_card_issuance<br/>(request_credit_card_issuance)"]]
+        credit_card_mailed[credit_card_mailed]
+        credit_card_mailed_notification[["credit_card_mailed_notification<br/>(send_card_mailed_notification)"]]
+        schedule_archival[["schedule_archival<br/>(choose_the_time_to_archive)<br/>:tick_once"]]
+        archive[["archive<br/>:archive"]]
+
+        full_name -->  credit_score
+        birth_date -->  credit_score
+        ssn -->  credit_score
+        email_address -->  credit_score
+        credit_score -->  ssn_redacted
+        credit_score -->  preapproval_decision
+        full_name -->  preapproval_decision
+        preapproval_decision --> |approved?| congratulate
+        preapproval_decision --> |rejected?| inform_of_rejection
+        congratulate -->  preapproval_process_completed
+        inform_of_rejection -->  preapproval_process_completed
+        congratulate -->  schedule_request_credit_card_reminder
+        schedule_request_credit_card_reminder -->  send_preapproval_reminder
+        credit_card_requested --> |true?| send_preapproval_reminder
+        credit_card_requested --> |true?| initiate_credit_card_issuance
+        credit_card_mailed --> |true?| credit_card_mailed_notification
+        initiate_credit_card_issuance -->  credit_card_mailed_notification
+        last_updated_at --> |long_time_since_last_update?| schedule_archival
+        credit_card_mailed_notification -->  schedule_archival
+        inform_of_rejection -->  schedule_archival
+        schedule_archival -->  archive
+    end
+
+    %% Styling
+    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class execution_id,last_updated_at,full_name,birth_date,ssn,email_address,credit_score,ssn_redacted,preapproval_decision,congratulate,inform_of_rejection,preapproval_process_completed,schedule_request_credit_card_reminder,credit_card_requested,send_preapproval_reminder,initiate_credit_card_issuance,credit_card_mailed,credit_card_mailed_notification,schedule_archival,archive defaultNode
+```
+
+A few things to note:
+
+* `:full_name`, `:birth_date`, `:ssn`, `:email_address`, `:credit_card_requested` and `:credit_card_mailed` are `input` nodes, set by the customer or by the fulfillment department.
+* `:credit_score` and `:preapproval_decision` are `compute` nodes, computed as soon as their upstream dependencies are provided.
+* `:congratulate` and `:inform_of_rejection` are conditional: only one of them gets unblocked, depending on the value of `:preapproval_decision`.
+* `:ssn_redacted` is a `mutate` node: once `:credit_score` is computed, it overwrites `:ssn`.
+* `:schedule_request_credit_card_reminder` and `:schedule_archival` are `tick_once` nodes, scheduling `:send_preapproval_reminder` and `:archive`.
+
+## The Customer Applies
+
+The customer starts the application process and provides their personal information:
+
+```elixir
+execution =
+  graph
+  |> Journey.start()
+  |> Journey.set(:full_name, "Mario")
+  |> Journey.set(:birth_date, "10/11/1981")
+  |> Journey.set(:ssn, "123-45-6789")
+  |> Journey.set(:email_address, "mario@example.com");
+:ok
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Pre-approval
+
+Providing all four inputs unblocks `:credit_score`, which in turn unblocks `:preapproval_decision`, and so on. Each of the simulated "business logic" functions takes about a second, so this takes a few seconds:
+
+```elixir
+{:ok, true, _revision} = Journey.get(execution, :preapproval_process_completed, wait: :any)
+{:ok, credit_score, _revision} = Journey.get(execution, :credit_score)
+{:ok, decision, _revision} = Journey.get(execution, :preapproval_decision)
+"credit score: #{credit_score}, decision: #{decision}"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"credit score: 800, decision: approved"
+```
+
+The customer was approved, so `:congratulate` ran, and `:inform_of_rejection` didn't:
+
+```elixir
+{Journey.get(execution, :congratulate), Journey.get(execution, :inform_of_rejection)}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{{:ok, "email_sent_congrats", 12}, {:error, :not_set}}
+```
+
+## The SSN Is Gone
+
+Once the credit score has been computed, we no longer need the customer's SSN. The `:ssn_redacted` mutate node has replaced it:
+
+```elixir
+Journey.get(execution, :ssn)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, "<redacted>", 3}
+```
+
+## A Reminder
+
+Once the customer was congratulated, `:schedule_request_credit_card_reminder` scheduled a reminder, a few seconds out (in a real application, this would be a few days). When the time arrives, and since the customer still hasn't requested a card, `:send_preapproval_reminder` runs:
+
+```elixir
+{:ok, true, _revision} = Journey.get(execution, :send_preapproval_reminder, wait: :any)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, true, 18}
+```
+
+## The Customer Requests a Card
+
+Reminded, the customer requests a credit card, which initiates its issuance:
+
+```elixir
+execution = Journey.set(execution, :credit_card_requested, true)
+{:ok, true, _revision} = Journey.get(execution, :initiate_credit_card_issuance, wait: :any)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, true, 22}
+```
+
+Here is where things stand, with the remaining nodes waiting for the card to be mailed:
+
+```elixir
+execution.id
+|> Journey.Tools.generate_mermaid_execution()
+|> Kino.Mermaid.new()
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD
+    %% Graph
+    subgraph Graph["🧩 'Credit Card Application flow graph', version v1.0.0, EXECV9476Z621GG25XRLEZ6L"]
+        execution_id["✅ execution_id"]
+        last_updated_at["✅ last_updated_at"]
+        full_name["✅ full_name"]
+        birth_date["✅ birth_date"]
+        ssn["✅ ssn"]
+        email_address["✅ email_address"]
+        credit_score[["✅ credit_score<br/>(fetch_credit_score)"]]
+        ssn_redacted[["✅ ssn_redacted<br/>(anonymous fn)<br/>mutates: ssn"]]
+        preapproval_decision[["✅ preapproval_decision<br/>(compute_decision)"]]
+        congratulate[["✅ congratulate<br/>(send_congrats)"]]
+        inform_of_rejection[["🚫 inform_of_rejection<br/>(send_rejection)"]]
+        preapproval_process_completed[["✅ preapproval_process_completed<br/>(all_done)"]]
+        schedule_request_credit_card_reminder[["✅ schedule_request_credit_card_reminder<br/>(choose_the_time_to_send_reminder)<br/>:tick_once"]]
+        credit_card_requested["✅ credit_card_requested"]
+        send_preapproval_reminder[["🚫 send_preapproval_reminder<br/>(send_preapproval_reminder)"]]
+        initiate_credit_card_issuance[["✅ initiate_credit_card_issuance<br/>(request_credit_card_issuance)"]]
+        credit_card_mailed["⬜ credit_card_mailed"]
+        credit_card_mailed_notification[["🚫 credit_card_mailed_notification<br/>(send_card_mailed_notification)"]]
+        schedule_archival[["🚫 schedule_archival<br/>(choose_the_time_to_archive)<br/>:tick_once"]]
+        archive[["🚫 archive<br/>:archive"]]
+
+        full_name -->  credit_score
+        birth_date -->  credit_score
+        ssn -->  credit_score
+        email_address -->  credit_score
+        credit_score -->  ssn_redacted
+        credit_score -->  preapproval_decision
+        full_name -->  preapproval_decision
+        preapproval_decision --> |approved?| congratulate
+        preapproval_decision --> |rejected?| inform_of_rejection
+        congratulate -->  preapproval_process_completed
+        inform_of_rejection -->  preapproval_process_completed
+        congratulate -->  schedule_request_credit_card_reminder
+        schedule_request_credit_card_reminder -->  send_preapproval_reminder
+        credit_card_requested --> |true?| send_preapproval_reminder
+        credit_card_requested --> |true?| initiate_credit_card_issuance
+        credit_card_mailed --> |true?| credit_card_mailed_notification
+        initiate_credit_card_issuance -->  credit_card_mailed_notification
+        last_updated_at --> |long_time_since_last_update?| schedule_archival
+        credit_card_mailed_notification -->  schedule_archival
+        inform_of_rejection -->  schedule_archival
+        schedule_archival -->  archive
+    end
+
+    %% Styling
+    classDef setNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    classDef computingNode fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#000000
+    classDef errorNode fill:#f8bbd0,stroke:#b71c1c,stroke-width:2px,color:#000000
+    classDef neutralNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000
+
+    %% Apply styles to nodes
+    class initiate_credit_card_issuance,credit_card_requested,schedule_request_credit_card_reminder,preapproval_process_completed,congratulate,preapproval_decision,ssn_redacted,credit_score,email_address,ssn,birth_date,full_name,last_updated_at,execution_id setNode
+    class archive,schedule_archival,credit_card_mailed_notification,credit_card_mailed,send_preapproval_reminder,inform_of_rejection neutralNode
+```
+
+```elixir
+Journey.values(execution)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  birth_date: "10/11/1981",
+  ssn: "<redacted>",
+  full_name: "Mario",
+  credit_score: 800,
+  last_updated_at: 1791074124,
+  execution_id: "EXECV9476Z621GG25XRLEZ6L",
+  email_address: "mario@example.com",
+  ssn_redacted: "updated :ssn",
+  preapproval_decision: "approved",
+  congratulate: "email_sent_congrats",
+  preapproval_process_completed: true,
+  schedule_request_credit_card_reminder: 1791074115,
+  credit_card_requested: true,
+  initiate_credit_card_issuance: true
+}
+```
+
+## The Card Is Mailed
+
+Eventually, the fulfillment department marks the card as mailed, which triggers a notification to the customer:
+
+```elixir
+execution = Journey.set(execution, :credit_card_mailed, true)
+{:ok, true, _revision} = Journey.get(execution, :credit_card_mailed_notification, wait: :any)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, true, 25}
+```
+
+## The Execution Archives Itself
+
+With the card in the mail, there is nothing left to do. `:schedule_archival` scheduled the archival a few seconds out, and when the time arrives, the `:archive` node archives the execution:
+
+```elixir
+{:ok, archived_at, _revision} = Journey.get(execution, :archive, wait: :any)
+archived_at |> DateTime.from_unix!() |> Calendar.strftime("%H:%M:%S UTC")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"00:35:42 UTC"
+```
+
+The archived execution is no longer returned by `Journey.load/2`:
+
+```elixir
+Journey.load(execution.id)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+nil
+```
+
+It is still there if you need it, though. For example, we can introspect it:
+
+```elixir
+Journey.Tools.introspect(execution.id) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Execution summary:
+- ID: 'EXECV9476Z621GG25XRLEZ6L'
+- Graph: 'Credit Card Application flow graph' | 'v1.0.0'
+- Archived at: 2026-10-04 00:35:42Z
+- Created at: 2026-10-04 00:35:06Z UTC | 39 seconds ago
+- Last updated at: 2026-10-04 00:35:43Z UTC | 2 seconds ago
+- Duration: 37 seconds
+- Revision: 30
+- # of Values: 18 (set) / 20 (total)
+- # of Computations: 13
+
+Values:
+- Set:
+  - archive: '1791074142' | :archive
+    computed at 2026-10-04 00:35:43Z | rev: 30
+
+  - last_updated_at: '1791074143' | :input
+    set at 2026-10-04 00:35:43Z | rev: 30
+
+  - schedule_archival: '1791074141' | :tick_once
+    computed at 2026-10-04 00:35:36Z | rev: 27
+
+  - credit_card_mailed_notification: 'true' | :compute
+    computed at 2026-10-04 00:35:36Z | rev: 25
+
+  - credit_card_mailed: 'true' | :input
+    set at 2026-10-04 00:35:35Z | rev: 23
+
+  - initiate_credit_card_issuance: 'true' | :compute
+    computed at 2026-10-04 00:35:24Z | rev: 22
+
+  - credit_card_requested: 'true' | :input
+    set at 2026-10-04 00:35:22Z | rev: 19
+
+  - preapproval_process_completed: 'true' | :compute
+    computed at 2026-10-04 00:35:10Z | rev: 16
+
+  - schedule_request_credit_card_reminder: '1791074115' | :tick_once
+    computed at 2026-10-04 00:35:09Z | rev: 15
+
+  - congratulate: '"email_sent_congrats"' | :compute
+    computed at 2026-10-04 00:35:09Z | rev: 12
+
+  - preapproval_decision: '"approved"' | :compute
+    computed at 2026-10-04 00:35:08Z | rev: 10
+
+  - ssn_redacted: '"updated :ssn"' | :mutate
+    computed at 2026-10-04 00:35:07Z | rev: 9
+
+  - credit_score: '800' | :compute
+    computed at 2026-10-04 00:35:07Z | rev: 6
+
+  - email_address: '"mario@example.com"' | :input
+    set at 2026-10-04 00:35:06Z | rev: 4
+
+  - ssn: '"<redacted>"' | :input
+    set at 2026-10-04 00:35:07Z | rev: 3
+
+  - birth_date: '"10/11/1981"' | :input
+    set at 2026-10-04 00:35:06Z | rev: 2
+
+  - full_name: '"Mario"' | :input
+    set at 2026-10-04 00:35:06Z | rev: 1
+
+  - execution_id: 'EXECV9476Z621GG25XRLEZ6L' | :input
+    set at 2026-10-04 00:35:06Z | rev: 0
+
+
+- Not set:
+  - inform_of_rejection: <unk> | :compute
+  - send_preapproval_reminder: <unk> | :compute  
+
+Computations:
+- Completed:
+  - :archive (CMP3AYD33V4R2XYVJ64MTZJ): ✅ :success | :archive | rev 30
+    started: 2026-10-04 00:35:42Z | completed: 2026-10-04 00:35:43Z (1s)
+    inputs used:
+       :schedule_archival (rev 27)
+
+  - :schedule_archival (CMP2JJ1ZR91J61H8BR9X5L1): ✅ :success | :tick_once | rev 27
+    started: 2026-10-04 00:35:36Z | completed: 2026-10-04 00:35:36Z (0s)
+    inputs used:
+       :credit_card_mailed_notification (rev 25)
+
+  - :credit_card_mailed_notification (CMPJ96L0ZXB5X27T0ELL7VM): ✅ :success | :compute | rev 25
+    started: 2026-10-04 00:35:35Z | completed: 2026-10-04 00:35:36Z (1s)
+    inputs used:
+       :initiate_credit_card_issuance (rev 22)
+       :credit_card_mailed (rev 23)
+
+  - :initiate_credit_card_issuance (CMPHXV239LRRV64DAZED38X): ✅ :success | :compute | rev 22
+    started: 2026-10-04 00:35:23Z | completed: 2026-10-04 00:35:24Z (1s)
+    inputs used:
+       :credit_card_requested (rev 19)
+
+  - :send_preapproval_reminder (CMPLVH0M0YYMHZ5H74G831E): ✅ :success | :compute | rev 18
+    started: 2026-10-04 00:35:17Z | completed: 2026-10-04 00:35:18Z (1s)
+    inputs used:
+       :schedule_request_credit_card_reminder (rev 15)
+       :credit_card_requested (rev 0)
+
+  - :preapproval_process_completed (CMPHZ76ZDM9M1BZ600ETV5B): ✅ :success | :compute | rev 16
+    started: 2026-10-04 00:35:09Z | completed: 2026-10-04 00:35:10Z (1s)
+    inputs used:
+       :congratulate (rev 12)
+
+  - :schedule_request_credit_card_reminder (CMP1T2H3H981ZDHY91AVHRG): ✅ :success | :tick_once | rev 15
+    started: 2026-10-04 00:35:09Z | completed: 2026-10-04 00:35:09Z (0s)
+    inputs used:
+       :congratulate (rev 12)
+
+  - :congratulate (CMPLAA372ZAH2EVLHVER1ZE): ✅ :success | :compute | rev 12
+    started: 2026-10-04 00:35:08Z | completed: 2026-10-04 00:35:09Z (1s)
+    inputs used:
+       :preapproval_decision (rev 10)
+
+  - :preapproval_decision (CMPTYA674R1ZXZ7RAX8X0GB): ✅ :success | :compute | rev 10
+    started: 2026-10-04 00:35:07Z | completed: 2026-10-04 00:35:08Z (1s)
+    inputs used:
+       :full_name (rev 1)
+       :credit_score (rev 6)
+
+  - :ssn_redacted (CMP38JBG6ZVMVT158ZX3092): ✅ :success | :mutate | rev 9
+    started: 2026-10-04 00:35:07Z | completed: 2026-10-04 00:35:07Z (0s)
+    inputs used:
+       :credit_score (rev 6)
+
+  - :credit_score (CMP3RD90GMEM50YTHYGRG97): ✅ :success | :compute | rev 6
+    started: 2026-10-04 00:35:06Z | completed: 2026-10-04 00:35:07Z (1s)
+    inputs used:
+       :birth_date (rev 2)
+       :ssn (rev 3)
+       :full_name (rev 1)
+       :email_address (rev 4)
+
+- Outstanding:
+  - send_preapproval_reminder: ⬜ :not_set (not yet attempted) | :compute
+       :and
+        ├─ ✅ :schedule_request_credit_card_reminder | &provided?/1 | rev 15
+        └─ ✅ :not(:credit_card_requested) | &true?/1 | rev 19
+  - inform_of_rejection: ⬜ :not_set (not yet attempted) | :compute
+       🛑 :preapproval_decision | &rejected?/1
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Summary
+
+In this livebook, we walked a credit card application from the customer's first input to archival:
+
+* `compute` nodes ran as soon as their upstream dependencies were provided.
+* Conditional dependencies (`unblocked_when`) picked which of `:congratulate` and `:inform_of_rejection` ran.
+* A `mutate` node erased the customer's SSN once it was no longer needed.
+* `tick_once` nodes scheduled a reminder, and the archival of the execution.
+* An `archive` node took the completed execution out of circulation.
+
+Every step was persisted in PostgreSQL, so the application would have survived a crash or a restart at any point along the way.
