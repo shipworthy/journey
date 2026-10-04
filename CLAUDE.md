@@ -49,6 +49,10 @@ Before declaring a change "done", ask yourself the following questions:
 - **Readability**: Favor simplicity, clarity and readability over cleverness. Prefer explicit anonymous functions over capture operators.
 - **Zero warnings**: builds use `--warnings-as-errors`
 
+### Code Comments
+
+When deciding to comment code, lean on the side of minimalism: only add comments that will really help the reader understand the code you are commenting. Avoid explaining historical reasons or history of changes. Also avoid referencing behavior from other parts of the code — the kind of thing that makes the comment both redundant and incorrect when that other part of the code changes — unless the comment guards a non-obvious cross-module constraint.
+
 ## Core Architecture
 
 ### The Data Model

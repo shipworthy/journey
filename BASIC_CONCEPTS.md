@@ -107,7 +107,7 @@ Despite the simplicity of use, here are a few things provided by Journey that ar
 ```
   mutate(:ssn_redacted, [:credit_score], fn _ -> {:ok, "<redacted>"} end, mutates: :ssn)
 ```
-node in the example credit card application graph, [here](https://github.com/shipworthy/journey/blob/063342e616267375a0fa042317d5984d1198cb5c/lib/journey/examples/credit_card_application.ex#L210), which mutates the contents of the `:ssn` node, replacing its value with "<redacted>", when `:credit_score` completes.
+node in the example credit card application graph, `Journey.Examples.CreditCardApplication.graph/0`, which mutates the contents of the `:ssn` node, replacing its value with "<redacted>", when `:credit_score` completes.
 
 * Tooling and visualization: `Journey.Tools` provides a set of tools for introspecting and managing executions, and for visualizing your application's graph.
 
@@ -241,4 +241,4 @@ iex> e.id == this_execution.id
 true
 ```
 
-For a more in-depth example of building a more complex application, see the Credit Card Application example in `Journey.Examples.CreditCardApplication`.
+For a more in-depth example of building a more complex application, see the Credit Card Application example in `Journey.Examples.CreditCardApplication`, and its walkthrough in the [Credit Card Application livebook](lib/examples/credit_card_application.livemd).

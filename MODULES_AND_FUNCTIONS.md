@@ -98,6 +98,8 @@ Demonstrates building a complete credit card application workflow using Journey.
 
 See the full implementation: [`lib/journey/examples/credit_card_application.ex`](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/credit_card_application.ex)
 
+For a step-by-step walkthrough, see the [Credit Card Application livebook](lib/examples/credit_card_application.livemd).
+
 ## Example: `Journey.Examples.UselessMachine`
 Contains a simple example of building a "Useless Machine" using Journey - a reactive system that automatically turns itself off when turned on.
 

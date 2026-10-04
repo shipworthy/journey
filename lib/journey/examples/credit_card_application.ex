@@ -1,70 +1,15 @@
 defmodule Journey.Examples.CreditCardApplication do
   @moduledoc """
-  This module demonstrates building a simple credit card application workflow using the Journey library.
+  This module ([lib/journey/examples/credit_card_application.ex](https://github.com/shipworthy/journey/blob/main/lib/journey/examples/credit_card_application.ex)) contains an example of a credit card application workflow built with Journey.
 
-  You might find it interesting to read the actual source code of this example (the definition of the graph, and the "business logic" functions), but here is a doctest illustrating executing a credit card application workflow.
+  The customer provides their personal information, which kicks off a pre-approval process (fetching a credit score, making and communicating the decision, and redacting the SSN once it is no longer needed). Pre-approved customers who haven't requested a card get a scheduled reminder. Requesting a card initiates its issuance, and once the card is mailed, the customer is notified and the execution is archived.
 
-
-  ## Examples:
-
-  ```elixir
-  iex> # The customer starts the application process and provides their personal information.
-  iex> import Journey.Node
-  iex> graph = Journey.Examples.CreditCardApplication.graph()
-  iex> execution = Journey.start(graph)
-  iex>
-  iex> # This is only needed in a test, to perform background processing that happens automatically outside of tests.
-  iex> background_sweeps_task = Journey.Scheduler.Background.Periodic.start_background_sweeps_in_test(execution.id)
-  iex>
-  iex> execution = execution |> Journey.set(:full_name, "Mario")
-  iex> execution = execution |> Journey.set(:birth_date, "10/11/1981")
-  iex> execution = execution |> Journey.set(:ssn, "123-45-6789")
-  iex> execution = execution |> Journey.set(:email_address, "mario@example.com")
-  iex>
-  iex> # This kicks off the pre-approval process, which eventually completes.
-  iex> {:ok, true} = execution |> Journey.get_value(:preapproval_process_completed, wait: :any)
-  iex> # We haven't heard from the customer, so we'll send a reminder in a few days (seconds;).
-  iex> {:ok, true} = execution |> Journey.get_value(:send_preapproval_reminder, wait: :any)
-  iex>
-  iex> # Reminded, the customer requests an actual credit card.
-  iex> _execution = execution |> Journey.set(:credit_card_requested, true)
-  iex> # ... which triggers issuing the card.
-  iex>
-  iex> {:ok, true} = execution |> Journey.get_value(:initiate_credit_card_issuance, wait: :any)
-  iex> execution |> Journey.values() |> redact([:schedule_request_credit_card_reminder, :execution_id, :last_updated_at])
-  %{
-      preapproval_process_completed: true,
-      birth_date: "10/11/1981",
-      congratulate: "email_sent_congrats",
-      preapproval_decision: "approved",
-      credit_score: 800,
-      email_address: "mario@example.com",
-      full_name: "Mario",
-      ssn: "<redacted>",
-      ssn_redacted: "updated :ssn",
-      credit_card_requested: true,
-      initiate_credit_card_issuance: true,
-      schedule_request_credit_card_reminder: 1234567890,
-      execution_id: "...",
-      last_updated_at: 1234567890
-    }
-  iex>
-  iex> # Eventually, the fulfillment department marks the credit card as mailed.
-  iex> # Which triggers an email notifying the customer that the card has been mailed.
-  iex> execution = execution |> Journey.set(:credit_card_mailed, true)
-  iex> {:ok, true} = execution |> Journey.get_value(:credit_card_mailed_notification, wait: :any)
-  iex> {:ok, _archived_at} = execution |> Journey.get_value(:archive, wait: :any)
-  iex> # This is only needed in tests.
-  iex> Journey.Scheduler.Background.Periodic.stop_background_sweeps_in_test(background_sweeps_task)
-
-  ```
-
-
+  The graph is defined in `graph/0`. For a step-by-step walkthrough of running it, see the [Credit Card Application livebook](lib/examples/credit_card_application.livemd).
   """
 
   defmodule Compute do
     @moduledoc """
-    This module contains the business logic for the Credit Card Approval application, things like fetching the customer's credit score, making and communication the credit decision, etc.
+    This module contains the business logic for the Credit Card Approval application, things like fetching the customer's credit score, making and communicating the credit decision, etc.
     """
 
     require Logger
@@ -75,7 +20,6 @@ defmodule Journey.Examples.CreditCardApplication do
     def fetch_credit_score(%{birth_date: _birth_date, ssn: _ssn, full_name: _full_name} = values) do
       Logger.info("fetch_credit_score: starting. for #{inspect(redact(values, :ssn))}")
       Process.sleep(1000)
-      # 300 + :rand.uniform(550)
       credit_score = 800
       Logger.info("fetch_credit_score: completed. result: #{credit_score}")
       {:ok, credit_score}
@@ -139,7 +83,7 @@ defmodule Journey.Examples.CreditCardApplication do
     def request_credit_card_issuance(values) do
       Logger.info("request_credit_card_issuance: starting. values #{inspect(values)}")
       Process.sleep(1000)
-      # Example: make an API call to a credit cart fulfillment service.
+      # Example: make an API call to a credit card fulfillment service.
       Logger.info("request_credit_card_issuance: finished.")
       {:ok, true}
     end
@@ -287,20 +231,5 @@ defmodule Journey.Examples.CreditCardApplication do
     result = value == "rejected"
     Logger.debug("rejected?: completed. result: #{result}")
     result
-  end
-
-  @doc false
-  def test_run() do
-    g = graph()
-
-    e =
-      g
-      |> Journey.start_execution()
-      |> Journey.set(:full_name, "Mario")
-      |> Journey.set(:birth_date, "10/11/1981")
-      |> Journey.set(:ssn, "123-45-6789")
-      |> Journey.set(:email_address, "mario@example.com")
-
-    {g, e}
   end
 end

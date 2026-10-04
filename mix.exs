@@ -25,6 +25,7 @@ defmodule Journey.MixProject do
           "lib/examples/tick_recurring.livemd",
           "lib/examples/archive.livemd",
           "lib/examples/compute_retries.livemd",
+          "lib/examples/credit_card_application.livemd",
           "BASIC_CONCEPTS.md",
           "MODULES_AND_FUNCTIONS.md",
           "LICENSE.md",
