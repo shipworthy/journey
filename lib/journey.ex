@@ -62,7 +62,7 @@ defmodule Journey do
   %{birth_day: 26, birth_month: "April", first_name: "Mario", horoscope: "🍪s await, Taurus Mario!", zodiac_sign: "Taurus", execution_id: "...", last_updated_at: 1234567890}
   iex>
   iex> # 6. and we can always list executions.
-  iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", order_by_execution_fields: [:inserted_at]) |> Enum.reverse() |> hd
+  iex> this_execution = Journey.list_executions(graph_name: "horoscope workflow - module doctest", sort_by: [:inserted_at]) |> Enum.reverse() |> hd
   iex> e.id == this_execution.id
   true
   ```
@@ -367,7 +367,7 @@ defmodule Journey do
   {:ok, greeting, _} = Journey.get(execution, :greeting, wait: :any)
   ```
 
-  Use `set/3` and `get_value/3` to modify and read execution values.
+  Use `set/3` and `get/3` to modify and read execution values.
 
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
@@ -1159,7 +1159,7 @@ defmodule Journey do
   # %{name: {:set, "Alice"}, age: :not_set, execution_id: {:set, "EXEC..."}, ...}
   ```
 
-  Use `values/2` to get only set values, or `get_value/3` for individual node values.
+  Use `values/2` to get only set values, or `get/3` for individual node values.
 
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or a binary execution ID
@@ -1250,7 +1250,7 @@ defmodule Journey do
   # %{name: "Alice", age: nil, execution_id: "EXEC...", last_updated_at: 1234567890}
   ```
 
-  Use `values_all/1` to see all nodes with their status tuples, or `get_value/3` for individual values.
+  Use `values_all/1` to see all nodes with their status tuples, or `get/3` for individual values.
 
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or a binary execution ID
@@ -1377,7 +1377,7 @@ defmodule Journey do
   #  %{node_name: :sum, computation_or_value: :computation, revision: 2}, ...]
   ```
 
-  Use `values/2` to see only current values, or `set/3` and `get_value/3` for individual operations.
+  Use `values/2` to see only current values, or `set/3` and `get/3` for individual operations.
 
   ## Parameters
   * `execution` - A `%Journey.Persistence.Schema.Execution{}` struct or execution ID string
@@ -1497,7 +1497,7 @@ defmodule Journey do
   {:ok, greeting, _} = Journey.get(execution, :greeting, wait: :any)
   ```
 
-  Use `get_value/3` to retrieve values and `unset/2` to remove values.
+  Use `get/3` to retrieve values and `unset/2` to remove values.
 
   ## Examples
 
@@ -1822,7 +1822,7 @@ defmodule Journey do
   execution = Journey.unset(execution, [:first_name, :last_name, :email])
   ```
 
-  Use `set/3` to set values and `get_value/3` to check if values are set.
+  Use `set/3` to set values and `get/3` to check if values are set.
 
   ## Parameters
 

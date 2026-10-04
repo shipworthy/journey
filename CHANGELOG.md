@@ -4,6 +4,8 @@
 
 - **Livebook examples**: adding a livebook walking through the Credit Card Application example; tidying `Journey.Examples.CreditCardApplication` (removing `test_run/0`, moving its doctest walkthrough into an ExUnit test); `Journey.Examples.UselessMachine` docs now use `Journey.get/3` and link to the `mutate` livebook
 - **`:not` conditions in tooling output**: `Journey.Tools.introspect/1` now shows the status of the negated condition (it was showing the status of the inner condition), and mermaid diagrams label negated edges as such (e.g. `|not true?|`). Display-only fixes, no change in scheduling behavior
+- **Docs**: examples and doc references now use current APIs (`Journey.get/3`, `Journey.start/1`, `sort_by:`) instead of deprecated ones
+- **`MODULES_AND_FUNCTIONS.md`**: listing all deprecated public functions (`Journey.start_execution/1`, `Journey.set_value/2,3`, `Journey.unset_value/2`, `Journey.Node.schedule_once/4`, `Journey.Node.schedule_recurring/4`) alongside their replacements
 
 ## v0.11.0
 

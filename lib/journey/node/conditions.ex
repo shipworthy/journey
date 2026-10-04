@@ -28,7 +28,7 @@ defmodule Journey.Node.Conditions do
   ...> )
   iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :name, "Alice")
-  iex> {:ok, "Hello, Alice!"} = Journey.get_value(execution, :greeting, wait: :any)
+  iex> {:ok, "Hello, Alice!", _revision} = Journey.get(execution, :greeting, wait: :any)
   ```
   """
   def provided?(%{node_type: node_type} = value_node)
@@ -64,9 +64,9 @@ defmodule Journey.Node.Conditions do
   ...> )
   iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :it_will_rain_tomorrow, true)
-  iex> {:ok, "need to pack my umbrella"} = Journey.get_value(execution, :umbrella, wait: :any)
+  iex> {:ok, "need to pack my umbrella", _revision} = Journey.get(execution, :umbrella, wait: :any)
   iex> execution = Journey.set(execution, :it_will_rain_tomorrow, false)
-  iex> Journey.get_value(execution, :umbrella)
+  iex> Journey.get(execution, :umbrella)
   {:error, :not_set}
 
   ```
@@ -97,9 +97,9 @@ defmodule Journey.Node.Conditions do
   ...> )
   iex> execution = Journey.start(graph)
   iex> execution = Journey.set(execution, :it_will_rain_tomorrow, false)
-  iex> {:ok, "prepare my bike"} = Journey.get_value(execution, :todays_preparation, wait: :any)
+  iex> {:ok, "prepare my bike", _revision} = Journey.get(execution, :todays_preparation, wait: :any)
   iex> execution = Journey.set(execution, :it_will_rain_tomorrow, true)
-  iex> Journey.get_value(execution, :todays_preparation)
+  iex> Journey.get(execution, :todays_preparation)
   {:error, :not_set}
 
   ```

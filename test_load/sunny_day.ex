@@ -6,7 +6,7 @@ defmodule LoadTest.SunnyDay do
   def run(total_executions) do
     graph = Journey.Examples.CreditCardApplication.graph()
 
-    executions = for _i <- 1..total_executions, do: Journey.start_execution(graph)
+    executions = for _i <- 1..total_executions, do: Journey.start(graph)
 
     initial_memory = get_memory_usage_mb()
     Logger.info("Initial memory usage: #{initial_memory} MB")
