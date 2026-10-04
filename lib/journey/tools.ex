@@ -885,7 +885,7 @@ defmodule Journey.Tools do
       format_children_with_connectors(children, indent)
   end
 
-  defp format_condition_tree(%{type: :not, child: %{type: :leaf, met?: met?, condition: condition}}, indent) do
+  defp format_condition_tree(%{type: :not, met?: met?, child: %{type: :leaf, condition: condition}}, indent) do
     status = if met?, do: "✅", else: "🛑"
     node_display = format_node_name_with_context(condition.upstream_node.node_name, condition)
     revision_info = if met?, do: " | rev #{condition.upstream_node.ex_revision}", else: ""

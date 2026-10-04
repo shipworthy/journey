@@ -508,7 +508,7 @@ defmodule Journey.ToolsTest do
              :and
               ├─ 🛑 :user_applied | &true?/1
               ├─ 🛑 :user_approved | &true?/1
-              └─ 🛑 :not(:user_requested_card) | &true?/1
+              └─ ✅ :not(:user_requested_card) | &true?/1 | rev 0
       """
 
       # The test has a race condition: send_follow_up and send_reminder can complete
@@ -579,7 +579,7 @@ defmodule Journey.ToolsTest do
              :and
               ├─ 🛑 :user_applied | &true?/1
               ├─ 🛑 :user_approved | &true?/1
-              └─ 🛑 :not(:user_requested_card) | &true?/1
+              └─ ✅ :not(:user_requested_card) | &true?/1 | rev 0
       """
 
       # Accept either ordering as valid
@@ -587,6 +587,29 @@ defmodule Journey.ToolsTest do
                String.trim(expected_output),
                String.trim(expected_output_alt)
              ]
+    end
+
+    test "an unmet :not condition is shown as blocking" do
+      graph =
+        Journey.new_graph("introspect unmet :not test #{random_string()}", "v1.0.0", [
+          input(:user_applied),
+          input(:user_requested_card),
+          compute(
+            :send_reminder,
+            {:and, [{:user_applied, &true?/1}, {:not, {:user_requested_card, &true?/1}}]},
+            fn _ -> {:ok, "Please request your card"} end
+          )
+        ])
+
+      execution =
+        graph
+        |> Journey.start_execution()
+        |> Journey.set(:user_requested_card, true)
+
+      result = Journey.Tools.introspect(execution.id)
+
+      assert result =~ "🛑 :not(:user_requested_card) | &true?/1"
+      refute result =~ "✅ :not(:user_requested_card)"
     end
 
     test "completed computations include start and completion timestamps" do
@@ -1097,6 +1120,25 @@ defmodule Journey.ToolsTest do
 
       assert mermaid_graph ==
                "graph TD\n    %% Graph\n    subgraph Graph[\"🧩 'test graph 1 Elixir.Journey.Test.Support', version 1.0.0\"]\n        execution_id[execution_id]\n        last_updated_at[last_updated_at]\n        user_name[user_name]\n        greeting[[\"greeting<br/>(f_prepend_with_hello)\"]]\n        time_to_issue_reminder_schedule[[\"time_to_issue_reminder_schedule<br/>(f_in_1_second)<br/>:tick_once\"]]\n        reminder[[\"reminder<br/>(f_compose_reminder)\"]]\n\n        user_name -->  greeting\n        greeting -->  time_to_issue_reminder_schedule\n        time_to_issue_reminder_schedule -->  reminder\n    end\n\n    %% Caption\n\n    %% Styling\n    classDef defaultNode fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000000\n\n    %% Apply styles to nodes\n    class execution_id,last_updated_at,user_name,greeting,time_to_issue_reminder_schedule,reminder defaultNode"
+    end
+
+    test "edge labels keep :not conditions negated" do
+      graph =
+        Journey.new_graph("mermaid :not test #{random_string()}", "v1.0.0", [
+          input(:card_requested),
+          input(:name),
+          compute(:issue_card, {:card_requested, &true?/1}, fn _ -> {:ok, true} end),
+          compute(:send_reminder, {:not, {:card_requested, &true?/1}}, fn _ -> {:ok, true} end),
+          compute(:ask_for_name, {:not, {:name, &provided?/1}}, fn _ -> {:ok, true} end),
+          compute(:greet_stranger, {:not, {:name, fn name -> name.node_value == "Mario" end}}, fn _ -> {:ok, true} end)
+        ])
+
+      mermaid_graph = Journey.Tools.generate_mermaid_graph(graph)
+
+      assert mermaid_graph =~ "card_requested --> |true?| issue_card"
+      assert mermaid_graph =~ "card_requested --> |not true?| send_reminder"
+      assert mermaid_graph =~ "name --> |not provided?| ask_for_name"
+      assert mermaid_graph =~ "name --> |not| greet_stranger"
     end
 
     test "default - flow only (no legend, no timestamp)" do

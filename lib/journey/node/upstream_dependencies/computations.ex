@@ -1,8 +1,6 @@
 defmodule Journey.Node.UpstreamDependencies.Computations do
   @moduledoc false
 
-  import Journey.Node.Conditions
-
   def list_all_node_names(node_names) when is_list(node_names) do
     node_names
   end
@@ -30,29 +28,6 @@ defmodule Journey.Node.UpstreamDependencies.Computations do
   # regardless of its value. This preserves downstream values when schedule nodes
   # are paused (value=0) rather than invalidating them.
   defp provided_for_invalidation?(value_node), do: value_node.set_time != nil
-
-  def upstream_nodes_and_functions(condition_spec, mode \\ :computation)
-
-  def upstream_nodes_and_functions(node_names, mode) when is_list(node_names) do
-    condition_fn = if mode == :invalidation, do: &provided_for_invalidation?/1, else: &provided?/1
-    upstream_nodes_and_functions({:and, Enum.map(node_names, fn name -> {name, condition_fn} end)}, mode)
-  end
-
-  def upstream_nodes_and_functions({:not, {node_name, f_condition}}, _mode)
-      when is_atom(node_name) and is_function(f_condition, 1) do
-    [{node_name, f_condition}]
-  end
-
-  def upstream_nodes_and_functions({operation, conditions}, mode)
-      when operation in [:and, :or] and is_list(conditions) do
-    conditions
-    |> Enum.flat_map(fn c -> upstream_nodes_and_functions(c, mode) end)
-  end
-
-  def upstream_nodes_and_functions({upstream_node_name, f_condition}, _mode)
-      when is_atom(upstream_node_name) and is_function(f_condition, 1) do
-    [{upstream_node_name, f_condition}]
-  end
 
   def evaluate_computation_for_readiness(all_executions_values, conditions, mode \\ :computation)
 

@@ -182,19 +182,28 @@ defmodule JourneyMermaidConverter do
   end
 
   defp extract_connections(name, gated_by) do
-    node_names_and_functions = Journey.Node.UpstreamDependencies.Computations.upstream_nodes_and_functions(gated_by)
-
-    Enum.map(node_names_and_functions, fn {node_name, function} ->
-      caption =
-        function
-        |> extract_condition_function_name()
-        |> case do
-          "" -> ""
-          function_name -> "|#{function_name}|"
-        end
+    gated_by
+    |> condition_edges()
+    |> Enum.map(fn {node_name, label} ->
+      caption = if label == "", do: "", else: "|#{label}|"
 
       "        #{sanitize_name(node_name)} --> #{caption} #{sanitize_name(name)}"
     end)
+  end
+
+  # Flattens a dependency tree into a list of {upstream_node_name, edge_label} pairs.
+  defp condition_edges({:not, {node_name, f_condition}}) when is_atom(node_name) and is_function(f_condition, 1) do
+    {:name, name} = Function.info(f_condition, :name)
+    label = if named_function?(name), do: "not #{name}", else: "not"
+    [{node_name, label}]
+  end
+
+  defp condition_edges({operation, conditions}) when operation in [:and, :or] and is_list(conditions) do
+    Enum.flat_map(conditions, fn condition -> condition_edges(condition) end)
+  end
+
+  defp condition_edges({node_name, f_condition}) when is_atom(node_name) and is_function(f_condition, 1) do
+    [{node_name, extract_condition_function_name(f_condition)}]
   end
 
   defp extract_function_name(f) when is_function(f) do

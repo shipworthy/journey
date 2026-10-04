@@ -115,7 +115,7 @@ graph TD
         inform_of_rejection -->  preapproval_process_completed
         congratulate -->  schedule_request_credit_card_reminder
         schedule_request_credit_card_reminder -->  send_preapproval_reminder
-        credit_card_requested --> |true?| send_preapproval_reminder
+        credit_card_requested --> |not true?| send_preapproval_reminder
         credit_card_requested --> |true?| initiate_credit_card_issuance
         credit_card_mailed --> |true?| credit_card_mailed_notification
         initiate_credit_card_issuance -->  credit_card_mailed_notification
@@ -281,7 +281,7 @@ graph TD
         inform_of_rejection -->  preapproval_process_completed
         congratulate -->  schedule_request_credit_card_reminder
         schedule_request_credit_card_reminder -->  send_preapproval_reminder
-        credit_card_requested --> |true?| send_preapproval_reminder
+        credit_card_requested --> |not true?| send_preapproval_reminder
         credit_card_requested --> |true?| initiate_credit_card_issuance
         credit_card_mailed --> |true?| credit_card_mailed_notification
         initiate_credit_card_issuance -->  credit_card_mailed_notification
@@ -517,7 +517,7 @@ Computations:
   - send_preapproval_reminder: ⬜ :not_set (not yet attempted) | :compute
        :and
         ├─ ✅ :schedule_request_credit_card_reminder | &provided?/1 | rev 15
-        └─ ✅ :not(:credit_card_requested) | &true?/1 | rev 19
+        └─ 🛑 :not(:credit_card_requested) | &true?/1
   - inform_of_rejection: ⬜ :not_set (not yet attempted) | :compute
        🛑 :preapproval_decision | &rejected?/1
 ```
