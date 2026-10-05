@@ -7,6 +7,7 @@ defmodule Journey.Scheduler.Available do
   alias Journey.Node.UpstreamDependencies
   alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.ComputationType
   alias Journey.Persistence.Schema.Execution.Value
 
   require Logger
@@ -30,17 +31,7 @@ defmodule Journey.Scheduler.Available do
               where:
                 c.execution_id == ^execution.id and
                   c.state == ^:not_set and
-                  c.computation_type in [
-                    ^:compute,
-                    ^:mutate,
-                    ^:historian,
-                    ^:schedule_once,
-                    ^:tick_once,
-                    ^:schedule_recurring,
-                    ^:tick_recurring,
-                    ^:archive,
-                    ^:loop
-                  ],
+                  c.computation_type in ^ComputationType.values(),
               lock: "FOR UPDATE"
             )
             |> repo.all()

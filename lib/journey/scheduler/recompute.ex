@@ -6,6 +6,7 @@ defmodule Journey.Scheduler.Recompute do
 
   alias Journey.Graph
   alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.ComputationType
   alias Journey.Persistence.Schema.Execution.Value
 
   import Journey.Node.UpstreamDependencies.Computations, only: [unblocked?: 3]
@@ -32,17 +33,7 @@ defmodule Journey.Scheduler.Recompute do
             from(c in Computation,
               where:
                 c.execution_id == ^execution.id and
-                  c.computation_type in [
-                    :compute,
-                    :mutate,
-                    :historian,
-                    :schedule_once,
-                    :tick_once,
-                    :schedule_recurring,
-                    :tick_recurring,
-                    :archive,
-                    :loop
-                  ] and
+                  c.computation_type in ^ComputationType.values() and
                   c.state == :success,
               order_by: [desc: c.ex_revision_at_start],
               distinct: c.node_name,
