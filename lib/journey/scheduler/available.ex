@@ -7,6 +7,7 @@ defmodule Journey.Scheduler.Available do
   alias Journey.Node.UpstreamDependencies
   alias Journey.Persistence.Schema.Execution
   alias Journey.Persistence.Schema.Execution.Computation
+  alias Journey.Persistence.Schema.Execution.ComputationType
   alias Journey.Persistence.Schema.Execution.Value
 
   require Logger
@@ -30,17 +31,7 @@ defmodule Journey.Scheduler.Available do
               where:
                 c.execution_id == ^execution.id and
                   c.state == ^:not_set and
-                  c.computation_type in [
-                    ^:compute,
-                    ^:mutate,
-                    ^:historian,
-                    ^:schedule_once,
-                    ^:tick_once,
-                    ^:schedule_recurring,
-                    ^:tick_recurring,
-                    ^:archive,
-                    ^:loop
-                  ],
+                  c.computation_type in ^ComputationType.values(),
               lock: "FOR UPDATE"
             )
             |> repo.all()
@@ -63,18 +54,6 @@ defmodule Journey.Scheduler.Available do
             UpstreamDependencies.Computations.evaluate_computation_for_readiness(all_value_nodes, gated_by)
             |> Map.put(:computation, computation_candidate)
           end)
-          # |> Enum.map(fn c ->
-          #   summary =
-          #     Journey.Scheduler.Introspection.readiness_state(
-          #       c.ready?,
-          #       c.conditions_met,
-          #       c.conditions_not_met,
-          #       c.computation.node_name
-          #     )
-
-          #   Logger.info("#{prefix}: v0 [#{inspect(c.computation.node_name)}]\n=====\n#{summary}\n=====")
-          #   c
-          # end)
           |> Enum.filter(fn %{ready?: ready?} -> ready? end)
           |> Enum.map(fn %{ready?: true, computation: unblocked_computation, conditions_met: fulfilled_conditions} ->
             %{

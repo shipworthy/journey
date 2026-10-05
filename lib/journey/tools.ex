@@ -5,12 +5,9 @@ defmodule Journey.Tools do
 
   require Logger
 
-  import Ecto.Query
-
   alias Journey.Graph
   alias Journey.Helpers.GrabBag
   alias Journey.Persistence.Schema.Execution.Computation
-  alias Journey.Persistence.Schema.Execution.Value
 
   @doc """
   Shows the status of upstream dependencies for a computation node.
@@ -394,60 +391,20 @@ defmodule Journey.Tools do
 
   @doc false
   def outstanding_computations(execution_id) when is_binary(execution_id) do
-    execution = Journey.load(execution_id)
+    execution = Journey.load(execution_id, computations: [:not_set])
     graph = Journey.Graph.Catalog.fetch(execution.graph_name, execution.graph_version)
 
-    all_candidates_for_computation =
-      from(c in Computation,
-        where:
-          c.execution_id == ^execution_id and
-            c.state == ^:not_set and
-            c.computation_type in [
-              ^:compute,
-              ^:schedule_once,
-              ^:tick_once,
-              ^:schedule_recurring,
-              ^:tick_recurring,
-              ^:archive
-            ],
-        lock: "FOR UPDATE"
+    execution.computations
+    |> Journey.Scheduler.Helpers.reject_orphaned_computations(graph, "[#{execution_id}]")
+    |> Enum.map(fn computation ->
+      graph_node = Graph.find_node_by_name(graph, computation.node_name)
+
+      Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
+        execution.values,
+        graph_node.gated_by
       )
-      |> Journey.Repo.all()
-      |> Journey.Executions.convert_values_to_atoms(:node_name)
-
-    all_value_nodes =
-      from(v in Value, where: v.execution_id == ^execution_id)
-      |> Journey.Repo.all()
-      |> Enum.map(fn %Value{node_name: node_name} = n -> %Value{n | node_name: String.to_atom(node_name)} end)
-      |> Enum.map(fn v -> de_ecto(v) end)
-
-    all_candidates_for_computation
-    |> Enum.map(fn computation_candidate -> de_ecto(computation_candidate) end)
-    |> Enum.flat_map(fn computation_candidate ->
-      case Graph.find_node_by_name(graph, computation_candidate.node_name) do
-        nil ->
-          Logger.warning(
-            "Skipping orphaned computation node :#{computation_candidate.node_name} " <>
-              "in execution #{execution_id} — node not found in current graph definition"
-          )
-
-          []
-
-        graph_node ->
-          [
-            Journey.Node.UpstreamDependencies.Computations.evaluate_computation_for_readiness(
-              all_value_nodes,
-              Map.get(graph_node, :gated_by)
-            )
-            |> Map.put(:computation, computation_candidate)
-          ]
-      end
+      |> Map.put(:computation, computation)
     end)
-  end
-
-  defp de_ecto(ecto_struct) do
-    ecto_struct
-    |> Map.drop([:__meta__, :__struct__, :execution_id, :execution])
   end
 
   @doc false

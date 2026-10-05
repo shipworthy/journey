@@ -1516,6 +1516,31 @@ defmodule Journey.ToolsTest do
 
       stop_background_sweeps_in_test(background_sweeps_task)
     end
+
+    test "includes mutate, historian and loop nodes" do
+      graph =
+        Journey.new_graph("outstanding_computations_node_types_#{random_string()}", "v1", [
+          input(:seed),
+          input(:target),
+          mutate(:mutator, [:seed], fn %{seed: seed} -> {:ok, seed} end, mutates: :target),
+          historian(:history, [:seed]),
+          loop(:looper, [:seed], fn %{seed: seed} -> {:ok, seed} end, max_iterations: 2)
+        ])
+
+      execution = Journey.start_execution(graph)
+
+      ocs = Journey.Tools.outstanding_computations(execution.id)
+
+      node_names = ocs |> Enum.map(fn %{computation: computation} -> computation.node_name end) |> Enum.sort()
+      assert node_names == [:history, :looper, :mutator]
+
+      Enum.each(ocs, fn oc ->
+        assert oc.computation.state == :not_set
+        assert oc.ready? == false
+        assert oc.conditions_met == []
+        assert Enum.count(oc.conditions_not_met) == 1
+      end)
+    end
   end
 
   describe "retry_computation/2" do
