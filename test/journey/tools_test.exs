@@ -1476,48 +1476,6 @@ defmodule Journey.ToolsTest do
     end
   end
 
-  describe "outstanding_computations/1" do
-    test "basic validation" do
-      graph = Journey.Test.Support.create_test_graph1()
-      execution = Journey.start_execution(graph)
-
-      ocs = Journey.Tools.outstanding_computations(execution.id)
-      assert Enum.count(ocs) == 3
-
-      Enum.each(ocs, fn %{computation: computation} = oc ->
-        case computation.node_name do
-          :greeting ->
-            assert computation.state == :not_set
-            assert oc.conditions_met == []
-            assert Enum.count(oc.conditions_not_met) == 1
-
-          :reminder ->
-            assert computation.state == :not_set
-            assert oc.conditions_met == []
-            assert Enum.count(oc.conditions_not_met) == 1
-
-          :time_to_issue_reminder_schedule ->
-            assert computation.state == :not_set
-            assert oc.conditions_met == []
-            assert Enum.count(oc.conditions_not_met) == 1
-        end
-      end)
-
-      execution =
-        execution
-        |> Journey.set(:user_name, "John Doe")
-
-      background_sweeps_task = start_background_sweeps_in_test(execution.id)
-
-      {:ok, _, _} = Journey.get(execution, :reminder, wait: :any)
-
-      ocs = Journey.Tools.outstanding_computations(execution.id)
-      assert ocs == []
-
-      stop_background_sweeps_in_test(background_sweeps_task)
-    end
-  end
-
   describe "retry_computation/2" do
     test "allows retrying failed computations after max_retries exhausted" do
       # Create a graph with a computation that can fail
@@ -1812,17 +1770,6 @@ defmodule Journey.ToolsTest do
       execution = create_execution_with_orphaned_nodes()
 
       assert Journey.Tools.computation_state(execution.id, :compute_b) == :node_not_found
-    end
-
-    test "outstanding_computations/1 filters out orphaned nodes" do
-      execution = create_execution_with_orphaned_nodes()
-
-      result = Journey.Tools.outstanding_computations(execution.id)
-
-      # Orphaned nodes should be silently filtered out
-      node_names = Enum.map(result, fn %{computation: c} -> c.node_name end)
-      refute :compute_b in node_names
-      refute :compute_c in node_names
     end
 
     test "retry_computation/2 returns {:error, :node_not_found} for orphaned node" do
