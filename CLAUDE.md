@@ -34,6 +34,13 @@ If you pipe a `make` command into `tail`, prefix it with `set -o pipefail` (`set
 
 If you nonetheless end up holding truncated output and no exit code, read it instead of re-running: make aborts at the first failing target and prints `make: *** [<target>] Error N` as its very last line. Output that ends in a target's own normal output is therefore already proof that every target passed.
 
+### Scratch scripts
+
+For quick throwaway scripts, prefer Elixir (`.exs`) over Python, Perl, Ruby, elaborate shell, etc. — the toolchain is already Elixir, so there is no extra runtime setup. Save them under `scraps/` in the repo (gitignored; create the directory if it is missing) and leave them there when done (no cleanup needed).
+
+- `mix run scraps/foo.exs` - for scripts that use Journey, the Repo, or any other project code or dependency
+- `elixir scraps/foo.exs` - for standalone scripts; this runs outside the Mix project, so project modules are not available (use `Mix.install/1` at the top of the script to pull in hex packages if needed)
+
 ### Checklist for making changes
 
 Before declaring a change "done", ask yourself the following questions:
