@@ -125,6 +125,16 @@ Make sure that the list of public modules and functions in MODULES_AND_FUNCTIONS
 
 Only functions that are surfaced at the API level need to be documented. Internal functions and modules can still have documentation, but as `# ...` blocks – not surfaced to package documentation.
 
+## Preparing a New Release
+
+Do not update CHANGELOG.md as part of regular changes – it is written when preparing a release.
+
+Preparing a release involves:
+* updating CHANGELOG.md with a description of the changes that went in since the last release (possibly rewriting any notes added since the last release, if there are any, into the final release entry), and
+* updating mix.exs with the new version (`@version`).
+
+A human will then commit and merge the changes into main, create and push a new tag (`vX.Y.Z`, matching the new version in mix.exs), and publish the release by running `make hex-pm-publish`.
+
 ## Database & Testing
 
 **PostgreSQL Setup**: Development and test databases run in Docker containers
