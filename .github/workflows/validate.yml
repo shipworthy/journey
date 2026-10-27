@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        elixir: ["1.18", "1.19.1", "1.20.0"]
-        otp: ["28.4"]
+        elixir: ["1.18", "1.19.1", "1.20.4"]
+        otp: ["28.5"]
     services:
       pg:
         image: postgres:16.4-alpine
