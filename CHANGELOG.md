@@ -5,9 +5,9 @@
 - **Livebook examples**: adding a livebook for the Credit Card Application example; tidying `Journey.Examples.CreditCardApplication` (removing `test_run/0`) and `Journey.Examples.UselessMachine` docs (#349, #351, #352)
 - **`:not` conditions in tooling output**: `Journey.Tools.introspect/1` now shows the status of the negated condition, and mermaid diagrams label negated edges (e.g. `|not true?|`). Display-only, no change in scheduling behavior (#350)
 - **Docs**: docs, examples and load-test scripts now use current APIs (`Journey.get/3`, `Journey.start/1`, `sort_by:`); `MODULES_AND_FUNCTIONS.md` lists deprecated functions alongside their replacements (#353)
-- **Toolchain**: updating to Elixir 1.20.5 (CI matrix also to OTP 28.5); removing python and nodejs from `.tool-versions` (#358)
+- **Toolchain**: updating to Elixir 1.20.5, tidying `.tool-versions` (#358, #361)
 - **Dependencies**: updating ecto (3.14.3), postgrex (0.23.0), decimal (3.2.0), and ex_doc (0.40.5) (#357, #359, #360)
-- **Clean up**: removing commented-out code and deduplicating in the scheduler and `Journey.Tools` (#356); `CLAUDE.md` release instructions, retiring `GEMINI.md` (#354, #355)
+- **Clean up**: removing commented-out code and deduplicating in the scheduler and `Journey.Tools` (#356); adding release instructions to `CLAUDE.md`, retiring `GEMINI.md` (#354, #355)
 
 ## v0.11.0
 
